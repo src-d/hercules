@@ -35,6 +35,10 @@ func NewFile(time int, length int, status map[int]int64) *File {
 	return file
 }
 
+func (file *File) Len() int {
+	return file.tree.Max().Item().key
+}
+
 func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	if time < 0 {
 		panic("time may not be negative")
@@ -50,7 +54,8 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	}
 	tree := file.tree
 	if pos > tree.Max().Item().key {
-		panic("attempt to insert after the end of the file")
+		panic(fmt.Sprintf("attempt to insert after the end of the file: %d < %d",
+		                  tree.Max().Item().key, pos))
 	}
 	status := file.status
 	iter := tree.FindLE(pos)

@@ -117,6 +117,10 @@ func (analyser *Analyser) handleModification(
 	}
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(str_from, str_to)
+	if file.Len() != len(src) {
+		panic(fmt.Sprintf("%s: internal integrity error src %d != %d",
+			change.To.Name, len(src), file.Len()))
+	}
 	diffs := dmp.DiffMainRunes(src, dst, false)
 	// we do not call RunesToDiffLines so the number of lines equals
 	// to the rune count
@@ -128,6 +132,11 @@ func (analyser *Analyser) handleModification(
 				r := recover()
 				if r != nil {
 					fmt.Fprintf(os.Stderr, "%s: internal diff error\n", change.To.Name)
+					fmt.Fprint(os.Stderr, "====BEFORE====\n")
+					fmt.Fprint(os.Stderr, str_from)
+					fmt.Fprint(os.Stderr, "====AFTER====\n")
+					fmt.Fprint(os.Stderr, str_to)
+					fmt.Fprint(os.Stderr, "====END====\n")
 					panic(r)
 				}
 			}()
@@ -139,11 +148,14 @@ func (analyser *Analyser) handleModification(
 				position += length
 			case diffmatchpatch.DiffDelete:
 				file.Update(day, position, 0, length)
-				break
 			default:
 				panic(fmt.Sprintf("diff operation is not supported: %d", edit.Type))
 			}
 		}()
+	}
+	if file.Len() != len(dst) {
+		panic(fmt.Sprintf("%s: internal integrity error dst %d != %d",
+			change.To.Name, len(dst), file.Len()))
 	}
 }
 

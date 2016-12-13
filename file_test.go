@@ -48,6 +48,11 @@ func TestBullshit(t *testing.T) {
 	assert.Equal(t, int64(0), status[1])
 }
 
+func TestLen(t *testing.T) {
+	file, _ := fixture()
+	assert.Equal(t, 100, file.Len())
+}
+
 func TestInsert(t *testing.T) {
 	file, status := fixture()
 	file.Update(1, 10, 10, 0)
