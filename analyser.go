@@ -43,7 +43,7 @@ func loc(file *git.Blob) (int, error) {
 	return counter, nil
 }
 
-func str(file *git.Blob) (string, error) {
+func str(file *git.Blob) string {
 	reader, err := file.Reader()
 	if err != nil {
 		panic(err)
@@ -51,10 +51,7 @@ func str(file *git.Blob) (string, error) {
 	defer checkClose(reader)
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(reader)
-	if !utf8.Valid(buf.Bytes()) {
-		return "", errors.New("binary")
-	}
-	return buf.String(), nil
+	return buf.String()
 }
 
 func (analyser *Analyser) handleInsertion(
@@ -102,11 +99,10 @@ func (analyser *Analyser) handleModification(
 	if err != nil {
 		panic(err)
 	}
-	str_from, err := str(blob_from)
-	if err != nil {
-		return
-	}
-	str_to, _ := str(blob_to)
+	// we are not validating UTF-8 here because for example
+	// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
+	str_from := str(blob_from)
+	str_to := str(blob_to)
 	file, exists := files[change.From.Name]
 	if !exists {
 		panic(fmt.Sprintf("file %s does not exist", change.From.Name))
