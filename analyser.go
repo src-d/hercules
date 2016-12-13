@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"time"
 	"unicode/utf8"
 
@@ -14,9 +15,9 @@ import (
 )
 
 type Analyser struct {
-	Repository *git.Repository
+	Repository  *git.Repository
 	Granularity int
-	OnProgress func(int)
+	OnProgress  func(int)
 }
 
 func checkClose(c io.Closer) {
@@ -122,18 +123,27 @@ func (analyser *Analyser) handleModification(
 	position := 0
 	for _, edit := range diffs {
 		length := utf8.RuneCountInString(edit.Text)
-		switch edit.Type {
-		case diffmatchpatch.DiffEqual:
-			position += length
-		case diffmatchpatch.DiffInsert:
-			file.Update(day, position, length, 0)
-			position += length
-		case diffmatchpatch.DiffDelete:
-			file.Update(day, position, 0, length)
-			break
-		default:
-			panic(fmt.Sprintf("diff operation is not supported: %d", edit.Type))
-		}
+		func() {
+			defer func() {
+				r := recover()
+				if r != nil {
+					fmt.Fprintf(os.Stderr, "%s: internal diff error\n", change.To.Name)
+					panic(r)
+				}
+			}()
+			switch edit.Type {
+			case diffmatchpatch.DiffEqual:
+				position += length
+			case diffmatchpatch.DiffInsert:
+				file.Update(day, position, length, 0)
+				position += length
+			case diffmatchpatch.DiffDelete:
+				file.Update(day, position, 0, length)
+				break
+			default:
+				panic(fmt.Sprintf("diff operation is not supported: %d", edit.Type))
+			}
+		}()
 	}
 }
 
@@ -172,16 +182,16 @@ func (analyser *Analyser) commits() []*git.Commit {
 }
 
 func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
-  granularity := analyser.Granularity
-  result := make([]int64, day / granularity)
-  var group int64
-  for i := 0; i < day; i++ {
-	  group += status[i]
-    if i % granularity == (granularity - 1) {
-	    result[i / granularity] = group
-	    group = 0
-    }
-  }
+	granularity := analyser.Granularity
+	result := make([]int64, day/granularity)
+	var group int64
+	for i := 0; i < day; i++ {
+		group += status[i]
+		if i%granularity == (granularity - 1) {
+			result[i/granularity] = group
+			group = 0
+		}
+	}
 	return result
 }
 
@@ -253,7 +263,16 @@ func (analyser *Analyser) Analyse() [][]int64 {
 				case git.Delete:
 					analyser.handleDeletion(change, day, status, files)
 				case git.Modify:
-					analyser.handleModification(change, day, status, files)
+					func() {
+						defer func() {
+							r := recover()
+							if r != nil {
+								fmt.Fprintf(os.Stderr, "%s: modification error\n", commit.Hash.String())
+								panic(r)
+							}
+						}()
+						analyser.handleModification(change, day, status, files)
+					}()
 				default:
 					panic(fmt.Sprintf("unsupported action: %d", change.Action))
 				}
