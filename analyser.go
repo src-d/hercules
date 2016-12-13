@@ -105,7 +105,9 @@ func (analyser *Analyser) handleModification(
 	str_to := str(blob_to)
 	file, exists := files[change.From.Name]
 	if !exists {
-		panic(fmt.Sprintf("file %s does not exist", change.From.Name))
+		fmt.Fprintf(os.Stderr, "warning: file %s does not exist\n", change.From.Name)
+		analyser.handleInsertion(change, day, status, files)
+		return
 	}
 	// possible rename
 	if change.To.Name != change.From.Name {
