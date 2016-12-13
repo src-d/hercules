@@ -44,7 +44,7 @@ func main() {
 		} else {
 			repository = git.NewMemoryRepository()
 		}
-		fmt.Fprint(os.Stderr, "Cloning...\r")
+		fmt.Fprint(os.Stderr, "cloning...\r")
 		err = repository.Clone(&git.CloneOptions{
 		  URL: uri,
 	  })
@@ -64,8 +64,8 @@ func main() {
 	// core logic
 	analyser := hercules.Analyser{
 		Repository: repository,
-		OnProgress: func(commit int) {
-		  fmt.Fprintf(os.Stderr, "%d\r", commit)
+		OnProgress: func(commit, length int) {
+		  fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
 	  },
 		Granularity: granularity,
 	}

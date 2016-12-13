@@ -17,7 +17,7 @@ import (
 type Analyser struct {
 	Repository  *git.Repository
 	Granularity int
-	OnProgress  func(int)
+	OnProgress  func(int, int)
 }
 
 func checkClose(c io.Closer) {
@@ -105,7 +105,7 @@ func (analyser *Analyser) handleModification(
 	str_to := str(blob_to)
 	file, exists := files[change.From.Name]
 	if !exists {
-		fmt.Fprintf(os.Stderr, "warning: file %s does not exist\n", change.From.Name)
+		// fmt.Fprintf(os.Stderr, "warning: file %s does not exist\n", change.From.Name)
 		analyser.handleInsertion(change, day, status, files)
 		return
 	}
@@ -212,7 +212,7 @@ func (analyser *Analyser) Analyse() [][]int64 {
 	}
 	onProgress := analyser.OnProgress
 	if onProgress == nil {
-		onProgress = func(int) {}
+		onProgress = func(int, int) {}
 	}
 
 	// current daily alive number of lines; key is the number of days from the
@@ -230,7 +230,7 @@ func (analyser *Analyser) Analyse() [][]int64 {
 	prev_day := 0
 
 	for index, commit := range commits {
-		onProgress(index)
+		onProgress(index, len(commits))
 		tree, err := commit.Tree()
 		if err != nil {
 			panic(err)

@@ -55,7 +55,7 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	tree := file.tree
 	if pos > tree.Max().Item().key {
 		panic(fmt.Sprintf("attempt to insert after the end of the file: %d < %d",
-		                  tree.Max().Item().key, pos))
+			tree.Max().Item().key, pos))
 	}
 	status := file.status
 	iter := tree.FindLE(pos)
