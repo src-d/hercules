@@ -14,8 +14,14 @@ import (
 
 func main() {
 	var profile bool
+	var granularity int
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
+	flag.IntVar(&granularity, "granularity", 30, "Report granularity in days.")
 	flag.Parse()
+	if (granularity <= 0) {
+		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
+		granularity = 1
+	}
 	if profile {
 		prof, _ := os.Create("profile")
 		pprof.StartCPUProfile(prof)
@@ -61,8 +67,9 @@ func main() {
 		OnProgress: func(commit int) {
 		  fmt.Fprintf(os.Stderr, "%d\r", commit)
 	  },
+		Granularity: granularity,
 	}
-	statuses, last := analyser.Analyse()
+	statuses := analyser.Analyse()
 	fmt.Fprint(os.Stderr, "        \r")
 	if len(statuses) == 0 {
 		return
@@ -70,29 +77,22 @@ func main() {
 	// determine the maximum length of each value
 	var maxnum int64
 	for _, status := range statuses {
-		var week int64
-		for i := 0; i < last; i++ {
-			val, _ := status[i]
-			week += val
-			if i % 7 == 6 {
-				if week > maxnum {
-					maxnum = week;
-				}
-				week = 0
+		for _, val := range status {
+			if val > maxnum {
+				maxnum = val
 			}
 		}
 	}
 	width := len(strconv.FormatInt(maxnum, 10))
+	last := len(statuses[len(statuses) - 1])
 	// print the resulting triangle matrix
 	for _, status := range statuses {
-		var week int64
 		for i := 0; i < last; i++ {
-			val, _ := status[i]
-			week += val
-			if i % 7 == 6 {
-				fmt.Printf("%[1]*[2]d ", width, week)
-				week = 0
+			var val int64
+			if i < len(status) {
+				val = status[i]
 			}
+			fmt.Printf("%[1]*[2]d ", width, val)
 		}
 		println()
 	}

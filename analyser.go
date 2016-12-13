@@ -15,6 +15,7 @@ import (
 
 type Analyser struct {
 	Repository *git.Repository
+	Granularity int
 	OnProgress func(int)
 }
 
@@ -170,7 +171,25 @@ func (analyser *Analyser) commits() []*git.Commit {
 	return result
 }
 
-func (analyser *Analyser) Analyse() ([]map[int]int64, int) {
+func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
+  granularity := analyser.Granularity
+  result := make([]int64, day / granularity)
+  var group int64
+  for i := 0; i < day; i++ {
+	  group += status[i]
+    if i % granularity == (granularity - 1) {
+	    result[i / granularity] = group
+	    group = 0
+    }
+  }
+	return result
+}
+
+func (analyser *Analyser) Analyse() [][]int64 {
+	granularity := analyser.Granularity
+	if granularity == 0 {
+		granularity = 1
+	}
 	onProgress := analyser.OnProgress
 	if onProgress == nil {
 		onProgress = func(int) {}
@@ -180,7 +199,7 @@ func (analyser *Analyser) Analyse() ([]map[int]int64, int) {
 	// beginning of the history
 	status := map[int]int64{}
 	// weekly snapshots of status
-	statuses := []map[int]int64{}
+	statuses := [][]int64{}
 	// mapping <file path> -> hercules.File
 	files := map[string]*File{}
 	// list of commits belonging to the default branch, from oldest to newest
@@ -218,16 +237,10 @@ func (analyser *Analyser) Analyse() ([]map[int]int64, int) {
 			}()
 		} else {
 			day := int(commit.Author.When.Sub(day0).Hours() / 24)
-			delta := (day / 7) - (prev_day / 7)
+			delta := (day / granularity) - (prev_day / granularity)
 			if delta > 0 {
 				prev_day = day
-				status_copy := map[int]int64{}
-				for k, v := range status {
-					status_copy[k] = v
-				}
-				for i := 0; i < delta; i++ {
-					statuses = append(statuses, status_copy)
-				}
+				statuses = append(statuses, analyser.groupStatus(status, day))
 			}
 			tree_diff, err := git.DiffTree(prev_tree, tree)
 			if err != nil {
@@ -248,5 +261,5 @@ func (analyser *Analyser) Analyse() ([]map[int]int64, int) {
 		}
 		prev_tree = tree
 	}
-	return statuses, prev_day
+	return statuses
 }
