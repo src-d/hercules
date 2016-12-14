@@ -5,6 +5,11 @@ import sys
 import numpy
 
 
+if sys.version_info[0] < 3:
+    # OK, ancients, I will support Python 2, but you owe me a beer
+    input = raw_input
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="",
