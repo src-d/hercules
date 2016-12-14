@@ -115,7 +115,7 @@ func main() {
 		commits = loadCommitsFromFile(commitsFile, repository)
 	}
 	statuses := analyser.Analyse(commits)
-	fmt.Fprint(os.Stderr, "        \r")
+	fmt.Fprint(os.Stderr, "                \r")
 	if len(statuses) == 0 {
 		return
 	}
@@ -130,6 +130,8 @@ func main() {
 	}
 	width := len(strconv.FormatInt(maxnum, 10))
 	last := len(statuses[len(statuses) - 1])
+	// print the start date, granularity, sampling
+	fmt.Println(commits[0].Author.When.Unix(), granularity, sampling)
 	// print the resulting triangle matrix
 	for _, status := range statuses {
 		for i := 0; i < last; i++ {
@@ -139,6 +141,6 @@ func main() {
 			}
 			fmt.Printf("%[1]*[2]d ", width, val)
 		}
-		println()
+		fmt.Println()
 	}
 }

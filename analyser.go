@@ -197,7 +197,12 @@ func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
 	if granularity == 0 {
 		granularity = 1
 	}
-	result := make([]int64, day/granularity)
+	day++
+	adjust := 0
+	if day%granularity < granularity-1 {
+		adjust = 1
+	}
+	result := make([]int64, day/granularity+adjust)
 	var group int64
 	for i := 0; i < day; i++ {
 		group += status[i]
@@ -205,6 +210,9 @@ func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
 			result[i/granularity] = group
 			group = 0
 		}
+	}
+	if day%granularity < granularity-1 {
+		result[len(result)-1] = group
 	}
 	return result
 }
@@ -262,7 +270,10 @@ func (analyser *Analyser) Analyse(commits []*git.Commit) [][]int64 {
 			delta := (day / sampling) - (prev_day / sampling)
 			if delta > 0 {
 				prev_day = day
-				statuses = append(statuses, analyser.groupStatus(status, day))
+				gs := analyser.groupStatus(status, day)
+				for i := 0; i < delta; i++ {
+					statuses = append(statuses, gs)
+				}
 			}
 			tree_diff, err := git.DiffTree(prev_tree, tree)
 			if err != nil {
