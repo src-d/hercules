@@ -23,6 +23,7 @@ frequency with which the burnout is snapshotted. The smaller the value,
 the more smooth is the plot but the more work is done.
 
 ![git/git image](git-git.png)
+git/git burndown (granularity 365, sampling 30)
 
 ###Installation
 You are going to need Go and Python 2 or 3.
