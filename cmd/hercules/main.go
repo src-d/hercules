@@ -1,29 +1,65 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"runtime/pprof"
 	"strconv"
 	"strings"
 
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v1"
 )
 
+func loadCommitsFromFile(path string, repositry *git.Repository) []*git.Commit {
+	var file io.Reader
+	if path != "-" {
+		file, err := os.Open(path)
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+	} else {
+		file = os.Stdin
+	}
+	scanner := bufio.NewScanner(file)
+	commits := []*git.Commit{}
+	for scanner.Scan() {
+		hash := plumbing.NewHash(scanner.Text())
+		if len(hash) != 20 {
+			panic("invalid commit hash " + scanner.Text())
+		}
+		commit, err := repositry.Commit(hash)
+		if err != nil {
+			panic(err)
+		}
+		commits = append(commits, commit)
+	}
+	return commits
+}
+
 func main() {
 	var profile bool
-	var granularity int
+	var granularity, sampling int
+	var commitsFile string
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
 	flag.IntVar(&granularity, "granularity", 30, "Report granularity in days.")
+	flag.IntVar(&sampling, "sampling", 30, "Report sampling in days.")
+	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the " +
+	    "commit history to follow instead of the default rev-list " +
+			"--first-parent. The format is the list of hashes, each hash on a " +
+			"separate line. The first hash is the root.")
 	flag.Parse()
 	if (granularity <= 0) {
 		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
 		granularity = 1
 	}
 	if profile {
-		prof, _ := os.Create("profile")
+		prof, _ := os.Create("hercules.pprof")
 		pprof.StartCPUProfile(prof)
 		defer pprof.StopCPUProfile()
 	}
@@ -68,8 +104,17 @@ func main() {
 		  fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
 	  },
 		Granularity: granularity,
+		Sampling: sampling,
 	}
-	statuses := analyser.Analyse()
+	// list of commits belonging to the default branch, from oldest to newest
+	// rev-list --first-parent
+	var commits []*git.Commit
+	if commitsFile == "" {
+		commits = analyser.Commits()
+	} else {
+		commits = loadCommitsFromFile(commitsFile, repository)
+	}
+	statuses := analyser.Analyse(commits)
 	fmt.Fprint(os.Stderr, "        \r")
 	if len(statuses) == 0 {
 		return

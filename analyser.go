@@ -17,6 +17,7 @@ import (
 type Analyser struct {
 	Repository  *git.Repository
 	Granularity int
+	Sampling    int
 	OnProgress  func(int, int)
 }
 
@@ -166,7 +167,7 @@ func (analyser *Analyser) handleRename(from, to string, files map[string]*File) 
 	delete(files, from)
 }
 
-func (analyser *Analyser) commits() []*git.Commit {
+func (analyser *Analyser) Commits() []*git.Commit {
 	result := []*git.Commit{}
 	repository := analyser.Repository
 	head, err := repository.Head()
@@ -193,6 +194,9 @@ func (analyser *Analyser) commits() []*git.Commit {
 
 func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
 	granularity := analyser.Granularity
+	if granularity == 0 {
+		granularity = 1
+	}
 	result := make([]int64, day/granularity)
 	var group int64
 	for i := 0; i < day; i++ {
@@ -205,10 +209,10 @@ func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
 	return result
 }
 
-func (analyser *Analyser) Analyse() [][]int64 {
-	granularity := analyser.Granularity
-	if granularity == 0 {
-		granularity = 1
+func (analyser *Analyser) Analyse(commits []*git.Commit) [][]int64 {
+	sampling := analyser.Sampling
+	if sampling == 0 {
+		sampling = 1
 	}
 	onProgress := analyser.OnProgress
 	if onProgress == nil {
@@ -222,8 +226,6 @@ func (analyser *Analyser) Analyse() [][]int64 {
 	statuses := [][]int64{}
 	// mapping <file path> -> hercules.File
 	files := map[string]*File{}
-	// list of commits belonging to the default branch, from oldest to newest
-	commits := analyser.commits()
 
 	var day0 time.Time // will be initialized in the first iteration
 	var prev_tree *git.Tree = nil
@@ -257,7 +259,7 @@ func (analyser *Analyser) Analyse() [][]int64 {
 			}()
 		} else {
 			day := int(commit.Author.When.Sub(day0).Hours() / 24)
-			delta := (day / granularity) - (prev_day / granularity)
+			delta := (day / sampling) - (prev_day / sampling)
 			if delta > 0 {
 				prev_day = day
 				statuses = append(statuses, analyser.groupStatus(status, day))
