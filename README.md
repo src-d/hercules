@@ -22,6 +22,8 @@ to get the annual burnout plot, set granularity to 365. Sampling is the
 frequency with which the burnout is snapshotted. The smaller the value,
 the more smooth is the plot but the more work is done.
 
+![git/git image](git-git.png)
+
 ###Installation
 You are going to need Go and Python 2 or 3.
 ```
@@ -36,7 +38,7 @@ wget https://github.com/src-d/hercules/raw/master/labours.py
 hercules https://github.com/src-d/go-git | python3 labours.py
 # Use "file system" go-git backend and print the raw data.
 hercules /path/to/cloned/go-git
-#  Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache and display the plot.
+# Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache and display the plot.
 hercules https://github.com/git/git /tmp/repo-cache | python3 labours.py
 
 # Now something fun
