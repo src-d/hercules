@@ -12,6 +12,8 @@ import (
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/difftree"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 type Analyser struct {
@@ -27,7 +29,7 @@ func checkClose(c io.Closer) {
 	}
 }
 
-func loc(file *git.Blob) (int, error) {
+func loc(file *object.Blob) (int, error) {
 	reader, err := file.Reader()
 	if err != nil {
 		panic(err)
@@ -44,7 +46,7 @@ func loc(file *git.Blob) (int, error) {
 	return counter, nil
 }
 
-func str(file *git.Blob) string {
+func str(file *object.Blob) string {
 	reader, err := file.Reader()
 	if err != nil {
 		panic(err)
@@ -56,7 +58,7 @@ func str(file *git.Blob) string {
 }
 
 func (analyser *Analyser) handleInsertion(
-	change *git.Change, day int, status map[int]int64, files map[string]*File) {
+	change *difftree.Change, day int, status map[int]int64, files map[string]*File) {
 	blob, err := analyser.Repository.Blob(change.To.TreeEntry.Hash)
 	if err != nil {
 		panic(err)
@@ -75,7 +77,7 @@ func (analyser *Analyser) handleInsertion(
 }
 
 func (analyser *Analyser) handleDeletion(
-	change *git.Change, day int, status map[int]int64, files map[string]*File) {
+	change *difftree.Change, day int, status map[int]int64, files map[string]*File) {
 	blob, err := analyser.Repository.Blob(change.From.TreeEntry.Hash)
 	if err != nil {
 		panic(err)
@@ -91,7 +93,7 @@ func (analyser *Analyser) handleDeletion(
 }
 
 func (analyser *Analyser) handleModification(
-	change *git.Change, day int, status map[int]int64, files map[string]*File) {
+	change *difftree.Change, day int, status map[int]int64, files map[string]*File) {
 	blob_from, err := analyser.Repository.Blob(change.From.TreeEntry.Hash)
 	if err != nil {
 		panic(err)
@@ -167,8 +169,8 @@ func (analyser *Analyser) handleRename(from, to string, files map[string]*File) 
 	delete(files, from)
 }
 
-func (analyser *Analyser) Commits() []*git.Commit {
-	result := []*git.Commit{}
+func (analyser *Analyser) Commits() []*object.Commit {
+	result := []*object.Commit{}
 	repository := analyser.Repository
 	head, err := repository.Head()
 	if err != nil {
@@ -217,7 +219,7 @@ func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
 	return result
 }
 
-func (analyser *Analyser) Analyse(commits []*git.Commit) [][]int64 {
+func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 	sampling := analyser.Sampling
 	if sampling == 0 {
 		sampling = 1
@@ -236,7 +238,7 @@ func (analyser *Analyser) Analyse(commits []*git.Commit) [][]int64 {
 	files := map[string]*File{}
 
 	var day0 time.Time // will be initialized in the first iteration
-	var prev_tree *git.Tree = nil
+	var prev_tree *object.Tree = nil
 	prev_day := 0
 
 	for index, commit := range commits {
@@ -275,17 +277,17 @@ func (analyser *Analyser) Analyse(commits []*git.Commit) [][]int64 {
 					statuses = append(statuses, gs)
 				}
 			}
-			tree_diff, err := git.DiffTree(prev_tree, tree)
+			tree_diff, err := difftree.DiffTree(prev_tree, tree)
 			if err != nil {
 				panic(err)
 			}
 			for _, change := range tree_diff {
 				switch change.Action {
-				case git.Insert:
+				case difftree.Insert:
 					analyser.handleInsertion(change, day, status, files)
-				case git.Delete:
+				case difftree.Delete:
 					analyser.handleDeletion(change, day, status, files)
-				case git.Modify:
+				case difftree.Modify:
 					func() {
 						defer func() {
 							r := recover()

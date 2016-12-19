@@ -12,10 +12,11 @@ import (
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v1"
 )
 
-func loadCommitsFromFile(path string, repositry *git.Repository) []*git.Commit {
+func loadCommitsFromFile(path string, repository *git.Repository) []*object.Commit {
 	var file io.Reader
 	if path != "-" {
 		file, err := os.Open(path)
@@ -27,13 +28,13 @@ func loadCommitsFromFile(path string, repositry *git.Repository) []*git.Commit {
 		file = os.Stdin
 	}
 	scanner := bufio.NewScanner(file)
-	commits := []*git.Commit{}
+	commits := []*object.Commit{}
 	for scanner.Scan() {
 		hash := plumbing.NewHash(scanner.Text())
 		if len(hash) != 20 {
 			panic("invalid commit hash " + scanner.Text())
 		}
-		commit, err := repositry.Commit(hash)
+		commit, err := repository.Commit(hash)
 		if err != nil {
 			panic(err)
 		}
@@ -108,7 +109,7 @@ func main() {
 	}
 	// list of commits belonging to the default branch, from oldest to newest
 	// rev-list --first-parent
-	var commits []*git.Commit
+	var commits []*object.Commit
 	if commitsFile == "" {
 		commits = analyser.Commits()
 	} else {

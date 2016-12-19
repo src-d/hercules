@@ -1,0 +1,12 @@
+language: go
+
+go:
+  - 1.7
+
+go_import_path: gopkg.in/src-d/hercules.v1
+  
+script:
+  - go test -v -cpu=1,2 ./...
+
+notifications:
+  email: false
