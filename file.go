@@ -57,21 +57,26 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		panic(fmt.Sprintf("attempt to insert after the end of the file: %d < %d",
 			tree.Max().Item().key, pos))
 	}
+	if tree.Len() < 2 && tree.Min().Item().key != 0 {
+		panic("invalid tree state")
+	}
 	status := file.status
 	iter := tree.FindLE(pos)
 	origin := *iter.Item()
 	status[time] += int64(ins_length)
 	if del_length == 0 {
 		// simple case with insertions only
-		if origin.key < pos {
+		if origin.key < pos || (origin.value == time && pos == 0) {
 			iter = iter.Next()
 		}
 		for ; !iter.Limit(); iter = iter.Next() {
 			iter.Item().key += ins_length
 		}
-		tree.Insert(Item{key: pos, value: time})
-		if origin.key < pos {
-			tree.Insert(Item{key: pos + ins_length, value: origin.value})
+		if origin.value != time {
+			tree.Insert(Item{key: pos, value: time})
+			if origin.key < pos {
+				tree.Insert(Item{key: pos + ins_length, value: origin.value})
+			}
 		}
 		return
 	}
@@ -100,9 +105,18 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 
 	// prepare for the keys update
 	var previous *Item
-	if ins_length > 0 {
-		if origin.value != time {
-			// insert our new interval
+	if ins_length > 0 && (origin.value != time || origin.key == pos) {
+		// insert our new interval
+		if iter.Item().value == time {
+			if iter.Prev().Item().value != time {
+				iter.Item().key = pos
+			} else {
+				next_iter := iter.Next()
+				tree.DeleteWithIterator(iter)
+				iter = next_iter
+			}
+			origin.value = time // cancels the insertion after applying the delta
+		} else {
 			_, iter = tree.Insert(Item{key: pos, value: time})
 		}
 	} else {
@@ -124,7 +138,9 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		}
 	}
 	if ins_length > 0 {
-		tree.Insert(Item{pos + ins_length, origin.value})
+		if origin.value != time {
+			tree.Insert(Item{pos + ins_length, origin.value})
+		}
 	} else if (pos > origin.key && previous.value != origin.value) || pos == origin.key {
 		// continue the original interval
 		tree.Insert(Item{pos, origin.value})

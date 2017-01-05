@@ -110,6 +110,17 @@ func TestFused(t *testing.T) {
 	assert.Equal(t, int64(6), status[1])
 }
 
+func TestInsertSameTime(t *testing.T) {
+	file, status := fixture()
+	file.Update(0, 5, 10, 0)
+	dump := file.Dump()
+	// Output:
+	// 0 0
+	// 110 -1
+	assert.Equal(t, "0 0\n110 -1\n", dump)
+	assert.Equal(t, int64(110), status[0])
+}
+
 func TestInsertSameStart(t *testing.T) {
 	file, status := fixture()
 	file.Update(1, 10, 10, 0)
@@ -240,4 +251,69 @@ func TestTorture(t *testing.T) {
 	assert.Equal(t, int64(0), status[6])
 	assert.Equal(t, int64(0), status[7])
 	assert.Equal(t, int64(10), status[8])
+}
+
+func TestInsertDeleteSameTime(t *testing.T) {
+	file, status := fixture()
+	file.Update(0, 10, 10, 20)
+	dump := file.Dump()
+	assert.Equal(t, "0 0\n90 -1\n", dump)
+	assert.Equal(t, int64(90), status[0])
+	file.Update(0, 10, 20, 10)
+	dump = file.Dump()
+	assert.Equal(t, "0 0\n100 -1\n", dump)
+	assert.Equal(t, int64(100), status[0])
+}
+
+func TestBug1(t *testing.T) {
+	file, status := fixture()
+	file.Update(316, 1, 86, 0)
+	file.Update(316, 87, 0, 99)
+	file.Update(251, 0, 1, 0)
+	file.Update(251, 1, 0, 1)
+	dump := file.Dump()
+	assert.Equal(t, "0 251\n1 316\n87 -1\n", dump)
+	assert.Equal(t, int64(1), status[251])
+	assert.Equal(t, int64(86), status[316])
+	file.Update(316, 0, 0, 1)
+	file.Update(316, 0, 1, 0)
+	dump = file.Dump()
+	assert.Equal(t, "0 316\n87 -1\n", dump)
+	assert.Equal(t, int64(0), status[251])
+	assert.Equal(t, int64(87), status[316])
+}
+
+func TestBug2(t *testing.T) {
+	file, status := fixture()
+	file.Update(316, 1, 86, 0)
+	file.Update(316, 87, 0, 99)
+	file.Update(251, 0, 1, 0)
+	file.Update(251, 1, 0, 1)
+	dump := file.Dump()
+	assert.Equal(t, "0 251\n1 316\n87 -1\n", dump)
+	file.Update(316, 0, 1, 1)
+	dump = file.Dump()
+	assert.Equal(t, "0 316\n87 -1\n", dump)
+	assert.Equal(t, int64(0), status[251])
+	assert.Equal(t, int64(87), status[316])
+}
+
+func TestJoin(t *testing.T) {
+	file, status := fixture()
+	file.Update(1, 10, 10, 0)
+	file.Update(1, 30, 10, 0)
+	file.Update(1, 20, 10, 10)
+	dump := file.Dump()
+	assert.Equal(t, "0 0\n10 1\n40 0\n120 -1\n", dump)
+	assert.Equal(t, int64(90), status[0])
+	assert.Equal(t, int64(30), status[1])
+}
+
+func TestBug3(t *testing.T) {
+	file, status := fixture()
+	file.Update(0, 1, 0, 99)
+	file.Update(0, 0, 1, 1)
+	dump := file.Dump()
+	assert.Equal(t, "0 0\n1 -1\n", dump)
+	assert.Equal(t, int64(1), status[0])
 }

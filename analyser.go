@@ -108,7 +108,6 @@ func (analyser *Analyser) handleModification(
 	str_to := str(blob_to)
 	file, exists := files[change.From.Name]
 	if !exists {
-		// fmt.Fprintf(os.Stderr, "warning: file %s does not exist\n", change.From.Name)
 		analyser.handleInsertion(change, day, status, files)
 		return
 	}
@@ -126,6 +125,18 @@ func (analyser *Analyser) handleModification(
 	// we do not call RunesToDiffLines so the number of lines equals
 	// to the rune count
 	position := 0
+	pending := diffmatchpatch.Diff{Text: ""}
+
+	apply := func(edit diffmatchpatch.Diff) {
+		length := utf8.RuneCountInString(edit.Text)
+		if edit.Type == diffmatchpatch.DiffInsert {
+			file.Update(day, position, length, 0)
+			position += length
+		} else {
+			file.Update(day, position, 0, length)
+		}
+	}
+
 	for _, edit := range diffs {
 		length := utf8.RuneCountInString(edit.Text)
 		func() {
@@ -143,16 +154,35 @@ func (analyser *Analyser) handleModification(
 			}()
 			switch edit.Type {
 			case diffmatchpatch.DiffEqual:
+				if pending.Text != "" {
+					apply(pending)
+					pending.Text = ""
+				}
 				position += length
 			case diffmatchpatch.DiffInsert:
-				file.Update(day, position, length, 0)
-				position += length
+				if pending.Text != "" {
+					if pending.Type == diffmatchpatch.DiffInsert {
+						panic("DiffInsert may not appear after DiffInsert")
+					}
+					file.Update(day, position, length, utf8.RuneCountInString(pending.Text))
+					position += length
+					pending.Text = ""
+				} else {
+					pending = edit
+				}
 			case diffmatchpatch.DiffDelete:
-				file.Update(day, position, 0, length)
+				if pending.Text != "" {
+					panic("DiffDelete may not appear after DiffInsert/DiffDelete")
+				}
+				pending = edit
 			default:
 				panic(fmt.Sprintf("diff operation is not supported: %d", edit.Type))
 			}
 		}()
+	}
+	if pending.Text != "" {
+		apply(pending)
+		pending.Text = ""
 	}
 	if file.Len() != len(dst) {
 		panic(fmt.Sprintf("%s: internal integrity error dst %d != %d",
