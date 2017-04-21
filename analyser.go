@@ -12,8 +12,8 @@ import (
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/difftree"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
 type Analyser struct {
@@ -58,8 +58,8 @@ func str(file *object.Blob) string {
 }
 
 func (analyser *Analyser) handleInsertion(
-	change *difftree.Change, day int, status map[int]int64, files map[string]*File) {
-	blob, err := analyser.Repository.Blob(change.To.TreeEntry.Hash)
+	change *object.Change, day int, status map[int]int64, files map[string]*File) {
+	blob, err := analyser.Repository.BlobObject(change.To.TreeEntry.Hash)
 	if err != nil {
 		panic(err)
 	}
@@ -77,8 +77,8 @@ func (analyser *Analyser) handleInsertion(
 }
 
 func (analyser *Analyser) handleDeletion(
-	change *difftree.Change, day int, status map[int]int64, files map[string]*File) {
-	blob, err := analyser.Repository.Blob(change.From.TreeEntry.Hash)
+	change *object.Change, day int, status map[int]int64, files map[string]*File) {
+	blob, err := analyser.Repository.BlobObject(change.From.TreeEntry.Hash)
 	if err != nil {
 		panic(err)
 	}
@@ -93,12 +93,12 @@ func (analyser *Analyser) handleDeletion(
 }
 
 func (analyser *Analyser) handleModification(
-	change *difftree.Change, day int, status map[int]int64, files map[string]*File) {
-	blob_from, err := analyser.Repository.Blob(change.From.TreeEntry.Hash)
+	change *object.Change, day int, status map[int]int64, files map[string]*File) {
+	blob_from, err := analyser.Repository.BlobObject(change.From.TreeEntry.Hash)
 	if err != nil {
 		panic(err)
 	}
-	blob_to, err := analyser.Repository.Blob(change.To.TreeEntry.Hash)
+	blob_to, err := analyser.Repository.BlobObject(change.To.TreeEntry.Hash)
 	if err != nil {
 		panic(err)
 	}
@@ -206,7 +206,7 @@ func (analyser *Analyser) Commits() []*object.Commit {
 	if err != nil {
 		panic(err)
 	}
-	commit, err := repository.Commit(head.Hash())
+	commit, err := repository.CommitObject(head.Hash())
 	if err != nil {
 		panic(err)
 	}
@@ -307,17 +307,21 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 					statuses = append(statuses, gs)
 				}
 			}
-			tree_diff, err := difftree.DiffTree(prev_tree, tree)
+			tree_diff, err := object.DiffTree(prev_tree, tree)
 			if err != nil {
 				panic(err)
 			}
 			for _, change := range tree_diff {
-				switch change.Action {
-				case difftree.Insert:
+				action, err := change.Action()
+				if err != nil {
+					panic(err)
+				}
+				switch action {
+				case merkletrie.Insert:
 					analyser.handleInsertion(change, day, status, files)
-				case difftree.Delete:
+				case merkletrie.Delete:
 					analyser.handleDeletion(change, day, status, files)
-				case difftree.Modify:
+				case merkletrie.Modify:
 					func() {
 						defer func() {
 							r := recover()
