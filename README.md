@@ -27,7 +27,7 @@ the more smooth is the plot but the more work is done.
 ![git/git image](git-git.png)
 <p align="center">git/git burndown (granularity 365, sampling 30)</p>
 
-###Installation
+### Installation
 You are going to need Go and Python 2 or 3.
 ```
 go get gopkg.in/src-d/hercules.v1/cmd/hercules
@@ -35,7 +35,7 @@ pip install pandas seaborn
 wget https://github.com/src-d/hercules/raw/master/labours.py
 ```
 
-###Usage
+### Usage
 ```
 # Use "memory" go-git backend and display the plot. This is the fastest but the repository data must fit into RAM.
 hercules https://github.com/src-d/go-git | python3 labours.py
@@ -52,7 +52,7 @@ hercules https://github.com/git/git /tmp/repo-cache | python3 labours.py
 git rev-list HEAD | tac | hercules -commits - -sampling 30 -granularity 365 https://github.com/git/git | tee cache.txt | python3 labours.py --font-size 16 --backend Agg --output git.png
 ```
 
-###Caveats
+### Caveats
 1. Currently, go-git's "diff tree" algorithm's complexity is n log(n) where
 n is the number of files in the tree. Git's and libgit2's complexity
 is sublinear, almost constant because they are comparing the hashes of subtrees. go-git
@@ -63,5 +63,5 @@ Every object retrieval operation decompresses the packfiles, parses them, etc.
 Effectively, the performance **slowdown** is **100x**. This will be fixed
 in the near future too.
 
-###License
+### License
 MIT.
