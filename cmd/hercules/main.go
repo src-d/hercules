@@ -97,9 +97,6 @@ func main() {
 		if uri[len(uri)-1] == os.PathSeparator {
 			uri = uri[:len(uri)-1]
 		}
-		if !strings.HasSuffix(uri, ".git") {
-			uri += string(os.PathSeparator) + ".git"
-		}
 		repository, err = git.PlainOpen(uri)
 	}
 	if err != nil {
