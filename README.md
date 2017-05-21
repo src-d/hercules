@@ -53,12 +53,8 @@ git rev-list HEAD | tac | hercules -commits - -sampling 30 -granularity 365 http
 ```
 
 ### Caveats
-1. Currently, go-git's "diff tree" algorithm's complexity is n log(n) where
-n is the number of files in the tree. Git's and libgit2's complexity
-is sublinear, almost constant because they are comparing the hashes of subtrees. go-git
-will have the same complexity in the very near future.
 
-2. Currently, go-git's "file system" backend does not cache anything in memory.
+1. Currently, go-git's "file system" backend does not cache anything in memory.
 Every object retrieval operation decompresses the packfiles, parses them, etc.
 Effectively, the performance **slowdown** is **100x**. This will be fixed
 in the near future too.
