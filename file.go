@@ -125,12 +125,12 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	if ins_length > 0 && (origin.value != time || origin.key == pos) {
 		// insert our new interval
 		if iter.Item().value == time {
-			if iter.Prev().Item().value != time {
+			prev := iter.Prev()
+			if prev.Item().value != time {
 				iter.Item().key = pos
 			} else {
-				next_iter := iter.Next()
 				tree.DeleteWithIterator(iter)
-				iter = next_iter
+				iter = prev
 			}
 			origin.value = time // cancels the insertion after applying the delta
 		} else {

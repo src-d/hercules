@@ -144,6 +144,11 @@ func main() {
 			var val int64
 			if i < len(status) {
 				val = status[i]
+				// not sure why this sometimes happens...
+				// TODO(vmarkovtsev): find the root cause of tiny negative balances
+				if val < 0 {
+					val = 0
+				}
 			}
 			fmt.Printf("%[1]*[2]d ", width, val)
 		}

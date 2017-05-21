@@ -317,3 +317,31 @@ func TestBug3(t *testing.T) {
 	assert.Equal(t, "0 0\n1 -1\n", dump)
 	assert.Equal(t, int64(1), status[0])
 }
+
+func TestBug4(t *testing.T) {
+	status := map[int]int64{}
+	file := NewFile(0, 10, status)
+	file.Update(125, 0, 20, 9)
+	file.Update(125, 0, 20, 20)
+	file.Update(166, 12, 1, 1)
+	file.Update(214, 2, 1, 1)
+	file.Update(214, 4, 9, 0)
+	file.Update(214, 27, 1, 1)
+	file.Update(215, 3, 1, 1)
+	file.Update(215, 13, 1, 1)
+	file.Update(215, 17, 1, 1)
+	file.Update(215, 19, 5, 0)
+	file.Update(215, 25, 0, 1)
+	file.Update(215, 31, 6, 1)
+	file.Update(215, 27, 15, 0)
+	file.Update(215, 2, 25, 4)
+	file.Update(215, 28, 1, 1)
+	file.Update(215, 30, 7, 2)
+	file.Update(215, 38, 1, 0)
+	file.Update(215, 40, 4, 2)
+	file.Update(215, 46, 1, 0)
+	file.Update(215, 49, 1, 0)
+	file.Update(215, 52, 2, 6)
+	dump := file.Dump()
+	assert.Equal(t, "0 125\n2 215\n48 125\n50 215\n69 125\n73 215\n79 125\n80 0\n81 -1\n", dump)
+}
