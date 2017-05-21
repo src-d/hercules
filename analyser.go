@@ -7,20 +7,23 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"time"
 	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
 type Analyser struct {
-	Repository  *git.Repository
-	Granularity int
-	Sampling    int
-	OnProgress  func(int, int)
+	Repository          *git.Repository
+	Granularity         int
+	Sampling            int
+	SimilarityThreshold int
+	OnProgress          func(int, int)
 }
 
 func checkClose(c io.Closer) {
@@ -58,11 +61,9 @@ func str(file *object.Blob) string {
 }
 
 func (analyser *Analyser) handleInsertion(
-	change *object.Change, day int, status map[int]int64, files map[string]*File) {
-	blob, err := analyser.Repository.BlobObject(change.To.TreeEntry.Hash)
-	if err != nil {
-		panic(err)
-	}
+	change *object.Change, day int, status map[int]int64, files map[string]*File,
+	cache *map[plumbing.Hash]*object.Blob) {
+	blob := (*cache)[change.To.TreeEntry.Hash]
 	lines, err := loc(blob)
 	if err != nil {
 		return
@@ -77,11 +78,9 @@ func (analyser *Analyser) handleInsertion(
 }
 
 func (analyser *Analyser) handleDeletion(
-	change *object.Change, day int, status map[int]int64, files map[string]*File) {
-	blob, err := analyser.Repository.BlobObject(change.From.TreeEntry.Hash)
-	if err != nil {
-		panic(err)
-	}
+	change *object.Change, day int, status map[int]int64, files map[string]*File,
+	cache *map[plumbing.Hash]*object.Blob) {
+	blob := (*cache)[change.From.TreeEntry.Hash]
 	lines, err := loc(blob)
 	if err != nil {
 		return
@@ -93,22 +92,17 @@ func (analyser *Analyser) handleDeletion(
 }
 
 func (analyser *Analyser) handleModification(
-	change *object.Change, day int, status map[int]int64, files map[string]*File) {
-	blob_from, err := analyser.Repository.BlobObject(change.From.TreeEntry.Hash)
-	if err != nil {
-		panic(err)
-	}
-	blob_to, err := analyser.Repository.BlobObject(change.To.TreeEntry.Hash)
-	if err != nil {
-		panic(err)
-	}
+	change *object.Change, day int, status map[int]int64, files map[string]*File,
+	cache *map[plumbing.Hash]*object.Blob) {
+	blob_from := (*cache)[change.From.TreeEntry.Hash]
+	blob_to := (*cache)[change.To.TreeEntry.Hash]
 	// we are not validating UTF-8 here because for example
 	// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
 	str_from := str(blob_from)
 	str_to := str(blob_to)
 	file, exists := files[change.From.Name]
 	if !exists {
-		analyser.handleInsertion(change, day, status, files)
+		analyser.handleInsertion(change, day, status, files, cache)
 		return
 	}
 	// possible rename
@@ -249,6 +243,216 @@ func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
 	return result
 }
 
+type sortableChange struct {
+	change *object.Change
+	hash   plumbing.Hash
+}
+
+type sortableChanges []sortableChange
+
+func (change *sortableChange) Less(other *sortableChange) bool {
+	for x := 0; x < 20; x++ {
+		if change.hash[x] < other.hash[x] {
+			return true
+		}
+	}
+	return false
+}
+
+func (slice sortableChanges) Len() int {
+	return len(slice)
+}
+
+func (slice sortableChanges) Less(i, j int) bool {
+	return slice[i].Less(&slice[j])
+}
+
+func (slice sortableChanges) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+type sortableBlob struct {
+	change *object.Change
+	size   int64
+}
+
+type sortableBlobs []sortableBlob
+
+func (change *sortableBlob) Less(other *sortableBlob) bool {
+	return change.size < other.size
+}
+
+func (slice sortableBlobs) Len() int {
+	return len(slice)
+}
+
+func (slice sortableBlobs) Less(i, j int) bool {
+	return slice[i].Less(&slice[j])
+}
+
+func (slice sortableBlobs) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func (analyser *Analyser) sizesAreClose(size1 int64, size2 int64) bool {
+	return abs64(size1-size2)*100/min64(size1, size2) <=
+		int64(100-analyser.SimilarityThreshold)
+}
+
+func (analyser *Analyser) blobsAreClose(
+	blob1 *object.Blob, blob2 *object.Blob) bool {
+	str_from := str(blob1)
+	str_to := str(blob2)
+	dmp := diffmatchpatch.New()
+	src, dst, _ := dmp.DiffLinesToRunes(str_from, str_to)
+	diffs := dmp.DiffMainRunes(src, dst, false)
+	common := 0
+	for _, edit := range diffs {
+		if edit.Type == diffmatchpatch.DiffEqual {
+			common += utf8.RuneCountInString(edit.Text)
+		}
+	}
+	return common*100/min(len(src), len(dst)) >=
+		analyser.SimilarityThreshold
+}
+
+func (analyser *Analyser) getBlob(hash plumbing.Hash) *object.Blob {
+	blob, err := analyser.Repository.BlobObject(hash)
+	if err != nil {
+		panic(err)
+	}
+	return blob
+}
+
+func (analyser *Analyser) cacheBlobs(changes object.Changes) *map[plumbing.Hash]*object.Blob {
+	cache := make(map[plumbing.Hash]*object.Blob)
+	for _, change := range changes {
+		action, err := change.Action()
+		if err != nil {
+			panic(err)
+		}
+		switch action {
+		case merkletrie.Insert:
+			cache[change.To.TreeEntry.Hash] = analyser.getBlob(change.To.TreeEntry.Hash)
+		case merkletrie.Delete:
+			cache[change.From.TreeEntry.Hash] = analyser.getBlob(change.From.TreeEntry.Hash)
+		case merkletrie.Modify:
+			cache[change.To.TreeEntry.Hash] = analyser.getBlob(change.To.TreeEntry.Hash)
+			cache[change.From.TreeEntry.Hash] = analyser.getBlob(change.From.TreeEntry.Hash)
+		default:
+			panic(fmt.Sprintf("unsupported action: %d", change.Action))
+		}
+	}
+	return &cache
+}
+
+func (analyser *Analyser) detectRenames(
+	changes object.Changes, cache *map[plumbing.Hash]*object.Blob) object.Changes {
+	reduced_changes := make(object.Changes, 0, changes.Len())
+
+	// Stage 1 - find renames by matching the hashes
+	// n log(n)
+	// We sort additions and deletions by hash and then do the single scan along
+	// both slices.
+	deleted := make(sortableChanges, 0, changes.Len())
+	added := make(sortableChanges, 0, changes.Len())
+	for _, change := range changes {
+		action, err := change.Action()
+		if err != nil {
+			panic(err)
+		}
+		switch action {
+		case merkletrie.Insert:
+			added = append(added, sortableChange{change, change.To.TreeEntry.Hash})
+		case merkletrie.Delete:
+			deleted = append(deleted, sortableChange{change, change.From.TreeEntry.Hash})
+		case merkletrie.Modify:
+			reduced_changes = append(reduced_changes, change)
+		default:
+			panic(fmt.Sprintf("unsupported action: %d", change.Action))
+		}
+	}
+	sort.Sort(deleted)
+	sort.Sort(added)
+	a := 0
+	d := 0
+	still_deleted := make(object.Changes, 0, deleted.Len())
+	still_added := make(object.Changes, 0, added.Len())
+	for a < added.Len() && d < deleted.Len() {
+		if added[a].hash == deleted[d].hash {
+			reduced_changes = append(
+				reduced_changes,
+				&object.Change{From: deleted[d].change.From, To: added[a].change.To})
+			a++
+			d++
+		} else if added[a].Less(&deleted[d]) {
+			still_added = append(still_added, added[a].change)
+			a++
+		} else {
+			still_deleted = append(still_deleted, deleted[d].change)
+			d++
+		}
+	}
+	for ; a < added.Len(); a++ {
+		still_added = append(still_added, added[a].change)
+	}
+	for ; d < deleted.Len(); d++ {
+		still_deleted = append(still_deleted, deleted[d].change)
+	}
+
+	// Stage 2 - apply the similarity threshold
+	// n^2 but actually linear
+	// We sort the blobs by size and do the single linear scan.
+	added_blobs := make(sortableBlobs, 0, still_added.Len())
+	deleted_blobs := make(sortableBlobs, 0, still_deleted.Len())
+	for _, change := range still_added {
+		blob := (*cache)[change.To.TreeEntry.Hash]
+		added_blobs = append(
+			added_blobs, sortableBlob{change: change, size: blob.Size})
+	}
+	for _, change := range still_deleted {
+		blob := (*cache)[change.From.TreeEntry.Hash]
+		deleted_blobs = append(
+			deleted_blobs, sortableBlob{change: change, size: blob.Size})
+	}
+	sort.Sort(added_blobs)
+	sort.Sort(deleted_blobs)
+	d_start := 0
+	for a = 0; a < added_blobs.Len(); a++ {
+		my_blob := (*cache)[added_blobs[a].change.To.TreeEntry.Hash]
+		my_size := added_blobs[a].size
+		for d = d_start; d < deleted_blobs.Len() && !analyser.sizesAreClose(my_size, deleted_blobs[d].size); d++ {
+		}
+		d_start = d
+		found_match := false
+		for d = d_start; d < deleted_blobs.Len() && analyser.sizesAreClose(my_size, deleted_blobs[d].size); d++ {
+			if analyser.blobsAreClose(
+				my_blob, (*cache)[deleted_blobs[d].change.From.TreeEntry.Hash]) {
+				found_match = true
+				reduced_changes = append(
+					reduced_changes,
+					&object.Change{From: deleted_blobs[d].change.From,
+						To: added_blobs[a].change.To})
+				break
+			}
+		}
+		if found_match {
+			added_blobs = append(added_blobs[:a], added_blobs[a+1:]...)
+			a--
+			deleted_blobs = append(deleted_blobs[:d], deleted_blobs[d+1:]...)
+		}
+	}
+
+	// Stage 3 - we give up, everything left are independent additions and deletions
+	for _, blob := range added_blobs {
+		reduced_changes = append(reduced_changes, blob.change)
+	}
+	for _, blob := range deleted_blobs {
+		reduced_changes = append(reduced_changes, blob.change)
+	}
+	return reduced_changes
+}
+
 func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 	sampling := analyser.Sampling
 	if sampling == 0 {
@@ -257,6 +461,9 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 	onProgress := analyser.OnProgress
 	if onProgress == nil {
 		onProgress = func(int, int) {}
+	}
+	if analyser.SimilarityThreshold < 0 || analyser.SimilarityThreshold > 100 {
+		panic("hercules.Analyser: an invalid SimilarityThreshold was specified")
 	}
 
 	// current daily alive number of lines; key is the number of days from the
@@ -311,6 +518,8 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 			if err != nil {
 				panic(err)
 			}
+			cache := analyser.cacheBlobs(tree_diff)
+			tree_diff = analyser.detectRenames(tree_diff, cache)
 			for _, change := range tree_diff {
 				action, err := change.Action()
 				if err != nil {
@@ -318,9 +527,9 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 				}
 				switch action {
 				case merkletrie.Insert:
-					analyser.handleInsertion(change, day, status, files)
+					analyser.handleInsertion(change, day, status, files, cache)
 				case merkletrie.Delete:
-					analyser.handleDeletion(change, day, status, files)
+					analyser.handleDeletion(change, day, status, files, cache)
 				case merkletrie.Modify:
 					func() {
 						defer func() {
@@ -330,10 +539,8 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 								panic(r)
 							}
 						}()
-						analyser.handleModification(change, day, status, files)
+						analyser.handleModification(change, day, status, files, cache)
 					}()
-				default:
-					panic(fmt.Sprintf("unsupported action: %d", change.Action))
 				}
 			}
 		}

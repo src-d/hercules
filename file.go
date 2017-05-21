@@ -9,7 +9,17 @@ type File struct {
 
 const TreeEnd int = -1
 
+// An ugly side of Go.
+// template <typename T> please!
+
 func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func min64(a int64, b int64) int64 {
 	if a < b {
 		return a
 	}
@@ -21,6 +31,13 @@ func max(a int, b int) int {
 		return b
 	}
 	return a
+}
+
+func abs64(v int64) int64 {
+	if v <= 0 {
+		return -v
+	}
+	return v
 }
 
 func NewFile(time int, length int, status map[int]int64) *File {
