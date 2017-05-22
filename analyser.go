@@ -295,7 +295,7 @@ func (slice sortableBlobs) Swap(i, j int) {
 }
 
 func (analyser *Analyser) sizesAreClose(size1 int64, size2 int64) bool {
-	return abs64(size1-size2)*100/min64(size1, size2) <=
+	return abs64(size1-size2)*100/max64(1, min64(size1, size2)) <=
 		int64(100-analyser.SimilarityThreshold)
 }
 

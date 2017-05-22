@@ -33,6 +33,13 @@ func max(a int, b int) int {
 	return a
 }
 
+func max64(a int64, b int64) int64 {
+	if a < b {
+		return b
+	}
+	return a
+}
+
 func abs64(v int64) int64 {
 	if v <= 0 {
 		return -v
