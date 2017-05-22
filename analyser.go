@@ -138,11 +138,9 @@ func (analyser *Analyser) handleModification(
 				r := recover()
 				if r != nil {
 					fmt.Fprintf(os.Stderr, "%s: internal diff error\n", change.To.Name)
-					fmt.Fprint(os.Stderr, "====BEFORE====\n")
-					fmt.Fprint(os.Stderr, str_from)
-					fmt.Fprint(os.Stderr, "====AFTER====\n")
-					fmt.Fprint(os.Stderr, str_to)
-					fmt.Fprint(os.Stderr, "====END====\n")
+					fmt.Fprintf(os.Stderr, "Update(%d, %d, %d, %d)\n", position, length,
+						          day, utf8.RuneCountInString(pending.Text))
+					fmt.Fprintf(os.Stderr, "====TREE====\n%s====END====\n", file.Dump())
 					panic(r)
 				}
 			}()
@@ -535,7 +533,8 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 						defer func() {
 							r := recover()
 							if r != nil {
-								fmt.Fprintf(os.Stderr, "%s: modification error\n", commit.Hash.String())
+								fmt.Fprintf(os.Stderr, "#%d - %s: modification error\n",
+									          index, commit.Hash.String())
 								panic(r)
 							}
 						}()
