@@ -23,6 +23,7 @@ type Analyser struct {
 	Granularity         int
 	Sampling            int
 	SimilarityThreshold int
+	Debug               bool
 	OnProgress          func(int, int)
 }
 
@@ -129,6 +130,14 @@ func (analyser *Analyser) handleModification(
 		} else {
 			file.Update(day, position, 0, length)
 		}
+		if analyser.Debug {
+			file.Validate()
+		}
+	}
+
+	dump_before := ""
+	if analyser.Debug {
+		dump_before = file.Dump()
 	}
 
 	for _, edit := range diffs {
@@ -138,9 +147,12 @@ func (analyser *Analyser) handleModification(
 				r := recover()
 				if r != nil {
 					fmt.Fprintf(os.Stderr, "%s: internal diff error\n", change.To.Name)
-					fmt.Fprintf(os.Stderr, "Update(%d, %d, %d, %d)\n", position, length,
-						          day, utf8.RuneCountInString(pending.Text))
-					fmt.Fprintf(os.Stderr, "====TREE====\n%s====END====\n", file.Dump())
+					fmt.Fprintf(os.Stderr, "Update(%d, %d, %d, %d)\n", day, position,
+						length, utf8.RuneCountInString(pending.Text))
+					if dump_before != "" {
+						fmt.Fprintf(os.Stderr, "====TREE BEFORE====\n%s====END====\n", dump_before)
+					}
+					fmt.Fprintf(os.Stderr, "====TREE AFTER====\n%s====END====\n", file.Dump())
 					panic(r)
 				}
 			}()
@@ -157,6 +169,9 @@ func (analyser *Analyser) handleModification(
 						panic("DiffInsert may not appear after DiffInsert")
 					}
 					file.Update(day, position, length, utf8.RuneCountInString(pending.Text))
+					if analyser.Debug {
+						file.Validate()
+					}
 					position += length
 					pending.Text = ""
 				} else {
@@ -534,7 +549,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 							r := recover()
 							if r != nil {
 								fmt.Fprintf(os.Stderr, "#%d - %s: modification error\n",
-									          index, commit.Hash.String())
+									index, commit.Hash.String())
 								panic(r)
 							}
 						}()

@@ -51,11 +51,13 @@ func main() {
 	var profile bool
 	var granularity, sampling, similarity_threshold int
 	var commitsFile string
+	var debug bool
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
 	flag.IntVar(&granularity, "granularity", 30, "Report granularity in days.")
 	flag.IntVar(&sampling, "sampling", 30, "Report sampling in days.")
 	flag.IntVar(&similarity_threshold, "M", 90,
 		"A threshold on the similarity index used to detect renames.")
+	flag.BoolVar(&debug, "debug", false, "Validate the trees on each step.")
 	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
 		"commit history to follow instead of the default rev-list "+
 		"--first-parent. The format is the list of hashes, each hash on a "+
@@ -111,6 +113,7 @@ func main() {
 		Granularity:         granularity,
 		Sampling:            sampling,
 		SimilarityThreshold: similarity_threshold,
+		Debug:               debug,
 	}
 	// list of commits belonging to the default branch, from oldest to newest
 	// rev-list --first-parent

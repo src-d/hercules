@@ -179,3 +179,20 @@ func (file *File) Dump() string {
 	}
 	return buffer
 }
+
+func (file *File) Validate() {
+	if file.tree.Min().Item().key != 0 {
+		panic("the tree must start with key 0")
+	}
+	if file.tree.Max().Item().value != -1 {
+		panic(fmt.Sprintf("the last value in the tree must be %d", TreeEnd))
+	}
+	prev_key := -1
+	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
+		node := iter.Item()
+		if node.key == prev_key {
+			panic(fmt.Sprintf("duplicate tree key: %d", node.key))
+		}
+		prev_key = node.key
+	}
+}
