@@ -135,19 +135,18 @@ func (analyser *Analyser) handleModification(
 		}
 	}
 
-	dump_before := ""
-	if analyser.Debug {
-		dump_before = file.Dump()
-	}
-
 	for _, edit := range diffs {
+		dump_before := ""
+		if analyser.Debug {
+			dump_before = file.Dump()
+		}
 		length := utf8.RuneCountInString(edit.Text)
 		func() {
 			defer func() {
 				r := recover()
 				if r != nil {
 					fmt.Fprintf(os.Stderr, "%s: internal diff error\n", change.To.Name)
-					fmt.Fprintf(os.Stderr, "Update(%d, %d, %d, %d)\n", day, position,
+					fmt.Fprintf(os.Stderr, "Update(%d, %d, %d (0), %d (0))\n", day, position,
 						length, utf8.RuneCountInString(pending.Text))
 					if dump_before != "" {
 						fmt.Fprintf(os.Stderr, "====TREE BEFORE====\n%s====END====\n", dump_before)

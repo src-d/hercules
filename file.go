@@ -59,6 +59,20 @@ func NewFile(time int, length int, status map[int]int64) *File {
 	return file
 }
 
+func NewFileFromTree(keys []int, vals []int, status map[int]int64) *File {
+	file := new(File)
+	file.status = status
+	file.tree = new(RBTree)
+	if len(keys) != len(vals) {
+		panic("keys and vals must be of equal length")
+	}
+	for i := 0; i < len(keys); i++ {
+		file.tree.Insert(Item{key: keys[i], value: vals[i]})
+	}
+	file.Validate()
+	return file
+}
+
 func (file *File) Len() int {
 	return file.tree.Max().Item().key
 }
@@ -161,11 +175,15 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 			origin.key += delta
 		}
 	}
+
 	if ins_length > 0 {
 		if origin.value != time {
 			tree.Insert(Item{pos + ins_length, origin.value})
+		} else if pos == 0 {
+			// recover the beginning
+			tree.Insert(Item{pos, time})
 		}
-	} else if (pos > origin.key && previous.value != origin.value) || pos == origin.key {
+	} else if (pos > origin.key && previous.value != origin.value) || pos == origin.key || pos == 0 {
 		// continue the original interval
 		tree.Insert(Item{pos, origin.value})
 	}

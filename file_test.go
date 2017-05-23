@@ -345,3 +345,20 @@ func TestBug4(t *testing.T) {
 	dump := file.Dump()
 	assert.Equal(t, "0 125\n2 215\n48 125\n50 215\n69 125\n73 215\n79 125\n80 0\n81 -1\n", dump)
 }
+
+func TestBug5(t *testing.T) {
+	status := map[int]int64{}
+	keys := []int{0, 2, 4, 7, 10}
+	vals := []int{24, 28, 24, 28, -1}
+	file := NewFileFromTree(keys, vals, status)
+	file.Update(28, 0, 1, 3)
+	dump := file.Dump()
+	assert.Equal(t, "0 28\n2 24\n5 28\n8 -1\n", dump)
+
+	keys = []int{0, 1, 16, 18,}
+	vals = []int{305, 0, 157, -1}
+	file = NewFileFromTree(keys, vals, status)
+	file.Update(310, 0, 0, 2)
+	dump = file.Dump()
+	assert.Equal(t, "0 0\n14 157\n16 -1\n", dump)
+}
