@@ -324,7 +324,7 @@ func (analyser *Analyser) blobsAreClose(
 			common += utf8.RuneCountInString(edit.Text)
 		}
 	}
-	return common*100/min(len(src), len(dst)) >=
+	return common*100/max(1, min(len(src), len(dst))) >=
 		analyser.SimilarityThreshold
 }
 
