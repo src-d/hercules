@@ -1,7 +1,8 @@
 language: go
 
 go:
-  - 1.7
+  - 1.8
+  - master
 
 go_import_path: gopkg.in/src-d/hercules.v1
   
