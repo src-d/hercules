@@ -13,10 +13,10 @@ import (
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/go-git.v4/config"
 )
 
 type Analyser struct {
@@ -105,6 +105,10 @@ func (obj DummyEncodedObject) Reader() (io.ReadCloser, error) {
 
 func (obj DummyEncodedObject) Writer() (io.WriteCloser, error) {
 	return DummyIO{}, nil
+}
+
+func createDummyBlob(hash *plumbing.Hash) (*object.Blob, error) {
+	return object.DecodeBlob(DummyEncodedObject{*hash})
 }
 
 func (analyser *Analyser) handleInsertion(
@@ -375,7 +379,7 @@ func (analyser *Analyser) blobsAreClose(
 }
 
 func (analyser *Analyser) getBlob(entry *object.ChangeEntry, commit *object.Commit) (
-		*object.Blob, error) {
+	*object.Blob, error) {
 	blob, err := analyser.Repository.BlobObject(entry.TreeEntry.Hash)
 	if err != nil {
 		if err.Error() != git.ErrObjectNotFound.Error() {
@@ -398,7 +402,7 @@ func (analyser *Analyser) getBlob(entry *object.ChangeEntry, commit *object.Comm
 		_, exists := modules.Submodules[entry.Name]
 		if exists {
 			// we found that this is a submodule
-			return object.DecodeBlob(DummyEncodedObject{entry.TreeEntry.Hash})
+			return createDummyBlob(&entry.TreeEntry.Hash)
 		}
 		return nil, err
 	}
@@ -406,7 +410,7 @@ func (analyser *Analyser) getBlob(entry *object.ChangeEntry, commit *object.Comm
 }
 
 func (analyser *Analyser) cacheBlobs(changes *object.Changes, commit *object.Commit) (
-		*map[plumbing.Hash]*object.Blob, error) {
+	*map[plumbing.Hash]*object.Blob, error) {
 	cache := make(map[plumbing.Hash]*object.Blob)
 	for _, change := range *changes {
 		action, err := change.Action()
@@ -422,7 +426,12 @@ func (analyser *Analyser) cacheBlobs(changes *object.Changes, commit *object.Com
 		case merkletrie.Delete:
 			cache[change.From.TreeEntry.Hash], err = analyser.getBlob(&change.From, commit)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
+				if err.Error() != git.ErrObjectNotFound.Error() {
+					fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
+				} else {
+					cache[change.From.TreeEntry.Hash], err = createDummyBlob(
+						&change.From.TreeEntry.Hash)
+				}
 			}
 		case merkletrie.Modify:
 			cache[change.To.TreeEntry.Hash], err = analyser.getBlob(&change.To, commit)
