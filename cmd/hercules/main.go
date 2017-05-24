@@ -9,6 +9,8 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"net/http"
+	_ "net/http/pprof"
 
 	"gopkg.in/src-d/go-billy.v2/osfs"
 	"gopkg.in/src-d/go-git.v4"
@@ -68,6 +70,7 @@ func main() {
 		granularity = 1
 	}
 	if profile {
+		go http.ListenAndServe("localhost:6060", nil)
 		prof, _ := os.Create("hercules.pprof")
 		pprof.StartCPUProfile(prof)
 		defer pprof.StopCPUProfile()

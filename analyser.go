@@ -16,6 +16,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
+	"gopkg.in/src-d/go-git.v4/config"
 )
 
 type Analyser struct {
@@ -59,6 +60,51 @@ func str(file *object.Blob) string {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(reader)
 	return buf.String()
+}
+
+type DummyIO struct {
+}
+
+func (DummyIO) Read(p []byte) (int, error) {
+	return 0, io.EOF
+}
+
+func (DummyIO) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (DummyIO) Close() error {
+	return nil
+}
+
+type DummyEncodedObject struct {
+	FakeHash plumbing.Hash
+}
+
+func (obj DummyEncodedObject) Hash() plumbing.Hash {
+	return obj.FakeHash
+}
+
+func (obj DummyEncodedObject) Type() plumbing.ObjectType {
+	return plumbing.BlobObject
+}
+
+func (obj DummyEncodedObject) SetType(plumbing.ObjectType) {
+}
+
+func (obj DummyEncodedObject) Size() int64 {
+	return 0
+}
+
+func (obj DummyEncodedObject) SetSize(int64) {
+}
+
+func (obj DummyEncodedObject) Reader() (io.ReadCloser, error) {
+	return DummyIO{}, nil
+}
+
+func (obj DummyEncodedObject) Writer() (io.WriteCloser, error) {
+	return DummyIO{}, nil
 }
 
 func (analyser *Analyser) handleInsertion(
@@ -328,38 +374,77 @@ func (analyser *Analyser) blobsAreClose(
 		analyser.SimilarityThreshold
 }
 
-func (analyser *Analyser) getBlob(hash plumbing.Hash) *object.Blob {
-	blob, err := analyser.Repository.BlobObject(hash)
+func (analyser *Analyser) getBlob(entry *object.ChangeEntry, commit *object.Commit) (
+		*object.Blob, error) {
+	blob, err := analyser.Repository.BlobObject(entry.TreeEntry.Hash)
 	if err != nil {
-		panic(err)
+		if err.Error() != git.ErrObjectNotFound.Error() {
+			fmt.Fprintf(os.Stderr, "getBlob(%s)\n", entry.TreeEntry.Hash.String())
+			return nil, err
+		}
+		file, err_modules := commit.File(".gitmodules")
+		if err_modules != nil {
+			return nil, err
+		}
+		contents, err_modules := file.Contents()
+		if err_modules != nil {
+			return nil, err
+		}
+		modules := config.NewModules()
+		err_modules = modules.Unmarshal([]byte(contents))
+		if err_modules != nil {
+			return nil, err
+		}
+		_, exists := modules.Submodules[entry.Name]
+		if exists {
+			// we found that this is a submodule
+			return object.DecodeBlob(DummyEncodedObject{entry.TreeEntry.Hash})
+		}
+		return nil, err
 	}
-	return blob
+	return blob, nil
 }
 
-func (analyser *Analyser) cacheBlobs(changes object.Changes) *map[plumbing.Hash]*object.Blob {
+func (analyser *Analyser) cacheBlobs(changes *object.Changes, commit *object.Commit) (
+		*map[plumbing.Hash]*object.Blob, error) {
 	cache := make(map[plumbing.Hash]*object.Blob)
-	for _, change := range changes {
+	for _, change := range *changes {
 		action, err := change.Action()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		switch action {
 		case merkletrie.Insert:
-			cache[change.To.TreeEntry.Hash] = analyser.getBlob(change.To.TreeEntry.Hash)
+			cache[change.To.TreeEntry.Hash], err = analyser.getBlob(&change.To, commit)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "file to %s\n", change.To.Name)
+			}
 		case merkletrie.Delete:
-			cache[change.From.TreeEntry.Hash] = analyser.getBlob(change.From.TreeEntry.Hash)
+			cache[change.From.TreeEntry.Hash], err = analyser.getBlob(&change.From, commit)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
+			}
 		case merkletrie.Modify:
-			cache[change.To.TreeEntry.Hash] = analyser.getBlob(change.To.TreeEntry.Hash)
-			cache[change.From.TreeEntry.Hash] = analyser.getBlob(change.From.TreeEntry.Hash)
+			cache[change.To.TreeEntry.Hash], err = analyser.getBlob(&change.To, commit)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "file to %s\n", change.To.Name)
+			}
+			cache[change.From.TreeEntry.Hash], err = analyser.getBlob(&change.From, commit)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
+			}
 		default:
 			panic(fmt.Sprintf("unsupported action: %d", change.Action))
 		}
+		if err != nil {
+			return nil, err
+		}
 	}
-	return &cache
+	return &cache, nil
 }
 
 func (analyser *Analyser) detectRenames(
-	changes object.Changes, cache *map[plumbing.Hash]*object.Blob) object.Changes {
+	changes *object.Changes, cache *map[plumbing.Hash]*object.Blob) object.Changes {
 	reduced_changes := make(object.Changes, 0, changes.Len())
 
 	// Stage 1 - find renames by matching the hashes
@@ -368,7 +453,7 @@ func (analyser *Analyser) detectRenames(
 	// both slices.
 	deleted := make(sortableChanges, 0, changes.Len())
 	added := make(sortableChanges, 0, changes.Len())
-	for _, change := range changes {
+	for _, change := range *changes {
 		action, err := change.Action()
 		if err != nil {
 			panic(err)
@@ -528,13 +613,19 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 			}
 			tree_diff, err := object.DiffTree(prev_tree, tree)
 			if err != nil {
+				fmt.Fprintf(os.Stderr, "commit #%d %s\n", index, commit.Hash.String())
 				panic(err)
 			}
-			cache := analyser.cacheBlobs(tree_diff)
-			tree_diff = analyser.detectRenames(tree_diff, cache)
+			cache, err := analyser.cacheBlobs(&tree_diff, commit)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "commit #%d %s\n", index, commit.Hash.String())
+				panic(err)
+			}
+			tree_diff = analyser.detectRenames(&tree_diff, cache)
 			for _, change := range tree_diff {
 				action, err := change.Action()
 				if err != nil {
+					fmt.Fprintf(os.Stderr, "commit #%d %s\n", index, commit.Hash.String())
 					panic(err)
 				}
 				switch action {
