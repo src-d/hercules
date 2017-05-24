@@ -25,7 +25,7 @@ frequency with which the burnout is snapshotted. The smaller the value,
 the more smooth is the plot but the more work is done.
 
 ![git/git image](git-git.png)
-<p align="center">git/git burndown (granularity 365, sampling 30)</p>
+<p align="center">git/git burndown (granularity 365, sampling 30, no resampling)</p>
 
 ### Installation
 You are going to need Go and Python 2 or 3.
@@ -38,26 +38,26 @@ wget https://github.com/src-d/hercules/raw/master/labours.py
 ### Usage
 ```
 # Use "memory" go-git backend and display the plot. This is the fastest but the repository data must fit into RAM.
-hercules https://github.com/src-d/go-git | python3 labours.py
+hercules https://github.com/src-d/go-git | python3 labours.py --resample month
 # Use "file system" go-git backend and print the raw data.
 hercules /path/to/cloned/go-git
 # Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache and display the plot.
-hercules https://github.com/git/git /tmp/repo-cache | python3 labours.py
+hercules https://github.com/git/git /tmp/repo-cache | python3 labours.py --resample month
 
 # Now something fun
 # Get the linear history from git rev-list, reverse it
-# Pipe to hercules, produce the snapshot every 30 days with 1 year grouping
+# Pipe to hercules, produce the snapshots for every 30 days grouped by 30 days
 # Save the raw data to cache.txt, so that later simply cat cache.txt | python3 labours.py
 # Pipe the raw data to labours.py, set text font size to 16pt, use Agg matplotlib backend and save the plot to output.png
-git rev-list HEAD | tac | hercules -commits - -sampling 30 -granularity 365 https://github.com/git/git | tee cache.txt | python3 labours.py --font-size 16 --backend Agg --output git.png
+git rev-list HEAD | tac | hercules -commits - https://github.com/git/git | tee cache.txt | python3 labours.py --font-size 16 --backend Agg --output git.png
 ```
 
 ### Caveats
 
 1. Currently, go-git's "file system" backend does not cache anything in memory.
 Every object retrieval operation decompresses the packfiles, parses them, etc.
-Effectively, the performance **slowdown** is **100x**. This will be fixed
-in the near future too.
+Effectively, the performance **slowdown** is **10x**. This will be fixed
+in the future.
 
 ### License
 MIT.
