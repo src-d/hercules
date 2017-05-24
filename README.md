@@ -8,24 +8,26 @@ Exactly the same what [git-of-theseus](https://github.com/erikbern/git-of-theseu
 does actually, but using [go-git](https://github.com/src-d/go-git).
 Why? [source{d}](http://sourced.tech) builds it's own data pipeline to
 process every git repository in the world and the calculation of the
-annual burnout ratio will be embedded into it. This project is the
+annual burnout ratio will be embedded into it. This project is an
 open source implementation of the specific `git blame` flavour on top
-of go-git. It is done incrementally using the custom RB tree tracking
+of go-git. Blaming is done incrementally using the custom RB tree tracking
 algorithm, only the last modification date is recorded.
 
 There are two tools: `hercules` and `labours.py`. The first is the program
 written in Go which collects the burnout stats from a Git repository.
-The second is the Python script which draws the stack area plot. They
-are normally used together through a pipe. `hercules` prints
-text results. The first line is three numbers: UNIX timestamp which
+The second is the Python script which draws the stack area plot and optionally resamples the time series. These two tools
+are normally used together through the pipe. `hercules` prints
+results in plain text. The first line is three numbers: UNIX timestamp which
 corresponds to the time the repository was created, *granularity* and *sampling*.
 Granularity is the number of days each band in the stack consists of. For example,
-to get the annual burnout plot, set granularity to 365. Sampling is the
+to generate the annual burnout plot, set granularity to 365. Sampling is the
 frequency with which the burnout is snapshotted. The smaller the value,
 the more smooth is the plot but the more work is done.
 
 ![git/git image](git-git.png)
 <p align="center">git/git burndown (granularity 365, sampling 30, no resampling)</p>
+
+There is an option to resample the bands inside `labours.py`, so that you can define very precise distribution and visualize it differently. Besides, resampling aligns the bands across the year (month, week) boundaries.
 
 ### Installation
 You are going to need Go and Python 2 or 3.
@@ -54,10 +56,7 @@ git rev-list HEAD | tac | hercules -commits - https://github.com/git/git | tee c
 
 ### Caveats
 
-1. Currently, go-git's "file system" backend does not cache anything in memory.
-Every object retrieval operation decompresses the packfiles, parses them, etc.
-Effectively, the performance **slowdown** is **10x**. This will be fixed
-in the future.
+1. Currently, go-git's "file system" backend is much slower than the in-memory one, so you should clone repos instead of reading them from disk whenever possible.
 
 ### License
 MIT.
