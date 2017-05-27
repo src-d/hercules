@@ -56,7 +56,7 @@ def main():
         daily_matrix = numpy.zeros(
             (matrix.shape[0] * granularity, matrix.shape[1]),
             dtype=numpy.float32)
-        for i in range(matrix.shape[0]):
+        for i in range(1, matrix.shape[0]):
             daily_matrix[i * granularity:(i + 1) * granularity] = \
                 matrix[i] / granularity
         date_range_granularity = pandas.date_range(
@@ -66,7 +66,12 @@ def main():
             for dr, row in zip(date_range_granularity, daily_matrix)
         }).T
         df = df.resample(aliases.get(args.resample, args.resample)).sum()
+        row0 = matrix[0]
         matrix = df.as_matrix()
+        matrix[0] = row0
+        for i in range(1, matrix.shape[0]):
+            matrix[i, i] += matrix[i, :i].sum()
+            matrix[i, :i] = 0
         if args.resample in ("year", "A"):
             labels = [dt.year for dt in df.index]
         elif args.resample in ("month", "M"):
