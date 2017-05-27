@@ -43,20 +43,26 @@ def main():
     sampling = int(sampling)
     matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
                           for line in sys.stdin.read().split("\n")[:-1]]).T
-    date_range_granularity = pandas.date_range(
-        start, periods=matrix.shape[0], freq="%dD" % granularity)
     date_range_sampling = pandas.date_range(
         start, periods=matrix.shape[1],  freq="%dD" % sampling)
-    df = pandas.DataFrame({
-        dr: pandas.Series(row, index=date_range_sampling)
-        for dr, row in zip(date_range_granularity, matrix)
-    }).T
     if args.resample not in ("no", "raw"):
         aliases = {
             "year": "A",
             "month": "M"
         }
-        df = df.resample(aliases.get(args.resample, args.resample)).mean()
+        daily_matrix = numpy.zeros(
+            (matrix.shape[0] * granularity, matrix.shape[1]),
+            dtype=numpy.float32)
+        for i in range(matrix.shape[0]):
+            daily_matrix[i * granularity:(i + 1) * granularity] = \
+                matrix[i] / granularity
+        date_range_granularity = pandas.date_range(
+            start, periods=daily_matrix.shape[0], freq="1D")
+        df = pandas.DataFrame({
+            dr: pandas.Series(row, index=date_range_sampling)
+            for dr, row in zip(date_range_granularity, daily_matrix)
+        }).T
+        df = df.resample(aliases.get(args.resample, args.resample)).sum()
         matrix = df.as_matrix()
         if args.resample in ("year", "A"):
             labels = [dt.year for dt in df.index]
@@ -74,7 +80,7 @@ def main():
     pyplot.stackplot(date_range_sampling, matrix, labels=labels)
     pyplot.legend(loc=2, fontsize=args.text_size)
     pyplot.ylabel("Lines of code", fontsize=args.text_size)
-    pyplot.ylabel("Time", fontsize=args.text_size)
+    pyplot.xlabel("Time", fontsize=args.text_size)
     pyplot.tick_params(labelsize=args.text_size)
     pyplot.gcf().set_size_inches(12, 9)
     if not args.output:
