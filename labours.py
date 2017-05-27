@@ -46,7 +46,8 @@ def main():
     matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
                           for line in sys.stdin.read().split("\n")[:-1]]).T
     date_range_sampling = pandas.date_range(
-        start, periods=matrix.shape[1],  freq="%dD" % sampling)
+        start + timedelta(days=sampling), periods=matrix.shape[1],
+        freq="%dD" % sampling)
     if args.resample not in ("no", "raw"):
         aliases = {
             "year": "A",
@@ -100,6 +101,16 @@ def main():
     pyplot.tick_params(labelsize=args.text_size)
     pyplot.xlim(date_range_sampling[0], date_range_sampling[-1])
     pyplot.gcf().set_size_inches(12, 9)
+    # add border ticks
+    locs = pyplot.gca().get_xticks().tolist()
+    locs.extend(pyplot.xlim())
+    pyplot.gca().set_xticks(locs)
+    # hacking time!
+    labels = pyplot.gca().get_xticklabels()
+    labels[-2].set_text(date_range_sampling[0].date())
+    labels[-2].set_text = lambda _: None
+    labels[-1].set_text(date_range_sampling[-1].date())
+    labels[-1].set_text = lambda _: None
     if not args.output:
         pyplot.gcf().canvas.set_window_title(
             "Hercules %d x %d (granularity %d, sampling %d)" %
