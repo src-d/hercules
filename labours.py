@@ -20,6 +20,8 @@ def parse_args():
     parser.add_argument("--backend", help="Matplotlib backend to use.")
     parser.add_argument("--style", choices=["black", "white"], default="black",
                         help="Plot's general color scheme.")
+    parser.add_argument("--relative", action="store_true",
+                        help="Occupy 100% height for every measurement.")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
@@ -94,8 +96,15 @@ def main():
         pyplot.gca().yaxis.label.set_color("white")
         pyplot.gca().tick_params(axis="x", colors="white")
         pyplot.gca().tick_params(axis="y", colors="white")
+    if args.relative:
+        for i in range(matrix.shape[1]):
+            matrix[:, i] /= matrix[:, i].sum()
+        pyplot.ylim(0, 1)
+        legend_loc = 3
+    else:
+        legend_loc = 2
     pyplot.stackplot(date_range_sampling, matrix, labels=labels)
-    legend = pyplot.legend(loc=2, fontsize=args.text_size)
+    legend = pyplot.legend(loc=legend_loc, fontsize=args.text_size)
     frame = legend.get_frame()
     frame.set_facecolor("black" if args.style == "white" else "white")
     frame.set_edgecolor("black" if args.style == "white" else "white")
