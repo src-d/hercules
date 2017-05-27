@@ -592,7 +592,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 
 	var day0 time.Time // will be initialized in the first iteration
 	var prev_tree *object.Tree = nil
-	prev_day := 0
+	var day, prev_day int
 
 	for index, commit := range commits {
 		onProgress(index, len(commits))
@@ -621,7 +621,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 				}
 			}()
 		} else {
-			day := int(commit.Author.When.Sub(day0).Hours() / 24)
+			day = int(commit.Author.When.Sub(day0).Hours() / 24)
 			delta := (day / sampling) - (prev_day / sampling)
 			if delta > 0 {
 				prev_day = day
@@ -669,5 +669,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 		}
 		prev_tree = tree
 	}
+	gs := analyser.groupStatus(status, day)
+	statuses = append(statuses, gs)
 	return statuses
 }
