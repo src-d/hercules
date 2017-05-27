@@ -82,6 +82,7 @@ def main():
     pyplot.ylabel("Lines of code", fontsize=args.text_size)
     pyplot.xlabel("Time", fontsize=args.text_size)
     pyplot.tick_params(labelsize=args.text_size)
+    pyplot.xlim(date_range_sampling[0], date_range_sampling[-1])
     pyplot.gcf().set_size_inches(12, 9)
     if not args.output:
         pyplot.gcf().canvas.set_window_title(
