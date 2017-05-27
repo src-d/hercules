@@ -18,6 +18,8 @@ def parse_args():
     parser.add_argument("--text-size", default=12,
                         help="Size of the labels and legend.")
     parser.add_argument("--backend", help="Matplotlib backend to use.")
+    parser.add_argument("--style", choices=["black", "white"], default="black",
+                        help="Plot's general color scheme.")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
@@ -77,8 +79,22 @@ def main():
             for i in range(matrix.shape[0])]
         if len(labels) > 18:
             warnings.warn("Too many labels - consider resampling.")
+    if args.style == "white":
+        pyplot.gca().spines["bottom"].set_color("white")
+        pyplot.gca().spines["top"].set_color("white")
+        pyplot.gca().spines["left"].set_color("white")
+        pyplot.gca().spines["right"].set_color("white")
+        pyplot.gca().xaxis.label.set_color("white")
+        pyplot.gca().yaxis.label.set_color("white")
+        pyplot.gca().tick_params(axis="x", colors="white")
+        pyplot.gca().tick_params(axis="y", colors="white")
     pyplot.stackplot(date_range_sampling, matrix, labels=labels)
-    pyplot.legend(loc=2, fontsize=args.text_size)
+    legend = pyplot.legend(loc=2, fontsize=args.text_size)
+    frame = legend.get_frame()
+    frame.set_facecolor("black" if args.style == "white" else "white")
+    frame.set_edgecolor("black" if args.style == "white" else "white")
+    for text in legend.get_texts():
+        text.set_color(args.style)
     pyplot.ylabel("Lines of code", fontsize=args.text_size)
     pyplot.xlabel("Time", fontsize=args.text_size)
     pyplot.tick_params(labelsize=args.text_size)
