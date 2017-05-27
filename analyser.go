@@ -622,6 +622,10 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 			}()
 		} else {
 			day = int(commit.Author.When.Sub(day0).Hours() / 24)
+			if day < prev_day {
+				// rebase makes miracles
+				day = prev_day
+			}
 			delta := (day / sampling) - (prev_day / sampling)
 			if delta > 0 {
 				prev_day = day
