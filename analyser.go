@@ -40,13 +40,21 @@ func loc(file *object.Blob) (int, error) {
 		panic(err)
 	}
 	defer checkClose(reader)
-	scanner := bufio.NewScanner(reader)
+	var scanner *bufio.Scanner
+	buffer := make([]byte, bufio.MaxScanTokenSize)
 	counter := 0
-	for scanner.Scan() {
-		if !utf8.Valid(scanner.Bytes()) {
+	for scanner == nil || scanner.Err() == bufio.ErrTooLong {
+		if scanner != nil && !utf8.Valid(scanner.Bytes()) {
 			return -1, errors.New("binary")
 		}
-		counter++
+		scanner = bufio.NewScanner(reader)
+		scanner.Buffer(buffer, 0)
+		for scanner.Scan() {
+			if !utf8.Valid(scanner.Bytes()) {
+				return -1, errors.New("binary")
+			}
+			counter++
+		}
 	}
 	return counter, nil
 }
@@ -163,8 +171,10 @@ func (analyser *Analyser) handleModification(
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(str_from, str_to)
 	if file.Len() != len(src) {
-		panic(fmt.Sprintf("%s: internal integrity error src %d != %d",
-			change.To.Name, len(src), file.Len()))
+		fmt.Fprintf(os.Stderr, "====TREE====\n%s", file.Dump())
+		panic(fmt.Sprintf("%s: internal integrity error src %d != %d %s -> %s",
+			change.To.Name, len(src), file.Len(),
+			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String()))
 	}
 	diffs := dmp.DiffMainRunes(src, dst, false)
 	// we do not call RunesToDiffLines so the number of lines equals
