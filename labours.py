@@ -75,7 +75,7 @@ def main():
         matrix = df.as_matrix()
         if "M" in args.resample:
             matrix[0] = row0
-            for i in range(1, matrix.shape[0]):
+            for i in range(1, min(*matrix.shape)):
                 matrix[i, i] += matrix[i, :i].sum()
                 matrix[i, :i] = 0
         if args.resample in ("year", "A"):
@@ -133,11 +133,13 @@ def main():
     if locs[0] < pyplot.xlim()[0]:
         del locs[0]
     endindex = -1
-    if pyplot.xlim()[1] - locs[-1] >= (locs[-1] - locs[-2]) / 2:
+    if len(locs) >= 2 and \
+            pyplot.xlim()[1] - locs[-1] >= (locs[-1] - locs[-2]) / 2:
         locs.append(pyplot.xlim()[1])
         endindex = len(locs) - 1
     startindex = -1
-    if locs[0] - pyplot.xlim()[0] >= (locs[1] - locs[0]) / 2:
+    if len(locs) >= 2 and \
+            locs[0] - pyplot.xlim()[0] >= (locs[1] - locs[0]) / 2:
         locs.append(pyplot.xlim()[0])
         startindex = len(locs) - 1
     pyplot.gca().set_xticks(locs)
