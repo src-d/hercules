@@ -355,7 +355,7 @@ func TestBug5(t *testing.T) {
 	dump := file.Dump()
 	assert.Equal(t, "0 28\n2 24\n5 28\n8 -1\n", dump)
 
-	keys = []int{0, 1, 16, 18,}
+	keys = []int{0, 1, 16, 18}
 	vals = []int{305, 0, 157, -1}
 	file = NewFileFromTree(keys, vals, status)
 	file.Update(310, 0, 0, 2)

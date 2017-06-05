@@ -143,7 +143,9 @@ func main() {
 	width := len(strconv.FormatInt(maxnum, 10))
 	last := len(statuses[len(statuses)-1])
 	// print the start date, granularity, sampling
-	fmt.Println(commits[0].Author.When.Unix(), granularity, sampling)
+	fmt.Println(commits[0].Author.When.Unix(),
+		commits[len(commits)-1].Author.When.Unix(),
+		granularity, sampling)
 	// print the resulting triangle matrix
 	for _, status := range statuses {
 		for i := 0; i < last; i++ {
