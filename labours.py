@@ -15,6 +15,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="",
                         help="Path to the output file (empty for display).")
+    parser.add_argument("--input", default="-",
+                        help="Path to the input file (- for stdin).")
     parser.add_argument("--text-size", default=12,
                         help="Size of the labels and legend.")
     parser.add_argument("--backend", help="Matplotlib backend to use.")
@@ -41,49 +43,68 @@ def main():
     import matplotlib.pyplot as pyplot
     import pandas
 
-    start, granularity, sampling = input().split()
+    if args.input != "-":
+        with open(args.input) as fin:
+            header = fin.readline()[:-1]
+            contents = fin.read()
+    else:
+        header = input()
+        contents = sys.stdin.read()
+    start, last, granularity, sampling = header.split()
     start = datetime.fromtimestamp(int(start))
+    last = datetime.fromtimestamp(int(last))
     granularity = int(granularity)
     sampling = int(sampling)
     matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
-                          for line in sys.stdin.read().split("\n")[:-1]]).T
-    date_range_sampling = pandas.date_range(
-        start + timedelta(days=sampling), periods=matrix.shape[1],
-        freq="%dD" % sampling)
+                          for line in contents.split("\n")[:-1]]).T
+    finish = start + timedelta(days=matrix.shape[1] * sampling)
     if args.resample not in ("no", "raw"):
+        # Interpolate the day x day matrix.
+        # Each day brings equal weight in the granularity.
+        # Sampling's interpolation is linear.
+        daily_matrix = numpy.zeros(
+            (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
+            dtype=numpy.float32)
+        epsrange = numpy.arange(0, 1, 1.0 / sampling)
+        for y in range(matrix.shape[0]):
+            for x in range(matrix.shape[1]):
+                previous = matrix[y, x - 1] if x > 0 else 0
+                value = ((previous + (matrix[y, x] - previous) * epsrange)
+                         / granularity)[numpy.newaxis, :]
+                if (y + 1) * granularity <= x * sampling:
+                    daily_matrix[y * granularity:(y + 1) * granularity,
+                                 x * sampling:(x + 1) * sampling] = value
+                elif y * granularity <= (x + 1) * sampling:
+                    for suby in range(y * granularity, (y + 1) * granularity):
+                        for subx in range(suby, (x + 1) * sampling):
+                            daily_matrix[suby, subx] = matrix[y, x] / granularity
+        daily_matrix[(last - start).days:] = 0
         aliases = {
             "year": "A",
             "month": "M"
         }
         args.resample = aliases.get(args.resample, args.resample)
-        daily_matrix = numpy.zeros(
-            (matrix.shape[0] * granularity, matrix.shape[1]),
-            dtype=numpy.float32)
-        daily_start = 1 if "M" in args.resample else 0
-        for i in range(daily_start, matrix.shape[0]):
-            daily_matrix[i * granularity:(i + 1) * granularity] = \
-                matrix[i] / granularity
-        date_range_granularity = pandas.date_range(
-            start, periods=daily_matrix.shape[0], freq="1D")
-        df = pandas.DataFrame({
-            dr: pandas.Series(row, index=date_range_sampling)
-            for dr, row in zip(date_range_granularity, daily_matrix)
-        }).T
-        df = df.resample(args.resample).sum()
-        if "M" in args.resample:
-            row0 = matrix[0]
-        matrix = df.as_matrix()
-        if "M" in args.resample:
-            matrix[0] = row0
-            for i in range(1, min(*matrix.shape)):
-                matrix[i, i] += matrix[i, :i].sum()
-                matrix[i, :i] = 0
+        periods = 0
+        date_range_sampling = [start]
+        while date_range_sampling[-1] < finish:
+            periods += 1
+            date_range_sampling = pandas.date_range(
+                start, periods=periods, freq=args.resample)
+        matrix = numpy.zeros((len(date_range_sampling),) * 2,
+                             dtype=numpy.float32)
+        for i, gdt in enumerate(date_range_sampling):
+            istart = (date_range_sampling[i - 1] - start).days if i > 0 else 0
+            ifinish = (gdt - start).days
+            for j, sdt in enumerate(date_range_sampling[i:]):
+                jfinish = min((date_range_sampling[i + j] - start).days,
+                              daily_matrix.shape[1] - 1)
+                matrix[i, i + j] = daily_matrix[istart:ifinish, jfinish].sum()
         if args.resample in ("year", "A"):
-            labels = [dt.year for dt in df.index]
+            labels = [dt.year for dt in date_range_sampling]
         elif args.resample in ("month", "M"):
-            labels = [dt.strftime("%Y %B") for dt in df.index]
+            labels = [dt.strftime("%Y %B") for dt in date_range_sampling]
         else:
-            labels = [dt.date() for dt in df.index]
+            labels = [dt.date() for dt in date_range_sampling]
     else:
         labels = [
             "%s - %s" % ((start + timedelta(days=i * granularity)).date(),
@@ -92,6 +113,9 @@ def main():
         if len(labels) > 18:
             warnings.warn("Too many labels - consider resampling.")
         args.resample = "M"
+        date_range_sampling = pandas.date_range(
+            start + timedelta(days=sampling), periods=matrix.shape[1],
+            freq="%dD" % sampling)
     if args.style == "white":
         pyplot.gca().spines["bottom"].set_color("white")
         pyplot.gca().spines["top"].set_color("white")
@@ -134,12 +158,12 @@ def main():
         del locs[0]
     endindex = -1
     if len(locs) >= 2 and \
-            pyplot.xlim()[1] - locs[-1] >= (locs[-1] - locs[-2]) / 2:
+            pyplot.xlim()[1] - locs[-1] > (locs[-1] - locs[-2]) / 3:
         locs.append(pyplot.xlim()[1])
         endindex = len(locs) - 1
     startindex = -1
     if len(locs) >= 2 and \
-            locs[0] - pyplot.xlim()[0] >= (locs[1] - locs[0]) / 2:
+            locs[0] - pyplot.xlim()[0] > (locs[1] - locs[0]) / 3:
         locs.append(pyplot.xlim()[0])
         startindex = len(locs) - 1
     pyplot.gca().set_xticks(locs)
