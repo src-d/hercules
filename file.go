@@ -2,16 +2,29 @@ package hercules
 
 import "fmt"
 
+// A file encapsulates a balanced binary tree to store line intervals and
+// a cumulative mapping of values to the corresponding length counters. Users
+// are not supposed to create File-s directly; instead, they should call NewFile().
+// NewFileFromTree() is the special constructor which is useful in the tests.
+//
+// Len() returns the number of lines in File.
+//
+// Update() mutates File by introducing tree structural changes and updaing the
+// length mapping.
+//
+// Dump() writes the tree to a string and Validate() checks the tree integrity.
 type File struct {
 	tree   *RBTree
 	status map[int]int64
 }
 
+// TreeEnd denotes the value of the last leaf in the tree.
 const TreeEnd int = -1
 
-// An ugly side of Go.
+// The ugly side of Go.
 // template <typename T> please!
 
+// min calculates the minimum of two 32-bit integers.
 func min(a int, b int) int {
 	if a < b {
 		return a
@@ -19,6 +32,7 @@ func min(a int, b int) int {
 	return b
 }
 
+// min64 calculates the minimum of two 64-bit integers.
 func min64(a int64, b int64) int64 {
 	if a < b {
 		return a
@@ -26,6 +40,7 @@ func min64(a int64, b int64) int64 {
 	return b
 }
 
+// max calculates the maximum of two 32-bit integers.
 func max(a int, b int) int {
 	if a < b {
 		return b
@@ -33,6 +48,7 @@ func max(a int, b int) int {
 	return a
 }
 
+// max64 calculates the maximum of two 64-bit integers.
 func max64(a int64, b int64) int64 {
 	if a < b {
 		return b
@@ -40,6 +56,7 @@ func max64(a int64, b int64) int64 {
 	return a
 }
 
+// abs64 calculates the absolute value of a 64-bit integer.
 func abs64(v int64) int64 {
 	if v <= 0 {
 		return -v
@@ -47,6 +64,14 @@ func abs64(v int64) int64 {
 	return v
 }
 
+// NewFile initializes a new instance of File struct.
+//
+// time is the starting value of the first node;
+//
+// length is the starting length of the tree (the key of the second and the
+// last node);
+//
+// status is the attached interval length mapping.
 func NewFile(time int, length int, status map[int]int64) *File {
 	file := new(File)
 	file.status = status
@@ -59,6 +84,14 @@ func NewFile(time int, length int, status map[int]int64) *File {
 	return file
 }
 
+// NewFileFromTree is an alternative contructor for File which is used in tests.
+// The resulting tree is validated with Validate() to ensure the initial integrity.
+//
+// keys is a slice with the starting tree keys.
+//
+// vals is a slice with the starting tree values. Must match the size of keys.
+//
+// status is the attached interval length mapping.
 func NewFileFromTree(keys []int, vals []int, status map[int]int64) *File {
 	file := new(File)
 	file.status = status
@@ -73,10 +106,27 @@ func NewFileFromTree(keys []int, vals []int, status map[int]int64) *File {
 	return file
 }
 
+// Len returns the File's size - that is, the maximum key in the tree of line
+// intervals.
 func (file *File) Len() int {
 	return file.tree.Max().Item().key
 }
 
+// Update modifies the underlying tree to adapt to the specified line changes.
+//
+// time is the time when the requested changes are made. Sets the values of the
+// inserted nodes.
+//
+// pos is the index of the line at which the changes are introduced.
+//
+// ins_length is the number of inserted lines after pos.
+//
+// del_length is the number of removed lines after pos. Deletions come before
+// the insertions.
+//
+// The code inside this function is probably the most important one throughout
+// the project. It is extensively covered with tests. If you find a bug, please
+// add the corresponding case in file_test.go.
 func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	if time < 0 {
 		panic("time may not be negative")
@@ -189,6 +239,8 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	}
 }
 
+// Dump formats the underlying line interval tree into a string.
+// Useful for error messages, panic()-s and debugging.
 func (file *File) Dump() string {
 	buffer := ""
 	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
@@ -198,11 +250,20 @@ func (file *File) Dump() string {
 	return buffer
 }
 
+// Validate checks the underlying line interval tree integrity.
+// The checks are as follows:
+//
+// 1. The minimum key must be 0 because the first line index is always 0.
+//
+// 2. The last node must carry TreeEnd value. This is the maintained invariant
+// which marks the ending of the last line interval.
+//
+// 3. Node keys must monotonically increase and never duplicate.
 func (file *File) Validate() {
 	if file.tree.Min().Item().key != 0 {
 		panic("the tree must start with key 0")
 	}
-	if file.tree.Max().Item().value != -1 {
+	if file.tree.Max().Item().value != TreeEnd {
 		panic(fmt.Sprintf("the last value in the tree must be %d", TreeEnd))
 	}
 	prev_key := -1

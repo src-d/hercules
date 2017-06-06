@@ -19,12 +19,29 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
+// Analyser allows to gather the line burndown statistics for a Git repository.
 type Analyser struct {
+	// Repository points to the analysed Git repository struct from go-git.
 	Repository          *git.Repository
+	// Granularity sets the size of each band - the number of days it spans.
+	// Smaller values provide better resolution but require more work and eat more
+	// memory. 30 days is usually enough.
 	Granularity         int
+	// Sampling sets how detailed is the statistic - the size of the interval in
+	// days between consecutive measurements. It is usually a good idea to set it
+	// <= Granularity. Try 15 or 30.
 	Sampling            int
+	// SimilarityThreshold adjusts the heuristic to determine file renames.
+	// It has the same units as cgit's -X rename-threshold or -M. Better to
+	// set it to the default value of 90 (90%).
 	SimilarityThreshold int
+	// Debug activates the debugging mode. Analyse() runs slower in this mode
+	// but it accurately checks all the intermediate states for invariant
+	// violations.
 	Debug               bool
+	// OnProgress is the callback which is invoked in Analyse() to output it's
+	// progress. The first argument is the number of processed commits and the
+	// second is the total number of commits.
 	OnProgress          func(int, int)
 }
 
@@ -70,53 +87,53 @@ func str(file *object.Blob) string {
 	return buf.String()
 }
 
-type DummyIO struct {
+type dummyIO struct {
 }
 
-func (DummyIO) Read(p []byte) (int, error) {
+func (dummyIO) Read(p []byte) (int, error) {
 	return 0, io.EOF
 }
 
-func (DummyIO) Write(p []byte) (int, error) {
+func (dummyIO) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (DummyIO) Close() error {
+func (dummyIO) Close() error {
 	return nil
 }
 
-type DummyEncodedObject struct {
+type dummyEncodedObject struct {
 	FakeHash plumbing.Hash
 }
 
-func (obj DummyEncodedObject) Hash() plumbing.Hash {
+func (obj dummyEncodedObject) Hash() plumbing.Hash {
 	return obj.FakeHash
 }
 
-func (obj DummyEncodedObject) Type() plumbing.ObjectType {
+func (obj dummyEncodedObject) Type() plumbing.ObjectType {
 	return plumbing.BlobObject
 }
 
-func (obj DummyEncodedObject) SetType(plumbing.ObjectType) {
+func (obj dummyEncodedObject) SetType(plumbing.ObjectType) {
 }
 
-func (obj DummyEncodedObject) Size() int64 {
+func (obj dummyEncodedObject) Size() int64 {
 	return 0
 }
 
-func (obj DummyEncodedObject) SetSize(int64) {
+func (obj dummyEncodedObject) SetSize(int64) {
 }
 
-func (obj DummyEncodedObject) Reader() (io.ReadCloser, error) {
-	return DummyIO{}, nil
+func (obj dummyEncodedObject) Reader() (io.ReadCloser, error) {
+	return dummyIO{}, nil
 }
 
-func (obj DummyEncodedObject) Writer() (io.WriteCloser, error) {
-	return DummyIO{}, nil
+func (obj dummyEncodedObject) Writer() (io.WriteCloser, error) {
+	return dummyIO{}, nil
 }
 
 func createDummyBlob(hash *plumbing.Hash) (*object.Blob, error) {
-	return object.DecodeBlob(DummyEncodedObject{*hash})
+	return object.DecodeBlob(dummyEncodedObject{*hash})
 }
 
 func (analyser *Analyser) handleInsertion(
@@ -265,6 +282,9 @@ func (analyser *Analyser) handleRename(from, to string, files map[string]*File) 
 	delete(files, from)
 }
 
+// Commits returns the critical path in the repository's history. It starts
+// from HEAD and traces commits backwards till the root. When it encounters
+// a merge (more than one parent), it always chooses the first parent.
 func (analyser *Analyser) Commits() []*object.Commit {
 	result := []*object.Commit{}
 	repository := analyser.Repository
@@ -569,6 +589,16 @@ func (analyser *Analyser) detectRenames(
 	return reduced_changes
 }
 
+// Analyse calculates the line burndown statistics for the bound repository.
+//
+// commits is a slice with the sequential commit history. It shall start from
+// the root (ascending order).
+//
+// Returns the list of snapshots of the cumulative line edit times.
+// The number of snapshots (the first dimension >[]<[]int64) depends on
+// Analyser.Sampling (the more Sampling, the less the value); the length of
+// each snapshot depends on Analyser.Granularity (the more Granularity,
+// the less the value).
 func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 	sampling := analyser.Sampling
 	if sampling == 0 {

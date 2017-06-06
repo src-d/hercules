@@ -1,3 +1,9 @@
+/*
+Package main provides the command line tool to gather the line burndown
+statistics from Git repositories. Usage:
+
+	hercules <URL or FS path>
+*/
 package main
 
 import (

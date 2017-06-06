@@ -1,12 +1,3 @@
-//
-// Created by Yaz Saito on 06/10/12.
-//
-
-// A red-black tree with an API similar to C++ STL's.
-//
-// The implementation is inspired (read: stolen) from:
-// http://en.literateprograms.org/Red-black_tree_(C)#chunk use:private function prototypes.
-//
 package hercules
 
 //
@@ -19,6 +10,14 @@ type Item struct {
 	value int
 }
 
+// RBTree created by Yaz Saito on 06/10/12.
+//
+// A red-black tree with an API similar to C++ STL's.
+//
+// The implementation is inspired (read: stolen) from:
+// http://en.literateprograms.org/Red-black_tree_(C)#chunk use:private function prototypes.
+//
+// The code was optimized for the simple integer types of key and value.
 type RBTree struct {
 	// Root of the tree
 	root *node
