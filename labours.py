@@ -74,35 +74,43 @@ def load_matrix(args):
                             daily_matrix[suby, subx] = matrix[
                                                            y, x] / granularity
         daily_matrix[(last - start).days:] = 0
-        # Resample the time interval
+        # Resample the bands
         aliases = {
             "year": "A",
             "month": "M"
         }
         args.resample = aliases.get(args.resample, args.resample)
         periods = 0
-        date_range_sampling = [start]
-        while date_range_sampling[-1] < finish:
+        date_granularity_sampling = [start]
+        while date_granularity_sampling[-1] < finish:
             periods += 1
-            date_range_sampling = pandas.date_range(
+            date_granularity_sampling = pandas.date_range(
                 start, periods=periods, freq=args.resample)
+        date_range_sampling = pandas.date_range(
+            date_granularity_sampling[0],
+            periods=(finish - date_granularity_sampling[0]).days,
+            freq="1D")
         # Fill the new square matrix
-        matrix = numpy.zeros((len(date_range_sampling),) * 2,
-                             dtype=numpy.float32)
-        for i, gdt in enumerate(date_range_sampling):
-            istart = (date_range_sampling[i - 1] - start).days if i > 0 else 0
+        matrix = numpy.zeros(
+            (len(date_granularity_sampling), len(date_range_sampling)),
+            dtype=numpy.float32)
+        for i, gdt in enumerate(date_granularity_sampling):
+            istart = (date_granularity_sampling[i - 1] - start).days \
+                if i > 0 else 0
             ifinish = (gdt - start).days
-            for j, sdt in enumerate(date_range_sampling[i:]):
-                jfinish = min((date_range_sampling[i + j] - start).days,
-                              daily_matrix.shape[1] - 1)
-                matrix[i, i + j] = daily_matrix[istart:ifinish, jfinish].sum()
+
+            for j, sdt in enumerate(date_range_sampling):
+                if (sdt - start).days >= istart:
+                    break
+            matrix[i, j:] = \
+                daily_matrix[istart:ifinish, (sdt - start).days:].sum(axis=0)
         # Hardcode some cases to improve labels' readability
         if args.resample in ("year", "A"):
-            labels = [dt.year for dt in date_range_sampling]
+            labels = [dt.year for dt in date_granularity_sampling]
         elif args.resample in ("month", "M"):
-            labels = [dt.strftime("%Y %B") for dt in date_range_sampling]
+            labels = [dt.strftime("%Y %B") for dt in date_granularity_sampling]
         else:
-            labels = [dt.date() for dt in date_range_sampling]
+            labels = [dt.date() for dt in date_granularity_sampling]
     else:
         labels = [
             "%s - %s" % ((start + timedelta(days=i * granularity)).date(),
@@ -167,27 +175,25 @@ def plot_matrix(args, matrix, date_range_sampling, labels, granularity,
         del locs[0]
     endindex = -1
     if len(locs) >= 2 and \
-            pyplot.xlim()[1] - locs[-1] > (locs[-1] - locs[-2]) / 3:
+            pyplot.xlim()[1] - locs[-1] > (locs[-1] - locs[-2]) / 2:
         locs.append(pyplot.xlim()[1])
         endindex = len(locs) - 1
     startindex = -1
     if len(locs) >= 2 and \
-            locs[0] - pyplot.xlim()[0] > (locs[1] - locs[0]) / 3:
+            locs[0] - pyplot.xlim()[0] > (locs[1] - locs[0]) / 2:
         locs.append(pyplot.xlim()[0])
         startindex = len(locs) - 1
     pyplot.gca().set_xticks(locs)
     # hacking time!
     labels = pyplot.gca().get_xticklabels()
     if startindex >= 0:
-        if "M" in args.resample:
-            labels[startindex].set_text(date_range_sampling[0].date())
-            labels[startindex].set_text = lambda _: None
+        labels[startindex].set_text(date_range_sampling[0].date())
+        labels[startindex].set_text = lambda _: None
         labels[startindex].set_rotation(30)
         labels[startindex].set_ha("right")
     if endindex >= 0:
-        if "M" in args.resample:
-            labels[endindex].set_text(date_range_sampling[-1].date())
-            labels[endindex].set_text = lambda _: None
+        labels[endindex].set_text(date_range_sampling[-1].date())
+        labels[endindex].set_text = lambda _: None
         labels[endindex].set_rotation(30)
         labels[endindex].set_ha("right")
     if not args.output:
