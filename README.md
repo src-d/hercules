@@ -59,6 +59,9 @@ hercules https://github.com/git/git /tmp/repo-cache | python3 labours.py --resam
 git rev-list HEAD | tac | hercules -commits - https://github.com/git/git | tee cache.txt | python3 labours.py --font-size 16 --backend Agg --output git.png
 ```
 
+Option `-files` additionally prints the corresponding burndown table for every
+file in the repository.
+
 ### Caveats
 
 1. Currently, go-git's "file system" backend is much slower than the in-memory one, so you should clone repos instead of reading them from disk whenever possible.
