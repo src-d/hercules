@@ -9,13 +9,13 @@ import "fmt"
 //
 // Len() returns the number of lines in File.
 //
-// Update() mutates File by introducing tree structural changes and updaing the
+// Update() mutates File by introducing tree structural changes and updating the
 // length mapping.
 //
 // Dump() writes the tree to a string and Validate() checks the tree integrity.
 type File struct {
 	tree   *RBTree
-	status map[int]int64
+	statuses []map[int]int64
 }
 
 // TreeEnd denotes the value of the last leaf in the tree.
@@ -64,6 +64,12 @@ func abs64(v int64) int64 {
 	return v
 }
 
+func (file *File) updateTime(time int, delta int) {
+	for _, status := range file.statuses {
+		status[time] += int64(delta)
+	}
+}
+
 // NewFile initializes a new instance of File struct.
 //
 // time is the starting value of the first node;
@@ -71,30 +77,30 @@ func abs64(v int64) int64 {
 // length is the starting length of the tree (the key of the second and the
 // last node);
 //
-// status is the attached interval length mapping.
-func NewFile(time int, length int, status map[int]int64) *File {
+// statuses are the attached interval length mappings.
+func NewFile(time int, length int, statuses ...map[int]int64) *File {
 	file := new(File)
-	file.status = status
+	file.statuses = statuses
 	file.tree = new(RBTree)
 	if length > 0 {
-		status[time] += int64(length)
+		file.updateTime(time, length)
 		file.tree.Insert(Item{key: 0, value: time})
 	}
 	file.tree.Insert(Item{key: length, value: TreeEnd})
 	return file
 }
 
-// NewFileFromTree is an alternative contructor for File which is used in tests.
+// NewFileFromTree is an alternative constructor for File which is used in tests.
 // The resulting tree is validated with Validate() to ensure the initial integrity.
 //
 // keys is a slice with the starting tree keys.
 //
 // vals is a slice with the starting tree values. Must match the size of keys.
 //
-// status is the attached interval length mapping.
-func NewFileFromTree(keys []int, vals []int, status map[int]int64) *File {
+// statuses are the attached interval length mappings.
+func NewFileFromTree(keys []int, vals []int, statuses ...map[int]int64) *File {
 	file := new(File)
-	file.status = status
+	file.statuses = statuses
 	file.tree = new(RBTree)
 	if len(keys) != len(vals) {
 		panic("keys and vals must be of equal length")
@@ -148,10 +154,9 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	if tree.Len() < 2 && tree.Min().Item().key != 0 {
 		panic("invalid tree state")
 	}
-	status := file.status
 	iter := tree.FindLE(pos)
 	origin := *iter.Item()
-	status[time] += int64(ins_length)
+	file.updateTime(time, ins_length)
 	if del_length == 0 {
 		// simple case with insertions only
 		if origin.key < pos || (origin.value == time && pos == 0) {
@@ -183,7 +188,7 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		if delta <= 0 {
 			break
 		}
-		status[node.value] -= int64(delta)
+		file.updateTime(node.value, -delta)
 		if node.key >= pos {
 			origin = *node
 			tree.DeleteWithIterator(iter)
@@ -237,6 +242,14 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		// continue the original interval
 		tree.Insert(Item{pos, origin.value})
 	}
+}
+
+func (file *File) Status(index int) map[int]int64 {
+	if index < 0 || index >= len(file.statuses) {
+		panic(fmt.Sprintf("status index %d is out of bounds [0, %d)",
+		                  index, len(file.statuses)))
+	}
+	return file.statuses[index]
 }
 
 // Dump formats the underlying line interval tree into a string.

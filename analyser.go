@@ -149,7 +149,8 @@ func (analyser *Analyser) handleInsertion(
 	if exists {
 		panic(fmt.Sprintf("file %s already exists", name))
 	}
-	file = NewFile(day, lines, status)
+	// The second status is specific to each file.
+	file = NewFile(day, lines, status, make(map[int]int64))
 	files[name] = file
 }
 
@@ -310,7 +311,10 @@ func (analyser *Analyser) Commits() []*object.Commit {
 	return result
 }
 
-func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
+func (analyser *Analyser) groupStatus(
+    status map[int]int64,
+    files map[string]*File,
+    day int) ([]int64, map[string][]int64) {
 	granularity := analyser.Granularity
 	if granularity == 0 {
 		granularity = 1
@@ -320,19 +324,70 @@ func (analyser *Analyser) groupStatus(status map[int]int64, day int) []int64 {
 	if day%granularity < granularity-1 {
 		adjust = 1
 	}
-	result := make([]int64, day/granularity+adjust)
+	global := make([]int64, day/granularity+adjust)
 	var group int64
 	for i := 0; i < day; i++ {
 		group += status[i]
 		if i%granularity == (granularity - 1) {
-			result[i/granularity] = group
+			global[i/granularity] = group
 			group = 0
 		}
 	}
 	if day%granularity < granularity-1 {
-		result[len(result)-1] = group
+		global[len(global)-1] = group
 	}
-	return result
+	locals := make(map[string][]int64)
+	for key, file := range files {
+		status := make([]int64, day/granularity+adjust)
+		var group int64
+		for i := 0; i < day; i++ {
+			group += file.Status(1)[i]
+			if i%granularity == (granularity - 1) {
+				status[i/granularity] = group
+				group = 0
+			}
+		}
+		if day%granularity < granularity-1 {
+			status[len(status)-1] = group
+		}
+		locals[key] = status
+	}
+	return global, locals
+}
+
+func (analyser *Analyser) updateHistories(
+    global_history [][]int64, global_status []int64,
+    file_histories map[string][][]int64, file_statuses map[string][]int64,
+    delta int) [][]int64 {
+	for i := 0; i < delta; i++ {
+		global_history = append(global_history, global_status)
+	}
+	to_delete := make([]string, 0)
+	for key, fh := range file_histories {
+		ls, exists := file_statuses[key]
+		if !exists {
+			to_delete = append(to_delete, key)
+		} else {
+			for i := 0; i < delta; i++ {
+				fh = append(fh, ls)
+			}
+			file_histories[key] = fh
+		}
+	}
+	for _, key := range to_delete {
+		delete(file_histories, key)
+	}
+	for key, ls := range file_statuses {
+		fh, exists := file_histories[key]
+		if exists {
+			continue
+		}
+		for i := 0; i < delta; i++ {
+			fh = append(fh, ls)
+		}
+		file_histories[key] = fh
+	}
+	return global_history
 }
 
 type sortableChange struct {
@@ -594,12 +649,13 @@ func (analyser *Analyser) detectRenames(
 // commits is a slice with the sequential commit history. It shall start from
 // the root (ascending order).
 //
-// Returns the list of snapshots of the cumulative line edit times.
+// Returns the list of snapshots of the cumulative line edit times and the
+// similar lists for every file which is alive in HEAD.
 // The number of snapshots (the first dimension >[]<[]int64) depends on
 // Analyser.Sampling (the more Sampling, the less the value); the length of
 // each snapshot depends on Analyser.Granularity (the more Granularity,
 // the less the value).
-func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
+func (analyser *Analyser) Analyse(commits []*object.Commit) ([][]int64, map[string][][]int64) {
 	sampling := analyser.Sampling
 	if sampling == 0 {
 		sampling = 1
@@ -614,9 +670,11 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 
 	// current daily alive number of lines; key is the number of days from the
 	// beginning of the history
-	status := map[int]int64{}
+	global_status := map[int]int64{}
 	// weekly snapshots of status
-	statuses := [][]int64{}
+	global_history := [][]int64{}
+	// weekly snapshots of each file's status
+	file_histories := map[string][][]int64{}
 	// mapping <file path> -> hercules.File
 	files := map[string]*File{}
 
@@ -646,7 +704,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 					}
 					lines, err := loc(&file.Blob)
 					if err == nil {
-						files[file.Name] = NewFile(0, lines, status)
+						files[file.Name] = NewFile(0, lines, global_status, make(map[int]int64))
 					}
 				}
 			}()
@@ -659,10 +717,9 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 			delta := (day / sampling) - (prev_day / sampling)
 			if delta > 0 {
 				prev_day = day
-				gs := analyser.groupStatus(status, day)
-				for i := 0; i < delta; i++ {
-					statuses = append(statuses, gs)
-				}
+				gs, fss := analyser.groupStatus(global_status, files, day)
+				global_history = analyser.updateHistories(
+					global_history, gs, file_histories, fss, delta)
 			}
 			tree_diff, err := object.DiffTree(prev_tree, tree)
 			if err != nil {
@@ -683,9 +740,9 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 				}
 				switch action {
 				case merkletrie.Insert:
-					analyser.handleInsertion(change, day, status, files, cache)
+					analyser.handleInsertion(change, day, global_status, files, cache)
 				case merkletrie.Delete:
-					analyser.handleDeletion(change, day, status, files, cache)
+					analyser.handleDeletion(change, day, global_status, files, cache)
 				case merkletrie.Modify:
 					func() {
 						defer func() {
@@ -696,14 +753,25 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) [][]int64 {
 								panic(r)
 							}
 						}()
-						analyser.handleModification(change, day, status, files, cache)
+						analyser.handleModification(change, day, global_status, files, cache)
 					}()
 				}
 			}
 		}
 		prev_tree = tree
 	}
-	gs := analyser.groupStatus(status, day)
-	statuses = append(statuses, gs)
-	return statuses
+	gs, fss := analyser.groupStatus(global_status, files, day)
+	global_history = analyser.updateHistories(
+		global_history, gs, file_histories, fss, 1)
+	for key, statuses := range file_histories {
+		if len(statuses) == len(global_history) {
+			continue
+		}
+		padding := make([][]int64, len(global_history) - len(statuses))
+		for i := range padding {
+			padding[i] = make([]int64, len(global_status))
+		}
+		file_histories[key] = append(padding, statuses...)
+	}
+	return global_history, file_histories
 }

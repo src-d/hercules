@@ -26,6 +26,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v1"
+	"sort"
 )
 
 func loadCommitsFromFile(path string, repository *git.Repository) []*object.Commit {
@@ -55,11 +56,55 @@ func loadCommitsFromFile(path string, repository *git.Repository) []*object.Comm
 	return commits
 }
 
+func printStatuses(statuses [][]int64, name string) {
+	// determine the maximum length of each value
+	var maxnum int64
+	for _, status := range statuses {
+		for _, val := range status {
+			if val > maxnum {
+				maxnum = val
+			}
+		}
+	}
+	width := len(strconv.FormatInt(maxnum, 10))
+	last := len(statuses[len(statuses)-1])
+	if name != "" {
+		fmt.Println(name)
+	}
+	// print the resulting triangle matrix
+	for _, status := range statuses {
+		for i := 0; i < last; i++ {
+			var val int64
+			if i < len(status) {
+				val = status[i]
+				// not sure why this sometimes happens...
+				// TODO(vmarkovtsev): find the root cause of tiny negative balances
+				if val < 0 {
+					val = 0
+				}
+			}
+			fmt.Printf("%[1]*[2]d ", width, val)
+		}
+		fmt.Println()
+	}
+}
+
+func sortedKeys(m map[string][][]int64) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func main() {
+	var with_files bool
 	var profile bool
 	var granularity, sampling, similarity_threshold int
 	var commitsFile string
 	var debug bool
+	flag.BoolVar(&with_files, "files", false, "Output detailed statistics per each file.")
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
 	flag.IntVar(&granularity, "granularity", 30, "Report granularity in days.")
 	flag.IntVar(&sampling, "sampling", 30, "Report sampling in days.")
@@ -132,40 +177,21 @@ func main() {
 	} else {
 		commits = loadCommitsFromFile(commitsFile, repository)
 	}
-	statuses := analyser.Analyse(commits)
+	global_statuses, file_statuses := analyser.Analyse(commits)
 	fmt.Fprint(os.Stderr, "                \r")
-	if len(statuses) == 0 {
+	if len(global_statuses) == 0 {
 		return
 	}
-	// determine the maximum length of each value
-	var maxnum int64
-	for _, status := range statuses {
-		for _, val := range status {
-			if val > maxnum {
-				maxnum = val
-			}
-		}
-	}
-	width := len(strconv.FormatInt(maxnum, 10))
-	last := len(statuses[len(statuses)-1])
 	// print the start date, granularity, sampling
 	fmt.Println(commits[0].Author.When.Unix(),
 		commits[len(commits)-1].Author.When.Unix(),
 		granularity, sampling)
-	// print the resulting triangle matrix
-	for _, status := range statuses {
-		for i := 0; i < last; i++ {
-			var val int64
-			if i < len(status) {
-				val = status[i]
-				// not sure why this sometimes happens...
-				// TODO(vmarkovtsev): find the root cause of tiny negative balances
-				if val < 0 {
-					val = 0
-				}
-			}
-			fmt.Printf("%[1]*[2]d ", width, val)
+	printStatuses(global_statuses, "")
+	if with_files {
+		keys := sortedKeys(file_statuses)
+		for _, key := range keys {
+			fmt.Println()
+			printStatuses(file_statuses[key], key)
 		}
-		fmt.Println()
 	}
 }
