@@ -321,19 +321,19 @@ func (analyser *Analyser) groupStatus(
 	}
 	day++
 	adjust := 0
-	if day%granularity < granularity-1 {
+	if day%granularity != 0 {
 		adjust = 1
 	}
 	global := make([]int64, day/granularity+adjust)
 	var group int64
 	for i := 0; i < day; i++ {
 		group += status[i]
-		if i%granularity == (granularity - 1) {
+		if (i%granularity) == (granularity - 1) {
 			global[i/granularity] = group
 			group = 0
 		}
 	}
-	if day%granularity < granularity-1 {
+	if day%granularity != 0 {
 		global[len(global)-1] = group
 	}
 	locals := make(map[string][]int64)
@@ -342,12 +342,12 @@ func (analyser *Analyser) groupStatus(
 		var group int64
 		for i := 0; i < day; i++ {
 			group += file.Status(1)[i]
-			if i%granularity == (granularity - 1) {
+			if (i%granularity) == (granularity - 1) {
 				status[i/granularity] = group
 				group = 0
 			}
 		}
-		if day%granularity < granularity-1 {
+		if day%granularity != 0 {
 			status[len(status)-1] = group
 		}
 		locals[key] = status
