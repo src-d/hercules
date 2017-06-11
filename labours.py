@@ -17,13 +17,13 @@ def parse_args():
                         help="Path to the output file (empty for display).")
     parser.add_argument("--input", default="-",
                         help="Path to the input file (- for stdin).")
-    parser.add_argument("--text-size", default=12,
+    parser.add_argument("--text-size", default=12, type=int,
                         help="Size of the labels and legend.")
     parser.add_argument("--backend", help="Matplotlib backend to use.")
     parser.add_argument("--style", choices=["black", "white"], default="black",
                         help="Plot's general color scheme.")
     parser.add_argument("--relative", action="store_true",
-                        help="Occupy 100% height for every measurement.")
+                        help="Occupy 100%% height for every measurement.")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
@@ -32,6 +32,19 @@ def parse_args():
              "#offset-aliases).")
     args = parser.parse_args()
     return args
+
+
+def calculate_average_lifetime(matrix):
+    lifetimes = numpy.zeros(matrix.shape[1] - 1)
+    for band in matrix:
+        start = 0
+        for i, line in enumerate(band):
+            if i == 0 or band[i - 1] == 0:
+                start += 1
+                continue
+            lifetimes[i - start] = band[i - 1] - line
+    return (lifetimes.dot(numpy.arange(1, matrix.shape[1], 1))
+            / (lifetimes.sum() * matrix.shape[1]))
 
 
 def load_matrix(args):
@@ -51,6 +64,7 @@ def load_matrix(args):
     sampling = int(sampling)
     matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
                           for line in contents.split("\n")[:-1]]).T
+    print("Lifetime index:", calculate_average_lifetime(matrix))
     finish = start + timedelta(days=matrix.shape[1] * sampling)
     if args.resample not in ("no", "raw"):
         # Interpolate the day x day matrix.
