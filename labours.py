@@ -43,6 +43,7 @@ def calculate_average_lifetime(matrix):
                 start += 1
                 continue
             lifetimes[i - start] = band[i - 1] - line
+        lifetimes[i - start] = band[i - 1]
     return (lifetimes.dot(numpy.arange(1, matrix.shape[1], 1))
             / (lifetimes.sum() * matrix.shape[1]))
 
