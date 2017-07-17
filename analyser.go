@@ -142,8 +142,8 @@ func createDummyBlob(hash *plumbing.Hash) (*object.Blob, error) {
 	return object.DecodeBlob(dummyEncodedObject{*hash})
 }
 
-const MISSING_AUTHOR = -1
-const SELF_AUTHOR = -2
+const MISSING_AUTHOR = (1 << 18) - 1
+const SELF_AUTHOR = (1 << 18) - 2
 
 func (analyser *Analyser) packPersonWithDay(person int, day int) int {
 	if analyser.PeopleNumber == 0 {
@@ -151,7 +151,7 @@ func (analyser *Analyser) packPersonWithDay(person int, day int) int {
 	}
 	result := day
 	result |= person << 14
-	// This effectively means max 16384 days (>44 years) and 262144 devs
+	// This effectively means max 16384 days (>44 years) and (131072 - 2) devs
 	return result
 }
 
@@ -913,6 +913,11 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 		mrow := make([]int64, analyser.PeopleNumber+2)
 		people_matrix[i] = mrow
 		for key, val := range row {
+			if key == MISSING_AUTHOR {
+				key = -1
+			} else if key == SELF_AUTHOR {
+				key = -2
+			}
 			mrow[key+2] = val
 		}
 	}
