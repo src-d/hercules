@@ -4,7 +4,7 @@ import "fmt"
 
 // A status is the something we would like to update during File.Update().
 type Status struct {
-	data interface{}
+	data   interface{}
 	update func(interface{}, int, int, int)
 }
 
@@ -20,7 +20,7 @@ type Status struct {
 //
 // Dump() writes the tree to a string and Validate() checks the tree integrity.
 type File struct {
-	tree   *RBTree
+	tree     *RBTree
 	statuses []Status
 }
 
@@ -257,7 +257,7 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 func (file *File) Status(index int) interface{} {
 	if index < 0 || index >= len(file.statuses) {
 		panic(fmt.Sprintf("status index %d is out of bounds [0, %d)",
-		                  index, len(file.statuses)))
+			index, len(file.statuses)))
 	}
 	return file.statuses[index].data
 }

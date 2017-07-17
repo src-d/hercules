@@ -22,31 +22,31 @@ import (
 // Analyser allows to gather the line burndown statistics for a Git repository.
 type Analyser struct {
 	// Repository points to the analysed Git repository struct from go-git.
-	Repository          *git.Repository
+	Repository *git.Repository
 	// Granularity sets the size of each band - the number of days it spans.
 	// Smaller values provide better resolution but require more work and eat more
 	// memory. 30 days is usually enough.
-	Granularity         int
+	Granularity int
 	// Sampling sets how detailed is the statistic - the size of the interval in
 	// days between consecutive measurements. It is usually a good idea to set it
 	// <= Granularity. Try 15 or 30.
-	Sampling            int
+	Sampling int
 	// SimilarityThreshold adjusts the heuristic to determine file renames.
 	// It has the same units as cgit's -X rename-threshold or -M. Better to
 	// set it to the default value of 90 (90%).
 	SimilarityThreshold int
 	// The number of developers for which to collect the burndown stats. 0 disables it.
-	PeopleNumber        int
+	PeopleNumber int
 	// Maps email || name  -> developer id.
-	PeopleDict          map[string]int
+	PeopleDict map[string]int
 	// Debug activates the debugging mode. Analyse() runs slower in this mode
 	// but it accurately checks all the intermediate states for invariant
 	// violations.
-	Debug               bool
+	Debug bool
 	// OnProgress is the callback which is invoked in Analyse() to output it's
 	// progress. The first argument is the number of processed commits and the
 	// second is the total number of commits.
-	OnProgress          func(int, int)
+	OnProgress func(int, int)
 }
 
 type ProtoMatrix map[int]map[int]int64
@@ -163,7 +163,7 @@ func (analyser *Analyser) unpackPersonWithDay(value int) (int, int) {
 }
 
 func (analyser *Analyser) updateStatus(
-  status interface{}, _ int, previous_time_ int, delta int) {
+	status interface{}, _ int, previous_time_ int, delta int) {
 
 	_, previous_time := analyser.unpackPersonWithDay(previous_time_)
 	status.(map[int]int64)[previous_time] += int64(delta)
@@ -184,7 +184,7 @@ func (analyser *Analyser) updatePeople(people interface{}, _ int, previous_time_
 }
 
 func (analyser *Analyser) updateMatrix(
-  matrix_ interface{}, current_time int, previous_time int, delta int) {
+	matrix_ interface{}, current_time int, previous_time int, delta int) {
 
 	matrix := matrix_.([]map[int]int64)
 	new_author, _ := analyser.unpackPersonWithDay(current_time)
@@ -209,17 +209,17 @@ func (analyser *Analyser) updateMatrix(
 }
 
 func (analyser *Analyser) newFile(
-    author int, day int, size int, global map[int]int64, people []map[int]int64,
-    matrix []map[int]int64) *File {
+	author int, day int, size int, global map[int]int64, people []map[int]int64,
+	matrix []map[int]int64) *File {
 	if analyser.PeopleNumber == 0 {
 		return NewFile(day, size, NewStatus(global, analyser.updateStatus),
-			             NewStatus(make(map[int]int64), analyser.updateStatus))
+			NewStatus(make(map[int]int64), analyser.updateStatus))
 	}
 	return NewFile(analyser.packPersonWithDay(author, day), size,
-		             NewStatus(global, analyser.updateStatus),
-		             NewStatus(make(map[int]int64), analyser.updateStatus),
-	               NewStatus(people, analyser.updatePeople),
-		             NewStatus(matrix, analyser.updateMatrix))
+		NewStatus(global, analyser.updateStatus),
+		NewStatus(make(map[int]int64), analyser.updateStatus),
+		NewStatus(people, analyser.updatePeople),
+		NewStatus(matrix, analyser.updateMatrix))
 }
 
 func (analyser *Analyser) getAuthorId(signature object.Signature) int {
@@ -235,8 +235,8 @@ func (analyser *Analyser) getAuthorId(signature object.Signature) int {
 
 func (analyser *Analyser) handleInsertion(
 	change *object.Change, author int, day int, global_status map[int]int64,
-  files map[string]*File, people []map[int]int64, matrix []map[int]int64,
-  cache *map[plumbing.Hash]*object.Blob) {
+	files map[string]*File, people []map[int]int64, matrix []map[int]int64,
+	cache *map[plumbing.Hash]*object.Blob) {
 
 	blob := (*cache)[change.To.TreeEntry.Hash]
 	lines, err := loc(blob)
@@ -269,7 +269,7 @@ func (analyser *Analyser) handleDeletion(
 func (analyser *Analyser) handleModification(
 	change *object.Change, author int, day int, status map[int]int64, files map[string]*File,
 	people []map[int]int64, matrix []map[int]int64,
-  cache *map[plumbing.Hash]*object.Blob) {
+	cache *map[plumbing.Hash]*object.Blob) {
 
 	blob_from := (*cache)[change.From.TreeEntry.Hash]
 	blob_to := (*cache)[change.To.TreeEntry.Hash]
@@ -346,7 +346,7 @@ func (analyser *Analyser) handleModification(
 						panic("DiffInsert may not appear after DiffInsert")
 					}
 					file.Update(analyser.packPersonWithDay(author, day), position, length,
-						          utf8.RuneCountInString(pending.Text))
+						utf8.RuneCountInString(pending.Text))
 					if analyser.Debug {
 						file.Validate()
 					}
@@ -413,10 +413,10 @@ func (analyser *Analyser) Commits() []*object.Commit {
 }
 
 func (analyser *Analyser) groupStatus(
-    status map[int]int64,
-    files map[string]*File,
-    people []map[int]int64,
-    day int) ([]int64, map[string][]int64, [][]int64) {
+	status map[int]int64,
+	files map[string]*File,
+	people []map[int]int64,
+	day int) ([]int64, map[string][]int64, [][]int64) {
 	granularity := analyser.Granularity
 	if granularity == 0 {
 		granularity = 1
@@ -430,7 +430,7 @@ func (analyser *Analyser) groupStatus(
 	var group int64
 	for i := 0; i < day; i++ {
 		group += status[i]
-		if (i%granularity) == (granularity - 1) {
+		if (i % granularity) == (granularity - 1) {
 			global[i/granularity] = group
 			group = 0
 		}
@@ -444,7 +444,7 @@ func (analyser *Analyser) groupStatus(
 		var group int64
 		for i := 0; i < day; i++ {
 			group += file.Status(1).(map[int]int64)[i]
-			if (i%granularity) == (granularity - 1) {
+			if (i % granularity) == (granularity - 1) {
 				status[i/granularity] = group
 				group = 0
 			}
@@ -460,7 +460,7 @@ func (analyser *Analyser) groupStatus(
 		var group int64
 		for i := 0; i < day; i++ {
 			group += person[i]
-			if (i%granularity) == (granularity - 1) {
+			if (i % granularity) == (granularity - 1) {
 				status[i/granularity] = group
 				group = 0
 			}
@@ -474,10 +474,10 @@ func (analyser *Analyser) groupStatus(
 }
 
 func (analyser *Analyser) updateHistories(
-    global_history [][]int64, global_status []int64,
-    file_histories map[string][][]int64, file_statuses map[string][]int64,
-    people_histories [][][]int64, people_statuses [][]int64,
-    delta int) [][]int64 {
+	global_history [][]int64, global_status []int64,
+	file_histories map[string][][]int64, file_statuses map[string][]int64,
+	people_histories [][][]int64, people_statuses [][]int64,
+	delta int) [][]int64 {
 	for i := 0; i < delta; i++ {
 		global_history = append(global_history, global_status)
 	}
@@ -783,7 +783,7 @@ func (analyser *Analyser) detectRenames(
 // each snapshot depends on Analyser.Granularity (the more Granularity,
 // the less the value).
 func (analyser *Analyser) Analyse(commits []*object.Commit) (
-    [][]int64, map[string][][]int64, [][][]int64, [][]int64) {
+	[][]int64, map[string][][]int64, [][][]int64, [][]int64) {
 	sampling := analyser.Sampling
 	if sampling == 0 {
 		sampling = 1
@@ -902,7 +902,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 		if len(statuses) == len(global_history) {
 			continue
 		}
-		padding := make([][]int64, len(global_history) - len(statuses))
+		padding := make([][]int64, len(global_history)-len(statuses))
 		for i := range padding {
 			padding[i] = make([]int64, len(global_status))
 		}
@@ -910,10 +910,10 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 	}
 	people_matrix := make([][]int64, analyser.PeopleNumber)
 	for i, row := range matrix {
-		mrow := make([]int64, analyser.PeopleNumber + 2)
+		mrow := make([]int64, analyser.PeopleNumber+2)
 		people_matrix[i] = mrow
 		for key, val := range row {
-			mrow[key + 2] = val
+			mrow[key+2] = val
 		}
 	}
 	return global_history, file_histories, people_histories, people_matrix

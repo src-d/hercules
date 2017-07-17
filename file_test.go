@@ -7,7 +7,7 @@ import (
 )
 
 func updateStatus(
-    status interface{}, _ int, previous_time int, delta int) {
+	status interface{}, _ int, previous_time int, delta int) {
 	status.(map[int]int64)[previous_time] += int64(delta)
 }
 
