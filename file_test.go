@@ -6,9 +6,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func updateStatus(
+    status interface{}, _ int, previous_time int, delta int) {
+	status.(map[int]int64)[previous_time] += int64(delta)
+}
+
 func fixture() (*File, map[int]int64) {
 	status := map[int]int64{}
-	file := NewFile(0, 100, status)
+	file := NewFile(0, 100, NewStatus(status, updateStatus))
 	return file, status
 }
 
@@ -69,7 +74,7 @@ func TestInsert(t *testing.T) {
 
 func TestZeroInitialize(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(0, 0, status)
+	file := NewFile(0, 0, NewStatus(status, updateStatus))
 	assert.NotContains(t, status, 0)
 	dump := file.Dump()
 	// Output:
@@ -320,7 +325,7 @@ func TestBug3(t *testing.T) {
 
 func TestBug4(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(0, 10, status)
+	file := NewFile(0, 10, NewStatus(status, updateStatus))
 	file.Update(125, 0, 20, 9)
 	file.Update(125, 0, 20, 20)
 	file.Update(166, 12, 1, 1)
@@ -350,14 +355,14 @@ func TestBug5(t *testing.T) {
 	status := map[int]int64{}
 	keys := []int{0, 2, 4, 7, 10}
 	vals := []int{24, 28, 24, 28, -1}
-	file := NewFileFromTree(keys, vals, status)
+	file := NewFileFromTree(keys, vals, NewStatus(status, updateStatus))
 	file.Update(28, 0, 1, 3)
 	dump := file.Dump()
 	assert.Equal(t, "0 28\n2 24\n5 28\n8 -1\n", dump)
 
 	keys = []int{0, 1, 16, 18}
 	vals = []int{305, 0, 157, -1}
-	file = NewFileFromTree(keys, vals, status)
+	file = NewFileFromTree(keys, vals, NewStatus(status, updateStatus))
 	file.Update(310, 0, 0, 2)
 	dump = file.Dump()
 	assert.Equal(t, "0 0\n14 157\n16 -1\n", dump)

@@ -14,7 +14,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"regexp"
 	"runtime/pprof"
 	"sort"
 	"strconv"
@@ -30,8 +29,14 @@ import (
 	"gopkg.in/src-d/hercules.v1"
 )
 
-func loadPeopleDict(path string) (map[string]int, map[int][]string) {
-	re := regexp.MustCompile(`^(^\s)+\s+(^\s)+$`)
+// Signature stores the author's identification. Only a single field is used to identify the
+// commit: first Email is checked, then Name.
+type Signature struct {
+	Name string
+	Email string
+}
+
+func loadPeopleDict(path string) (map[string]int, map[int]string, int) {
 	file, err := os.Open(path)
 	if err != nil {
 		panic(err)
@@ -39,24 +44,50 @@ func loadPeopleDict(path string) (map[string]int, map[int][]string) {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	dict := make(map[string]int)
-	reverse_vocabulary := make(map[int][]string)
-	vocabulary := make(map[string]int)
+	reverse_dict := make(map[int]string)
+	size := 0
 	for scanner.Scan() {
-		matches := re.FindStringSubmatch(scanner.Text())
-		id, exists := vocabulary[matches[2]]
-		if !exists {
-			id = len(vocabulary)
-			vocabulary[matches[2]] = id
-			_, exists := reverse_vocabulary[id]
-			if !exists {
-				reverse_vocabulary[id] = make([]string, 0)
-				reverse_vocabulary[id] = append(reverse_vocabulary[id], matches[2])
-			}
-			reverse_vocabulary[id] = append(reverse_vocabulary[id], matches[1])
+		for _, id := range strings.Split(scanner.Text(), "|") {
+			dict[id] = size
 		}
-		dict[matches[1]] = id
+		reverse_dict[size] = scanner.Text()
+		size += 1
 	}
-	return dict, reverse_vocabulary
+	return dict, reverse_dict, size
+}
+
+func generatePeopleDict(commits []*object.Commit) (map[string]int, map[int]string, int) {
+	dict := make(map[string]int)
+	emails := make(map[int][]string)
+	names := make(map[int][]string)
+	size := 0
+	for _, commit := range commits {
+		id, exists := dict[commit.Author.Email]
+		if exists {
+			_, exists := dict[commit.Author.Name]
+			if !exists {
+				dict[commit.Author.Name] = id
+			  names[id] = append(names[id], commit.Author.Name)
+			}
+			continue
+		}
+		id, exists = dict[commit.Author.Name]
+		if exists {
+			dict[commit.Author.Email] = id
+			emails[id] = append(emails[id], commit.Author.Email)
+			continue
+		}
+		dict[commit.Author.Email] = size
+		dict[commit.Author.Name] = size
+		emails[size] = append(emails[size], commit.Author.Email)
+		names[size] = append(names[size], commit.Author.Name)
+		size += 1
+	}
+	reverse_dict := make(map[int]string)
+	for _, val := range dict {
+		reverse_dict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
+	}
+	return dict, reverse_dict, size
 }
 
 func loadCommitsFromFile(path string, repository *git.Repository) []*object.Commit {
@@ -119,21 +150,12 @@ func printStatuses(statuses [][]int64, name string) {
 	}
 }
 
-func sortedStringKeys(m map[string][][]int64) []string {
+func sortedKeys(m map[string][][]int64) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	return keys
-}
-
-func sortedIntKeys(m map[int][][]int64) []int {
-	keys := make([]int, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
 	return keys
 }
 
@@ -162,11 +184,6 @@ func main() {
 	if granularity <= 0 {
 		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
 		granularity = 1
-	}
-	var people_dict map[string]int
-	var people_ids map[int][]string
-	if people_dict_path != "" {
-		people_dict, people_ids = loadPeopleDict(people_dict_path)
 	}
 	if profile {
 		go http.ListenAndServe("localhost:6060", nil)
@@ -215,8 +232,6 @@ func main() {
 		Granularity:         granularity,
 		Sampling:            sampling,
 		SimilarityThreshold: similarity_threshold,
-		MeasurePeople:       with_people,
-		PeopleDict:          people_dict,
 		Debug:               debug,
 	}
 	// list of commits belonging to the default branch, from oldest to newest
@@ -226,6 +241,18 @@ func main() {
 		commits = analyser.Commits()
 	} else {
 		commits = loadCommitsFromFile(commitsFile, repository)
+	}
+	var people_ids map[int]string
+	if with_people {
+		var people_dict map[string]int
+		var people_number int
+		if people_dict_path != "" {
+			people_dict, people_ids, people_number = loadPeopleDict(people_dict_path)
+		} else {
+			people_dict, people_ids, people_number = generatePeopleDict(commits)
+		}
+		analyser.PeopleNumber = people_number
+		analyser.PeopleDict = people_dict
 	}
 	global_statuses, file_statuses, people_statuses, people_matrix := analyser.Analyse(commits)
 	fmt.Fprint(os.Stderr, "                \r")
@@ -238,7 +265,7 @@ func main() {
 		granularity, sampling)
 	printStatuses(global_statuses, "")
 	if with_files {
-		keys := sortedStringKeys(file_statuses)
+		keys := sortedKeys(file_statuses)
 		for _, key := range keys {
 			fmt.Println()
 			printStatuses(file_statuses[key], key)
@@ -246,16 +273,10 @@ func main() {
 	}
 	if with_people {
 		fmt.Printf("%d\n", len(people_statuses))
-		keys := sortedIntKeys(people_statuses)
-		for _, key := range keys {
+		for key, val := range people_statuses {
+			fmt.Printf("%d: ", key)
+			printStatuses(val, people_ids[key])
 			fmt.Println()
-			sign := strconv.Itoa(key) + ": " + people_ids[key][0]
-			for i, val := range people_ids[key] {
-				if i > 0 {
-					sign += " <" + val + ">"
-				}
-			}
-			printStatuses(people_statuses[key], sign)
 		}
 		for _, row := range(people_matrix) {
 			for _, cell := range(row) {

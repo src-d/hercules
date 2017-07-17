@@ -2,6 +2,12 @@ package hercules
 
 import "fmt"
 
+// A status is the something we would like to update during File.Update().
+type Status struct {
+	data interface{}
+	update func(interface{}, int, int, int)
+}
+
 // A file encapsulates a balanced binary tree to store line intervals and
 // a cumulative mapping of values to the corresponding length counters. Users
 // are not supposed to create File-s directly; instead, they should call NewFile().
@@ -15,7 +21,11 @@ import "fmt"
 // Dump() writes the tree to a string and Validate() checks the tree integrity.
 type File struct {
 	tree   *RBTree
-	statuses []map[int]int64
+	statuses []Status
+}
+
+func NewStatus(data interface{}, update func(interface{}, int, int, int)) Status {
+	return Status{data: data, update: update}
 }
 
 // TreeEnd denotes the value of the last leaf in the tree.
@@ -64,9 +74,9 @@ func abs64(v int64) int64 {
 	return v
 }
 
-func (file *File) updateTime(time int, delta int) {
+func (file *File) updateTime(current_time int, previous_time int, delta int) {
 	for _, status := range file.statuses {
-		status[time] += int64(delta)
+		status.update(status.data, current_time, previous_time, delta)
 	}
 }
 
@@ -78,12 +88,12 @@ func (file *File) updateTime(time int, delta int) {
 // last node);
 //
 // statuses are the attached interval length mappings.
-func NewFile(time int, length int, statuses ...map[int]int64) *File {
+func NewFile(time int, length int, statuses ...Status) *File {
 	file := new(File)
 	file.statuses = statuses
 	file.tree = new(RBTree)
 	if length > 0 {
-		file.updateTime(time, length)
+		file.updateTime(time, time, length)
 		file.tree.Insert(Item{key: 0, value: time})
 	}
 	file.tree.Insert(Item{key: length, value: TreeEnd})
@@ -98,7 +108,7 @@ func NewFile(time int, length int, statuses ...map[int]int64) *File {
 // vals is a slice with the starting tree values. Must match the size of keys.
 //
 // statuses are the attached interval length mappings.
-func NewFileFromTree(keys []int, vals []int, statuses ...map[int]int64) *File {
+func NewFileFromTree(keys []int, vals []int, statuses ...Status) *File {
 	file := new(File)
 	file.statuses = statuses
 	file.tree = new(RBTree)
@@ -156,7 +166,7 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	}
 	iter := tree.FindLE(pos)
 	origin := *iter.Item()
-	file.updateTime(time, ins_length)
+	file.updateTime(time, time, ins_length)
 	if del_length == 0 {
 		// simple case with insertions only
 		if origin.key < pos || (origin.value == time && pos == 0) {
@@ -188,7 +198,7 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		if delta <= 0 {
 			break
 		}
-		file.updateTime(node.value, -delta)
+		file.updateTime(time, node.value, -delta)
 		if node.key >= pos {
 			origin = *node
 			tree.DeleteWithIterator(iter)
@@ -244,12 +254,12 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	}
 }
 
-func (file *File) Status(index int) map[int]int64 {
+func (file *File) Status(index int) interface{} {
 	if index < 0 || index >= len(file.statuses) {
 		panic(fmt.Sprintf("status index %d is out of bounds [0, %d)",
 		                  index, len(file.statuses)))
 	}
-	return file.statuses[index]
+	return file.statuses[index].data
 }
 
 // Dump formats the underlying line interval tree into a string.

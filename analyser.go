@@ -35,9 +35,9 @@ type Analyser struct {
 	// It has the same units as cgit's -X rename-threshold or -M. Better to
 	// set it to the default value of 90 (90%).
 	SimilarityThreshold int
-	// Indicates whether we should record per-developer burndown stats.
-	MeasurePeople       bool
-	// Maps email -> developer id.
+	// The number of developers for which to collect the burndown stats. 0 disables it.
+	PeopleNumber        int
+	// Maps email || name  -> developer id.
 	PeopleDict          map[string]int
 	// Debug activates the debugging mode. Analyse() runs slower in this mode
 	// but it accurately checks all the intermediate states for invariant
@@ -48,6 +48,8 @@ type Analyser struct {
 	// second is the total number of commits.
 	OnProgress          func(int, int)
 }
+
+type ProtoMatrix map[int]map[int]int64
 
 func checkClose(c io.Closer) {
 	if err := c.Close(); err != nil {
@@ -140,9 +142,102 @@ func createDummyBlob(hash *plumbing.Hash) (*object.Blob, error) {
 	return object.DecodeBlob(dummyEncodedObject{*hash})
 }
 
+const MISSING_AUTHOR = -1
+const SELF_AUTHOR = -2
+
+func (analyser *Analyser) packPersonWithDay(person int, day int) int {
+	if analyser.PeopleNumber == 0 {
+		return day
+	}
+	result := day
+	result |= person << 14
+	// This effectively means max 16384 days (>44 years) and 262144 devs
+	return result
+}
+
+func (analyser *Analyser) unpackPersonWithDay(value int) (int, int) {
+	if analyser.PeopleNumber == 0 {
+		return MISSING_AUTHOR, value
+	}
+	return value >> 14, value & 0x3FFF
+}
+
+func (analyser *Analyser) updateStatus(
+  status interface{}, _ int, previous_time_ int, delta int) {
+
+	_, previous_time := analyser.unpackPersonWithDay(previous_time_)
+	status.(map[int]int64)[previous_time] += int64(delta)
+}
+
+func (analyser *Analyser) updatePeople(people interface{}, _ int, previous_time_ int, delta int) {
+	old_author, previous_time := analyser.unpackPersonWithDay(previous_time_)
+	if old_author == MISSING_AUTHOR {
+		return
+	}
+	casted := people.([]map[int]int64)
+	stats := casted[old_author]
+	if stats == nil {
+		stats = map[int]int64{}
+		casted[old_author] = stats
+	}
+	stats[previous_time] += int64(delta)
+}
+
+func (analyser *Analyser) updateMatrix(
+  matrix_ interface{}, current_time int, previous_time int, delta int) {
+
+	matrix := matrix_.([]map[int]int64)
+	new_author, _ := analyser.unpackPersonWithDay(current_time)
+	old_author, _ := analyser.unpackPersonWithDay(previous_time)
+	if old_author == MISSING_AUTHOR {
+		return
+	}
+	if new_author == old_author && delta > 0 {
+		new_author = SELF_AUTHOR
+	}
+	row := matrix[old_author]
+	if row == nil {
+		row = map[int]int64{}
+		matrix[old_author] = row
+	}
+	cell, exists := row[new_author]
+	if !exists {
+		row[new_author] = 0
+		cell = 0
+	}
+	row[new_author] = cell + int64(delta)
+}
+
+func (analyser *Analyser) newFile(
+    author int, day int, size int, global map[int]int64, people []map[int]int64,
+    matrix []map[int]int64) *File {
+	if analyser.PeopleNumber == 0 {
+		return NewFile(day, size, NewStatus(global, analyser.updateStatus),
+			             NewStatus(make(map[int]int64), analyser.updateStatus))
+	}
+	return NewFile(analyser.packPersonWithDay(author, day), size,
+		             NewStatus(global, analyser.updateStatus),
+		             NewStatus(make(map[int]int64), analyser.updateStatus),
+	               NewStatus(people, analyser.updatePeople),
+		             NewStatus(matrix, analyser.updateMatrix))
+}
+
+func (analyser *Analyser) getAuthorId(signature object.Signature) int {
+	id, exists := analyser.PeopleDict[signature.Email]
+	if !exists {
+		id, exists = analyser.PeopleDict[signature.Name]
+		if !exists {
+			id = MISSING_AUTHOR
+		}
+	}
+	return id
+}
+
 func (analyser *Analyser) handleInsertion(
-	change *object.Change, day int, status map[int]int64, files map[string]*File,
-	cache *map[plumbing.Hash]*object.Blob) {
+	change *object.Change, author int, day int, global_status map[int]int64,
+  files map[string]*File, people []map[int]int64, matrix []map[int]int64,
+  cache *map[plumbing.Hash]*object.Blob) {
+
 	blob := (*cache)[change.To.TreeEntry.Hash]
 	lines, err := loc(blob)
 	if err != nil {
@@ -153,13 +248,12 @@ func (analyser *Analyser) handleInsertion(
 	if exists {
 		panic(fmt.Sprintf("file %s already exists", name))
 	}
-	// The second status is specific to each file.
-	file = NewFile(day, lines, status, make(map[int]int64))
+	file = analyser.newFile(author, day, lines, global_status, people, matrix)
 	files[name] = file
 }
 
 func (analyser *Analyser) handleDeletion(
-	change *object.Change, day int, status map[int]int64, files map[string]*File,
+	change *object.Change, author int, day int, status map[int]int64, files map[string]*File,
 	cache *map[plumbing.Hash]*object.Blob) {
 	blob := (*cache)[change.From.TreeEntry.Hash]
 	lines, err := loc(blob)
@@ -168,13 +262,15 @@ func (analyser *Analyser) handleDeletion(
 	}
 	name := change.From.Name
 	file := files[name]
-	file.Update(day, 0, 0, lines)
+	file.Update(analyser.packPersonWithDay(author, day), 0, 0, lines)
 	delete(files, name)
 }
 
 func (analyser *Analyser) handleModification(
-	change *object.Change, day int, status map[int]int64, files map[string]*File,
-	cache *map[plumbing.Hash]*object.Blob) {
+	change *object.Change, author int, day int, status map[int]int64, files map[string]*File,
+	people []map[int]int64, matrix []map[int]int64,
+  cache *map[plumbing.Hash]*object.Blob) {
+
 	blob_from := (*cache)[change.From.TreeEntry.Hash]
 	blob_to := (*cache)[change.To.TreeEntry.Hash]
 	// we are not validating UTF-8 here because for example
@@ -183,7 +279,7 @@ func (analyser *Analyser) handleModification(
 	str_to := str(blob_to)
 	file, exists := files[change.From.Name]
 	if !exists {
-		analyser.handleInsertion(change, day, status, files, cache)
+		analyser.handleInsertion(change, author, day, status, files, people, matrix, cache)
 		return
 	}
 	// possible rename
@@ -207,10 +303,10 @@ func (analyser *Analyser) handleModification(
 	apply := func(edit diffmatchpatch.Diff) {
 		length := utf8.RuneCountInString(edit.Text)
 		if edit.Type == diffmatchpatch.DiffInsert {
-			file.Update(day, position, length, 0)
+			file.Update(analyser.packPersonWithDay(author, day), position, length, 0)
 			position += length
 		} else {
-			file.Update(day, position, 0, length)
+			file.Update(analyser.packPersonWithDay(author, day), position, 0, length)
 		}
 		if analyser.Debug {
 			file.Validate()
@@ -249,7 +345,8 @@ func (analyser *Analyser) handleModification(
 					if pending.Type == diffmatchpatch.DiffInsert {
 						panic("DiffInsert may not appear after DiffInsert")
 					}
-					file.Update(day, position, length, utf8.RuneCountInString(pending.Text))
+					file.Update(analyser.packPersonWithDay(author, day), position, length,
+						          utf8.RuneCountInString(pending.Text))
 					if analyser.Debug {
 						file.Validate()
 					}
@@ -318,7 +415,8 @@ func (analyser *Analyser) Commits() []*object.Commit {
 func (analyser *Analyser) groupStatus(
     status map[int]int64,
     files map[string]*File,
-    day int) ([]int64, map[string][]int64) {
+    people []map[int]int64,
+    day int) ([]int64, map[string][]int64, [][]int64) {
 	granularity := analyser.Granularity
 	if granularity == 0 {
 		granularity = 1
@@ -345,7 +443,7 @@ func (analyser *Analyser) groupStatus(
 		status := make([]int64, day/granularity+adjust)
 		var group int64
 		for i := 0; i < day; i++ {
-			group += file.Status(1)[i]
+			group += file.Status(1).(map[int]int64)[i]
 			if (i%granularity) == (granularity - 1) {
 				status[i/granularity] = group
 				group = 0
@@ -356,12 +454,29 @@ func (analyser *Analyser) groupStatus(
 		}
 		locals[key] = status
 	}
-	return global, locals
+	peoples := make([][]int64, len(people))
+	for key, person := range people {
+		status := make([]int64, day/granularity+adjust)
+		var group int64
+		for i := 0; i < day; i++ {
+			group += person[i]
+			if (i%granularity) == (granularity - 1) {
+				status[i/granularity] = group
+				group = 0
+			}
+		}
+		if day%granularity != 0 {
+			status[len(status)-1] = group
+		}
+		peoples[key] = status
+	}
+	return global, locals, peoples
 }
 
 func (analyser *Analyser) updateHistories(
     global_history [][]int64, global_status []int64,
     file_histories map[string][][]int64, file_statuses map[string][]int64,
+    people_histories [][][]int64, people_statuses [][]int64,
     delta int) [][]int64 {
 	for i := 0; i < delta; i++ {
 		global_history = append(global_history, global_status)
@@ -390,6 +505,14 @@ func (analyser *Analyser) updateHistories(
 			fh = append(fh, ls)
 		}
 		file_histories[key] = fh
+	}
+
+	for key, ph := range people_histories {
+		ls := people_statuses[key]
+		for i := 0; i < delta; i++ {
+			ph = append(ph, ls)
+		}
+		people_histories[key] = ph
 	}
 	return global_history
 }
@@ -660,7 +783,7 @@ func (analyser *Analyser) detectRenames(
 // each snapshot depends on Analyser.Granularity (the more Granularity,
 // the less the value).
 func (analyser *Analyser) Analyse(commits []*object.Commit) (
-    [][]int64, map[string][][]int64, map[int][][]int64, [][]int64) {
+    [][]int64, map[string][][]int64, [][][]int64, [][]int64) {
 	sampling := analyser.Sampling
 	if sampling == 0 {
 		sampling = 1
@@ -680,8 +803,14 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 	global_history := [][]int64{}
 	// weekly snapshots of each file's status
 	file_histories := map[string][][]int64{}
+	// weekly snapshots of each person's status
+	people_histories := make([][][]int64, analyser.PeopleNumber)
 	// mapping <file path> -> hercules.File
 	files := map[string]*File{}
+	// Mutual deletions and self insertions
+	matrix := make([]map[int]int64, analyser.PeopleNumber)
+	// People's individual time stats
+	people := make([]map[int]int64, analyser.PeopleNumber)
 
 	var day0 time.Time // will be initialized in the first iteration
 	var prev_tree *object.Tree = nil
@@ -693,6 +822,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 		if err != nil {
 			panic(err)
 		}
+		author := analyser.getAuthorId(commit.Author)
 		if index == 0 {
 			// first iteration - initialize the file objects from the tree
 			day0 = commit.Author.When
@@ -709,7 +839,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 					}
 					lines, err := loc(&file.Blob)
 					if err == nil {
-						files[file.Name] = NewFile(0, lines, global_status, make(map[int]int64))
+						files[file.Name] = analyser.newFile(author, 0, lines, global_status, people, matrix)
 					}
 				}
 			}()
@@ -722,9 +852,9 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 			delta := (day / sampling) - (prev_day / sampling)
 			if delta > 0 {
 				prev_day = day
-				gs, fss := analyser.groupStatus(global_status, files, day)
+				gs, fss, pss := analyser.groupStatus(global_status, files, people, day)
 				global_history = analyser.updateHistories(
-					global_history, gs, file_histories, fss, delta)
+					global_history, gs, file_histories, fss, people_histories, pss, delta)
 			}
 			tree_diff, err := object.DiffTree(prev_tree, tree)
 			if err != nil {
@@ -745,9 +875,9 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 				}
 				switch action {
 				case merkletrie.Insert:
-					analyser.handleInsertion(change, day, global_status, files, cache)
+					analyser.handleInsertion(change, author, day, global_status, files, people, matrix, cache)
 				case merkletrie.Delete:
-					analyser.handleDeletion(change, day, global_status, files, cache)
+					analyser.handleDeletion(change, author, day, global_status, files, cache)
 				case merkletrie.Modify:
 					func() {
 						defer func() {
@@ -758,16 +888,16 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 								panic(r)
 							}
 						}()
-						analyser.handleModification(change, day, global_status, files, cache)
+						analyser.handleModification(change, author, day, global_status, files, people, matrix, cache)
 					}()
 				}
 			}
 		}
 		prev_tree = tree
 	}
-	gs, fss := analyser.groupStatus(global_status, files, day)
+	gs, fss, pss := analyser.groupStatus(global_status, files, people, day)
 	global_history = analyser.updateHistories(
-		global_history, gs, file_histories, fss, 1)
+		global_history, gs, file_histories, fss, people_histories, pss, 1)
 	for key, statuses := range file_histories {
 		if len(statuses) == len(global_history) {
 			continue
@@ -778,7 +908,13 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) (
 		}
 		file_histories[key] = append(padding, statuses...)
 	}
-	var people_statuses map[int][][]int64
-	var people_matrix [][]int64
-	return global_history, file_histories, people_statuses, people_matrix
+	people_matrix := make([][]int64, analyser.PeopleNumber)
+	for i, row := range matrix {
+		mrow := make([]int64, analyser.PeopleNumber + 2)
+		people_matrix[i] = mrow
+		for key, val := range row {
+			mrow[key + 2] = val
+		}
+	}
+	return global_history, file_histories, people_histories, people_matrix
 }
