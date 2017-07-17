@@ -59,12 +59,21 @@ hercules https://github.com/git/git /tmp/repo-cache | python3 labours.py --resam
 git rev-list HEAD | tac | hercules -commits - https://github.com/git/git | tee cache.txt | python3 labours.py --font-size 16 --backend Agg --output git.png
 ```
 
+### Extensions
+
 Option `-files` additionally prints the corresponding burndown table for every
-file in the repository.
+file in the repository. `-people` does the same for the developers; `-people-dict` allows to specify
+the custom identity matching.
+
+Correspondingly, `labours.py` has `--mode` which allows to plot all the burndowns for files,
+people and the overwrite matrix. The latter shows how much code written by a developer is removed
+by other developers, the rows are normalized to the number of individual insertions.
+
+
 
 ### Caveats
 
-1. Currently, go-git's "file system" backend is much slower than the in-memory one, so you should clone repos instead of reading them from disk whenever possible.
+1. Currently, go-git's "file system" backend is considerably slower than the in-memory one, so you should clone repos instead of reading them from disk whenever possible.
 
 ### License
 MIT.
