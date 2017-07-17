@@ -35,6 +35,10 @@ type Analyser struct {
 	// It has the same units as cgit's -X rename-threshold or -M. Better to
 	// set it to the default value of 90 (90%).
 	SimilarityThreshold int
+	// Indicates whether we should record per-developer burndown stats.
+	MeasurePeople       bool
+	// Maps email -> developer id.
+	PeopleDict          map[string]int
 	// Debug activates the debugging mode. Analyse() runs slower in this mode
 	// but it accurately checks all the intermediate states for invariant
 	// violations.
@@ -655,7 +659,8 @@ func (analyser *Analyser) detectRenames(
 // Analyser.Sampling (the more Sampling, the less the value); the length of
 // each snapshot depends on Analyser.Granularity (the more Granularity,
 // the less the value).
-func (analyser *Analyser) Analyse(commits []*object.Commit) ([][]int64, map[string][][]int64) {
+func (analyser *Analyser) Analyse(commits []*object.Commit) (
+    [][]int64, map[string][][]int64, map[int][][]int64, [][]int64) {
 	sampling := analyser.Sampling
 	if sampling == 0 {
 		sampling = 1
@@ -773,5 +778,7 @@ func (analyser *Analyser) Analyse(commits []*object.Commit) ([][]int64, map[stri
 		}
 		file_histories[key] = append(padding, statuses...)
 	}
-	return global_history, file_histories
+	var people_statuses map[int][][]int64
+	var people_matrix [][]int64
+	return global_history, file_histories, people_statuses, people_matrix
 }

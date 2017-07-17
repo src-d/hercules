@@ -14,7 +14,9 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"regexp"
 	"runtime/pprof"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -26,8 +28,36 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v1"
-	"sort"
 )
+
+func loadPeopleDict(path string) (map[string]int, map[int][]string) {
+	re := regexp.MustCompile(`^(^\s)+\s+(^\s)+$`)
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	dict := make(map[string]int)
+	reverse_vocabulary := make(map[int][]string)
+	vocabulary := make(map[string]int)
+	for scanner.Scan() {
+		matches := re.FindStringSubmatch(scanner.Text())
+		id, exists := vocabulary[matches[2]]
+		if !exists {
+			id = len(vocabulary)
+			vocabulary[matches[2]] = id
+			_, exists := reverse_vocabulary[id]
+			if !exists {
+				reverse_vocabulary[id] = make([]string, 0)
+				reverse_vocabulary[id] = append(reverse_vocabulary[id], matches[2])
+			}
+			reverse_vocabulary[id] = append(reverse_vocabulary[id], matches[1])
+		}
+		dict[matches[1]] = id
+	}
+	return dict, reverse_vocabulary
+}
 
 func loadCommitsFromFile(path string, repository *git.Repository) []*object.Commit {
 	var file io.Reader
@@ -89,7 +119,7 @@ func printStatuses(statuses [][]int64, name string) {
 	}
 }
 
-func sortedKeys(m map[string][][]int64) []string {
+func sortedStringKeys(m map[string][][]int64) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -98,16 +128,29 @@ func sortedKeys(m map[string][][]int64) []string {
 	return keys
 }
 
+func sortedIntKeys(m map[int][][]int64) []int {
+	keys := make([]int, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	return keys
+}
+
 func main() {
 	var with_files bool
+	var with_people bool
+	var people_dict_path string
 	var profile bool
 	var granularity, sampling, similarity_threshold int
 	var commitsFile string
 	var debug bool
 	flag.BoolVar(&with_files, "files", false, "Output detailed statistics per each file.")
+	flag.BoolVar(&with_people, "people", false, "Output detailed statistics per each developer.")
+	flag.StringVar(&people_dict_path, "people-dict", "", "Path to the developers' email associations.")
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
-	flag.IntVar(&granularity, "granularity", 30, "Report granularity in days.")
-	flag.IntVar(&sampling, "sampling", 30, "Report sampling in days.")
+	flag.IntVar(&granularity, "granularity", 30, "How many days there are in a single band.")
+	flag.IntVar(&sampling, "sampling", 30, "How frequently to record the state in days.")
 	flag.IntVar(&similarity_threshold, "M", 90,
 		"A threshold on the similarity index used to detect renames.")
 	flag.BoolVar(&debug, "debug", false, "Validate the trees on each step.")
@@ -119,6 +162,11 @@ func main() {
 	if granularity <= 0 {
 		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
 		granularity = 1
+	}
+	var people_dict map[string]int
+	var people_ids map[int][]string
+	if people_dict_path != "" {
+		people_dict, people_ids = loadPeopleDict(people_dict_path)
 	}
 	if profile {
 		go http.ListenAndServe("localhost:6060", nil)
@@ -167,6 +215,8 @@ func main() {
 		Granularity:         granularity,
 		Sampling:            sampling,
 		SimilarityThreshold: similarity_threshold,
+		MeasurePeople:       with_people,
+		PeopleDict:          people_dict,
 		Debug:               debug,
 	}
 	// list of commits belonging to the default branch, from oldest to newest
@@ -177,7 +227,7 @@ func main() {
 	} else {
 		commits = loadCommitsFromFile(commitsFile, repository)
 	}
-	global_statuses, file_statuses := analyser.Analyse(commits)
+	global_statuses, file_statuses, people_statuses, people_matrix := analyser.Analyse(commits)
 	fmt.Fprint(os.Stderr, "                \r")
 	if len(global_statuses) == 0 {
 		return
@@ -188,10 +238,30 @@ func main() {
 		granularity, sampling)
 	printStatuses(global_statuses, "")
 	if with_files {
-		keys := sortedKeys(file_statuses)
+		keys := sortedStringKeys(file_statuses)
 		for _, key := range keys {
 			fmt.Println()
 			printStatuses(file_statuses[key], key)
+		}
+	}
+	if with_people {
+		fmt.Printf("%d\n", len(people_statuses))
+		keys := sortedIntKeys(people_statuses)
+		for _, key := range keys {
+			fmt.Println()
+			sign := strconv.Itoa(key) + ": " + people_ids[key][0]
+			for i, val := range people_ids[key] {
+				if i > 0 {
+					sign += " <" + val + ">"
+				}
+			}
+			printStatuses(people_statuses[key], sign)
+		}
+		for _, row := range(people_matrix) {
+			for _, cell := range(row) {
+				fmt.Print(cell, " ")
+			}
+			fmt.Print("\n")
 		}
 	}
 }
