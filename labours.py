@@ -1,8 +1,15 @@
 import argparse
 from datetime import datetime, timedelta
+import io
+import os
 import sys
 import warnings
 
+try:
+    from clint.textui import progress
+except ImportError:
+    print("Warning: clint is not installed, no fancy progressbars in the terminal for you.")
+    progress = None
 import numpy
 
 
@@ -13,9 +20,9 @@ if sys.version_info[0] < 3:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", default="",
-                        help="Path to the output file (empty for display).")
-    parser.add_argument("--input", default="-",
+    parser.add_argument("-o", "--output", default="",
+                        help="Path to the output file/directory (empty for display).")
+    parser.add_argument("-i", "--input", default="-",
                         help="Path to the input file (- for stdin).")
     parser.add_argument("--text-size", default=12, type=int,
                         help="Size of the labels and legend.")
@@ -24,6 +31,8 @@ def parse_args():
                         help="Plot's general color scheme.")
     parser.add_argument("--relative", action="store_true",
                         help="Occupy 100%% height for every measurement.")
+    parser.add_argument("-m", "--mode", choices=["project", "file", "person", "matrix"],
+                        default="project", help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
@@ -32,6 +41,36 @@ def parse_args():
              "#offset-aliases).")
     args = parser.parse_args()
     return args
+
+
+def read_input(args):
+    main_contents = []
+    files_contents = []
+    people_contents = []
+    if args.input != "-":
+        with open(args.input) as fin:
+            header = fin.readline()[:-1]
+            contents = fin.readlines()
+    else:
+        header = input()
+        contents = sys.stdin.readlines()
+    for i, line in enumerate(contents):
+        if line not in ("files\n", "people\n"):
+            main_contents.append(line)
+        else:
+            break
+    if i < len(contents) and contents[i] == "files\n":
+        i += 1
+        while i < len(contents) and contents[i] != "people\n":
+            files_contents.append(contents[i:i + len(main_contents)])
+            i += len(main_contents)
+    if i < len(contents) and contents[i] == "people\n":
+        i += 2
+        while contents[i] != "\n":
+            people_contents.append(contents[i:i + len(main_contents)])
+            i += len(main_contents)
+        people_contents.append(contents[i + 1:])
+    return header, main_contents, files_contents, people_contents
 
 
 def calculate_average_lifetime(matrix):
@@ -48,26 +87,19 @@ def calculate_average_lifetime(matrix):
             / (lifetimes.sum() * matrix.shape[1]))
 
 
-def load_matrix(args):
+def load_main(header, contents, resample):
     import pandas
-
-    if args.input != "-":
-        with open(args.input) as fin:
-            header = fin.readline()[:-1]
-            contents = fin.read()
-    else:
-        header = input()
-        contents = sys.stdin.read()
     start, last, granularity, sampling = header.split()
     start = datetime.fromtimestamp(int(start))
     last = datetime.fromtimestamp(int(last))
     granularity = int(granularity)
     sampling = int(sampling)
+    name = contents[0][:-1]
     matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
-                          for line in contents.split("\n")[:-1]]).T
-    print("Lifetime index:", calculate_average_lifetime(matrix))
+                          for line in contents[1:]]).T
+    print(name, "lifetime index:", calculate_average_lifetime(matrix))
     finish = start + timedelta(days=matrix.shape[1] * sampling)
-    if args.resample not in ("no", "raw"):
+    if resample not in ("no", "raw"):
         # Interpolate the day x day matrix.
         # Each day brings equal weight in the granularity.
         # Sampling's interpolation is linear.
@@ -94,13 +126,13 @@ def load_matrix(args):
             "year": "A",
             "month": "M"
         }
-        args.resample = aliases.get(args.resample, args.resample)
+        resample = aliases.get(resample, resample)
         periods = 0
         date_granularity_sampling = [start]
         while date_granularity_sampling[-1] < finish:
             periods += 1
             date_granularity_sampling = pandas.date_range(
-                start, periods=periods, freq=args.resample)
+                start, periods=periods, freq=resample)
         date_range_sampling = pandas.date_range(
             date_granularity_sampling[0],
             periods=(finish - date_granularity_sampling[0]).days,
@@ -119,10 +151,10 @@ def load_matrix(args):
                     break
             matrix[i, j:] = \
                 daily_matrix[istart:ifinish, (sdt - start).days:].sum(axis=0)
-        # Hardcode some cases to improve labels' readability
-        if args.resample in ("year", "A"):
+        # Hardcode some cases to improve labels" readability
+        if resample in ("year", "A"):
             labels = [dt.year for dt in date_granularity_sampling]
-        elif args.resample in ("month", "M"):
+        elif resample in ("month", "M"):
             labels = [dt.strftime("%Y %B") for dt in date_granularity_sampling]
         else:
             labels = [dt.date() for dt in date_granularity_sampling]
@@ -134,15 +166,27 @@ def load_matrix(args):
             for i in range(matrix.shape[0])]
         if len(labels) > 18:
             warnings.warn("Too many labels - consider resampling.")
-        args.resample = "M"  # fake resampling type is checked while plotting
+        resample = "M"  # fake resampling type is checked while plotting
         date_range_sampling = pandas.date_range(
             start + timedelta(days=sampling), periods=matrix.shape[1],
             freq="%dD" % sampling)
-    return matrix, date_range_sampling, labels, granularity, sampling
+    return name, matrix, date_range_sampling, labels, granularity, sampling, resample
 
 
-def plot_matrix(args, matrix, date_range_sampling, labels, granularity,
-                sampling):
+def load_matrix(contents):
+    size = int(contents[0])
+    people = []
+    for i, line in enumerate(contents):
+        if ": " in line:
+            people.append(line.split(": ", 1)[1])
+    matrix = numpy.array([[int(p) for p in l[:-1].split()]
+                          for l in contents[-size - 1:] if l[:-1]],
+                         dtype=int)
+    return matrix, people
+
+
+def plot_project(args, name, matrix, date_range_sampling, labels, granularity,
+                 sampling, resample):
     import matplotlib
     if args.backend:
         matplotlib.use(args.backend)
@@ -178,7 +222,7 @@ def plot_matrix(args, matrix, date_range_sampling, labels, granularity,
     pyplot.gcf().set_size_inches(12, 9)
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
-    if "M" not in args.resample:
+    if "M" not in resample:
         pyplot.gca().xaxis.set_major_locator(matplotlib.dates.YearLocator())
     locs = pyplot.gca().get_xticks().tolist()
     if len(locs) >= 16:
@@ -213,8 +257,68 @@ def plot_matrix(args, matrix, date_range_sampling, labels, granularity,
         labels[endindex].set_ha("right")
     if not args.output:
         pyplot.gcf().canvas.set_window_title(
-            "Hercules %d x %d (granularity %d, sampling %d)" %
-            (matrix.shape + (granularity, sampling)))
+            "%s %d x %d (granularity %d, sampling %d)" %
+            ((name,) + matrix.shape + (granularity, sampling)))
+        pyplot.show()
+    else:
+        pyplot.tight_layout()
+        if args.mode == "project":
+            output = args.output
+        else:
+            root, ext = os.path.splitext(args.output)
+            if not ext:
+                ext = ".png"
+            output = os.path.join(root, name + ext)
+            os.makedirs(os.path.dirname(output), exist_ok=True)
+        pyplot.savefig(output, transparent=True)
+    pyplot.clf()
+
+
+def plot_many(args, header, parts):
+    if not args.output:
+        print("Warning: output not set, showing %d plots." % len(parts))
+    itercnt = progress.bar(parts, expected_size=len(parts)) \
+        if progress is not None else parts
+    stdout = io.StringIO()
+    for fc in itercnt:
+        backup = sys.stdout
+        sys.stdout = stdout
+        plot_project(args, *load_main(header, fc, args.resample))
+        sys.stdout = backup
+    sys.stdout.write(stdout.getvalue())
+
+
+def plot_matrix(args, matrix, people):
+    matrix = matrix.astype(float)
+    zeros = matrix[:, 0] == 0
+    matrix[zeros, :] = 1
+    matrix /= matrix[:, 0][:, None]
+    matrix = -matrix[:, 1:]
+    matrix[zeros, :] = 0
+
+    import matplotlib
+    if args.backend:
+        matplotlib.use(args.backend)
+    import matplotlib.pyplot as pyplot
+
+    s = 4 + matrix.shape[1] * 0.3
+    fig = pyplot.figure(figsize=(s, s))
+    ax = fig.add_subplot(111)
+    ax.xaxis.set_label_position("top")
+    ax.matshow(matrix, cmap=pyplot.cm.OrRd)
+    ax.set_xticks(numpy.arange(0, matrix.shape[1]))
+    ax.set_yticks(numpy.arange(0, matrix.shape[0]))
+    ax.set_xticklabels(["Unidentified"] + people, rotation=90, ha="center")
+    ax.set_yticklabels(people, va="center")
+    ax.set_xticks(numpy.arange(0.5, matrix.shape[1] + 0.5), minor=True)
+    ax.set_yticks(numpy.arange(0.5, matrix.shape[0] + 0.5), minor=True)
+    ax.grid(which="minor")
+    if not args.output:
+        pos1 = ax.get_position()
+        pos2 = (pos1.x0 + 0.15, pos1.y0 - 0.1, pos1.width * 0.9, pos1.height * 0.9)
+        ax.set_position(pos2)
+        pyplot.gcf().canvas.set_window_title(
+            "Hercules %d developers overwrite" % matrix.shape[0])
         pyplot.show()
     else:
         pyplot.tight_layout()
@@ -223,8 +327,15 @@ def plot_matrix(args, matrix, date_range_sampling, labels, granularity,
 
 def main():
     args = parse_args()
-    plot_matrix(args, *load_matrix(args))
-
+    header, main_contents, files_contents, people_contents = read_input(args)
+    if args.mode == "project":
+        plot_project(args, *load_main(header, main_contents, args.resample))
+    elif args.mode == "file":
+        plot_many(args, header, files_contents)
+    elif args.mode == "person":
+        plot_many(args, header, people_contents[:-1])
+    elif args.mode == "matrix":
+        plot_matrix(args, *load_matrix(people_contents[-1]))
 
 if __name__ == "__main__":
     sys.exit(main())

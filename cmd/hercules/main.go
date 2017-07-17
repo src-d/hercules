@@ -263,21 +263,22 @@ func main() {
 	fmt.Println(commits[0].Author.When.Unix(),
 		commits[len(commits)-1].Author.When.Unix(),
 		granularity, sampling)
-	printStatuses(global_statuses, "")
+	printStatuses(global_statuses, uri)
 	if with_files {
+		fmt.Print("files\n")
 		keys := sortedKeys(file_statuses)
 		for _, key := range keys {
-			fmt.Println()
 			printStatuses(file_statuses[key], key)
 		}
 	}
 	if with_people {
+		fmt.Print("people\n")
 		fmt.Printf("%d\n", len(people_statuses))
 		for key, val := range people_statuses {
 			fmt.Printf("%d: ", key)
 			printStatuses(val, people_ids[key])
-			fmt.Println()
 		}
+		fmt.Println()
 		for _, row := range(people_matrix) {
 			for _, cell := range(row) {
 				fmt.Print(cell, " ")
