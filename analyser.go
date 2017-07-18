@@ -594,7 +594,7 @@ func (analyser *Analyser) getBlob(entry *object.ChangeEntry, commit *object.Comm
 	*object.Blob, error) {
 	blob, err := analyser.Repository.BlobObject(entry.TreeEntry.Hash)
 	if err != nil {
-		if err.Error() != git.ErrObjectNotFound.Error() {
+		if err.Error() != plumbing.ErrObjectNotFound.Error() {
 			fmt.Fprintf(os.Stderr, "getBlob(%s)\n", entry.TreeEntry.Hash.String())
 			return nil, err
 		}
@@ -638,7 +638,7 @@ func (analyser *Analyser) cacheBlobs(changes *object.Changes, commit *object.Com
 		case merkletrie.Delete:
 			cache[change.From.TreeEntry.Hash], err = analyser.getBlob(&change.From, commit)
 			if err != nil {
-				if err.Error() != git.ErrObjectNotFound.Error() {
+				if err.Error() != plumbing.ErrObjectNotFound.Error() {
 					fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
 				} else {
 					cache[change.From.TreeEntry.Hash], err = createDummyBlob(
