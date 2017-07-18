@@ -174,13 +174,12 @@ def load_main(header, contents, resample):
 
 
 def load_matrix(contents):
-    size = int(contents[0])
+    size = len(contents) - 1
     people = []
-    for i, line in enumerate(contents):
-        if ": " in line:
-            people.append(line.split(": ", 1)[1])
+    for i, block in enumerate(contents[:-1]):
+        people.append(block[0].split(": ", 1)[1])
     matrix = numpy.array([[int(p) for p in l[:-1].split()]
-                          for l in contents[-size - 1:] if l[:-1]],
+                          for l in contents[-1][-size - 1:] if l[:-1]],
                          dtype=int)
     return matrix, people
 
@@ -335,7 +334,7 @@ def main():
     elif args.mode == "person":
         plot_many(args, header, people_contents[:-1])
     elif args.mode == "matrix":
-        plot_matrix(args, *load_matrix(people_contents[-1]))
+        plot_matrix(args, *load_matrix(people_contents))
 
 if __name__ == "__main__":
     sys.exit(main())
