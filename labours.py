@@ -254,12 +254,13 @@ def plot_project(args, name, matrix, date_range_sampling, labels, granularity,
         labels[endindex].set_text = lambda _: None
         labels[endindex].set_rotation(30)
         labels[endindex].set_ha("right")
+    title = "%s %d x %d (granularity %d, sampling %d)" % \
+        ((name,) + matrix.shape + (granularity, sampling))
     if not args.output:
-        pyplot.gcf().canvas.set_window_title(
-            "%s %d x %d (granularity %d, sampling %d)" %
-            ((name,) + matrix.shape + (granularity, sampling)))
+        pyplot.gcf().canvas.set_window_title(title)
         pyplot.show()
     else:
+        pyplot.title(title)
         pyplot.tight_layout()
         if args.mode == "project":
             output = args.output
