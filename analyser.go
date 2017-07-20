@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -223,9 +224,9 @@ func (analyser *Analyser) newFile(
 }
 
 func (analyser *Analyser) getAuthorId(signature object.Signature) int {
-	id, exists := analyser.PeopleDict[signature.Email]
+	id, exists := analyser.PeopleDict[strings.ToLower(signature.Email)]
 	if !exists {
-		id, exists = analyser.PeopleDict[signature.Name]
+		id, exists = analyser.PeopleDict[strings.ToLower(signature.Name)]
 		if !exists {
 			id = MISSING_AUTHOR
 		}

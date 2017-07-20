@@ -47,7 +47,7 @@ func loadPeopleDict(path string) (map[string]int, map[int]string, int) {
 	reverse_dict := make(map[int]string)
 	size := 0
 	for scanner.Scan() {
-		for _, id := range strings.Split(scanner.Text(), "|") {
+		for _, id := range strings.Split(strings.ToLower(scanner.Text()), "|") {
 			dict[id] = size
 		}
 		reverse_dict[size] = scanner.Text()
@@ -62,25 +62,27 @@ func generatePeopleDict(commits []*object.Commit) (map[string]int, map[int]strin
 	names := make(map[int][]string)
 	size := 0
 	for _, commit := range commits {
-		id, exists := dict[commit.Author.Email]
+		email := strings.ToLower(commit.Author.Email)
+		name := strings.ToLower(commit.Author.Name)
+		id, exists := dict[email]
 		if exists {
-			_, exists := dict[commit.Author.Name]
+			_, exists := dict[name]
 			if !exists {
-				dict[commit.Author.Name] = id
-			  names[id] = append(names[id], commit.Author.Name)
+				dict[name] = id
+			  names[id] = append(names[id], name)
 			}
 			continue
 		}
-		id, exists = dict[commit.Author.Name]
+		id, exists = dict[name]
 		if exists {
-			dict[commit.Author.Email] = id
-			emails[id] = append(emails[id], commit.Author.Email)
+			dict[email] = id
+			emails[id] = append(emails[id], email)
 			continue
 		}
-		dict[commit.Author.Email] = size
-		dict[commit.Author.Name] = size
-		emails[size] = append(emails[size], commit.Author.Email)
-		names[size] = append(names[size], commit.Author.Name)
+		dict[email] = size
+		dict[name] = size
+		emails[size] = append(emails[size], email)
+		names[size] = append(names[size], name)
 		size += 1
 	}
 	reverse_dict := make(map[int]string)
