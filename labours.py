@@ -31,7 +31,8 @@ def parse_args():
                         help="Plot's general color scheme.")
     parser.add_argument("--relative", action="store_true",
                         help="Occupy 100%% height for every measurement.")
-    parser.add_argument("-m", "--mode", choices=["project", "file", "person", "matrix"],
+    parser.add_argument("-m", "--mode",
+                        choices=["project", "file", "person", "matrix", "people", "all"],
                         default="project", help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -89,6 +90,7 @@ def calculate_average_lifetime(matrix):
 
 def load_main(header, contents, resample):
     import pandas
+
     start, last, granularity, sampling = header.split()
     start = datetime.fromtimestamp(int(start))
     last = datetime.fromtimestamp(int(last))
@@ -184,22 +186,72 @@ def load_matrix(contents):
     return matrix, people
 
 
-def plot_project(args, name, matrix, date_range_sampling, labels, granularity,
-                 sampling, resample):
+def load_people(header, contents):
+    import pandas
+
+    start, last, granularity, sampling = header.split()
+    start = datetime.fromtimestamp(int(start))
+    sampling = int(sampling)
+    people = []
+    names = []
+    for lines in contents[:-1]:
+        names.append(lines[0])
+        people.append(numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
+                                   for line in lines[1:]]).sum(axis=1))
+    people = numpy.array(people)
+    date_range_sampling = pandas.date_range(
+        start + timedelta(days=sampling), periods=people[0].shape[0],
+        freq="%dD" % sampling)
+    return names, people, date_range_sampling
+
+
+def apply_plot_style(figure, axes, legend, style, text_size):
+    figure.set_size_inches(12, 9)
+    for side in ("bottom", "top", "left", "right"):
+        axes.spines[side].set_color(style)
+    for axis in (axes.xaxis, axes.yaxis):
+        axis.label.update(dict(fontsize=text_size, color=style))
+    for axis in ("x", "y"):
+        axes.tick_params(axis=axis, colors=style, labelsize=text_size)
+    if legend is not None:
+        frame = legend.get_frame()
+        for setter in (frame.set_facecolor, frame.set_edgecolor):
+            setter("black" if style == "white" else "white")
+        for text in legend.get_texts():
+            text.set_color(style)
+
+
+def get_plot_path(base, name):
+    root, ext = os.path.splitext(base)
+    if not ext:
+        ext = ".png"
+    output = os.path.join(root, name + ext)
+    os.makedirs(os.path.dirname(output), exist_ok=True)
+    return output
+
+
+def deploy_plot(title, output, style):
+    import matplotlib.pyplot as pyplot
+
+    if not output:
+        pyplot.gcf().canvas.set_window_title(title)
+        pyplot.show()
+    else:
+        if title:
+            pyplot.title(title, color=style)
+        pyplot.tight_layout()
+        pyplot.savefig(output, transparent=True)
+    pyplot.clf()
+
+
+def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granularity,
+                  sampling, resample):
     import matplotlib
     if args.backend:
         matplotlib.use(args.backend)
     import matplotlib.pyplot as pyplot
 
-    if args.style == "white":
-        pyplot.gca().spines["bottom"].set_color("white")
-        pyplot.gca().spines["top"].set_color("white")
-        pyplot.gca().spines["left"].set_color("white")
-        pyplot.gca().spines["right"].set_color("white")
-        pyplot.gca().xaxis.label.set_color("white")
-        pyplot.gca().yaxis.label.set_color("white")
-        pyplot.gca().tick_params(axis="x", colors="white")
-        pyplot.gca().tick_params(axis="y", colors="white")
+    pyplot.stackplot(date_range_sampling, matrix, labels=labels)
     if args.relative:
         for i in range(matrix.shape[1]):
             matrix[:, i] /= matrix[:, i].sum()
@@ -207,18 +259,11 @@ def plot_project(args, name, matrix, date_range_sampling, labels, granularity,
         legend_loc = 3
     else:
         legend_loc = 2
-    pyplot.stackplot(date_range_sampling, matrix, labels=labels)
     legend = pyplot.legend(loc=legend_loc, fontsize=args.text_size)
-    frame = legend.get_frame()
-    frame.set_facecolor("black" if args.style == "white" else "white")
-    frame.set_edgecolor("black" if args.style == "white" else "white")
-    for text in legend.get_texts():
-        text.set_color(args.style)
-    pyplot.ylabel("Lines of code", fontsize=args.text_size)
-    pyplot.xlabel("Time", fontsize=args.text_size)
-    pyplot.tick_params(labelsize=args.text_size)
+    pyplot.ylabel("Lines of code")
+    pyplot.xlabel("Time")
+    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.style, args.text_size)
     pyplot.xlim(date_range_sampling[0], date_range_sampling[-1])
-    pyplot.gcf().set_size_inches(12, 9)
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
     if "M" not in resample:
@@ -256,25 +301,18 @@ def plot_project(args, name, matrix, date_range_sampling, labels, granularity,
         labels[endindex].set_ha("right")
     title = "%s %d x %d (granularity %d, sampling %d)" % \
         ((name,) + matrix.shape + (granularity, sampling))
-    if not args.output:
-        pyplot.gcf().canvas.set_window_title(title)
-        pyplot.show()
-    else:
-        pyplot.title(title)
-        pyplot.tight_layout()
-        if args.mode == "project":
+    output = args.output
+    if output:
+        if args.mode == "project" and target == "project":
             output = args.output
         else:
-            root, ext = os.path.splitext(args.output)
-            if not ext:
-                ext = ".png"
-            output = os.path.join(root, name + ext)
-            os.makedirs(os.path.dirname(output), exist_ok=True)
-        pyplot.savefig(output, transparent=True)
-    pyplot.clf()
+            if target == "project":
+                name = "project"
+            output = get_plot_path(args.output, name)
+    deploy_plot(title, output, args.style)
 
 
-def plot_many(args, header, parts):
+def plot_many(args, target, header, parts):
     if not args.output:
         print("Warning: output not set, showing %d plots." % len(parts))
     itercnt = progress.bar(parts, expected_size=len(parts)) \
@@ -283,12 +321,12 @@ def plot_many(args, header, parts):
     for fc in itercnt:
         backup = sys.stdout
         sys.stdout = stdout
-        plot_project(args, *load_main(header, fc, args.resample))
+        plot_burndown(args, target, *load_main(header, fc, args.resample))
         sys.stdout = backup
     sys.stdout.write(stdout.getvalue())
 
 
-def plot_matrix(args, matrix, people):
+def plot_matrix(args, repo, matrix, people):
     matrix = matrix.astype(float)
     zeros = matrix[:, 0] == 0
     matrix[zeros, :] = 1
@@ -313,29 +351,83 @@ def plot_matrix(args, matrix, people):
     ax.set_xticks(numpy.arange(0.5, matrix.shape[1] + 0.5), minor=True)
     ax.set_yticks(numpy.arange(0.5, matrix.shape[0] + 0.5), minor=True)
     ax.grid(which="minor")
+    apply_plot_style(fig, ax, None, args.style, args.text_size)
     if not args.output:
         pos1 = ax.get_position()
-        pos2 = (pos1.x0 + 0.15, pos1.y0 - 0.1, pos1.width * 0.9, pos1.height * 0.9)
+        pos2 = (pos1.x0 + 0.245, pos1.y0 - 0.1, pos1.width * 0.9, pos1.height * 0.9)
         ax.set_position(pos2)
-        pyplot.gcf().canvas.set_window_title(
-            "Hercules %d developers overwrite" % matrix.shape[0])
-        pyplot.show()
+    if args.mode == "all":
+        output = get_plot_path(args.output, "matrix")
     else:
-        pyplot.tight_layout()
-        pyplot.savefig(args.output, transparent=True)
+        output = args.output
+    title = "%s %d developers overwrite" % (repo, matrix.shape[0])
+    if args.output:
+        # FIXME(vmarkovtsev): otherwise the title is screwed in savefig()
+        title = ""
+    deploy_plot(title, output, args.style)
+
+
+def plot_people(args, repo, names, people, date_range):
+    import matplotlib
+    if args.backend:
+        matplotlib.use(args.backend)
+    import matplotlib.pyplot as pyplot
+
+    pyplot.stackplot(date_range, people, labels=names)
+    if args.relative:
+        for i in range(people.shape[1]):
+            people[:, i] /= people[:, i].sum()
+        pyplot.ylim(0, 1)
+        legend_loc = 3
+    else:
+        legend_loc = 2
+    legend = pyplot.legend(loc=legend_loc, fontsize=args.text_size)
+    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.style, args.text_size)
+    if args.mode == "all":
+        output = get_plot_path(args.output, "people")
+    else:
+        output = args.output
+    deploy_plot("%s code ratio through time" % repo, output, args.style)
 
 
 def main():
     args = parse_args()
     header, main_contents, files_contents, people_contents = read_input(args)
+    name = main_contents[0][:-1]
+
+    files_warning = "Files stats were not collected. Re-run hercules with -files."
+    people_warning = "People stats were not collected. Re-run hercules with -people."
+
     if args.mode == "project":
-        plot_project(args, *load_main(header, main_contents, args.resample))
+        plot_burndown(args, "project", *load_main(header, main_contents, args.resample))
     elif args.mode == "file":
-        plot_many(args, header, files_contents)
+        if not files_contents:
+            print(files_warning)
+            return
+        plot_many(args, "file", header, files_contents)
     elif args.mode == "person":
-        plot_many(args, header, people_contents[:-1])
+        if not people_contents:
+            print(people_warning)
+            return
+        plot_many(args, "person", header, people_contents[:-1])
     elif args.mode == "matrix":
-        plot_matrix(args, *load_matrix(people_contents))
+        if not people_contents:
+            print(people_warning)
+            return
+        plot_matrix(args, name, *load_matrix(people_contents))
+    elif args.mode == "people":
+        if not people_contents:
+            print(people_warning)
+            return
+        plot_people(args, name, *load_people(header, people_contents))
+    elif args.mode == "all":
+        plot_burndown(args, "project", *load_main(header, main_contents, args.resample))
+        if files_contents:
+            plot_many(args, "file", header, files_contents)
+        if people_contents:
+            plot_many(args, "person", header, people_contents[:-1])
+            plot_matrix(args, name, *load_matrix(people_contents))
+            plot_people(args, name, *load_people(header, people_contents))
 
 if __name__ == "__main__":
     sys.exit(main())
