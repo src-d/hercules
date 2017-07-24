@@ -275,7 +275,6 @@ func main() {
 	}
 	if with_people {
 		fmt.Print("people\n")
-		fmt.Printf("%d\n", len(people_statuses))
 		for key, val := range people_statuses {
 			fmt.Printf("%d: ", key)
 			printStatuses(val, people_ids[key])

@@ -66,7 +66,7 @@ def read_input(args):
             files_contents.append(contents[i:i + len(main_contents)])
             i += len(main_contents)
     if i < len(contents) and contents[i] == "people\n":
-        i += 2
+        i += 1
         while contents[i] != "\n":
             people_contents.append(contents[i:i + len(main_contents)])
             i += len(main_contents)
