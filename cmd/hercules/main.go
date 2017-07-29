@@ -7,10 +7,8 @@ statistics from Git repositories. Usage:
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -21,103 +19,12 @@ import (
 
 	"gopkg.in/src-d/go-billy.v3/osfs"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v1"
 )
-
-// Signature stores the author's identification. Only a single field is used to identify the
-// commit: first Email is checked, then Name.
-type Signature struct {
-	Name string
-	Email string
-}
-
-func loadPeopleDict(path string) (map[string]int, map[int]string, int) {
-	file, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	dict := make(map[string]int)
-	reverse_dict := make(map[int]string)
-	size := 0
-	for scanner.Scan() {
-		for _, id := range strings.Split(strings.ToLower(scanner.Text()), "|") {
-			dict[id] = size
-		}
-		reverse_dict[size] = scanner.Text()
-		size += 1
-	}
-	return dict, reverse_dict, size
-}
-
-func generatePeopleDict(commits []*object.Commit) (map[string]int, map[int]string, int) {
-	dict := make(map[string]int)
-	emails := make(map[int][]string)
-	names := make(map[int][]string)
-	size := 0
-	for _, commit := range commits {
-		email := strings.ToLower(commit.Author.Email)
-		name := strings.ToLower(commit.Author.Name)
-		id, exists := dict[email]
-		if exists {
-			_, exists := dict[name]
-			if !exists {
-				dict[name] = id
-			  names[id] = append(names[id], name)
-			}
-			continue
-		}
-		id, exists = dict[name]
-		if exists {
-			dict[email] = id
-			emails[id] = append(emails[id], email)
-			continue
-		}
-		dict[email] = size
-		dict[name] = size
-		emails[size] = append(emails[size], email)
-		names[size] = append(names[size], name)
-		size += 1
-	}
-	reverse_dict := make(map[int]string)
-	for _, val := range dict {
-		reverse_dict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
-	}
-	return dict, reverse_dict, size
-}
-
-func loadCommitsFromFile(path string, repository *git.Repository) []*object.Commit {
-	var file io.Reader
-	if path != "-" {
-		file, err := os.Open(path)
-		if err != nil {
-			panic(err)
-		}
-		defer file.Close()
-	} else {
-		file = os.Stdin
-	}
-	scanner := bufio.NewScanner(file)
-	commits := []*object.Commit{}
-	for scanner.Scan() {
-		hash := plumbing.NewHash(scanner.Text())
-		if len(hash) != 20 {
-			panic("invalid commit hash " + scanner.Text())
-		}
-		commit, err := repository.CommitObject(hash)
-		if err != nil {
-			panic(err)
-		}
-		commits = append(commits, commit)
-	}
-	return commits
-}
 
 func printStatuses(statuses [][]int64, name string) {
 	// determine the maximum length of each value
@@ -225,62 +132,72 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	// core logic
-	analyser := hercules.Analyser{
-		Repository: repository,
-		OnProgress: func(commit, length int) {
-			fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
-		},
-		Granularity:         granularity,
-		Sampling:            sampling,
-		SimilarityThreshold: similarity_threshold,
-		Debug:               debug,
+	pipeline := hercules.NewPipeline(repository)
+	pipeline.OnProgress = func(commit, length int) {
+		fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
 	}
 	// list of commits belonging to the default branch, from oldest to newest
 	// rev-list --first-parent
 	var commits []*object.Commit
 	if commitsFile == "" {
-		commits = analyser.Commits()
+		commits = pipeline.Commits()
 	} else {
-		commits = loadCommitsFromFile(commitsFile, repository)
+		commits = hercules.LoadCommitsFromFile(commitsFile, repository)
 	}
-	var people_ids map[int]string
+
+	pipeline.AddItem(&hercules.BlobCache{})
+	pipeline.AddItem(&hercules.DaysSinceStart{})
+	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarity_threshold})
+	pipeline.AddItem(&hercules.TreeDiff{})
+	id_matcher := &hercules.IdentityDetector{}
 	if with_people {
-		var people_dict map[string]int
-		var people_number int
 		if people_dict_path != "" {
-			people_dict, people_ids, people_number = loadPeopleDict(people_dict_path)
+			id_matcher.LoadPeopleDict(people_dict_path)
 		} else {
-			people_dict, people_ids, people_number = generatePeopleDict(commits)
+			id_matcher.GeneratePeopleDict(commits)
 		}
-		analyser.PeopleNumber = people_number
-		analyser.PeopleDict = people_dict
 	}
-	global_statuses, file_statuses, people_statuses, people_matrix := analyser.Analyse(commits)
+	pipeline.AddItem(id_matcher)
+	burndowner := &hercules.BurndownAnalysis{
+		Granularity:         granularity,
+		Sampling:            sampling,
+		Debug:               debug,
+		PeopleNumber:        len(id_matcher.ReversePeopleDict),
+	}
+	pipeline.AddItem(burndowner)
+
+	pipeline.Initialize()
+	result, err := pipeline.Run(commits)
+	if err != nil {
+		panic(err)
+	}
+	burndown_results := result[burndowner].(hercules.BurndownResult)
 	fmt.Fprint(os.Stderr, "                \r")
-	if len(global_statuses) == 0 {
+	if len(burndown_results.GlobalHistory) == 0 {
 		return
 	}
 	// print the start date, granularity, sampling
 	fmt.Println(commits[0].Author.When.Unix(),
 		commits[len(commits)-1].Author.When.Unix(),
 		granularity, sampling)
-	printStatuses(global_statuses, uri)
+	printStatuses(burndown_results.GlobalHistory, uri)
 	if with_files {
 		fmt.Print("files\n")
-		keys := sortedKeys(file_statuses)
+		keys := sortedKeys(burndown_results.FileHistories)
 		for _, key := range keys {
-			printStatuses(file_statuses[key], key)
+			printStatuses(burndown_results.FileHistories[key], key)
 		}
 	}
 	if with_people {
 		fmt.Print("people\n")
-		for key, val := range people_statuses {
+		for key, val := range burndown_results.PeopleHistories {
 			fmt.Printf("%d: ", key)
-			printStatuses(val, people_ids[key])
+			printStatuses(val, id_matcher.ReversePeopleDict[key])
 		}
 		fmt.Println()
-		for _, row := range(people_matrix) {
+		for _, row := range(burndown_results.PeopleMatrix) {
 			for _, cell := range(row) {
 				fmt.Print(cell, " ")
 			}
