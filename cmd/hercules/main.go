@@ -26,34 +26,44 @@ import (
 	"gopkg.in/src-d/hercules.v1"
 )
 
-func printStatuses(statuses [][]int64, name string) {
+func printMatrix(matrix [][]int64, name string, fixNegative bool) {
 	// determine the maximum length of each value
-	var maxnum int64
-	for _, status := range statuses {
+	var maxnum int64 = - (1 << 32)
+	var minnum int64 = 1 << 32
+	for _, status := range matrix {
 		for _, val := range status {
 			if val > maxnum {
 				maxnum = val
 			}
+			if val < minnum {
+				minnum = val
+			}
 		}
 	}
 	width := len(strconv.FormatInt(maxnum, 10))
-	last := len(statuses[len(statuses)-1])
-	if name != "" {
-		fmt.Println(name)
+	if !fixNegative && minnum < 0 {
+		width = len(strconv.FormatInt(minnum, 10))
 	}
-	// print the resulting triangle matrix
-	for _, status := range statuses {
+	last := len(matrix[len(matrix)-1])
+	indent := 2
+	if name != "" {
+		fmt.Printf("  %s: |-\n", name)
+		indent += 2
+	}
+	// print the resulting triangular matrix
+	for _, status := range matrix {
+		fmt.Print(strings.Repeat(" ", indent - 1))
 		for i := 0; i < last; i++ {
 			var val int64
 			if i < len(status) {
 				val = status[i]
 				// not sure why this sometimes happens...
 				// TODO(vmarkovtsev): find the root cause of tiny negative balances
-				if val < 0 {
+				if fixNegative && val < 0 {
 					val = 0
 				}
 			}
-			fmt.Printf("%[1]*[2]d ", width, val)
+			fmt.Printf(" %[1]*[2]d", width, val)
 		}
 		fmt.Println()
 	}
@@ -179,29 +189,31 @@ func main() {
 		return
 	}
 	// print the start date, granularity, sampling
-	fmt.Println(commits[0].Author.When.Unix(),
-		commits[len(commits)-1].Author.When.Unix(),
-		granularity, sampling)
-	printStatuses(burndown_results.GlobalHistory, uri)
+	fmt.Println("burndown:")
+	fmt.Println("  version: 1")
+  fmt.Println("  begin:", commits[0].Author.When.Unix())
+	fmt.Println("  end:", commits[len(commits)-1].Author.When.Unix())
+	fmt.Println("  granularity:", granularity)
+	fmt.Println("  sampling:", sampling)
+  fmt.Println("project:")
+	printMatrix(burndown_results.GlobalHistory, uri, true)
 	if with_files {
-		fmt.Print("files\n")
+		fmt.Println("files:")
 		keys := sortedKeys(burndown_results.FileHistories)
 		for _, key := range keys {
-			printStatuses(burndown_results.FileHistories[key], key)
+			printMatrix(burndown_results.FileHistories[key], key, true)
 		}
 	}
 	if with_people {
-		fmt.Print("people\n")
+		fmt.Println("people_sequence:")
+		for key := range burndown_results.PeopleHistories {
+			fmt.Println("  - " + id_matcher.ReversePeopleDict[key])
+		}
+		fmt.Println("people:")
 		for key, val := range burndown_results.PeopleHistories {
-			fmt.Printf("%d: ", key)
-			printStatuses(val, id_matcher.ReversePeopleDict[key])
+			printMatrix(val, id_matcher.ReversePeopleDict[key], true)
 		}
-		fmt.Println()
-		for _, row := range(burndown_results.PeopleMatrix) {
-			for _, cell := range(row) {
-				fmt.Print(cell, " ")
-			}
-			fmt.Print("\n")
-		}
+		fmt.Println("interaction: |-")
+		printMatrix(burndown_results.PeopleMatrix, "", false)
 	}
 }
