@@ -11,6 +11,7 @@ except ImportError:
     print("Warning: clint is not installed, no fancy progressbars in the terminal for you.")
     progress = None
 import numpy
+import yaml
 
 
 if sys.version_info[0] < 3:
@@ -45,33 +46,13 @@ def parse_args():
 
 
 def read_input(args):
-    main_contents = []
-    files_contents = []
-    people_contents = []
     if args.input != "-":
         with open(args.input) as fin:
-            header = fin.readline()[:-1]
-            contents = fin.readlines()
+            data = yaml.load(fin)
     else:
-        header = input()
-        contents = sys.stdin.readlines()
-    for i, line in enumerate(contents):
-        if line not in ("files\n", "people\n"):
-            main_contents.append(line)
-        else:
-            break
-    if i < len(contents) and contents[i] == "files\n":
-        i += 1
-        while i < len(contents) and contents[i] != "people\n":
-            files_contents.append(contents[i:i + len(main_contents)])
-            i += len(main_contents)
-    if i < len(contents) and contents[i] == "people\n":
-        i += 1
-        while contents[i] != "\n":
-            people_contents.append(contents[i:i + len(main_contents)])
-            i += len(main_contents)
-        people_contents.append(contents[i + 1:])
-    return header, main_contents, files_contents, people_contents
+        data = yaml.load(sys.stdin)
+    return data["burndown"], data["project"], data.get("files"), data.get("people_sequence"), \
+           data.get("people"), data.get("interaction")
 
 
 def calculate_average_lifetime(matrix):
@@ -88,17 +69,19 @@ def calculate_average_lifetime(matrix):
             / (lifetimes.sum() * matrix.shape[1]))
 
 
-def load_main(header, contents, resample):
+def load_main(header, name, matrix, resample):
     import pandas
 
-    start, last, granularity, sampling = header.split()
+    start = header["begin"]
+    last = header["end"]
+    granularity = header["granularity"]
+    sampling = header["sampling"]
     start = datetime.fromtimestamp(int(start))
     last = datetime.fromtimestamp(int(last))
     granularity = int(granularity)
     sampling = int(sampling)
-    name = contents[0][:-1]
     matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
-                          for line in contents[1:]]).T
+                          for line in matrix.split("\n")]).T
     print(name, "lifetime index:", calculate_average_lifetime(matrix))
     finish = start + timedelta(days=matrix.shape[1] * sampling)
     if resample not in ("no", "raw"):
@@ -176,33 +159,29 @@ def load_main(header, contents, resample):
 
 
 def load_matrix(contents):
-    size = len(contents) - 1
-    people = []
-    for i, block in enumerate(contents[:-1]):
-        people.append(block[0].split(": ", 1)[1])
-    matrix = numpy.array([[int(p) for p in l[:-1].split()]
-                          for l in contents[-1][-size - 1:] if l[:-1]],
-                         dtype=int)
-    return matrix, people
+    matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
+                          for line in contents.split("\n")])
+    return matrix
 
 
-def load_people(header, contents):
+def load_people(header, sequence, contents):
     import pandas
 
-    start, last, granularity, sampling = header.split()
+    start = header["begin"]
+    last = header["end"]
+    sampling = header["sampling"]
     start = datetime.fromtimestamp(int(start))
+    last = datetime.fromtimestamp(int(last))
     sampling = int(sampling)
     people = []
-    names = []
-    for lines in contents[:-1]:
-        names.append(lines[0])
+    for name in sequence:
         people.append(numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
-                                   for line in lines[1:]]).sum(axis=1))
+                                   for line in contents[name].split("\n")]).sum(axis=1))
     people = numpy.array(people)
     date_range_sampling = pandas.date_range(
         start + timedelta(days=sampling), periods=people[0].shape[0],
         freq="%dD" % sampling)
-    return names, people, date_range_sampling
+    return sequence, people, date_range_sampling, last
 
 
 def apply_plot_style(figure, axes, legend, style, text_size):
@@ -315,18 +294,18 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
 def plot_many(args, target, header, parts):
     if not args.output:
         print("Warning: output not set, showing %d plots." % len(parts))
-    itercnt = progress.bar(parts, expected_size=len(parts)) \
-        if progress is not None else parts
+    itercnt = progress.bar(parts.items(), expected_size=len(parts)) \
+        if progress is not None else parts.items()
     stdout = io.StringIO()
-    for fc in itercnt:
+    for name, matrix in itercnt:
         backup = sys.stdout
         sys.stdout = stdout
-        plot_burndown(args, target, *load_main(header, fc, args.resample))
+        plot_burndown(args, target, *load_main(header, name, matrix, args.resample))
         sys.stdout = backup
     sys.stdout.write(stdout.getvalue())
 
 
-def plot_matrix(args, repo, matrix, people):
+def plot_matrix(args, repo, people, matrix):
     matrix = matrix.astype(float)
     zeros = matrix[:, 0] == 0
     matrix[zeros, :] = 1
@@ -367,13 +346,14 @@ def plot_matrix(args, repo, matrix, people):
     deploy_plot(title, output, args.style)
 
 
-def plot_people(args, repo, names, people, date_range):
+def plot_people(args, repo, names, people, date_range, last):
     import matplotlib
     if args.backend:
         matplotlib.use(args.backend)
     import matplotlib.pyplot as pyplot
 
     pyplot.stackplot(date_range, people, labels=names)
+    pyplot.xlim(date_range[0], last)
     if args.relative:
         for i in range(people.shape[1]):
             people[:, i] /= people[:, i].sum()
@@ -392,14 +372,16 @@ def plot_people(args, repo, names, people, date_range):
 
 def main():
     args = parse_args()
-    header, main_contents, files_contents, people_contents = read_input(args)
-    name = main_contents[0][:-1]
+    header, main_contents, files_contents, people_sequence, people_contents, people_matrix = \
+        read_input(args)
+    name = next(iter(main_contents))
 
     files_warning = "Files stats were not collected. Re-run hercules with -files."
     people_warning = "People stats were not collected. Re-run hercules with -people."
 
     if args.mode == "project":
-        plot_burndown(args, "project", *load_main(header, main_contents, args.resample))
+        plot_burndown(args, "project",
+                      *load_main(header, name, main_contents[name], args.resample))
     elif args.mode == "file":
         if not files_contents:
             print(files_warning)
@@ -409,25 +391,26 @@ def main():
         if not people_contents:
             print(people_warning)
             return
-        plot_many(args, "person", header, people_contents[:-1])
+        plot_many(args, "person", header, people_contents)
     elif args.mode == "matrix":
         if not people_contents:
             print(people_warning)
             return
-        plot_matrix(args, name, *load_matrix(people_contents))
+        plot_matrix(args, name, people_sequence, load_matrix(people_matrix))
     elif args.mode == "people":
         if not people_contents:
             print(people_warning)
             return
-        plot_people(args, name, *load_people(header, people_contents))
+        plot_people(args, name, *load_people(header, people_sequence, people_contents))
     elif args.mode == "all":
-        plot_burndown(args, "project", *load_main(header, main_contents, args.resample))
+        plot_burndown(args, "project",
+                      *load_main(header, name, main_contents[name], args.resample))
         if files_contents:
             plot_many(args, "file", header, files_contents)
         if people_contents:
-            plot_many(args, "person", header, people_contents[:-1])
-            plot_matrix(args, name, *load_matrix(people_contents))
-            plot_people(args, name, *load_people(header, people_contents))
+            plot_many(args, "person", header, people_contents)
+            plot_matrix(args, name, people_sequence, load_matrix(people_matrix))
+            plot_people(args, name, *load_people(header, people_sequence, people_contents))
 
 if __name__ == "__main__":
     sys.exit(main())
