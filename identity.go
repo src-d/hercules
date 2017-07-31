@@ -13,7 +13,7 @@ type IdentityDetector struct {
 	// Maps email || name  -> developer id.
 	PeopleDict map[string]int
 	// Maps developer id -> description
-	ReversePeopleDict map[int]string
+	ReversePeopleDict []string
 }
 
 const MISSING_AUTHOR = (1 << 18) - 1
@@ -60,13 +60,14 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	dict := make(map[string]int)
-	reverse_dict := make(map[int]string)
+	reverse_dict := []string{}
 	size := 0
 	for scanner.Scan() {
-		for _, id := range strings.Split(strings.ToLower(scanner.Text()), "|") {
+		ids := strings.Split(strings.ToLower(scanner.Text()), "|")
+		for _, id := range ids {
 			dict[id] = size
 		}
-		reverse_dict[size] = scanner.Text()
+		reverse_dict = append(reverse_dict, ids[0])
 		size += 1
 	}
 	id.PeopleDict = dict
@@ -103,7 +104,7 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 		names[size] = append(names[size], name)
 		size += 1
 	}
-	reverse_dict := make(map[int]string)
+	reverse_dict := make([]string, size)
 	for _, val := range dict {
 		reverse_dict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
 	}

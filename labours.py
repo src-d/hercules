@@ -52,7 +52,7 @@ def read_input(args):
     else:
         data = yaml.load(sys.stdin)
     return data["burndown"], data["project"], data.get("files"), data.get("people_sequence"), \
-           data.get("people"), data.get("interaction")
+           data.get("people"), data.get("people_interaction")
 
 
 def calculate_average_lifetime(matrix):

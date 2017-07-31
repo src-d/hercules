@@ -28,7 +28,7 @@ import (
 
 func printMatrix(matrix [][]int64, name string, fixNegative bool) {
 	// determine the maximum length of each value
-	var maxnum int64 = - (1 << 32)
+	var maxnum int64 = -(1 << 32)
 	var minnum int64 = 1 << 32
 	for _, status := range matrix {
 		for _, val := range status {
@@ -47,12 +47,12 @@ func printMatrix(matrix [][]int64, name string, fixNegative bool) {
 	last := len(matrix[len(matrix)-1])
 	indent := 2
 	if name != "" {
-		fmt.Printf("  %s: |-\n", name)
+		fmt.Printf("  \"%s\": |-\n", name)
 		indent += 2
 	}
 	// print the resulting triangular matrix
 	for _, status := range matrix {
-		fmt.Print(strings.Repeat(" ", indent - 1))
+		fmt.Print(strings.Repeat(" ", indent-1))
 		for i := 0; i < last; i++ {
 			var val int64
 			if i < len(status) {
@@ -69,6 +69,51 @@ func printMatrix(matrix [][]int64, name string, fixNegative bool) {
 	}
 }
 
+func printCouples(result *hercules.CouplesResult, peopleDict []string) {
+	fmt.Println("files_coocc:")
+		fmt.Println("  index:")
+		for _, file := range result.Files {
+			fmt.Printf("    - \"%s\"\n", file)
+		}
+		fmt.Println("  matrix:")
+		for _, files := range result.FilesMatrix {
+			fmt.Print("    - {")
+			indices := []int{}
+			for file := range files {
+				indices = append(indices, file)
+			}
+			sort.Ints(indices)
+			for i, file := range indices {
+				fmt.Printf("%d: %d", file, files[file])
+				if i < len(indices) - 1 {
+					fmt.Print(", ")
+				}
+			}
+			fmt.Println("}")
+		}
+		fmt.Println("people_coocc:")
+	  fmt.Println("  index:")
+	  for _, person := range peopleDict {
+		  fmt.Printf("    - \"%s\"\n", person)
+	  }
+	  fmt.Println("  matrix:")
+		for _, people := range result.PeopleMatrix {
+			fmt.Print("    - {")
+			indices := []int{}
+			for file := range people {
+				indices = append(indices, file)
+			}
+			sort.Ints(indices)
+			for i, person := range indices {
+				fmt.Printf("%d: %d", person, people[person])
+				if i < len(indices) - 1 {
+					fmt.Print(", ")
+				}
+			}
+			fmt.Println("}")
+		}
+}
+
 func sortedKeys(m map[string][][]int64) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -81,6 +126,7 @@ func sortedKeys(m map[string][][]int64) []string {
 func main() {
 	var with_files bool
 	var with_people bool
+	var with_couples bool
 	var people_dict_path string
 	var profile bool
 	var granularity, sampling, similarity_threshold int
@@ -88,6 +134,8 @@ func main() {
 	var debug bool
 	flag.BoolVar(&with_files, "files", false, "Output detailed statistics per each file.")
 	flag.BoolVar(&with_people, "people", false, "Output detailed statistics per each developer.")
+	flag.BoolVar(&with_couples, "couples", false, "Gather the co-occurrence matrix "+
+		"for files and people.")
 	flag.StringVar(&people_dict_path, "people-dict", "", "Path to the developers' email associations.")
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
 	flag.IntVar(&granularity, "granularity", 30, "How many days there are in a single band.")
@@ -162,7 +210,7 @@ func main() {
 	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarity_threshold})
 	pipeline.AddItem(&hercules.TreeDiff{})
 	id_matcher := &hercules.IdentityDetector{}
-	if with_people {
+	if with_people || with_couples {
 		if people_dict_path != "" {
 			id_matcher.LoadPeopleDict(people_dict_path)
 		} else {
@@ -171,19 +219,29 @@ func main() {
 	}
 	pipeline.AddItem(id_matcher)
 	burndowner := &hercules.BurndownAnalysis{
-		Granularity:         granularity,
-		Sampling:            sampling,
-		Debug:               debug,
-		PeopleNumber:        len(id_matcher.ReversePeopleDict),
+		Granularity:  granularity,
+		Sampling:     sampling,
+		Debug:        debug,
+		PeopleNumber: len(id_matcher.ReversePeopleDict),
 	}
 	pipeline.AddItem(burndowner)
+	var coupler *hercules.Couples
+	if with_couples {
+		coupler = &hercules.Couples{PeopleNumber: len(id_matcher.ReversePeopleDict)}
+		pipeline.AddItem(coupler)
+	}
 
 	pipeline.Initialize()
 	result, err := pipeline.Run(commits)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Fprint(os.Stderr, "writing...    \r")
 	burndown_results := result[burndowner].(hercules.BurndownResult)
+	var couples_result hercules.CouplesResult
+	if with_couples {
+		couples_result = result[coupler].(hercules.CouplesResult)
+	}
 	fmt.Fprint(os.Stderr, "                \r")
 	if len(burndown_results.GlobalHistory) == 0 {
 		return
@@ -191,11 +249,11 @@ func main() {
 	// print the start date, granularity, sampling
 	fmt.Println("burndown:")
 	fmt.Println("  version: 1")
-  fmt.Println("  begin:", commits[0].Author.When.Unix())
+	fmt.Println("  begin:", commits[0].Author.When.Unix())
 	fmt.Println("  end:", commits[len(commits)-1].Author.When.Unix())
 	fmt.Println("  granularity:", granularity)
 	fmt.Println("  sampling:", sampling)
-  fmt.Println("project:")
+	fmt.Println("project:")
 	printMatrix(burndown_results.GlobalHistory, uri, true)
 	if with_files {
 		fmt.Println("files:")
@@ -213,7 +271,10 @@ func main() {
 		for key, val := range burndown_results.PeopleHistories {
 			printMatrix(val, id_matcher.ReversePeopleDict[key], true)
 		}
-		fmt.Println("interaction: |-")
+		fmt.Println("people_interaction: |-")
 		printMatrix(burndown_results.PeopleMatrix, "", false)
+	}
+	if with_couples {
+    printCouples(&couples_result, id_matcher.ReversePeopleDict)
 	}
 }
