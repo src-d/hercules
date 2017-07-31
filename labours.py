@@ -56,12 +56,18 @@ def read_input(args):
     try:
         loader = yaml.CLoader
     except AttributeError:
+        print("Warning: failed to import yaml.CLoader, falling back to slow yaml.Loader")
         loader = yaml.Loader
-    if args.input != "-":
-        with open(args.input) as fin:
-            data = yaml.load(fin, Loader=loader)
-    else:
-        data = yaml.load(sys.stdin, Loader=loader)
+    try:
+        if args.input != "-":
+            with open(args.input) as fin:
+                data = yaml.load(fin, Loader=loader)
+        else:
+            data = yaml.load(sys.stdin, Loader=loader)
+    except UnicodeEncodeError as e:
+        print("\nInvalid unicode in the input: %s\nPlease filter it through fix_yaml_unicode.py" %
+              e)
+        sys.exit(1)
     print("done")
     return data["burndown"], data["project"], data.get("files"), data.get("people_sequence"), \
            data.get("people"), data.get("people_interaction"), data.get("files_coocc"), \
