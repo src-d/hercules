@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime, timedelta
 import io
 import os
+import re
 import sys
 import tempfile
 import warnings
@@ -51,6 +52,7 @@ def parse_args():
 def read_input(args):
     sys.stdout.write("Reading the input... ")
     sys.stdout.flush()
+    yaml.reader.Reader.NON_PRINTABLE = re.compile(r"(?!x)x")
     if args.input != "-":
         with open(args.input) as fin:
             data = yaml.load(fin)
