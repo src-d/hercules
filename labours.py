@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import io
 import os
 import sys
+import tempfile
 import warnings
 
 try:
@@ -32,8 +33,10 @@ def parse_args():
                         help="Plot's general color scheme.")
     parser.add_argument("--relative", action="store_true",
                         help="Occupy 100%% height for every measurement.")
+    parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
-                        choices=["project", "file", "person", "matrix", "people", "all"],
+                        choices=["project", "file", "person", "matrix", "people", "couples",
+                                 "all"],
                         default="project", help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -46,13 +49,17 @@ def parse_args():
 
 
 def read_input(args):
+    sys.stdout.write("Reading the input... ")
+    sys.stdout.flush()
     if args.input != "-":
         with open(args.input) as fin:
             data = yaml.load(fin)
     else:
         data = yaml.load(sys.stdin)
+    print("done")
     return data["burndown"], data["project"], data.get("files"), data.get("people_sequence"), \
-           data.get("people"), data.get("people_interaction")
+           data.get("people"), data.get("people_interaction"), data.get("files_coocc"), \
+           data.get("people_coocc")
 
 
 def calculate_average_lifetime(matrix):
@@ -370,10 +377,129 @@ def plot_people(args, repo, names, people, date_range, last):
     deploy_plot("%s code ratio through time" % repo, output, args.style)
 
 
+def train_embeddings(coocc_tree, tmpdir, shard_size=4096):
+    from scipy.sparse import csr_matrix
+    import tensorflow as tf
+    try:
+        from . import swivel
+    except SystemError:
+        import swivel
+
+    index = coocc_tree["index"]
+    print("Reading the sparse matrix...")
+    data = []
+    indices = []
+    indptr = [0]
+    for row, cd in enumerate(coocc_tree["matrix"]):
+        for col, val in sorted(cd.items()):
+            data.append(val)
+            indices.append(col)
+        indptr.append(indptr[-1] + len(cd))
+    matrix = csr_matrix((data, indices, indptr), shape=(len(index), len(index)))
+    meta_index = []
+    for i, name in enumerate(index):
+        meta_index.append((name, matrix[i, i]))
+    with tempfile.TemporaryDirectory(prefix="hercules_labours_", dir=tmpdir or None) as tmproot:
+        print("Writing Swivel metadata...")
+        vocabulary = "\n".join(index)
+        with open(os.path.join(tmproot, "row_vocab.txt"), "w") as out:
+            out.write(vocabulary)
+        with open(os.path.join(tmproot, "col_vocab.txt"), "w") as out:
+            out.write(vocabulary)
+        del vocabulary
+        bool_sums = matrix.indptr[1:] - matrix.indptr[:-1]
+        bool_sums_str = "\n".join(map(str, bool_sums.tolist()))
+        with open(os.path.join(tmproot, "row_sums.txt"), "w") as out:
+            out.write(bool_sums_str)
+        with open(os.path.join(tmproot, "col_sums.txt"), "w") as out:
+            out.write(bool_sums_str)
+        del bool_sums_str
+        reorder = numpy.argsort(-bool_sums)
+        nshards = len(index) // shard_size
+        if nshards == 0:
+            nshards = 1
+            shard_size = len(index)
+        print("Writing Swivel shards...")
+        for row in range(nshards):
+            for col in range(nshards):
+                def _int64s(xs):
+                    return tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=list(xs)))
+
+                def _floats(xs):
+                    return tf.train.Feature(
+                        float_list=tf.train.FloatList(value=list(xs)))
+
+                indices_row = reorder[row::nshards]
+                indices_col = reorder[col::nshards]
+                shard = matrix[indices_row][:, indices_col].tocoo()
+
+                example = tf.train.Example(features=tf.train.Features(feature={
+                    "global_row": _int64s(indices_row),
+                    "global_col": _int64s(indices_col),
+                    "sparse_local_row": _int64s(shard.row),
+                    "sparse_local_col": _int64s(shard.col),
+                    "sparse_value": _floats(shard.data)}))
+
+                with open(os.path.join(tmproot, "shard-%03d-%03d.pb" % (row, col)), "wb") as out:
+                    out.write(example.SerializeToString())
+        print("Training Swivel model...")
+        swivel.FLAGS.submatrix_rows = shard_size
+        swivel.FLAGS.submatrix_cols = shard_size
+        if len(index) < 10000:
+            embedding_size = 50
+            num_epochs = 40
+        elif len(index) < 100000:
+            embedding_size = 100
+            num_epochs = 50
+        elif len(index) < 500000:
+            embedding_size = 200
+            num_epochs = 60
+        else:
+            embedding_size = 300
+            num_epochs = 80
+        swivel.FLAGS.embedding_size = embedding_size
+        swivel.FLAGS.input_base_path = tmproot
+        swivel.FLAGS.output_base_path = tmproot
+        swivel.FLAGS.loss_multiplier = 1.0 / shard_size
+        swivel.FLAGS.num_epochs = num_epochs
+        swivel.main(None)
+        print("Reading Swivel embeddings...")
+        embeddings = []
+        with open(os.path.join(tmproot, "row_embedding.tsv")) as frow:
+            with open(os.path.join(tmproot, "col_embedding.tsv")) as fcol:
+                for i, (lrow, lcol) in enumerate(zip(frow, fcol)):
+                    prow, pcol = (l.split("\t", 1) for l in (lrow, lcol))
+                    assert prow[0] == pcol[0]
+                    erow, ecol = \
+                        (numpy.fromstring(p[1], dtype=numpy.float32, sep="\t")
+                         for p in (prow, pcol))
+                    embeddings.append((erow + ecol) / 2)
+    return meta_index, embeddings
+
+
+def write_embeddings(name, output, index, embeddings):
+    print("Writing Tensorflow Projector files...")
+    if not output:
+        output = "couples_" + name
+    metaf = "%s_%s_meta.tsv" % (output, name)
+    with open(metaf, "w") as fout:
+        fout.write("name\tcommits\n")
+        for pair in index:
+            fout.write("%s\t%s\n" % pair)
+    print("Wrote", metaf)
+    dataf = "%s_%s_data.tsv" % (output, name)
+    with open(dataf, "w") as fout:
+        for vec in embeddings:
+            fout.write("\t".join(str(v) for v in vec))
+            fout.write("\n")
+    print("Wrote", dataf)
+
+
 def main():
     args = parse_args()
-    header, main_contents, files_contents, people_sequence, people_contents, people_matrix = \
-        read_input(args)
+    header, main_contents, files_contents, people_sequence, people_contents, people_matrix, \
+        files_coocc, people_coocc = read_input(args)
     name = next(iter(main_contents))
 
     files_warning = "Files stats were not collected. Re-run hercules with -files."
@@ -402,6 +528,11 @@ def main():
             print(people_warning)
             return
         plot_people(args, name, *load_people(header, people_sequence, people_contents))
+    elif args.mode == "couples":
+        write_embeddings("files", args.output,
+                         *train_embeddings(files_coocc, args.couples_tmp_dir))
+        write_embeddings("people", args.output,
+                         *train_embeddings(people_coocc, args.couples_tmp_dir))
     elif args.mode == "all":
         plot_burndown(args, "project",
                       *load_main(header, name, main_contents[name], args.resample))
@@ -411,6 +542,12 @@ def main():
             plot_many(args, "person", header, people_contents)
             plot_matrix(args, name, people_sequence, load_matrix(people_matrix))
             plot_people(args, name, *load_people(header, people_sequence, people_contents))
+        if people_coocc:
+            assert files_coocc
+            write_embeddings("files", args.output,
+                             *train_embeddings(files_coocc, args.couples_tmp_dir))
+            write_embeddings("people", args.output,
+                             *train_embeddings(people_coocc, args.couples_tmp_dir))
 
 if __name__ == "__main__":
     sys.exit(main())

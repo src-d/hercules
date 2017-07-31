@@ -13,6 +13,8 @@ type Couples struct {
 
 	// people store how many times every developer committed to every file.
 	people []map[string]int
+	// people_commits is the number of commits each author made
+	people_commits []int
 	// files store every file occurred in the same commit with every other file.
 	files map[string]map[string]int
 }
@@ -41,11 +43,13 @@ func (couples *Couples) Initialize(repository *git.Repository) {
 	for i := range couples.people {
 		couples.people[i] = map[string]int{}
 	}
+	couples.people_commits = make([]int, couples.PeopleNumber)
 	couples.files = map[string]map[string]int{}
 }
 
 func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	author := deps["author"].(int)
+	couples.people_commits[author] += 1
 	tree_diff := deps["renamed_changes"].(object.Changes)
 	context := make([]string, 0)
 	deleteFile := func(name string) {
@@ -116,6 +120,7 @@ func (couples *Couples) Finalize() interface{} {
 				}
 			}
 		}
+		peopleMatrix[i][i] = int64(couples.people_commits[i])
 	}
 	filesSequence := make([]string, len(couples.files))
 	i := 0
