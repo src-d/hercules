@@ -312,6 +312,9 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	blob := cache[change.From.TreeEntry.Hash]
 	lines, err := countLines(blob)
 	if err != nil {
+		if err.Error() == "binary" {
+			return nil
+		}
 		return err
 	}
 	name := change.From.Name
