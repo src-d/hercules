@@ -1,10 +1,12 @@
 package hercules
 
 import (
+	"fmt"
+	"sort"
+
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"sort"
 )
 
 type Couples struct {
@@ -103,9 +105,12 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 
 func (couples *Couples) Finalize() interface{} {
 	peopleMatrix := make([]map[int]int64, couples.PeopleNumber)
+	fmt.Printf("people_files:\n")
 	for i := range peopleMatrix {
 		peopleMatrix[i] = map[int]int64{}
+		fmt.Printf("  %d: ", i)
 		for file, commits := range couples.people[i] {
+			fmt.Printf("%s, ", file)
 			for j, otherFiles := range couples.people {
 				if i == j {
 					continue
@@ -121,6 +126,7 @@ func (couples *Couples) Finalize() interface{} {
 			}
 		}
 		peopleMatrix[i][i] = int64(couples.people_commits[i])
+		fmt.Printf("\n")
 	}
 	filesSequence := make([]string, len(couples.files))
 	i := 0
