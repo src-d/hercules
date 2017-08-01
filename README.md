@@ -137,7 +137,7 @@ co-occurrence probability through the Euclidean distance. The training requires 
 [Tensorflow](http://tensorflow.org) installation. The intermediate files are stored in the
 system temporary directory or `--couples-tmp-dir` if it is specified. The trained embeddings are
 written to the current working directory with the name depending on `-o`. The output format is TSV
-and matches [Tensorflow Projector])(http://projector.tensorflow.org/) so that the files and people
+and matches [Tensorflow Projector](http://projector.tensorflow.org/) so that the files and people
 can be visualized with t-SNE implemented in TF Projector.
 
 #### Everything in a single pass
@@ -181,11 +181,10 @@ python3 labours.py [--text-size] [--relative]
 1. Currently, go-git's file system storage backend is considerably slower than the in-memory one,
 so you should clone repos instead of reading them from disk whenever possible. Please note that the
 in-memory storage may require much RAM, for example, the Linux kernel takes over 200GB in 2017.
-2. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
+1. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
 parsed. However, most of the repositories are parsed within a minute.
-
-2. to use matplotlib in macOS and avoid errors us
+1. To use matplotlib on macOS and avoid runtime errors do
    ```
    echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
    ```
