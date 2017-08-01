@@ -36,7 +36,7 @@ def parse_args():
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
-                        choices=["project", "file", "person", "matrix", "people", "couples",
+                        choices=["project", "file", "person", "churn_matrix", "people", "couples",
                                  "all"],
                         default="project", help="What to plot.")
     parser.add_argument(
@@ -177,7 +177,7 @@ def load_main(header, name, matrix, resample):
     return name, matrix, date_range_sampling, labels, granularity, sampling, resample
 
 
-def load_matrix(contents):
+def load_churn_matrix(contents):
     matrix = numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
                           for line in contents.split("\n")])
     return matrix
@@ -324,7 +324,7 @@ def plot_many(args, target, header, parts):
     sys.stdout.write(stdout.getvalue())
 
 
-def plot_matrix(args, repo, people, matrix):
+def plot_churn_matrix(args, repo, people, matrix):
     matrix = matrix.astype(float)
     zeros = matrix[:, 0] == 0
     matrix[zeros, :] = 1
@@ -471,10 +471,10 @@ def train_embeddings(coocc_tree, tmpdir, shard_size=4096):
         swivel.FLAGS.submatrix_cols = shard_size
         if len(meta_index) < 10000:
             embedding_size = 50
-            num_epochs = 100
+            num_epochs = 200
         elif len(meta_index) < 100000:
             embedding_size = 100
-            num_epochs = 200
+            num_epochs = 250
         elif len(meta_index) < 500000:
             embedding_size = 200
             num_epochs = 300
@@ -541,11 +541,11 @@ def main():
             print(people_warning)
             return
         plot_many(args, "person", header, people_contents)
-    elif args.mode == "matrix":
+    elif args.mode == "churn_matrix":
         if not people_contents:
             print(people_warning)
             return
-        plot_matrix(args, name, people_sequence, load_matrix(people_matrix))
+        plot_churn_matrix(args, name, people_sequence, load_churn_matrix(people_matrix))
     elif args.mode == "people":
         if not people_contents:
             print(people_warning)
@@ -563,7 +563,7 @@ def main():
             plot_many(args, "file", header, files_contents)
         if people_contents:
             plot_many(args, "person", header, people_contents)
-            plot_matrix(args, name, people_sequence, load_matrix(people_matrix))
+            plot_churn_matrix(args, name, people_sequence, load_churn_matrix(people_matrix))
             plot_people(args, name, *load_people(header, people_sequence, people_contents))
         if people_coocc:
             assert files_coocc
