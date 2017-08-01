@@ -82,6 +82,7 @@ func printCouples(result *hercules.CouplesResult, peopleDict []string) {
 	for _, file := range result.Files {
 		fmt.Printf("    - %s\n", safeString(file))
 	}
+
 	fmt.Println("  matrix:")
 	for _, files := range result.FilesMatrix {
 		fmt.Print("    - {")
@@ -98,11 +99,13 @@ func printCouples(result *hercules.CouplesResult, peopleDict []string) {
 		}
 		fmt.Println("}")
 	}
+
 	fmt.Println("people_coocc:")
 	fmt.Println("  index:")
 	for _, person := range peopleDict {
 		fmt.Printf("    - %s\n", safeString(person))
 	}
+
 	fmt.Println("  matrix:")
 	for _, people := range result.PeopleMatrix {
 		fmt.Print("    - {")
@@ -119,6 +122,42 @@ func printCouples(result *hercules.CouplesResult, peopleDict []string) {
 		}
 		fmt.Println("}")
 	}
+
+	fmt.Println("  author_files:") // sorted by number of files each author changed
+	peopleFiles := sortByNumberOfFiles(result.PeopleFiles, peopleDict)
+	for _, authorFiles := range peopleFiles {
+		fmt.Printf("    - %s:\n", safeString(authorFiles.Author))
+		sort.Strings(authorFiles.Files)
+		for _, file := range authorFiles.Files {
+			fmt.Printf("      - %s\n", safeString(file)) // sorted by path
+		}
+	}
+}
+
+func sortByNumberOfFiles(peopleFiles [][]string, peopleDict []string) AuthorFilesList {
+	var pfl AuthorFilesList
+	for peopleIdx, files := range peopleFiles {
+		pfl = append(pfl, AuthorFiles{peopleDict[peopleIdx], files})
+	}
+	sort.Sort(pfl)
+	return pfl
+}
+
+type AuthorFiles struct {
+	Author string
+	Files  []string
+}
+
+type AuthorFilesList []AuthorFiles
+
+func (s AuthorFilesList) Len() int {
+	return len(s)
+}
+func (s AuthorFilesList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s AuthorFilesList) Less(i, j int) bool {
+	return len(s[i].Files) < len(s[j].Files)
 }
 
 func sortedKeys(m map[string][][]int64) []string {

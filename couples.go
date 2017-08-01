@@ -1,7 +1,6 @@
 package hercules
 
 import (
-	"fmt"
 	"sort"
 
 	"gopkg.in/src-d/go-git.v4"
@@ -23,6 +22,7 @@ type Couples struct {
 
 type CouplesResult struct {
 	PeopleMatrix []map[int]int64
+	PeopleFiles  [][]string
 	FilesMatrix  []map[int]int
 	Files        []string
 }
@@ -105,12 +105,13 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 
 func (couples *Couples) Finalize() interface{} {
 	peopleMatrix := make([]map[int]int64, couples.PeopleNumber)
-	fmt.Printf("people_files:\n")
+	peopleFiles := make([][]string, couples.PeopleNumber)
 	for i := range peopleMatrix {
 		peopleMatrix[i] = map[int]int64{}
-		fmt.Printf("  %d: ", i)
 		for file, commits := range couples.people[i] {
-			fmt.Printf("%s, ", file)
+			//could be normalized further, by replacing file with idx in fileSequence
+			//but the would trade the space for readabilyt of result
+			peopleFiles[i] = append(peopleFiles[i], file)
 			for j, otherFiles := range couples.people {
 				if i == j {
 					continue
@@ -126,7 +127,6 @@ func (couples *Couples) Finalize() interface{} {
 			}
 		}
 		peopleMatrix[i][i] = int64(couples.people_commits[i])
-		fmt.Printf("\n")
 	}
 	filesSequence := make([]string, len(couples.files))
 	i := 0
@@ -146,5 +146,5 @@ func (couples *Couples) Finalize() interface{} {
 			filesMatrix[i][filesIndex[otherFile]] = cooccs
 		}
 	}
-	return CouplesResult{PeopleMatrix: peopleMatrix, Files: filesSequence, FilesMatrix: filesMatrix}
+	return CouplesResult{PeopleMatrix: peopleMatrix, PeopleFiles: peopleFiles, Files: filesSequence, FilesMatrix: filesMatrix}
 }
