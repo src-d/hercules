@@ -26,6 +26,13 @@ import (
 	"gopkg.in/src-d/hercules.v1"
 )
 
+func safeString(str string) string {
+	str = strings.Replace(str, "\"", "'", -1)
+	str = strings.Replace(str, "\\", " ", -1)
+	str = strings.Replace(str, ":", " ", -1)
+	return "\"" + str + "\""
+}
+
 func printMatrix(matrix [][]int64, name string, fixNegative bool) {
 	// determine the maximum length of each value
 	var maxnum int64 = -(1 << 32)
@@ -47,7 +54,7 @@ func printMatrix(matrix [][]int64, name string, fixNegative bool) {
 	last := len(matrix[len(matrix)-1])
 	indent := 2
 	if name != "" {
-		fmt.Printf("  \"%s\": |-\n", name)
+		fmt.Printf("  %s: |-\n", safeString(name))
 		indent += 2
 	}
 	// print the resulting triangular matrix
@@ -73,7 +80,7 @@ func printCouples(result *hercules.CouplesResult, peopleDict []string) {
 	fmt.Println("files_coocc:")
 		fmt.Println("  index:")
 		for _, file := range result.Files {
-			fmt.Printf("    - \"%s\"\n", file)
+			fmt.Printf("    - %s\n", safeString(file))
 		}
 		fmt.Println("  matrix:")
 		for _, files := range result.FilesMatrix {
@@ -94,7 +101,7 @@ func printCouples(result *hercules.CouplesResult, peopleDict []string) {
 		fmt.Println("people_coocc:")
 	  fmt.Println("  index:")
 	  for _, person := range peopleDict {
-		  fmt.Printf("    - \"%s\"\n", person)
+		  fmt.Printf("    - %s\n", safeString(person))
 	  }
 	  fmt.Println("  matrix:")
 		for _, people := range result.PeopleMatrix {
