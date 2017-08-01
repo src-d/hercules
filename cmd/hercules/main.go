@@ -78,47 +78,47 @@ func printMatrix(matrix [][]int64, name string, fixNegative bool) {
 
 func printCouples(result *hercules.CouplesResult, peopleDict []string) {
 	fmt.Println("files_coocc:")
-		fmt.Println("  index:")
-		for _, file := range result.Files {
-			fmt.Printf("    - %s\n", safeString(file))
+	fmt.Println("  index:")
+	for _, file := range result.Files {
+		fmt.Printf("    - %s\n", safeString(file))
+	}
+	fmt.Println("  matrix:")
+	for _, files := range result.FilesMatrix {
+		fmt.Print("    - {")
+		indices := []int{}
+		for file := range files {
+			indices = append(indices, file)
 		}
-		fmt.Println("  matrix:")
-		for _, files := range result.FilesMatrix {
-			fmt.Print("    - {")
-			indices := []int{}
-			for file := range files {
-				indices = append(indices, file)
+		sort.Ints(indices)
+		for i, file := range indices {
+			fmt.Printf("%d: %d", file, files[file])
+			if i < len(indices)-1 {
+				fmt.Print(", ")
 			}
-			sort.Ints(indices)
-			for i, file := range indices {
-				fmt.Printf("%d: %d", file, files[file])
-				if i < len(indices) - 1 {
-					fmt.Print(", ")
-				}
-			}
-			fmt.Println("}")
 		}
-		fmt.Println("people_coocc:")
-	  fmt.Println("  index:")
-	  for _, person := range peopleDict {
-		  fmt.Printf("    - %s\n", safeString(person))
-	  }
-	  fmt.Println("  matrix:")
-		for _, people := range result.PeopleMatrix {
-			fmt.Print("    - {")
-			indices := []int{}
-			for file := range people {
-				indices = append(indices, file)
-			}
-			sort.Ints(indices)
-			for i, person := range indices {
-				fmt.Printf("%d: %d", person, people[person])
-				if i < len(indices) - 1 {
-					fmt.Print(", ")
-				}
-			}
-			fmt.Println("}")
+		fmt.Println("}")
+	}
+	fmt.Println("people_coocc:")
+	fmt.Println("  index:")
+	for _, person := range peopleDict {
+		fmt.Printf("    - %s\n", safeString(person))
+	}
+	fmt.Println("  matrix:")
+	for _, people := range result.PeopleMatrix {
+		fmt.Print("    - {")
+		indices := []int{}
+		for file := range people {
+			indices = append(indices, file)
 		}
+		sort.Ints(indices)
+		for i, person := range indices {
+			fmt.Printf("%d: %d", person, people[person])
+			if i < len(indices)-1 {
+				fmt.Print(", ")
+			}
+		}
+		fmt.Println("}")
+	}
 }
 
 func sortedKeys(m map[string][][]int64) []string {
@@ -282,6 +282,6 @@ func main() {
 		printMatrix(burndown_results.PeopleMatrix, "", false)
 	}
 	if with_couples {
-    printCouples(&couples_result, id_matcher.ReversePeopleDict)
+		printCouples(&couples_result, id_matcher.ReversePeopleDict)
 	}
 }
