@@ -38,7 +38,7 @@ There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lig
 You are going to need Go and Python 2 or 3.
 ```
 go get gopkg.in/src-d/hercules.v1/cmd/hercules
-pip install pandas seaborn
+pip install -r requirements.txt
 wget https://github.com/src-d/hercules/raw/master/labours.py
 ```
 
@@ -184,6 +184,11 @@ in-memory storage may require much RAM, for example, the Linux kernel takes over
 2. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
 parsed. However, most of the repositories are parsed within a minute.
+
+2. to use matplotlib in macOS and avoid errors us
+   ```
+   echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
+   ```
 
 ### License
 MIT.
