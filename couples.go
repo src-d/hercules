@@ -1,10 +1,11 @@
 package hercules
 
 import (
+	"sort"
+
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"sort"
 )
 
 type Couples struct {
@@ -21,6 +22,7 @@ type Couples struct {
 
 type CouplesResult struct {
 	PeopleMatrix []map[int]int64
+	PeopleFiles  [][]string
 	FilesMatrix  []map[int]int
 	Files        []string
 }
@@ -103,9 +105,13 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 
 func (couples *Couples) Finalize() interface{} {
 	peopleMatrix := make([]map[int]int64, couples.PeopleNumber)
+	peopleFiles := make([][]string, couples.PeopleNumber)
 	for i := range peopleMatrix {
 		peopleMatrix[i] = map[int]int64{}
 		for file, commits := range couples.people[i] {
+			//could be normalized further, by replacing file with idx in fileSequence
+			//but this would trade the space for readability of result
+			peopleFiles[i] = append(peopleFiles[i], file)
 			for j, otherFiles := range couples.people {
 				if i == j {
 					continue
@@ -140,5 +146,5 @@ func (couples *Couples) Finalize() interface{} {
 			filesMatrix[i][filesIndex[otherFile]] = cooccs
 		}
 	}
-	return CouplesResult{PeopleMatrix: peopleMatrix, Files: filesSequence, FilesMatrix: filesMatrix}
+	return CouplesResult{PeopleMatrix: peopleMatrix, PeopleFiles: peopleFiles, Files: filesSequence, FilesMatrix: filesMatrix}
 }

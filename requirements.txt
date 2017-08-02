@@ -1,0 +1,12 @@
+args==0.1.0
+clint==0.5.1
+cycler==0.10.0
+matplotlib==2.0.2
+numpy==1.13.1
+pandas==0.20.3
+pyparsing==2.2.0
+python-dateutil==2.6.1
+pytz==2017.2
+PyYAML==3.12
+scipy==0.19.1
+six==1.10.0

@@ -38,7 +38,7 @@ There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lig
 You are going to need Go and Python 2 or 3.
 ```
 go get gopkg.in/src-d/hercules.v1/cmd/hercules
-pip install pandas seaborn
+pip install -r requirements.txt
 wget https://github.com/src-d/hercules/raw/master/labours.py
 ```
 
@@ -137,7 +137,7 @@ co-occurrence probability through the Euclidean distance. The training requires 
 [Tensorflow](http://tensorflow.org) installation. The intermediate files are stored in the
 system temporary directory or `--couples-tmp-dir` if it is specified. The trained embeddings are
 written to the current working directory with the name depending on `-o`. The output format is TSV
-and matches [Tensorflow Projector])(http://projector.tensorflow.org/) so that the files and people
+and matches [Tensorflow Projector](http://projector.tensorflow.org/) so that the files and people
 can be visualized with t-SNE implemented in TF Projector.
 
 #### Everything in a single pass
@@ -168,6 +168,11 @@ python3 labours.py [--style=white|black] [--backend=]
 `--style` changes the background to be either white ("black" foreground) or black ("white" foreground).
 `--backend` chooses the Matplotlib backend.
 
+To use matplotlib on macOS and avoid runtime errors, one can pin default backend by
+```
+echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
+```
+
 These options are effective in burndown charts only:
 
 ```
@@ -181,9 +186,19 @@ python3 labours.py [--text-size] [--relative]
 1. Currently, go-git's file system storage backend is considerably slower than the in-memory one,
 so you should clone repos instead of reading them from disk whenever possible. Please note that the
 in-memory storage may require much RAM, for example, the Linux kernel takes over 200GB in 2017.
-2. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
+1. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
 parsed. However, most of the repositories are parsed within a minute.
+1. To speed-up yaml parsing
+   ```
+   apt-get install yaml-cpp-dev
+   #or
+   brew install yaml-cpp libyaml
+
+   #you might need to re-install pyyaml for changs to take effect
+   pip uninstall pyyaml
+   pip --no-cache-dir install pyyaml
+   ```
 
 ### License
 MIT.
