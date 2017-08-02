@@ -110,7 +110,7 @@ func (couples *Couples) Finalize() interface{} {
 		peopleMatrix[i] = map[int]int64{}
 		for file, commits := range couples.people[i] {
 			//could be normalized further, by replacing file with idx in fileSequence
-			//but the would trade the space for readabilyt of result
+			//but this would trade the space for readability of result
 			peopleFiles[i] = append(peopleFiles[i], file)
 			for j, otherFiles := range couples.people {
 				if i == j {

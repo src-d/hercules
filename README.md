@@ -168,6 +168,11 @@ python3 labours.py [--style=white|black] [--backend=]
 `--style` changes the background to be either white ("black" foreground) or black ("white" foreground).
 `--backend` chooses the Matplotlib backend.
 
+To use matplotlib on macOS and avoid runtime errors, one can pin default backend by
+```
+echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
+```
+
 These options are effective in burndown charts only:
 
 ```
@@ -184,10 +189,6 @@ in-memory storage may require much RAM, for example, the Linux kernel takes over
 1. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
 parsed. However, most of the repositories are parsed within a minute.
-1. To use matplotlib on macOS and avoid runtime errors do
-   ```
-   echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
-   ```
 1. To speed-up yaml parsing
    ```
    apt-get install yaml-cpp-dev
