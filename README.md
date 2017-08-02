@@ -188,6 +188,16 @@ parsed. However, most of the repositories are parsed within a minute.
    ```
    echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
    ```
+1. To speed-up yaml parsing
+   ```
+   apt-get install yaml-cpp-dev
+   #or
+   brew install yaml-cpp libyaml
+
+   #you might need to re-install pyyaml for changs to take effect
+   pip uninstall pyyaml
+   pip --no-cache-dir install pyyaml
+   ```
 
 ### License
 MIT.
