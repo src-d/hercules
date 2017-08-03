@@ -256,11 +256,14 @@ func main() {
 	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarity_threshold})
 	pipeline.AddItem(&hercules.TreeDiff{})
 	id_matcher := &hercules.IdentityDetector{}
+	var peopleCount int
 	if with_people || with_couples {
 		if people_dict_path != "" {
 			id_matcher.LoadPeopleDict(people_dict_path)
+			peopleCount = len(id_matcher.ReversePeopleDict) - 1
 		} else {
 			id_matcher.GeneratePeopleDict(commits)
+			peopleCount = len(id_matcher.ReversePeopleDict)
 		}
 	}
 	pipeline.AddItem(id_matcher)
@@ -268,12 +271,12 @@ func main() {
 		Granularity:  granularity,
 		Sampling:     sampling,
 		Debug:        debug,
-		PeopleNumber: len(id_matcher.ReversePeopleDict),
+		PeopleNumber: peopleCount,
 	}
 	pipeline.AddItem(burndowner)
 	var coupler *hercules.Couples
 	if with_couples {
-		coupler = &hercules.Couples{PeopleNumber: len(id_matcher.ReversePeopleDict)}
+		coupler = &hercules.Couples{PeopleNumber: peopleCount}
 		pipeline.AddItem(coupler)
 	}
 

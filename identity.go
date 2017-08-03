@@ -70,6 +70,7 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 		reverse_dict = append(reverse_dict, ids[0])
 		size += 1
 	}
+	reverse_dict = append(reverse_dict, "<unmatched>")
 	id.PeopleDict = dict
 	id.ReversePeopleDict = reverse_dict
 	return nil

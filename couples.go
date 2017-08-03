@@ -41,16 +41,19 @@ func (couples *Couples) Requires() []string {
 }
 
 func (couples *Couples) Initialize(repository *git.Repository) {
-	couples.people = make([]map[string]int, couples.PeopleNumber)
+	couples.people = make([]map[string]int, couples.PeopleNumber + 1)
 	for i := range couples.people {
 		couples.people[i] = map[string]int{}
 	}
-	couples.people_commits = make([]int, couples.PeopleNumber)
+	couples.people_commits = make([]int, couples.PeopleNumber + 1)
 	couples.files = map[string]map[string]int{}
 }
 
 func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	author := deps["author"].(int)
+	if author == MISSING_AUTHOR {
+		author = couples.PeopleNumber
+	}
 	couples.people_commits[author] += 1
 	tree_diff := deps["renamed_changes"].(object.Changes)
 	context := make([]string, 0)
@@ -104,8 +107,8 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 }
 
 func (couples *Couples) Finalize() interface{} {
-	peopleMatrix := make([]map[int]int64, couples.PeopleNumber)
-	peopleFiles := make([][]string, couples.PeopleNumber)
+	peopleMatrix := make([]map[int]int64, couples.PeopleNumber + 1)
+	peopleFiles := make([][]string, couples.PeopleNumber + 1)
 	for i := range peopleMatrix {
 		peopleMatrix[i] = map[int]int64{}
 		for file, commits := range couples.people[i] {
