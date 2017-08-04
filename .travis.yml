@@ -4,7 +4,7 @@ go:
   - 1.8
   - master
 
-go_import_path: gopkg.in/src-d/hercules.v1
+go_import_path: gopkg.in/src-d/hercules.v2
   
 script:
   - go test -v -cpu=1,2 ./...
