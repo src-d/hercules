@@ -167,6 +167,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[PipelineItem]interf
 			}
 		}
 	}
+	onProgress(len(commits), len(commits))
 	result := map[PipelineItem]interface{}{}
 	for _, item := range pipeline.items {
 		result[item] = item.Finalize()

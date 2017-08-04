@@ -242,7 +242,11 @@ func main() {
 	// core logic
 	pipeline := hercules.NewPipeline(repository)
 	pipeline.OnProgress = func(commit, length int) {
-		fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
+		if commit < length {
+			fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
+		} else {
+			fmt.Fprint(os.Stderr, "finalizing...    \r")
+		}
 	}
 	// list of commits belonging to the default branch, from oldest to newest
 	// rev-list --first-parent
@@ -293,7 +297,6 @@ func main() {
 	if with_couples {
 		couples_result = result[coupler].(hercules.CouplesResult)
 	}
-	fmt.Fprint(os.Stderr, "                \r")
 	if len(burndown_results.GlobalHistory) == 0 {
 		return
 	}
