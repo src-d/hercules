@@ -137,7 +137,9 @@ func printCouples(result *hercules.CouplesResult, peopleDict []string) {
 func sortByNumberOfFiles(peopleFiles [][]string, peopleDict []string) AuthorFilesList {
 	var pfl AuthorFilesList
 	for peopleIdx, files := range peopleFiles {
-		pfl = append(pfl, AuthorFiles{peopleDict[peopleIdx], files})
+		if peopleIdx < len(peopleDict) {
+			pfl = append(pfl, AuthorFiles{peopleDict[peopleIdx], files})
+		}
 	}
 	sort.Sort(pfl)
 	return pfl
