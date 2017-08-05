@@ -440,6 +440,8 @@ def train_embeddings(coocc_tree, tmpdir, shard_size=4096):
     indices = []
     indptr = [0]
     for row, cd in enumerate(coocc_tree["matrix"]):
+        if row >= len(index):
+            break
         for col, val in sorted(cd.items()):
             data.append(val)
             indices.append(col)
