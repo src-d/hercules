@@ -49,6 +49,8 @@ def parse_args():
              "#offset-aliases).")
     parser.add_argument("--disable-projector", action="store_true",
                         help="Do not run Tensorflow Projector on couples.")
+    parser.add_argument("--max-people", default=20, type=int,
+                        help="Maximum number of developers in churn matrix and people plots.")
     args = parser.parse_args()
     return args
 
@@ -241,7 +243,10 @@ def deploy_plot(title, output, style):
     else:
         if title:
             pyplot.title(title, color=style)
-        pyplot.tight_layout()
+        try:
+            pyplot.tight_layout()
+        except:
+            print("Warning: failed to set the tight layout")
         pyplot.savefig(output, transparent=True)
     pyplot.clf()
 
@@ -330,11 +335,19 @@ def plot_many(args, target, header, parts):
 
 def plot_churn_matrix(args, repo, people, matrix):
     matrix = matrix.astype(float)
+    if matrix.shape[0] > args.max_people:
+        order = numpy.argsort(-matrix[:, 0])
+        matrix = matrix[order[:args.max_people]][:, [0, 1] + list(order[:args.max_people])]
+        people = [people[i] for i in order]
+        print("Warning: truncated people to most productive %d" % args.max_people)
     zeros = matrix[:, 0] == 0
     matrix[zeros, :] = 1
     matrix /= matrix[:, 0][:, None]
     matrix = -matrix[:, 1:]
     matrix[zeros, :] = 0
+    for i, name in enumerate(people):
+        if len(name) > 40:
+            people[i] = name[:37] + "..."
 
     import matplotlib
     if args.backend:
@@ -374,6 +387,15 @@ def plot_people(args, repo, names, people, date_range, last):
     if args.backend:
         matplotlib.use(args.backend)
     import matplotlib.pyplot as pyplot
+
+    if people.shape[0] > args.max_people:
+        order = numpy.argsort(-people.sum(axis=1))
+        people = people[order[:args.max_people]]
+        names = [names[i] for i in order[:args.max_people]]
+        print("Warning: truncated people to most owning %d" % args.max_people)
+    for i, name in enumerate(names):
+        if len(name) > 40:
+            names[i] = name[:37] + "..."
 
     pyplot.stackplot(date_range, people, labels=names)
     pyplot.xlim(date_range[0], last)
