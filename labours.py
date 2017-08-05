@@ -337,8 +337,8 @@ def plot_churn_matrix(args, repo, people, matrix):
     matrix = matrix.astype(float)
     if matrix.shape[0] > args.max_people:
         order = numpy.argsort(-matrix[:, 0])
-        matrix = matrix[order[:args.max_people]][:, [0, 1] + list(order[:args.max_people])]
-        people = [people[i] for i in order]
+        matrix = matrix[order[:args.max_people]][:, [0, 1] + list(2 + order[:args.max_people])]
+        people = [people[i] for i in order[:args.max_people]]
         print("Warning: truncated people to most productive %d" % args.max_people)
     zeros = matrix[:, 0] == 0
     matrix[zeros, :] = 1
