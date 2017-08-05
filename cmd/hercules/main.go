@@ -27,9 +27,8 @@ import (
 )
 
 func safeString(str string) string {
-	str = strings.Replace(str, "\"", "'", -1)
-	str = strings.Replace(str, "\\", " ", -1)
-	str = strings.Replace(str, ":", " ", -1)
+	str = strings.Replace(str, "\\", "\\\\", -1)
+	str = strings.Replace(str, "\"", "\\\"", -1)
 	return "\"" + str + "\""
 }
 
@@ -319,7 +318,7 @@ func main() {
 	if with_people {
 		fmt.Println("people_sequence:")
 		for key := range burndown_results.PeopleHistories {
-			fmt.Println("  - " + id_matcher.ReversePeopleDict[key])
+			fmt.Println("  - " + safeString(id_matcher.ReversePeopleDict[key]))
 		}
 		fmt.Println("people:")
 		for key, val := range burndown_results.PeopleHistories {
