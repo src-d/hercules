@@ -417,7 +417,6 @@ def plot_people(args, repo, names, people, date_range, last):
 
 def train_embeddings(coocc_tree, tmpdir, shard_size=4096):
     from scipy.sparse import csr_matrix
-    import tensorflow as tf
     try:
         from . import swivel
     except SystemError:
@@ -618,6 +617,7 @@ def main():
 
     files_warning = "Files stats were not collected. Re-run hercules with -files."
     people_warning = "People stats were not collected. Re-run hercules with -people."
+    couples_warning = "Coupling stats were not collected. Re-run hercules with -couples."
 
     if args.mode == "project":
         plot_burndown(args, "project",
@@ -643,6 +643,9 @@ def main():
             return
         plot_people(args, name, *load_people(header, people_sequence, people_contents))
     elif args.mode == "couples":
+        if not files_coocc or not people_coocc:
+            print(couples_warning)
+            return
         write_embeddings("files", args.output, not args.disable_projector,
                          *train_embeddings(files_coocc, args.couples_tmp_dir))
         write_embeddings("people", args.output, not args.disable_projector,
@@ -657,7 +660,9 @@ def main():
             plot_churn_matrix(args, name, people_sequence, load_churn_matrix(people_matrix))
             plot_people(args, name, *load_people(header, people_sequence, people_contents))
         if people_coocc:
-            assert files_coocc
+            if not files_coocc or not people_coocc:
+                print(couples_warning)
+                return
             write_embeddings("files", args.output, not args.disable_projector,
                              *train_embeddings(files_coocc, args.couples_tmp_dir))
             write_embeddings("people", args.output, not args.disable_projector,
