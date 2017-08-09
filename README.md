@@ -1,4 +1,4 @@
-Hercules [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules)
+Hercules [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules) [![codecov](https://codecov.io/github/src-d/hercules/coverage.svg)](https://codecov.io/gh/src-d/hercules)
 --------
 
 This project calculates and plots the lines burndown and other fun stats in Git repositories.

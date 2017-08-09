@@ -7,7 +7,10 @@ go:
 go_import_path: gopkg.in/src-d/hercules.v2
   
 script:
-  - go test -v -cpu=1,2 ./...
+  - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v2
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 
 notifications:
   email: false
