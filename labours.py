@@ -419,8 +419,9 @@ def train_embeddings(coocc_tree, tmpdir, shard_size=4096):
     from scipy.sparse import csr_matrix
     try:
         from . import swivel
-    except SystemError:
+    except (SystemError, ImportError):
         import swivel
+    import tensorflow as tf
 
     index = coocc_tree["index"]
     nshards = len(index) // shard_size
