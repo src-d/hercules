@@ -1,6 +1,7 @@
 package hercules
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -84,7 +85,7 @@ func (pipeline *Pipeline) Commits() []*object.Commit {
 	if err != nil {
 		panic(err)
 	}
-	result = append(result, commit)
+	// the first parent matches the head
 	for ; err != io.EOF; commit, err = commit.Parents().Next() {
 		if err != nil {
 			panic(err)
@@ -175,12 +176,13 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[PipelineItem]interf
 	return result, nil
 }
 
-func LoadCommitsFromFile(path string, repository *git.Repository) []*object.Commit {
-	var file io.Reader
+func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Commit, error) {
+	var file io.ReadCloser
 	if path != "-" {
-		file, err := os.Open(path)
+		var err error
+		file, err = os.Open(path)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		defer file.Close()
 	} else {
@@ -191,13 +193,13 @@ func LoadCommitsFromFile(path string, repository *git.Repository) []*object.Comm
 	for scanner.Scan() {
 		hash := plumbing.NewHash(scanner.Text())
 		if len(hash) != 20 {
-			panic("invalid commit hash " + scanner.Text())
+			return nil, errors.New("invalid commit hash " + scanner.Text())
 		}
 		commit, err := repository.CommitObject(hash)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		commits = append(commits, commit)
 	}
-	return commits
+	return commits, nil
 }

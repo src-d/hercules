@@ -253,7 +253,10 @@ func main() {
 	if commitsFile == "" {
 		commits = pipeline.Commits()
 	} else {
-		commits = hercules.LoadCommitsFromFile(commitsFile, repository)
+		commits, err = hercules.LoadCommitsFromFile(commitsFile, repository)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	pipeline.AddItem(&hercules.BlobCache{})

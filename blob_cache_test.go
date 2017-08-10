@@ -5,22 +5,21 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
-var repository *git.Repository
+var testRepository *git.Repository
 
 func fixtureBlobCache() *BlobCache {
 	cache := &BlobCache{}
-	cache.Initialize(repository)
+	cache.Initialize(testRepository)
 	return cache
 }
 
 func TestBlobCacheInitialize(t *testing.T) {
-  cache := fixtureBlobCache()
-	assert.Equal(t, repository, cache.repository)
+	cache := fixtureBlobCache()
+	assert.Equal(t, testRepository, cache.repository)
 }
 
 func TestBlobCacheMetadata(t *testing.T) {
@@ -34,13 +33,13 @@ func TestBlobCacheMetadata(t *testing.T) {
 }
 
 func TestBlobCacheConsumeModification(t *testing.T) {
-	commit, _ := repository.CommitObject(plumbing.NewHash(
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
 		"af2d8db70f287b52d2428d9887a69a10bc4d1f46"))
 	changes := make(object.Changes, 1)
-	treeFrom, _ := repository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
-	treeTo, _ := repository.TreeObject(plumbing.NewHash(
-	  "63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "labours.py",
 		Tree: treeFrom,
@@ -77,13 +76,13 @@ func TestBlobCacheConsumeModification(t *testing.T) {
 }
 
 func TestBlobCacheConsumeInsertionDeletion(t *testing.T) {
-	commit, _ := repository.CommitObject(plumbing.NewHash(
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	changes := make(object.Changes, 2)
-	treeFrom, _ := repository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
-	treeTo, _ := repository.TreeObject(plumbing.NewHash(
-	  "251f2094d7b523d5bcc60e663b6cf38151bf8844"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"251f2094d7b523d5bcc60e663b6cf38151bf8844"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
 		Tree: treeFrom,
@@ -94,15 +93,15 @@ func TestBlobCacheConsumeInsertionDeletion(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-  changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+	changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: "pipeline.go",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
 			Name: "pipeline.go",
-			Tree: treeTo,
-			TreeEntry: object.TreeEntry{
-				Name: "pipeline.go",
-				Mode: 0100644,
-				Hash: plumbing.NewHash("db99e1890f581ad69e1527fe8302978c661eb473"),
-			},
+			Mode: 0100644,
+			Hash: plumbing.NewHash("db99e1890f581ad69e1527fe8302978c661eb473"),
 		},
+	},
 	}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
@@ -123,20 +122,20 @@ func TestBlobCacheConsumeInsertionDeletion(t *testing.T) {
 }
 
 func TestBlobCacheConsumeNoAction(t *testing.T) {
-  commit, _ := repository.CommitObject(plumbing.NewHash(
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
 		"af2d8db70f287b52d2428d9887a69a10bc4d1f46"))
 	changes := make(object.Changes, 1)
-	treeFrom, _ := repository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
-	treeTo, _ := repository.TreeObject(plumbing.NewHash(
-	  "63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
-		Name: "labours.py",
-		Tree: treeFrom,
+		Name:      "labours.py",
+		Tree:      treeFrom,
 		TreeEntry: object.TreeEntry{},
 	}, To: object.ChangeEntry{
-		Name: "labours.py",
-		Tree: treeTo,
+		Name:      "labours.py",
+		Tree:      treeTo,
 		TreeEntry: object.TreeEntry{},
 	}}
 	deps := map[string]interface{}{}
@@ -148,13 +147,13 @@ func TestBlobCacheConsumeNoAction(t *testing.T) {
 }
 
 func TestBlobCacheConsumeInvalidHash(t *testing.T) {
-  commit, _ := repository.CommitObject(plumbing.NewHash(
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
 		"af2d8db70f287b52d2428d9887a69a10bc4d1f46"))
 	changes := make(object.Changes, 1)
-	treeFrom, _ := repository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
-	treeTo, _ := repository.TreeObject(plumbing.NewHash(
-	  "63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "labours.py",
 		Tree: treeFrom,
@@ -164,8 +163,8 @@ func TestBlobCacheConsumeInvalidHash(t *testing.T) {
 			Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
 		},
 	}, To: object.ChangeEntry{
-		Name: "labours.py",
-		Tree: treeTo,
+		Name:      "labours.py",
+		Tree:      treeTo,
 		TreeEntry: object.TreeEntry{},
 	}}
 	deps := map[string]interface{}{}
@@ -179,10 +178,4 @@ func TestBlobCacheConsumeInvalidHash(t *testing.T) {
 func TestBlobCacheFinalize(t *testing.T) {
 	outcome := fixtureBlobCache().Finalize()
 	assert.Nil(t, outcome)
-}
-
-func init() {
-	repository, _ = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-		URL: "https://github.com/src-d/hercules",
-	})
 }
