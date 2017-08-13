@@ -45,12 +45,12 @@ func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interfac
 		}
 		switch action {
 		case merkletrie.Insert:
-			cache[change.To.TreeEntry.Hash], err = self.getBlob(&change.To, commit)
+			cache[change.To.TreeEntry.Hash], err = self.getBlob(&change.To, commit.File)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "file to %s %s\n", change.To.Name, change.To.TreeEntry.Hash)
 			}
 		case merkletrie.Delete:
-			cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit)
+			cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit.File)
 			if err != nil {
 				if err.Error() != plumbing.ErrObjectNotFound.Error() {
 					fmt.Fprintf(os.Stderr, "file from %s %s\n", change.From.Name, change.From.TreeEntry.Hash)
@@ -60,11 +60,11 @@ func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interfac
 				}
 			}
 		case merkletrie.Modify:
-			cache[change.To.TreeEntry.Hash], err = self.getBlob(&change.To, commit)
+			cache[change.To.TreeEntry.Hash], err = self.getBlob(&change.To, commit.File)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "file to %s\n", change.To.Name)
 			}
-			cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit)
+			cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit.File)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
 			}
@@ -82,7 +82,9 @@ func (cache *BlobCache) Finalize() interface{} {
 	return nil
 }
 
-func (cache *BlobCache) getBlob(entry *object.ChangeEntry, commit *object.Commit) (
+type FileGetter func(path string) (*object.File, error)
+
+func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter) (
 	*object.Blob, error) {
 	blob, err := cache.repository.BlobObject(entry.TreeEntry.Hash)
 	if err != nil {
@@ -90,7 +92,7 @@ func (cache *BlobCache) getBlob(entry *object.ChangeEntry, commit *object.Commit
 			fmt.Fprintf(os.Stderr, "getBlob(%s)\n", entry.TreeEntry.Hash.String())
 			return nil, err
 		}
-		file, err_modules := commit.File(".gitmodules")
+		file, err_modules := fileGetter(".gitmodules")
 		if err_modules != nil {
 			return nil, err
 		}

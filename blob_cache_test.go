@@ -179,3 +179,38 @@ func TestBlobCacheFinalize(t *testing.T) {
 	outcome := fixtureBlobCache().Finalize()
 	assert.Nil(t, outcome)
 }
+
+func TestBlobCacheGetBlob(t *testing.T) {
+	cache := fixtureBlobCache()
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
+	entry := object.ChangeEntry{
+		Name: "labours.py",
+		Tree: treeFrom,
+		TreeEntry: object.TreeEntry{
+			Name: "labours.py",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("80fe25955b8e725feee25c08ea5759d74f8b670d"),
+		},
+	}
+	getter := func(path string) (*object.File, error) {
+		assert.Equal(t, path, ".gitmodules")
+    commit, _ := testRepository.CommitObject(plumbing.NewHash(
+		  "13272b66c55e1ba1237a34104f30b84d7f6e4082"))
+		return commit.File("test_data/gitmodules")
+	}
+	blob, err := cache.getBlob(&entry, getter)
+	assert.Nil(t, blob)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), plumbing.ErrObjectNotFound.Error())
+	getter = func(path string) (*object.File, error) {
+		assert.Equal(t, path, ".gitmodules")
+    commit, _ := testRepository.CommitObject(plumbing.NewHash(
+		  "13272b66c55e1ba1237a34104f30b84d7f6e4082"))
+		return commit.File("test_data/gitmodules_empty")
+	}
+	blob, err = cache.getBlob(&entry, getter)
+	assert.Nil(t, blob)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), plumbing.ErrObjectNotFound.Error())
+}
