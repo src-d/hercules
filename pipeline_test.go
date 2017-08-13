@@ -1,6 +1,7 @@
 package hercules
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -17,6 +18,7 @@ type testPipelineItem struct {
 	DepsConsumed  bool
 	CommitMatches bool
 	IndexMatches  bool
+	TestError     bool
 }
 
 func (item *testPipelineItem) Name() string {
@@ -37,6 +39,9 @@ func (item *testPipelineItem) Initialize(repository *git.Repository) {
 }
 
 func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	if item.TestError {
+		return nil, errors.New("error")
+	}
 	obj, exists := deps["commit"]
 	item.DepsConsumed = exists
 	if item.DepsConsumed {
@@ -196,6 +201,20 @@ func TestPipelineDeps(t *testing.T) {
 	assert.True(t, result[item1].(bool))
 	item1.TestNilConsumeReturn = true
 	assert.Panics(t, func() { pipeline.Run(commits) })
+}
+
+func TestPipelineError(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	item := &testPipelineItem{}
+	item.TestError = true
+	pipeline.AddItem(item)
+	pipeline.Initialize()
+	commits := make([]*object.Commit, 1)
+	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
+		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
+	result, err := pipeline.Run(commits)
+	assert.Nil(t, result)
+	assert.NotNil(t, err)
 }
 
 func init() {
