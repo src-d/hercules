@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+message Metadata {
+    // this format is versioned
+    int32 version = 1;
+    // complete command line used to write this message
+    string cmdline = 2;
+    // repository's name
+    string repository = 3;
+    // timestamp of the first analysed commit
+    int64 begin_unix_time = 4;
+    // timestamp of the last analysed commit
+    int64 end_unix_time = 5;
+    // how many days are in each band [burndown_project, burndown_file, burndown_developer]
+    int32 granularity = 6;
+    // how frequently we measure the state of each band [burndown_project, burndown_file, burndown_developer]
+    int32 sampling = 7;
+}
+
+message BurndownSparseMatrixRow {
+    // the first `len(column)` elements are stored,
+    // the rest `number_of_columns - len(column)` values are zeros
+    repeated uint32 column = 1;
+}
+
+message BurndownSparseMatrix {
+    string name = 1;
+    int32 number_of_rows = 2;
+    int32 number_of_columns = 3;
+    // `len(row)` matches `number_of_rows`
+    repeated BurndownSparseMatrixRow row = 4;
+}
+
+message CompressedSparseRowMatrix {
+    int32 number_of_rows = 1;
+    int32 number_of_columns = 2;
+    // https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29
+    repeated int64 data = 3;
+    repeated int32 indices = 4;
+    repeated int64 indptr = 5;
+}
+
+message Couples {
+    // name of each `matrix`'s row and column
+    repeated string index = 1;
+    // is always square
+    CompressedSparseRowMatrix matrix = 2;
+}
+
+message TouchedFiles {
+    repeated int32 file = 1;  // values correspond to `file_couples::index`
+}
+
+message DeveloperTouchedFiles {
+    // order corresponds to `developer_couples::index`
+    repeated TouchedFiles developer = 1;
+}
+
+message AnalysisResults {
+    // these two are always included
+    Metadata header = 1;
+    BurndownSparseMatrix burndown_project = 2;
+
+    // this is included if `-files` was specified
+    repeated BurndownSparseMatrix burndown_file = 3;
+
+    // these two are included if `-people` was specified
+    repeated BurndownSparseMatrix burndown_developer = 4;
+    // rows and cols order correspond to `burndown_developer`
+    CompressedSparseRowMatrix developers_interaction = 5;
+
+    // these three are included if `-couples` was specified
+    Couples file_couples = 6;
+    Couples developer_couples = 7;
+    DeveloperTouchedFiles touched_files = 8;
+}

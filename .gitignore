@@ -22,3 +22,9 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+*.tsv
+*.tsv.gz
+*.json
+
+**/__pycache__

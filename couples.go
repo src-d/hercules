@@ -22,8 +22,8 @@ type Couples struct {
 
 type CouplesResult struct {
 	PeopleMatrix []map[int]int64
-	PeopleFiles  [][]string
-	FilesMatrix  []map[int]int
+	PeopleFiles  [][]int
+	FilesMatrix  []map[int]int64
 	Files        []string
 }
 
@@ -107,14 +107,24 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 }
 
 func (couples *Couples) Finalize() interface{} {
+	filesSequence := make([]string, len(couples.files))
+	i := 0
+	for file := range couples.files {
+		filesSequence[i] = file
+		i++
+	}
+	sort.Strings(filesSequence)
+	filesIndex := map[string]int{}
+	for i, file := range filesSequence {
+		filesIndex[file] = i
+	}
+
 	peopleMatrix := make([]map[int]int64, couples.PeopleNumber+1)
-	peopleFiles := make([][]string, couples.PeopleNumber+1)
+	peopleFiles := make([][]int, couples.PeopleNumber+1)
 	for i := range peopleMatrix {
 		peopleMatrix[i] = map[int]int64{}
 		for file, commits := range couples.people[i] {
-			//could be normalized further, by replacing file with idx in fileSequence
-			//but this would trade the space for readability of result
-			peopleFiles[i] = append(peopleFiles[i], file)
+			peopleFiles[i] = append(peopleFiles[i], filesIndex[file])
 			for j, otherFiles := range couples.people {
 				if i == j {
 					continue
@@ -130,24 +140,17 @@ func (couples *Couples) Finalize() interface{} {
 			}
 		}
 		peopleMatrix[i][i] = int64(couples.people_commits[i])
+		sort.Ints(peopleFiles[i])
 	}
-	filesSequence := make([]string, len(couples.files))
-	i := 0
-	for file := range couples.files {
-		filesSequence[i] = file
-		i++
-	}
-	sort.Strings(filesSequence)
-	filesIndex := map[string]int{}
-	for i, file := range filesSequence {
-		filesIndex[file] = i
-	}
-	filesMatrix := make([]map[int]int, len(filesIndex))
+
+	filesMatrix := make([]map[int]int64, len(filesIndex))
 	for i := range filesMatrix {
-		filesMatrix[i] = map[int]int{}
+		filesMatrix[i] = map[int]int64{}
 		for otherFile, cooccs := range couples.files[filesSequence[i]] {
-			filesMatrix[i][filesIndex[otherFile]] = cooccs
+			filesMatrix[i][filesIndex[otherFile]] = int64(cooccs)
 		}
 	}
-	return CouplesResult{PeopleMatrix: peopleMatrix, PeopleFiles: peopleFiles, Files: filesSequence, FilesMatrix: filesMatrix}
+	return CouplesResult{
+		PeopleMatrix: peopleMatrix, PeopleFiles: peopleFiles,
+		Files: filesSequence, FilesMatrix: filesMatrix}
 }

@@ -14,7 +14,6 @@ import (
 	"os"
 	"runtime/pprof"
 	"sort"
-	"strconv"
 	"strings"
 
 	"gopkg.in/src-d/go-billy.v3/osfs"
@@ -24,142 +23,10 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v2"
+	"gopkg.in/src-d/hercules.v2/stdout"
+	"gopkg.in/src-d/hercules.v2/pb"
+	"github.com/gogo/protobuf/proto"
 )
-
-func safeString(str string) string {
-	str = strings.Replace(str, "\\", "\\\\", -1)
-	str = strings.Replace(str, "\"", "\\\"", -1)
-	return "\"" + str + "\""
-}
-
-func printMatrix(matrix [][]int64, name string, fixNegative bool) {
-	// determine the maximum length of each value
-	var maxnum int64 = -(1 << 32)
-	var minnum int64 = 1 << 32
-	for _, status := range matrix {
-		for _, val := range status {
-			if val > maxnum {
-				maxnum = val
-			}
-			if val < minnum {
-				minnum = val
-			}
-		}
-	}
-	width := len(strconv.FormatInt(maxnum, 10))
-	if !fixNegative && minnum < 0 {
-		width = len(strconv.FormatInt(minnum, 10))
-	}
-	last := len(matrix[len(matrix)-1])
-	indent := 2
-	if name != "" {
-		fmt.Printf("  %s: |-\n", safeString(name))
-		indent += 2
-	}
-	// print the resulting triangular matrix
-	for _, status := range matrix {
-		fmt.Print(strings.Repeat(" ", indent-1))
-		for i := 0; i < last; i++ {
-			var val int64
-			if i < len(status) {
-				val = status[i]
-				// not sure why this sometimes happens...
-				// TODO(vmarkovtsev): find the root cause of tiny negative balances
-				if fixNegative && val < 0 {
-					val = 0
-				}
-			}
-			fmt.Printf(" %[1]*[2]d", width, val)
-		}
-		fmt.Println()
-	}
-}
-
-func printCouples(result *hercules.CouplesResult, peopleDict []string) {
-	fmt.Println("files_coocc:")
-	fmt.Println("  index:")
-	for _, file := range result.Files {
-		fmt.Printf("    - %s\n", safeString(file))
-	}
-
-	fmt.Println("  matrix:")
-	for _, files := range result.FilesMatrix {
-		fmt.Print("    - {")
-		indices := []int{}
-		for file := range files {
-			indices = append(indices, file)
-		}
-		sort.Ints(indices)
-		for i, file := range indices {
-			fmt.Printf("%d: %d", file, files[file])
-			if i < len(indices)-1 {
-				fmt.Print(", ")
-			}
-		}
-		fmt.Println("}")
-	}
-
-	fmt.Println("people_coocc:")
-	fmt.Println("  index:")
-	for _, person := range peopleDict {
-		fmt.Printf("    - %s\n", safeString(person))
-	}
-
-	fmt.Println("  matrix:")
-	for _, people := range result.PeopleMatrix {
-		fmt.Print("    - {")
-		indices := []int{}
-		for file := range people {
-			indices = append(indices, file)
-		}
-		sort.Ints(indices)
-		for i, person := range indices {
-			fmt.Printf("%d: %d", person, people[person])
-			if i < len(indices)-1 {
-				fmt.Print(", ")
-			}
-		}
-		fmt.Println("}")
-	}
-
-	fmt.Println("  author_files:") // sorted by number of files each author changed
-	peopleFiles := sortByNumberOfFiles(result.PeopleFiles, peopleDict)
-	for _, authorFiles := range peopleFiles {
-		fmt.Printf("    - %s:\n", safeString(authorFiles.Author))
-		sort.Strings(authorFiles.Files)
-		for _, file := range authorFiles.Files {
-			fmt.Printf("      - %s\n", safeString(file)) // sorted by path
-		}
-	}
-}
-
-func sortByNumberOfFiles(peopleFiles [][]string, peopleDict []string) AuthorFilesList {
-	var pfl AuthorFilesList
-	for peopleIdx, files := range peopleFiles {
-		if peopleIdx < len(peopleDict) {
-			pfl = append(pfl, AuthorFiles{peopleDict[peopleIdx], files})
-		}
-	}
-	sort.Sort(pfl)
-	return pfl
-}
-
-type AuthorFiles struct {
-	Author string
-	Files  []string
-}
-
-type AuthorFilesList []AuthorFiles
-
-func (s AuthorFilesList) Len() int {
-	return len(s)
-}
-func (s AuthorFilesList) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-func (s AuthorFilesList) Less(i, j int) bool {
-	return len(s[i].Files) < len(s[j].Files)
-}
 
 func sortedKeys(m map[string][][]int64) []string {
 	keys := make([]string, 0, len(m))
@@ -171,17 +38,18 @@ func sortedKeys(m map[string][][]int64) []string {
 }
 
 func main() {
-	var with_files bool
-	var with_people bool
-	var with_couples bool
+	var protobuf bool
+	var withFiles bool
+	var withPeople bool
+	var withCouples bool
 	var people_dict_path string
 	var profile bool
 	var granularity, sampling, similarity_threshold int
 	var commitsFile string
 	var debug bool
-	flag.BoolVar(&with_files, "files", false, "Output detailed statistics per each file.")
-	flag.BoolVar(&with_people, "people", false, "Output detailed statistics per each developer.")
-	flag.BoolVar(&with_couples, "couples", false, "Gather the co-occurrence matrix "+
+	flag.BoolVar(&withFiles, "files", false, "Output detailed statistics per each file.")
+	flag.BoolVar(&withPeople, "people", false, "Output detailed statistics per each developer.")
+	flag.BoolVar(&withCouples, "couples", false, "Gather the co-occurrence matrix "+
 		"for files and people.")
 	flag.StringVar(&people_dict_path, "people-dict", "", "Path to the developers' email associations.")
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
@@ -194,6 +62,7 @@ func main() {
 		"commit history to follow instead of the default rev-list "+
 		"--first-parent. The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
+	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
 	flag.Parse()
 	if granularity <= 0 {
 		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
@@ -212,19 +81,19 @@ func main() {
 	}
 	uri := flag.Arg(0)
 	var repository *git.Repository
-	var storage storage.Storer
+	var backend storage.Storer
 	var err error
 	if strings.Contains(uri, "://") {
 		if len(flag.Args()) == 2 {
-			storage, err = filesystem.NewStorage(osfs.New(flag.Arg(1)))
+			backend, err = filesystem.NewStorage(osfs.New(flag.Arg(1)))
 			if err != nil {
 				panic(err)
 			}
 		} else {
-			storage = memory.NewStorage()
+			backend = memory.NewStorage()
 		}
 		fmt.Fprint(os.Stderr, "cloning...\r")
-		repository, err = git.Clone(storage, nil, &git.CloneOptions{
+		repository, err = git.Clone(backend, nil, &git.CloneOptions{
 			URL: uri,
 		})
 		fmt.Fprint(os.Stderr, "          \r")
@@ -265,7 +134,7 @@ func main() {
 	pipeline.AddItem(&hercules.TreeDiff{})
 	id_matcher := &hercules.IdentityDetector{}
 	var peopleCount int
-	if with_people || with_couples {
+	if withPeople || withCouples {
 		if people_dict_path != "" {
 			id_matcher.LoadPeopleDict(people_dict_path)
 			peopleCount = len(id_matcher.ReversePeopleDict) - 1
@@ -283,7 +152,7 @@ func main() {
 	}
 	pipeline.AddItem(burndowner)
 	var coupler *hercules.Couples
-	if with_couples {
+	if withCouples {
 		coupler = &hercules.Couples{PeopleNumber: peopleCount}
 		pipeline.AddItem(coupler)
 	}
@@ -294,43 +163,136 @@ func main() {
 		panic(err)
 	}
 	fmt.Fprint(os.Stderr, "writing...    \r")
-	burndown_results := result[burndowner].(hercules.BurndownResult)
-	var couples_result hercules.CouplesResult
-	if with_couples {
-		couples_result = result[coupler].(hercules.CouplesResult)
+	burndownResults := result[burndowner].(hercules.BurndownResult)
+	var couplesResult hercules.CouplesResult
+	if withCouples {
+		couplesResult = result[coupler].(hercules.CouplesResult)
 	}
-	if len(burndown_results.GlobalHistory) == 0 {
+	if len(burndownResults.GlobalHistory) == 0 {
 		return
 	}
-	// print the start date, granularity, sampling
+	begin := commits[0].Author.When.Unix()
+	end := commits[len(commits)-1].Author.When.Unix()
+	if !protobuf {
+		printResults(uri, begin, end, granularity, sampling,
+			withFiles, withPeople, withCouples,
+			burndownResults, couplesResult, id_matcher.ReversePeopleDict)
+	} else {
+		serializeResults(uri, begin, end, granularity, sampling,
+			withFiles, withPeople, withCouples,
+			burndownResults, couplesResult, id_matcher.ReversePeopleDict)
+	}
+}
+
+func printResults(
+	uri string, begin, end int64, granularity, sampling int,
+	withFiles, withPeople, withCouples bool,
+	burndownResults hercules.BurndownResult,
+	couplesResult hercules.CouplesResult,
+	reversePeopleDict []string) {
+
 	fmt.Println("burndown:")
 	fmt.Println("  version: 1")
-	fmt.Println("  begin:", commits[0].Author.When.Unix())
-	fmt.Println("  end:", commits[len(commits)-1].Author.When.Unix())
+	fmt.Println("  begin:", begin)
+	fmt.Println("  end:", end)
 	fmt.Println("  granularity:", granularity)
 	fmt.Println("  sampling:", sampling)
 	fmt.Println("project:")
-	printMatrix(burndown_results.GlobalHistory, uri, true)
-	if with_files {
+	stdout.PrintMatrix(burndownResults.GlobalHistory, uri, true)
+	if withFiles {
 		fmt.Println("files:")
-		keys := sortedKeys(burndown_results.FileHistories)
+		keys := sortedKeys(burndownResults.FileHistories)
 		for _, key := range keys {
-			printMatrix(burndown_results.FileHistories[key], key, true)
+			stdout.PrintMatrix(burndownResults.FileHistories[key], key, true)
 		}
 	}
-	if with_people {
+	if withPeople {
 		fmt.Println("people_sequence:")
-		for key := range burndown_results.PeopleHistories {
-			fmt.Println("  - " + safeString(id_matcher.ReversePeopleDict[key]))
+		for key := range burndownResults.PeopleHistories {
+			fmt.Println("  - " + stdout.SafeString(reversePeopleDict[key]))
 		}
 		fmt.Println("people:")
-		for key, val := range burndown_results.PeopleHistories {
-			printMatrix(val, id_matcher.ReversePeopleDict[key], true)
+		for key, val := range burndownResults.PeopleHistories {
+			stdout.PrintMatrix(val, reversePeopleDict[key], true)
 		}
 		fmt.Println("people_interaction: |-")
-		printMatrix(burndown_results.PeopleMatrix, "", false)
+		stdout.PrintMatrix(burndownResults.PeopleMatrix, "", false)
 	}
-	if with_couples {
-		printCouples(&couples_result, id_matcher.ReversePeopleDict)
+	if withCouples {
+		stdout.PrintCouples(&couplesResult, reversePeopleDict)
 	}
+}
+
+func serializeResults(
+	uri string, begin, end int64, granularity, sampling int,
+	withFiles, withPeople, withCouples bool,
+	burndownResults hercules.BurndownResult,
+	couplesResult hercules.CouplesResult,
+	reversePeopleDict []string) {
+
+  header := pb.Metadata{
+	  Version: 1,
+	  Cmdline: strings.Join(os.Args, " "),
+	  Repository: uri,
+    BeginUnixTime: begin,
+	  EndUnixTime: end,
+	  Granularity: int32(granularity),
+	  Sampling: int32(sampling),
+  }
+
+	message := pb.AnalysisResults{
+		Header: &header,
+		BurndownProject: pb.ToBurndownSparseMatrix(burndownResults.GlobalHistory, uri),
+	}
+
+	if withFiles {
+		message.BurndownFile = make([]*pb.BurndownSparseMatrix, len(burndownResults.FileHistories))
+		keys := sortedKeys(burndownResults.FileHistories)
+		i := 0
+		for _, key := range keys {
+			message.BurndownFile[i] = pb.ToBurndownSparseMatrix(
+				burndownResults.FileHistories[key], key)
+			i++
+		}
+	}
+
+	if withPeople {
+		message.BurndownDeveloper = make(
+		  []*pb.BurndownSparseMatrix, len(burndownResults.PeopleHistories))
+		for key, val := range burndownResults.PeopleHistories {
+			message.BurndownDeveloper[key] = pb.ToBurndownSparseMatrix(val, reversePeopleDict[key])
+		}
+		message.DevelopersInteraction = pb.DenseToCompressedSparseRowMatrix(
+			burndownResults.PeopleMatrix)
+	}
+
+	if withCouples {
+		message.FileCouples = &pb.Couples{
+			Index: couplesResult.Files,
+			Matrix: pb.MapToCompressedSparseRowMatrix(couplesResult.FilesMatrix),
+		}
+		message.DeveloperCouples = &pb.Couples{
+			Index: reversePeopleDict,
+			Matrix: pb.MapToCompressedSparseRowMatrix(couplesResult.PeopleMatrix),
+		}
+		message.TouchedFiles = &pb.DeveloperTouchedFiles{
+      Developer: make([]*pb.TouchedFiles, len(reversePeopleDict)),
+		}
+		for key := range reversePeopleDict {
+			files := couplesResult.PeopleFiles[key]
+			int32Files := make([]int32, len(files))
+			for i, f := range files {
+				int32Files[i] = int32(f)
+			}
+			message.TouchedFiles.Developer[key] = &pb.TouchedFiles{
+				File: int32Files,
+			}
+		}
+	}
+
+	serialized, err := proto.Marshal(&message)
+	if err != nil {
+		panic(err)
+	}
+  os.Stdout.Write(serialized)
 }
