@@ -55,6 +55,42 @@ func (item *testPipelineItem) Finalize() interface{} {
 	return item
 }
 
+type dependingTestPipelineItem struct {
+	DependencySatisfied  bool
+	TestNilConsumeReturn bool
+}
+
+func (item *dependingTestPipelineItem) Name() string {
+	return "Test2"
+}
+
+func (item *dependingTestPipelineItem) Provides() []string {
+	arr := [...]string{"test2"}
+	return arr[:]
+}
+
+func (item *dependingTestPipelineItem) Requires() []string {
+	arr := [...]string{"test"}
+	return arr[:]
+}
+
+func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) {
+}
+
+func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	_, exists := deps["test"]
+	item.DependencySatisfied = exists
+	if !item.TestNilConsumeReturn {
+		return map[string]interface{}{"test2": item}, nil
+	} else {
+		return nil, nil
+	}
+}
+
+func (item *dependingTestPipelineItem) Finalize() interface{} {
+	return item.DependencySatisfied
+}
+
 func TestPipelineRun(t *testing.T) {
 	pipeline := NewPipeline(testRepository)
 	item := &testPipelineItem{}
@@ -143,6 +179,23 @@ func TestLoadCommitsFromFile(t *testing.T) {
 	commits, err = LoadCommitsFromFile(tmp.Name(), testRepository)
 	assert.Nil(t, commits)
 	assert.NotNil(t, err)
+}
+
+func TestPipelineDeps(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	item1 := &dependingTestPipelineItem{}
+	item2 := &testPipelineItem{}
+	pipeline.AddItem(item1)
+	pipeline.AddItem(item2)
+	pipeline.Initialize()
+	commits := make([]*object.Commit, 1)
+	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
+		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
+	result, err := pipeline.Run(commits)
+	assert.Nil(t, err)
+	assert.True(t, result[item1].(bool))
+	item1.TestNilConsumeReturn = true
+	assert.Panics(t, func() { pipeline.Run(commits) })
 }
 
 func init() {
