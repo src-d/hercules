@@ -46,7 +46,7 @@ type BurndownAnalysis struct {
 	fileHistories map[string][][]int64
 	// peopleHistories is the weekly snapshots of each person's status.
 	peopleHistories [][][]int64
-	// fiales is the mapping <file path> -> hercules.File.
+	// files is the mapping <file path> -> *File.
 	files map[string]*File
 	// matrix is the mutual deletions and self insertions.
 	matrix []map[int]int64
@@ -276,11 +276,11 @@ func (analyser *BurndownAnalysis) newFile(
 	matrix []map[int]int64) *File {
 	if analyser.PeopleNumber == 0 {
 		return NewFile(day, size, NewStatus(global, analyser.updateStatus),
-			NewStatus(make(map[int]int64), analyser.updateStatus))
+			NewStatus(map[int]int64{}, analyser.updateStatus))
 	}
 	return NewFile(analyser.packPersonWithDay(author, day), size,
 		NewStatus(global, analyser.updateStatus),
-		NewStatus(make(map[int]int64), analyser.updateStatus),
+		NewStatus(map[int]int64{}, analyser.updateStatus),
 		NewStatus(people, analyser.updatePeople),
 		NewStatus(matrix, analyser.updateMatrix))
 }
