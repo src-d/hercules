@@ -77,10 +77,40 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 }
 
 func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
-	dict := make(map[string]int)
-	emails := make(map[int][]string)
-	names := make(map[int][]string)
+	dict := map[string]int{}
+	emails := map[int][]string{}
+	names := map[int][]string{}
 	size := 0
+
+	mailmapFile, err := commits[len(commits) - 1].File(".mailmap")
+	if err == nil {
+		mailMapContents, err := mailmapFile.Contents()
+		if err == nil {
+			mailmap := ParseMailmap(mailMapContents)
+			for key, val := range mailmap {
+				key = strings.ToLower(key)
+				toEmail := strings.ToLower(val.Email)
+				toName := strings.ToLower(val.Name)
+				id, exists := dict[toEmail]
+				if !exists {
+					id, exists = dict[toName]
+				}
+				if exists {
+					dict[key] = id
+				} else {
+					if toEmail != "" {
+						dict[toEmail] = size
+					}
+					if toName != "" {
+						dict[toName] = size
+					}
+					dict[key] = size
+					size += 1
+				}
+			}
+		}
+	}
+
 	for _, commit := range commits {
 		email := strings.ToLower(commit.Author.Email)
 		name := strings.ToLower(commit.Author.Name)
