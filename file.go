@@ -1,6 +1,9 @@
 package hercules
 
-import "fmt"
+import (
+	"fmt"
+	"gopkg.in/src-d/hercules.v2/rbtree"
+)
 
 // A status is the something we would like to update during File.Update().
 type Status struct {
@@ -20,7 +23,7 @@ type Status struct {
 //
 // Dump() writes the tree to a string and Validate() checks the tree integrity.
 type File struct {
-	tree     *RBTree
+	tree     *rbtree.RBTree
 	statuses []Status
 }
 
@@ -91,12 +94,12 @@ func (file *File) updateTime(current_time int, previous_time int, delta int) {
 func NewFile(time int, length int, statuses ...Status) *File {
 	file := new(File)
 	file.statuses = statuses
-	file.tree = new(RBTree)
+	file.tree = new(rbtree.RBTree)
 	if length > 0 {
 		file.updateTime(time, time, length)
-		file.tree.Insert(Item{key: 0, value: time})
+		file.tree.Insert(rbtree.Item{Key: 0, Value: time})
 	}
-	file.tree.Insert(Item{key: length, value: TreeEnd})
+	file.tree.Insert(rbtree.Item{Key: length, Value: TreeEnd})
 	return file
 }
 
@@ -111,12 +114,12 @@ func NewFile(time int, length int, statuses ...Status) *File {
 func NewFileFromTree(keys []int, vals []int, statuses ...Status) *File {
 	file := new(File)
 	file.statuses = statuses
-	file.tree = new(RBTree)
+	file.tree = new(rbtree.RBTree)
 	if len(keys) != len(vals) {
 		panic("keys and vals must be of equal length")
 	}
 	for i := 0; i < len(keys); i++ {
-		file.tree.Insert(Item{key: keys[i], value: vals[i]})
+		file.tree.Insert(rbtree.Item{Key: keys[i], Value: vals[i]})
 	}
 	file.Validate()
 	return file
@@ -125,7 +128,7 @@ func NewFileFromTree(keys []int, vals []int, statuses ...Status) *File {
 // Len returns the File's size - that is, the maximum key in the tree of line
 // intervals.
 func (file *File) Len() int {
-	return file.tree.Max().Item().key
+	return file.tree.Max().Item().Key
 }
 
 // Update modifies the underlying tree to adapt to the specified line changes.
@@ -157,11 +160,11 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		return
 	}
 	tree := file.tree
-	if pos > tree.Max().Item().key {
+	if pos > tree.Max().Item().Key {
 		panic(fmt.Sprintf("attempt to insert after the end of the file: %d < %d",
-			tree.Max().Item().key, pos))
+			tree.Max().Item().Key, pos))
 	}
-	if tree.Len() < 2 && tree.Min().Item().key != 0 {
+	if tree.Len() < 2 && tree.Min().Item().Key != 0 {
 		panic("invalid tree state")
 	}
 	iter := tree.FindLE(pos)
@@ -169,16 +172,16 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	file.updateTime(time, time, ins_length)
 	if del_length == 0 {
 		// simple case with insertions only
-		if origin.key < pos || (origin.value == time && pos == 0) {
+		if origin.Key < pos || (origin.Value == time && pos == 0) {
 			iter = iter.Next()
 		}
 		for ; !iter.Limit(); iter = iter.Next() {
-			iter.Item().key += ins_length
+			iter.Item().Key += ins_length
 		}
-		if origin.value != time {
-			tree.Insert(Item{key: pos, value: time})
-			if origin.key < pos {
-				tree.Insert(Item{key: pos + ins_length, value: origin.value})
+		if origin.Value != time {
+			tree.Insert(rbtree.Item{Key: pos, Value: time})
+			if origin.Key < pos {
+				tree.Insert(rbtree.Item{Key: pos + ins_length, Value: origin.Value})
 			}
 		}
 		return
@@ -189,17 +192,17 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		node := iter.Item()
 		next_iter := iter.Next()
 		if next_iter.Limit() {
-			if pos+del_length > node.key {
+			if pos+del_length > node.Key {
 				panic("attempt to delete after the end of the file")
 			}
 			break
 		}
-		delta := min(next_iter.Item().key, pos+del_length) - max(node.key, pos)
+		delta := min(next_iter.Item().Key, pos+del_length) - max(node.Key, pos)
 		if delta <= 0 {
 			break
 		}
-		file.updateTime(time, node.value, -delta)
-		if node.key >= pos {
+		file.updateTime(time, node.Value, -delta)
+		if node.Key >= pos {
 			origin = *node
 			tree.DeleteWithIterator(iter)
 		}
@@ -207,20 +210,20 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	}
 
 	// prepare for the keys update
-	var previous *Item
-	if ins_length > 0 && (origin.value != time || origin.key == pos) {
+	var previous *rbtree.Item
+	if ins_length > 0 && (origin.Value != time || origin.Key == pos) {
 		// insert our new interval
-		if iter.Item().value == time {
+		if iter.Item().Value == time {
 			prev := iter.Prev()
-			if prev.Item().value != time {
-				iter.Item().key = pos
+			if prev.Item().Value != time {
+				iter.Item().Key = pos
 			} else {
 				tree.DeleteWithIterator(iter)
 				iter = prev
 			}
-			origin.value = time // cancels the insertion after applying the delta
+			origin.Value = time // cancels the insertion after applying the delta
 		} else {
-			_, iter = tree.Insert(Item{key: pos, value: time})
+			_, iter = tree.Insert(rbtree.Item{Key: pos, Value: time})
 		}
 	} else {
 		// rollback 1 position back, see "for true" deletion cycle ^
@@ -233,24 +236,24 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 	if delta != 0 {
 		for iter = iter.Next(); !iter.Limit(); iter = iter.Next() {
 			// we do not need to re-balance the tree
-			iter.Item().key += delta
+			iter.Item().Key += delta
 		}
 		// have to adjust origin in case ins_length == 0
-		if origin.key > pos {
-			origin.key += delta
+		if origin.Key > pos {
+			origin.Key += delta
 		}
 	}
 
 	if ins_length > 0 {
-		if origin.value != time {
-			tree.Insert(Item{pos + ins_length, origin.value})
+		if origin.Value != time {
+			tree.Insert(rbtree.Item{pos + ins_length, origin.Value})
 		} else if pos == 0 {
 			// recover the beginning
-			tree.Insert(Item{pos, time})
+			tree.Insert(rbtree.Item{pos, time})
 		}
-	} else if (pos > origin.key && previous.value != origin.value) || pos == origin.key || pos == 0 {
+	} else if (pos > origin.Key && previous.Value != origin.Value) || pos == origin.Key || pos == 0 {
 		// continue the original interval
-		tree.Insert(Item{pos, origin.value})
+		tree.Insert(rbtree.Item{pos, origin.Value})
 	}
 }
 
@@ -268,7 +271,7 @@ func (file *File) Dump() string {
 	buffer := ""
 	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
 		node := iter.Item()
-		buffer += fmt.Sprintf("%d %d\n", node.key, node.value)
+		buffer += fmt.Sprintf("%d %d\n", node.Key, node.Value)
 	}
 	return buffer
 }
@@ -283,18 +286,18 @@ func (file *File) Dump() string {
 //
 // 3. Node keys must monotonically increase and never duplicate.
 func (file *File) Validate() {
-	if file.tree.Min().Item().key != 0 {
+	if file.tree.Min().Item().Key != 0 {
 		panic("the tree must start with key 0")
 	}
-	if file.tree.Max().Item().value != TreeEnd {
+	if file.tree.Max().Item().Value != TreeEnd {
 		panic(fmt.Sprintf("the last value in the tree must be %d", TreeEnd))
 	}
 	prev_key := -1
 	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
 		node := iter.Item()
-		if node.key == prev_key {
-			panic(fmt.Sprintf("duplicate tree key: %d", node.key))
+		if node.Key == prev_key {
+			panic(fmt.Sprintf("duplicate tree key: %d", node.Key))
 		}
-		prev_key = node.key
+		prev_key = node.Key
 	}
 }

@@ -1,4 +1,4 @@
-package hercules
+package rbtree
 
 //
 // Public definitions
@@ -6,8 +6,8 @@ package hercules
 
 // Item is the object stored in each tree node.
 type Item struct {
-	key   int
-	value int
+	Key   int
+	Value int
 }
 
 // RBTree created by Yaz Saito on 06/10/12.
@@ -17,7 +17,7 @@ type Item struct {
 // The implementation is inspired (read: stolen) from:
 // http://en.literateprograms.org/Red-black_tree_(C)#chunk use:private function prototypes.
 //
-// The code was optimized for the simple integer types of key and value.
+// The code was optimized for the simple integer types of Key and Value.
 type RBTree struct {
 	// Root of the tree
 	root *node
@@ -34,12 +34,12 @@ func (root *RBTree) Len() int {
 	return root.count
 }
 
-// A convenience function for finding an element equal to key. Return
+// A convenience function for finding an element equal to Key. Return
 // nil if not found.
 func (root *RBTree) Get(key int) *int {
 	n, exact := root.findGE(key)
 	if exact {
-		return &n.item.value
+		return &n.item.Value
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func (root *RBTree) NegativeLimit() Iterator {
 	return Iterator{root, negativeLimitNode}
 }
 
-// Find the smallest element N such that N >= key, and return the
+// Find the smallest element N such that N >= Key, and return the
 // iterator pointing to the element. If no such element is found,
 // return root.Limit().
 func (root *RBTree) FindGE(key int) Iterator {
@@ -78,7 +78,7 @@ func (root *RBTree) FindGE(key int) Iterator {
 	return Iterator{root, n}
 }
 
-// Find the largest element N such that N <= key, and return the
+// Find the largest element N such that N <= Key, and return the
 // iterator pointing to the element. If no such element is found,
 // return iter.NegativeLimit().
 func (root *RBTree) FindLE(key int) Iterator {
@@ -162,7 +162,7 @@ func (root *RBTree) Insert(item Item) (bool, Iterator) {
 	return true, Iterator{root, ins_n}
 }
 
-// Delete an item with the given key. Return true iff the item was
+// Delete an item with the given Key. Return true iff the item was
 // found.
 func (root *RBTree) DeleteWithKey(key int) bool {
 	iter := root.FindGE(key)
@@ -217,7 +217,7 @@ func (iter Iterator) NegativeLimit() bool {
 }
 
 // Return the current element. Allows mutating the node
-// (key to be changed with care!).
+// (Key to be changed with care!).
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (iter Iterator) Item() *Item {
@@ -377,7 +377,7 @@ func (root *RBTree) maybeSetMinNode(n *node) {
 	if root.minNode == nil {
 		root.minNode = n
 		root.maxNode = n
-	} else if n.item.key < root.minNode.item.key {
+	} else if n.item.Key < root.minNode.item.Key {
 		root.minNode = n
 	}
 }
@@ -386,7 +386,7 @@ func (root *RBTree) maybeSetMaxNode(n *node) {
 	if root.maxNode == nil {
 		root.minNode = n
 		root.maxNode = n
-	} else if n.item.key > root.maxNode.item.key {
+	} else if n.item.Key > root.maxNode.item.Key {
 		root.maxNode = n
 	}
 }
@@ -404,7 +404,7 @@ func (root *RBTree) doInsert(item Item) *node {
 	}
 	parent := root.root
 	for true {
-		comp := item.key - parent.item.key
+		comp := item.Key - parent.item.Key
 		if comp == 0 {
 			return nil
 		} else if comp < 0 {
@@ -432,16 +432,16 @@ func (root *RBTree) doInsert(item Item) *node {
 	panic("should not reach here")
 }
 
-// Find a node whose item >= key. The 2nd return value is true iff the
-// node.item==key. Returns (nil, false) if all nodes in the tree are <
-// key.
+// Find a node whose item >= Key. The 2nd return Value is true iff the
+// node.item==Key. Returns (nil, false) if all nodes in the tree are <
+// Key.
 func (root *RBTree) findGE(key int) (*node, bool) {
 	n := root.root
 	for true {
 		if n == nil {
 			return nil, false
 		}
-		comp := key - n.item.key
+		comp := key - n.item.Key
 		if comp == 0 {
 			return n, true
 		} else if comp < 0 {
@@ -458,7 +458,7 @@ func (root *RBTree) findGE(key int) (*node, bool) {
 				if succ == nil {
 					return nil, false
 				} else {
-					return succ, (key == succ.item.key)
+					return succ, (key == succ.item.Key)
 				}
 			}
 		}
