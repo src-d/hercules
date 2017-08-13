@@ -67,7 +67,7 @@ type BurndownResult struct {
 }
 
 func (analyser *BurndownAnalysis) Name() string {
-	return "BurndownAnalysis"
+	return "Burndown"
 }
 
 func (analyser *BurndownAnalysis) Provides() []string {
