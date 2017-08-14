@@ -3,11 +3,11 @@ package hercules
 import (
 	"bufio"
 	"os"
+	"sort"
 	"strings"
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"sort"
 )
 
 type IdentityDetector struct {
@@ -99,14 +99,40 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 				if exists {
 					dict[key] = id
 				} else {
+					id = size
+					size++
 					if toEmail != "" {
-						dict[toEmail] = size
+						dict[toEmail] = id
+						emails[id] = append(emails[id], toEmail)
 					}
 					if toName != "" {
-						dict[toName] = size
+						dict[toName] = id
+						names[id] = append(names[id], toName)
 					}
-					dict[key] = size
-					size += 1
+					dict[key] = id
+				}
+				if strings.Contains(key, "@") {
+					exists := false
+					for _, val := range emails[id] {
+						if key == val {
+							exists = true
+							break
+						}
+					}
+					if !exists {
+						emails[id] = append(emails[id], key)
+					}
+				} else {
+					exists := false
+					for _, val := range names[id] {
+						if key == val {
+							exists = true
+							break
+						}
+					}
+					if !exists {
+						names[id] = append(names[id], key)
+					}
 				}
 			}
 		}

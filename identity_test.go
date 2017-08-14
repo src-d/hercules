@@ -2,12 +2,18 @@ package hercules
 
 import (
 	"io"
+	"io/ioutil"
+	"os"
 	"path"
+	"reflect"
+	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 )
 
 func fixtureIdentityDetector() *IdentityDetector {
@@ -139,4 +145,138 @@ func TestIdentityDetectorFinalize(t *testing.T) {
 	id := fixtureIdentityDetector()
 	res := id.Finalize()
 	assert.Nil(t, res)
+}
+
+func TestLoadPeopleDictInvalidPath(t *testing.T) {
+	id := fixtureIdentityDetector()
+	ipath := "/xxxyyyzzzInvalidPath!hehe"
+	err := id.LoadPeopleDict(ipath)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.(*os.PathError).Path, ipath)
+}
+
+type fakeBlobEncodedObject struct {
+	Contents string
+}
+
+func (obj fakeBlobEncodedObject) Hash() plumbing.Hash {
+	return plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")
+}
+
+func (obj fakeBlobEncodedObject) Type() plumbing.ObjectType {
+	return plumbing.BlobObject
+}
+
+func (obj fakeBlobEncodedObject) SetType(plumbing.ObjectType) {}
+
+func (obj fakeBlobEncodedObject) Size() int64 {
+	return int64(len(obj.Contents))
+}
+
+func (obj fakeBlobEncodedObject) SetSize(int64) {}
+
+func (obj fakeBlobEncodedObject) Reader() (io.ReadCloser, error) {
+	return ioutil.NopCloser(strings.NewReader(obj.Contents)), nil
+}
+
+func (obj fakeBlobEncodedObject) Writer() (io.WriteCloser, error) {
+	return nil, nil
+}
+
+type fakeTreeEncodedObject struct {
+	Name string
+}
+
+func (obj fakeTreeEncodedObject) Hash() plumbing.Hash {
+	return plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")
+}
+
+func (obj fakeTreeEncodedObject) Type() plumbing.ObjectType {
+	return plumbing.TreeObject
+}
+
+func (obj fakeTreeEncodedObject) SetType(plumbing.ObjectType) {}
+
+func (obj fakeTreeEncodedObject) Size() int64 {
+	return 1
+}
+
+func (obj fakeTreeEncodedObject) SetSize(int64) {}
+
+func (obj fakeTreeEncodedObject) Reader() (io.ReadCloser, error) {
+	return ioutil.NopCloser(strings.NewReader(
+		"100644 " + obj.Name + "\x00ffffffffffffffffffffffffffffffffffffffff")), nil
+}
+
+func (obj fakeTreeEncodedObject) Writer() (io.WriteCloser, error) {
+	return nil, nil
+}
+
+type fakeEncodedObjectStorer struct {
+	Name string
+	Contents string
+}
+
+func (strr fakeEncodedObjectStorer) NewEncodedObject() plumbing.EncodedObject {
+	return nil
+}
+
+func (strr fakeEncodedObjectStorer) SetEncodedObject(plumbing.EncodedObject) (plumbing.Hash, error) {
+	return plumbing.NewHash("0000000000000000000000000000000000000000"), nil
+}
+
+func (strr fakeEncodedObjectStorer) EncodedObject(objType plumbing.ObjectType, hash plumbing.Hash) (plumbing.EncodedObject, error) {
+  if objType == plumbing.TreeObject {
+	  return fakeTreeEncodedObject{Name: strr.Name}, nil
+  } else if objType == plumbing.BlobObject {
+	  return fakeBlobEncodedObject{Contents: strr.Contents}, nil
+  }
+	return nil, nil
+}
+
+func (strr fakeEncodedObjectStorer) IterEncodedObjects(plumbing.ObjectType) (storer.EncodedObjectIter, error) {
+	return nil, nil
+}
+
+func getFakeCommitWithFile(name string, contents string) *object.Commit {
+	c := object.Commit{
+		Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
+		Author: object.Signature{
+			Name: "Vadim Markovtsev",
+			Email: "vadim@sourced.tech",
+		},
+		Committer: object.Signature{
+			Name: "Vadim Markovtsev",
+			Email: "vadim@sourced.tech",
+		},
+		Message: "Virtual file " + name,
+		TreeHash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
+	}
+	voc := reflect.ValueOf(&c)
+	voc = voc.Elem()
+	f := voc.FieldByName("s")
+	ptr := unsafe.Pointer(f.UnsafeAddr())
+	strr := fakeEncodedObjectStorer{Name: name, Contents: contents}
+	*(*storer.EncodedObjectStorer)(ptr) = strr
+	return &c
+}
+
+func TestGeneratePeopleDictMailmap(t *testing.T) {
+	id := fixtureIdentityDetector()
+	commits := make([]*object.Commit, 0)
+	iter, err := testRepository.CommitObjects()
+	commit, err := iter.Next()
+	for ; err != io.EOF; commit, err = iter.Next() {
+		if err != nil {
+			panic(err)
+		}
+		commits = append(commits, commit)
+	}
+  fake := getFakeCommitWithFile(
+	  ".mailmap",
+	  "Strange Guy <vadim@sourced.tech>\nVadim Markovtsev <vadim@sourced.tech> Strange Guy <vadim@sourced.tech>")
+	commits = append(commits, fake)
+	id.GeneratePeopleDict(commits)
+	assert.Contains(t, id.ReversePeopleDict,
+		"strange guy|vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 }

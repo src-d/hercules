@@ -214,3 +214,58 @@ func TestBlobCacheGetBlob(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), plumbing.ErrObjectNotFound.Error())
 }
+
+func TestBlobCacheDeleteInvalidBlob(t *testing.T) {
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
+	changes := make(object.Changes, 1)
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
+	changes[0] = &object.Change{From: object.ChangeEntry{
+		Name: "analyser.go",
+		Tree: treeFrom,
+		TreeEntry: object.TreeEntry{
+			Name: "analyser.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
+		},
+	}, To: object.ChangeEntry{},
+	}
+	deps := map[string]interface{}{}
+	deps["commit"] = commit
+	deps["changes"] = changes
+	result, err := fixtureBlobCache().Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, len(result), 1)
+	cacheIface, exists := result["blob_cache"]
+	assert.True(t, exists)
+	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
+	assert.Equal(t, len(cache), 1)
+	blobFrom, exists := cache[plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")]
+	assert.True(t, exists)
+	assert.Equal(t, blobFrom.Size, int64(0))
+}
+
+func TestBlobCacheInsertInvalidBlob(t *testing.T) {
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
+	changes := make(object.Changes, 1)
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"251f2094d7b523d5bcc60e663b6cf38151bf8844"))
+	changes[0] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: "pipeline.go",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "pipeline.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
+		},
+	},
+	}
+	deps := map[string]interface{}{}
+	deps["commit"] = commit
+	deps["changes"] = changes
+	result, err := fixtureBlobCache().Consume(deps)
+	assert.NotNil(t, err)
+	assert.Equal(t, len(result), 0)
+}
