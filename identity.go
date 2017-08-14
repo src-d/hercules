@@ -63,9 +63,9 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 	reverse_dict := []string{}
 	size := 0
 	for scanner.Scan() {
-		ids := strings.Split(strings.ToLower(scanner.Text()), "|")
+		ids := strings.Split(scanner.Text(), "|")
 		for _, id := range ids {
-			dict[id] = size
+			dict[strings.ToLower(id)] = size
 		}
 		reverse_dict = append(reverse_dict, ids[0])
 		size += 1
