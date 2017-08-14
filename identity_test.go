@@ -130,7 +130,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.PeopleDict["bzz@apache.org"], 1)
 	assert.Equal(t, id.PeopleDict["máximo cuadros"], 2)
 	assert.Equal(t, id.PeopleDict["mcuadros@gmail.com"], 2)
-	assert.Equal(t, id.ReversePeopleDict[0], "vadim markovtsev|vadim@sourced.tech|gmarkhor@gmail.com")
+	assert.Equal(t, id.ReversePeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 	assert.Equal(t, id.ReversePeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversePeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
 }

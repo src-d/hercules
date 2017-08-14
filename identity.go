@@ -7,6 +7,7 @@ import (
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"sort"
 )
 
 type IdentityDetector struct {
@@ -137,6 +138,8 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 	}
 	reverse_dict := make([]string, size)
 	for _, val := range dict {
+		sort.Strings(names[val])
+		sort.Strings(emails[val])
 		reverse_dict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
 	}
 	id.PeopleDict = dict
