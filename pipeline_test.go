@@ -218,6 +218,13 @@ func TestPipelineError(t *testing.T) {
 }
 
 func init() {
+	cwd, err := os.Getwd()
+	if err == nil {
+		testRepository, err = git.PlainOpen(cwd)
+		if err == nil {
+			return
+		}
+	}
 	testRepository, _ = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL: "https://github.com/src-d/hercules",
 	})
