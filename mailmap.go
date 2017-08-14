@@ -6,6 +6,10 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
+// ParseMailmap parses the contents of .mailmap and returns the mapping
+// between signature parts. It does *not* follow the full signature
+// matching convention, that is, developers are identified by email
+// and by name independently.
 func ParseMailmap(contents string) map[string]object.Signature {
   mm := map[string]object.Signature{}
 	lines := strings.Split(contents, "\n")
