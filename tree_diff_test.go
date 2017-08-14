@@ -38,18 +38,18 @@ func TestTreeDiffConsume(t *testing.T) {
 	changes := res["changes"].(object.Changes)
 	assert.Equal(t, len(changes), 12)
 	baseline := map[string]merkletrie.Action{
-		"analyser.go": merkletrie.Delete,
-		"cmd/hercules/main.go": merkletrie.Modify,
-		"blob_cache.go": merkletrie.Insert,
-		"burndown.go": merkletrie.Insert,
-		"day.go": merkletrie.Insert,
-		"dummies.go": merkletrie.Insert,
-		"identity.go": merkletrie.Insert,
-		"pipeline.go": merkletrie.Insert,
-		"renames.go": merkletrie.Insert,
-		"toposort/toposort.go": merkletrie.Insert,
+		"analyser.go":               merkletrie.Delete,
+		"cmd/hercules/main.go":      merkletrie.Modify,
+		"blob_cache.go":             merkletrie.Insert,
+		"burndown.go":               merkletrie.Insert,
+		"day.go":                    merkletrie.Insert,
+		"dummies.go":                merkletrie.Insert,
+		"identity.go":               merkletrie.Insert,
+		"pipeline.go":               merkletrie.Insert,
+		"renames.go":                merkletrie.Insert,
+		"toposort/toposort.go":      merkletrie.Insert,
 		"toposort/toposort_test.go": merkletrie.Insert,
-		"tree_diff.go": merkletrie.Insert,
+		"tree_diff.go":              merkletrie.Insert,
 	}
 	for _, change := range changes {
 		action, err := change.Action()

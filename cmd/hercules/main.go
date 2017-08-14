@@ -3,6 +3,27 @@ Package main provides the command line tool to gather the line burndown
 statistics from Git repositories. Usage:
 
 	hercules <URL or FS path>
+
+Output is always written to stdout, progress is written to stderr.
+Output formats:
+
+- YAML (default)
+- Protocol Buffers (-pb)
+
+Extensions:
+
+-files include line burndown stats for each file alive in HEAD
+-people include line burndown stats for each developer
+-couples include coupling betwwen files and developers
+
+-granularity sets the number of days in each band of the burndown charts.
+-sampling set the frequency of measuring the state of burndown in days.
+
+-people-dict allows to specify a hand-crafted identity matching list. The format is text,
+each identity on separate line, matching names and emails separated with |
+
+-debug activates the debugging mode - hardly ever needed, used internally during the development.
+-profile activates the profile collection and runs the server on localhost:6060
 */
 package main
 

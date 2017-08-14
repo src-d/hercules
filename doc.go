@@ -1,39 +1,60 @@
 /*
-Package hercules contains the functions which are needed to gather the line
-burndown statistics from a Git repository.
+Package hercules contains the functions which are needed to gather various statistics
+from a Git repository.
 
-Analyser is the main object which concentrates the high level logic. It
-provides Commits() and Analyse() methods to get the work done. The following
-example was taken from cmd/hercules:
+The analysis is expressed in a form of the tree: there are nodes - "pipeline items" - which
+require some other nodes to be executed prior to selves and in turn provide the data for
+dependent nodes. There are several service items which do not produce any useful
+statistics but rather provide the requirements for other items. The top-level items
+are:
+
+- BurndownAnalysis - line burndown statistics for project, files and developers.
+- Couples - coupling statistics for files and developers.
+
+The typical API usage is to initialize the Pipeline class:
+
+  import "gopkg.in/src-d/go-git.v4"
 
 	var repository *git.Repository
-	// ... initialize repository ...
-	analyser := hercules.Analyser{
-		Repository: repository,
-		OnProgress: func(commit, length int) {
-			fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
-		},
-		Granularity:         30,
-		Sampling:            15,
-		SimilarityThreshold: 90,
-		Debug:               false,
-	}
-	commits := analyser.Commits()  // or specify a custom list
-	statuses := analyser.Analyse(commits)
-	// [y][x]int64 where y is the snapshot index and x is the granulated time index.
+	// ...initialize repository...
+	pipeline := hercules.NewPipeline(repository)
 
-As commented in the code, the list of commits can be any valid slice of *object.Commit.
-The returned statuses slice of slices is a rectangular 2D matrix where
-the number of rows equals to the repository's lifetime divided by the sampling
-value (detail factor) and the number of columns is the repository's lifetime
-divided by the granularity value (number of bands).
+Then add the required analysis tree nodes:
 
-Analyser depends heavily on https://github.com/src-d/go-git and leverages the
+  pipeline.AddItem(&hercules.BlobCache{})
+	pipeline.AddItem(&hercules.DaysSinceStart{})
+	pipeline.AddItem(&hercules.TreeDiff{})
+	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: 80})
+	pipeline.AddItem(&hercules.IdentityDetector{})
+
+Then initialize BurndownAnalysis:
+
+  burndowner := &hercules.BurndownAnalysis{
+    Granularity:  30,
+		Sampling:     30,
+  }
+  pipeline.AddItem(burndowner)
+
+Then execute the analysis tree:
+
+  pipeline.Initialize()
+	result, err := pipeline.Run(commits)
+
+Finally extract the result:
+
+  burndownResults := result[burndowner].(hercules.BurndownResult)
+
+The actual usage example is cmd/hercules/main.go - the command line tool's code.
+
+Hercules depends heavily on https://github.com/src-d/go-git and leverages the
 diff algorithm through https://github.com/sergi/go-diff.
 
 Besides, hercules defines File and RBTree. These are low level data structures
-required by Analyser. File carries an instance of RBTree and the current line
+required by BurndownAnalysis. File carries an instance of RBTree and the current line
 burndown state. RBTree implements the red-black balanced binary tree and is
 based on https://github.com/yasushi-saito/rbtree.
+
+Coupling stats are supposed to be further processed rather than observed directly.
+labours.py uses Swivel embeddings and visualises them in Tensorflow Projector.
 */
 package hercules

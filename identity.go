@@ -82,7 +82,7 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 	names := map[int][]string{}
 	size := 0
 
-	mailmapFile, err := commits[len(commits) - 1].File(".mailmap")
+	mailmapFile, err := commits[len(commits)-1].File(".mailmap")
 	if err == nil {
 		mailMapContents, err := mailmapFile.Contents()
 		if err == nil {

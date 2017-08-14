@@ -195,8 +195,8 @@ func TestBlobCacheGetBlob(t *testing.T) {
 	}
 	getter := func(path string) (*object.File, error) {
 		assert.Equal(t, path, ".gitmodules")
-    commit, _ := testRepository.CommitObject(plumbing.NewHash(
-		  "13272b66c55e1ba1237a34104f30b84d7f6e4082"))
+		commit, _ := testRepository.CommitObject(plumbing.NewHash(
+			"13272b66c55e1ba1237a34104f30b84d7f6e4082"))
 		return commit.File("test_data/gitmodules")
 	}
 	blob, err := cache.getBlob(&entry, getter)
@@ -205,8 +205,8 @@ func TestBlobCacheGetBlob(t *testing.T) {
 	assert.Equal(t, err.Error(), plumbing.ErrObjectNotFound.Error())
 	getter = func(path string) (*object.File, error) {
 		assert.Equal(t, path, ".gitmodules")
-    commit, _ := testRepository.CommitObject(plumbing.NewHash(
-		  "13272b66c55e1ba1237a34104f30b84d7f6e4082"))
+		commit, _ := testRepository.CommitObject(plumbing.NewHash(
+			"13272b66c55e1ba1237a34104f30b84d7f6e4082"))
 		return commit.File("test_data/gitmodules_empty")
 	}
 	blob, err = cache.getBlob(&entry, getter)

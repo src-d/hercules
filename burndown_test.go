@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 func TestBurndownMeta(t *testing.T) {
@@ -20,8 +20,8 @@ func TestBurndownMeta(t *testing.T) {
 
 func TestBurndownConsume(t *testing.T) {
 	burndown := BurndownAnalysis{
-		Granularity: 30,
-		Sampling: 30,
+		Granularity:  30,
+		Sampling:     30,
 		PeopleNumber: 1,
 	}
 	burndown.Initialize(testRepository)
@@ -37,7 +37,7 @@ func TestBurndownConsume(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	deps["blob_cache"] = cache
 	changes := make(object.Changes, 2)
-  treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
 	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
 		"4d3f9500c2b9dc10925ad1705926b67f0f9101ca"))
@@ -77,14 +77,14 @@ func TestBurndownConsume(t *testing.T) {
 	assert.Equal(t, burndown.files[".travis.yml"].Len(), 12)
 	assert.Equal(t, burndown.files["analyser.go"].Len(), 309)
 	assert.Equal(t, len(burndown.people), 1)
-	assert.Equal(t, burndown.people[0][0], int64(12 + 309))
+	assert.Equal(t, burndown.people[0][0], int64(12+309))
 	assert.Equal(t, len(burndown.globalStatus), 1)
-	assert.Equal(t, burndown.globalStatus[0], int64(12 + 309))
+	assert.Equal(t, burndown.globalStatus[0], int64(12+309))
 	assert.Equal(t, len(burndown.globalHistory), 0)
 	assert.Equal(t, len(burndown.fileHistories), 0)
 	burndown = BurndownAnalysis{
-		Granularity: 30,
-		Sampling: 0,
+		Granularity:  30,
+		Sampling:     0,
 		PeopleNumber: 0,
 	}
 	burndown.Initialize(testRepository)

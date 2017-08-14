@@ -17,7 +17,7 @@ func fixtureIdentityDetector() *IdentityDetector {
 	reversePeopleDict := make([]string, 1)
 	reversePeopleDict[0] = "Vadim"
 	id := IdentityDetector{
-		PeopleDict: peopleDict,
+		PeopleDict:        peopleDict,
 		ReversePeopleDict: reversePeopleDict,
 	}
 	id.Initialize(testRepository)
@@ -50,7 +50,7 @@ func TestIdentityDetectorConsume(t *testing.T) {
 
 func TestLoadPeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
-  err := id.LoadPeopleDict(path.Join("test_data", "identities"))
+	err := id.LoadPeopleDict(path.Join("test_data", "identities"))
 	assert.Nil(t, err)
 	assert.Equal(t, len(id.PeopleDict), 7)
 	assert.Contains(t, id.PeopleDict, "linus torvalds")
@@ -96,21 +96,24 @@ func TestGeneratePeopleDict(t *testing.T) {
 	}
 	{
 		i := 0
-		for ; commits[i].Author.Name != "Vadim Markovtsev"; i++ {}
+		for ; commits[i].Author.Name != "Vadim Markovtsev"; i++ {
+		}
 		if i > 0 {
 			commit := commits[0]
 			commits[0] = commits[i]
 			commits[i] = commit
 		}
 		i = 1
-		for ; commits[i].Author.Name != "Alexander Bezzubov"; i++ {}
+		for ; commits[i].Author.Name != "Alexander Bezzubov"; i++ {
+		}
 		if i > 0 {
 			commit := commits[1]
 			commits[1] = commits[i]
 			commits[i] = commit
 		}
 		i = 2
-		for ; commits[i].Author.Name != "Máximo Cuadros"; i++ {}
+		for ; commits[i].Author.Name != "Máximo Cuadros"; i++ {
+		}
 		if i > 0 {
 			commit := commits[2]
 			commits[2] = commits[i]
@@ -119,7 +122,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 	}
 	id.GeneratePeopleDict(commits)
 	assert.True(t, len(id.PeopleDict) >= 7)
-  assert.True(t, len(id.ReversePeopleDict) >= 3)
+	assert.True(t, len(id.ReversePeopleDict) >= 3)
 	assert.Equal(t, id.PeopleDict["vadim markovtsev"], 0)
 	assert.Equal(t, id.PeopleDict["vadim@sourced.tech"], 0)
 	assert.Equal(t, id.PeopleDict["gmarkhor@gmail.com"], 0)

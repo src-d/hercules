@@ -1,8 +1,8 @@
 package hercules
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestParseMailmap(t *testing.T) {
