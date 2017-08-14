@@ -2,6 +2,7 @@ package hercules
 
 import (
 	"errors"
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -222,7 +223,17 @@ func init() {
 	if err == nil {
 		testRepository, err = git.PlainOpen(cwd)
 		if err == nil {
-			return
+			iter, _ := testRepository.CommitObjects()
+			commits := 0
+			for ; err != io.EOF; _, err = iter.Next() {
+				if err != nil {
+					panic(err)
+				}
+				commits++
+				if commits >= 100 {
+					return
+				}
+			}
 		}
 	}
 	testRepository, _ = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
