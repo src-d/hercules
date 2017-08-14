@@ -68,6 +68,7 @@ func TestLoadPeopleDict(t *testing.T) {
 }
 
 /*
+// internal compiler error
 func TestGeneratePeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	commits := make([]*object.Commit, 0)
@@ -129,4 +130,10 @@ func TestGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversePeopleDict[0], "vadim markovtsev|vadim@sourced.tech|gmarkhor@gmail.com")
 	assert.Equal(t, id.ReversePeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversePeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
+}
+
+func TestIdentityDetectorFinalize(t *testing.T) {
+	id := fixtureIdentityDetector()
+	res := id.Finalize()
+	assert.Nil(t, res)
 }
