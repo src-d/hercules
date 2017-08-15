@@ -26,6 +26,10 @@ type BurndownAnalysis struct {
 	// <= Granularity. Try 15 or 30.
 	Sampling int
 
+	// TrackFiles enables or disables the fine-grained per-file burndown analysis.
+	// It does not change the top level burndown results.
+	TrackFiles bool
+
 	// The number of developers for which to collect the burndown stats. 0 disables it.
 	PeopleNumber int
 
@@ -263,15 +267,17 @@ func (analyser *BurndownAnalysis) updateMatrix(
 func (analyser *BurndownAnalysis) newFile(
 	author int, day int, size int, global map[int]int64, people []map[int]int64,
 	matrix []map[int]int64) *File {
-	if analyser.PeopleNumber == 0 {
-		return NewFile(day, size, NewStatus(global, analyser.updateStatus),
-			NewStatus(map[int]int64{}, analyser.updateStatus))
+	statuses := make([]Status, 1)
+	statuses[0] = NewStatus(global, analyser.updateStatus)
+	if analyser.TrackFiles {
+		statuses = append(statuses, NewStatus(map[int]int64{}, analyser.updateStatus))
 	}
-	return NewFile(analyser.packPersonWithDay(author, day), size,
-		NewStatus(global, analyser.updateStatus),
-		NewStatus(map[int]int64{}, analyser.updateStatus),
-		NewStatus(people, analyser.updatePeople),
-		NewStatus(matrix, analyser.updateMatrix))
+	if analyser.PeopleNumber > 0 {
+		statuses = append(statuses, NewStatus(people, analyser.updatePeople))
+		statuses = append(statuses, NewStatus(matrix, analyser.updateMatrix))
+		day = analyser.packPersonWithDay(author, day)
+	}
+	return NewFile(day, size, statuses...)
 }
 
 func (analyser *BurndownAnalysis) handleInsertion(
@@ -450,20 +456,22 @@ func (analyser *BurndownAnalysis) groupStatus() ([]int64, map[string][]int64, []
 		global[len(global)-1] = group
 	}
 	locals := make(map[string][]int64)
-	for key, file := range analyser.files {
-		status := make([]int64, day/granularity+adjust)
-		var group int64
-		for i := 0; i < day; i++ {
-			group += file.Status(1).(map[int]int64)[i]
-			if (i % granularity) == (granularity - 1) {
-				status[i/granularity] = group
-				group = 0
+	if analyser.TrackFiles {
+		for key, file := range analyser.files {
+			status := make([]int64, day/granularity+adjust)
+			var group int64
+			for i := 0; i < day; i++ {
+				group += file.Status(1).(map[int]int64)[i]
+				if (i % granularity) == (granularity - 1) {
+					status[i/granularity] = group
+					group = 0
+				}
 			}
+			if day%granularity != 0 {
+				status[len(status)-1] = group
+			}
+			locals[key] = status
 		}
-		if day%granularity != 0 {
-			status[len(status)-1] = group
-		}
-		locals[key] = status
 	}
 	peoples := make([][]int64, len(analyser.people))
 	for key, person := range analyser.people {

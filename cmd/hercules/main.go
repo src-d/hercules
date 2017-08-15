@@ -170,6 +170,7 @@ func main() {
 		Granularity:  granularity,
 		Sampling:     sampling,
 		Debug:        debug,
+		TrackFiles:   withFiles,
 		PeopleNumber: peopleCount,
 	}
 	pipeline.AddItem(burndowner)

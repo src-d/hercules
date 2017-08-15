@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"io"
 )
 
 func TestBurndownMeta(t *testing.T) {
@@ -23,6 +24,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		Granularity:  30,
 		Sampling:     30,
 		PeopleNumber: 2,
+		TrackFiles: true,
 	}
 	burndown.Initialize(testRepository)
 	deps := map[string]interface{}{}
@@ -104,12 +106,13 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	burndown2 := BurndownAnalysis{
 		Granularity:  30,
 		Sampling:     0,
-		PeopleNumber: 0,
 	}
 	burndown2.Initialize(testRepository)
 	_, err = burndown2.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(burndown2.people), 0)
+	assert.Equal(t, len(burndown2.peopleHistories), 0)
+	assert.Equal(t, len(burndown2.fileHistories), 0)
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
@@ -237,3 +240,14 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	}
 }
 
+type panickingCloser struct {
+}
+
+func (c panickingCloser) Close() error {
+	return io.EOF
+}
+
+func TestCheckClose(t *testing.T) {
+	closer := panickingCloser{}
+	assert.Panics(t, func() {checkClose(closer)})
+}
