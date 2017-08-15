@@ -206,4 +206,4 @@ parsed. However, most of the repositories are parsed within a minute.
    ```
 
 ### License
-MIT.
+Apache 2.0.
