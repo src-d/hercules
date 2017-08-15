@@ -8,6 +8,8 @@ go_import_path: gopkg.in/src-d/hercules.v2
   
 script:
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v2
+  - $GOPATH/bin/hercules -files -people -couples https://github.com/src-d/hercules > /dev/null
+  - $GOPATH/bin/hercules -files -people -couples -pb https://github.com/src-d/hercules > /dev/null
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
