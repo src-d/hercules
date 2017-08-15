@@ -109,3 +109,35 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	renamed = res["renamed_changes"].(object.Changes)
 	assert.Equal(t, len(renamed), 3)
 }
+
+func TestSortableChanges(t *testing.T) {
+	changes := sortableChanges{
+		sortableChange{
+			nil, plumbing.NewHash("0000000000000000000000000000000000000000"),
+		}, sortableChange{
+			nil, plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
+		},
+	}
+	assert.True(t, changes.Less(0, 1))
+	assert.False(t, changes.Less(1, 0))
+	assert.False(t, changes.Less(0, 0))
+	changes.Swap(0, 1)
+	assert.Equal(t, changes[0].hash.String(), "ffffffffffffffffffffffffffffffffffffffff")
+	assert.Equal(t, changes[1].hash.String(), "0000000000000000000000000000000000000000")
+}
+
+func TestSortableBlobs(t *testing.T) {
+	blobs := sortableBlobs{
+		sortableBlob{
+			nil, int64(0),
+		}, sortableBlob{
+			nil, int64(1),
+		},
+	}
+	assert.True(t, blobs.Less(0, 1))
+	assert.False(t, blobs.Less(1, 0))
+	assert.False(t, blobs.Less(0, 0))
+	blobs.Swap(0, 1)
+	assert.Equal(t, blobs[0].size, int64(1))
+	assert.Equal(t, blobs[1].size, int64(0))
+}
