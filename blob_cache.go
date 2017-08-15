@@ -56,7 +56,7 @@ func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interfac
 					fmt.Fprintf(os.Stderr, "file from %s %s\n", change.From.Name, change.From.TreeEntry.Hash)
 				} else {
 					cache[change.From.TreeEntry.Hash], err = createDummyBlob(
-						&change.From.TreeEntry.Hash)
+						change.From.TreeEntry.Hash)
 				}
 			}
 		case merkletrie.Modify:
@@ -108,7 +108,7 @@ func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter
 		_, exists := modules.Submodules[entry.Name]
 		if exists {
 			// we found that this is a submodule
-			return createDummyBlob(&entry.TreeEntry.Hash)
+			return createDummyBlob(entry.TreeEntry.Hash)
 		}
 		return nil, err
 	}

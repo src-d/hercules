@@ -52,6 +52,6 @@ func (obj dummyEncodedObject) Writer() (io.WriteCloser, error) {
 	return dummyIO{}, nil
 }
 
-func createDummyBlob(hash *plumbing.Hash) (*object.Blob, error) {
-	return object.DecodeBlob(dummyEncodedObject{*hash})
+func createDummyBlob(hash plumbing.Hash) (*object.Blob, error) {
+	return object.DecodeBlob(dummyEncodedObject{hash})
 }
