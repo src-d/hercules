@@ -68,8 +68,6 @@ func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interfac
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
 			}
-		default:
-			panic(fmt.Sprintf("unsupported action: %d", change.Action))
 		}
 		if err != nil {
 			return nil, err
