@@ -22,7 +22,7 @@ Granularity is the number of days each band in the stack consists of. Sampling
 is the frequency with which the burnout state is snapshotted. The smaller the
 value, the more smooth is the plot but the more work is done.
 
-![git/git image](linux.png)
+![git/git image](doc/linux.png)
 <p align="center">torvalds/linux burndown (granularity 30, sampling 30, resampled by year)</p>
 
 There is an option to resample the bands inside `labours.py`, so that you can
@@ -121,6 +121,9 @@ python3 labours.py -m people
 how many lines are alive at the sampled moments in time for each identified developer.
 
 #### Couples
+
+![Linux kernel file couples](doc/tfprojcouples.png)
+<p align="center">torvalds/linux files' coupling in Tensorflow Projector</p>
 
 ```
 hercules -couples [-people-dict=/path/to/identities]
