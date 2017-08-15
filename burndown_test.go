@@ -12,7 +12,7 @@ func TestBurndownMeta(t *testing.T) {
 	burndown := BurndownAnalysis{}
 	assert.Equal(t, burndown.Name(), "Burndown")
 	assert.Equal(t, len(burndown.Provides()), 0)
-	required := [...]string{"renamed_changes", "blob_cache", "day", "author"}
+	required := [...]string{"file_diff", "renamed_changes", "blob_cache", "day", "author"}
 	for _, name := range required {
 		assert.Contains(t, burndown.Requires(), name)
 	}
@@ -40,7 +40,7 @@ func TestBurndownConsume(t *testing.T) {
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
 	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
-		"4d3f9500c2b9dc10925ad1705926b67f0f9101ca"))
+		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
 		Tree: treeFrom,
@@ -69,7 +69,11 @@ func TestBurndownConsume(t *testing.T) {
 	},
 	}
 	deps["renamed_changes"] = changes
-	result, err := burndown.Consume(deps)
+	fd := fixtureFileDiff()
+	result, err := fd.Consume(deps)
+	assert.Nil(t, err)
+	deps["file_diff"] = result["file_diff"]
+	result, err = burndown.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
 	assert.Equal(t, burndown.previousDay, 0)

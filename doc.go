@@ -24,6 +24,7 @@ Then add the required analysis tree nodes:
   pipeline.AddItem(&hercules.BlobCache{})
 	pipeline.AddItem(&hercules.DaysSinceStart{})
 	pipeline.AddItem(&hercules.TreeDiff{})
+	pipeline.AddItem(&hercules.FileDiff{})
 	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: 80})
 	pipeline.AddItem(&hercules.IdentityDetector{})
 

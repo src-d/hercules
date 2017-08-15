@@ -153,6 +153,7 @@ func main() {
 	pipeline.AddItem(&hercules.DaysSinceStart{})
 	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarity_threshold})
 	pipeline.AddItem(&hercules.TreeDiff{})
+	pipeline.AddItem(&hercules.FileDiff{})
 	id_matcher := &hercules.IdentityDetector{}
 	var peopleCount int
 	if withPeople || withCouples {

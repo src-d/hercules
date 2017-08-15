@@ -2,7 +2,6 @@ package hercules
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -75,7 +74,7 @@ func (analyser *BurndownAnalysis) Provides() []string {
 }
 
 func (analyser *BurndownAnalysis) Requires() []string {
-	arr := [...]string{"renamed_changes", "blob_cache", "day", "author"}
+	arr := [...]string{"file_diff", "renamed_changes", "blob_cache", "day", "author"}
 	return arr[:]
 }
 
@@ -106,8 +105,9 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 		analyser.updateHistories(gs, fss, pss, delta)
 	}
 	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
-	tree_diff := deps["renamed_changes"].(object.Changes)
-	for _, change := range tree_diff {
+	treeDiffs := deps["renamed_changes"].(object.Changes)
+	fileDiffs := deps["file_diff"].(map[string]FileDiffData)
+	for _, change := range treeDiffs {
 		action, err := change.Action()
 		if err != nil {
 			return nil, err
@@ -118,7 +118,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 		case merkletrie.Delete:
 			err = analyser.handleDeletion(change, author, cache)
 		case merkletrie.Modify:
-			err = analyser.handleModification(change, author, cache)
+			err = analyser.handleModification(change, author, cache, fileDiffs)
 		}
 		if err != nil {
 			return nil, err
@@ -195,17 +195,6 @@ func countLines(file *object.Blob) (int, error) {
 		}
 	}
 	return counter, nil
-}
-
-func blobToString(file *object.Blob) (string, error) {
-	reader, err := file.Reader()
-	if err != nil {
-		return "", err
-	}
-	defer checkClose(reader)
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
-	return buf.String(), nil
 }
 
 func (analyser *BurndownAnalysis) packPersonWithDay(person int, day int) int {
@@ -325,40 +314,30 @@ func (analyser *BurndownAnalysis) handleDeletion(
 }
 
 func (analyser *BurndownAnalysis) handleModification(
-	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob) error {
+	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob,
+  diffs map[string]FileDiffData) error {
 
-	blob_from := cache[change.From.TreeEntry.Hash]
-	blob_to := cache[change.To.TreeEntry.Hash]
-	// we are not validating UTF-8 here because for example
-	// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
-	str_from, err := blobToString(blob_from)
-	if err != nil {
-		return err
-	}
-	str_to, err := blobToString(blob_to)
-	if err != nil {
-		return err
-	}
 	file, exists := analyser.files[change.From.Name]
 	if !exists {
 		return analyser.handleInsertion(change, author, cache)
 	}
+
 	// possible rename
 	if change.To.Name != change.From.Name {
-		err = analyser.handleRename(change.From.Name, change.To.Name)
+		err := analyser.handleRename(change.From.Name, change.To.Name)
 		if err != nil {
 			return err
 		}
 	}
-	dmp := diffmatchpatch.New()
-	src, dst, _ := dmp.DiffLinesToRunes(str_from, str_to)
-	if file.Len() != len(src) {
+
+	thisDiffs := diffs[change.To.Name]
+	if file.Len() != thisDiffs.OldLinesOfCode {
 		fmt.Fprintf(os.Stderr, "====TREE====\n%s", file.Dump())
 		return errors.New(fmt.Sprintf("%s: internal integrity error src %d != %d %s -> %s",
-			change.To.Name, len(src), file.Len(),
+			change.To.Name, thisDiffs.OldLinesOfCode, file.Len(),
 			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String()))
 	}
-	diffs := dmp.DiffMainRunes(src, dst, false)
+
 	// we do not call RunesToDiffLines so the number of lines equals
 	// to the rune count
 	position := 0
@@ -377,7 +356,7 @@ func (analyser *BurndownAnalysis) handleModification(
 		}
 	}
 
-	for _, edit := range diffs {
+	for _, edit := range thisDiffs.Diffs {
 		dump_before := ""
 		if analyser.Debug {
 			dump_before = file.Dump()
@@ -430,9 +409,9 @@ func (analyser *BurndownAnalysis) handleModification(
 		apply(pending)
 		pending.Text = ""
 	}
-	if file.Len() != len(dst) {
+	if file.Len() != thisDiffs.NewLinesOfCode {
 		return errors.New(fmt.Sprintf("%s: internal integrity error dst %d != %d",
-			change.To.Name, len(dst), file.Len()))
+			change.To.Name, thisDiffs.NewLinesOfCode, file.Len()))
 	}
 	return nil
 }

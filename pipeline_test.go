@@ -224,7 +224,7 @@ func init() {
 		testRepository, err = git.PlainOpen(cwd)
 		if err == nil {
 			iter, _ := testRepository.CommitObjects()
-			commits := 0
+			commits := -1
 			for ; err != io.EOF; _, err = iter.Next() {
 				if err != nil {
 					panic(err)
