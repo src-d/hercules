@@ -93,6 +93,9 @@ by `|`. The case is ignored.
 
 #### Churn matrix
 
+![Wireshark top 20 churn matrix](doc/wireshark_churn_matrix.png)
+<p align="center">Wireshark top 20 devs - churn matrix</p>
+
 ```
 hercules -people [-people-dict=/path/to/identities]
 python3 labours.py -m churn_matrix
