@@ -31,7 +31,10 @@ func PrintMatrix(matrix [][]int64, name string, fixNegative bool) {
 	}
 	width := len(strconv.FormatInt(maxnum, 10))
 	if !fixNegative && minnum < 0 {
-		width = len(strconv.FormatInt(minnum, 10))
+		negativeWidth := len(strconv.FormatInt(minnum, 10))
+		if negativeWidth > width {
+			width = negativeWidth
+		}
 	}
 	last := len(matrix[len(matrix)-1])
 	indent := 2
