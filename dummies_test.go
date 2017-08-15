@@ -23,3 +23,16 @@ func TestCreateDummyBlob(t *testing.T) {
 	assert.Equal(t, buffer[0], byte(0xff))
 	reader.Close()
 }
+
+func TestNotUsedDummyStuff(t *testing.T) {
+	dio := dummyIO{}
+	n, err := dio.Write([]byte{})
+	assert.Nil(t, err)
+	assert.Equal(t, n, 0)
+  obj := dummyEncodedObject{}
+	obj.SetSize(int64(100))
+  obj.SetType(plumbing.CommitObject)
+	writer, err := obj.Writer()
+	assert.Nil(t, err)
+	assert.NotNil(t, writer)
+}
