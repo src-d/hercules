@@ -160,12 +160,12 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 		return
 	}
 	tree := file.tree
+	if tree.Len() < 2 && tree.Min().Item().Key != 0 {
+		panic("invalid tree state")
+	}
 	if pos > tree.Max().Item().Key {
 		panic(fmt.Sprintf("attempt to insert after the end of the file: %d < %d",
 			tree.Max().Item().Key, pos))
-	}
-	if tree.Len() < 2 && tree.Min().Item().Key != 0 {
-		panic("invalid tree state")
 	}
 	iter := tree.FindLE(pos)
 	origin := *iter.Item()

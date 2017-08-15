@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/src-d/hercules.v2/rbtree"
 )
 
 func updateStatusFile(
@@ -366,4 +367,65 @@ func TestBug5File(t *testing.T) {
 	file.Update(310, 0, 0, 2)
 	dump = file.Dump()
 	assert.Equal(t, "0 0\n14 157\n16 -1\n", dump)
+}
+
+func TestMinMaxAbs64Funcs(t *testing.T) {
+	var a int64 = 1
+	var b int64 = -1
+	assert.Equal(t, min64(a, b), b)
+	assert.Equal(t, max64(a, b), a)
+	assert.Equal(t, min64(b, a), b)
+	assert.Equal(t, max64(b, a), a)
+	assert.Equal(t, abs64(a), a)
+	assert.Equal(t, abs64(b), a)
+}
+
+func TestNewFileFromTreeInvalidSize(t *testing.T) {
+	keys := [...]int{1, 2, 3}
+	vals := [...]int{4, 5}
+	assert.Panics(t, func() {NewFileFromTree(keys[:], vals[:])})
+}
+
+func TestUpdatePanic(t *testing.T) {
+  keys := [...]int{0}
+	vals := [...]int{-1}
+	file := NewFileFromTree(keys[:], vals[:])
+	file.tree.DeleteWithKey(0)
+	file.tree.Insert(rbtree.Item{-1, -1})
+	var paniced interface{}
+	func() {
+		defer func() {
+      paniced = recover()
+    }()
+		file.Update(1, 0, 1, 0)
+	}()
+  assert.Contains(t, paniced, "invalid tree state")
+}
+
+func TestFileStatus(t *testing.T) {
+	f, _ := fixtureFile()
+	assert.Panics(t, func() {f.Status(1)})
+	assert.NotNil(t, f.Status(0))
+}
+
+func TestFileValidate(t *testing.T) {
+	keys := [...]int{0}
+	vals := [...]int{-1}
+	file := NewFileFromTree(keys[:], vals[:])
+	file.tree.DeleteWithKey(0)
+	file.tree.Insert(rbtree.Item{-1, -1})
+	assert.Panics(t, func() {file.Validate()})
+	file.tree.DeleteWithKey(-1)
+	file.tree.Insert(rbtree.Item{0, -1})
+	file.Validate()
+	file.tree.DeleteWithKey(0)
+	file.tree.Insert(rbtree.Item{0, 0})
+	assert.Panics(t, func() {file.Validate()})
+	file.tree.DeleteWithKey(0)
+	file.tree.Insert(rbtree.Item{0, 1})
+	file.tree.Insert(rbtree.Item{1, 1})
+	file.tree.Insert(rbtree.Item{2, -1})
+	file.Validate()
+	file.tree.FindGE(2).Item().Key = 1
+	assert.Panics(t, func() {file.Validate()})
 }
