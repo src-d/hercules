@@ -69,15 +69,16 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 		if err != nil {
 			return nil, err
 		}
+		toName := change.To.Name
+		fromName := change.From.Name
 		switch action {
 		case merkletrie.Insert:
-			context = append(context, change.To.Name)
-			couples.people[author][change.To.Name] += 1
+			context = append(context, toName)
+			couples.people[author][toName] += 1
 		case merkletrie.Delete:
-			deleteFile(change.From.Name)
+			deleteFile(fromName)
+			couples.people[author][fromName] += 1
 		case merkletrie.Modify:
-			toName := change.To.Name
-			fromName := change.From.Name
 			if fromName != toName {
 				// renamed
 				couples.files[toName] = couples.files[fromName]
@@ -87,7 +88,14 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 						otherFiles[toName] = val
 					}
 				}
-				deleteFile(change.From.Name)
+				deleteFile(fromName)
+				for _, authorFiles := range couples.people {
+					val, exists := authorFiles[fromName]
+					if exists {
+						authorFiles[toName] = val
+						delete(authorFiles, fromName)
+					}
+				}
 			}
 			context = append(context, toName)
 			couples.people[author][toName] += 1
@@ -124,11 +132,11 @@ func (couples *Couples) Finalize() interface{} {
 	for i := range peopleMatrix {
 		peopleMatrix[i] = map[int]int64{}
 		for file, commits := range couples.people[i] {
-			peopleFiles[i] = append(peopleFiles[i], filesIndex[file])
+			fi, exists := filesIndex[file]
+			if exists {
+				peopleFiles[i] = append(peopleFiles[i], fi)
+			}
 			for j, otherFiles := range couples.people {
-				if i == j {
-					continue
-				}
 				otherCommits := otherFiles[file]
 				delta := otherCommits
 				if otherCommits > commits {
@@ -139,7 +147,6 @@ func (couples *Couples) Finalize() interface{} {
 				}
 			}
 		}
-		peopleMatrix[i][i] = int64(couples.people_commits[i])
 		sort.Ints(peopleFiles[i])
 	}
 
