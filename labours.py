@@ -412,7 +412,7 @@ def plot_people(args, repo, names, people, date_range, last):
         output = get_plot_path(args.output, "people")
     else:
         output = args.output
-    deploy_plot("%s code ratio through time" % repo, output, args.style)
+    deploy_plot("%s code ownership through time" % repo, output, args.style)
 
 
 def train_embeddings(coocc_tree, tmpdir, shard_size=4096):
