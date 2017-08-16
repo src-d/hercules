@@ -32,12 +32,12 @@ func generateChanges(names ...string) object.Changes {
 		if action == "+" {
 			change = object.Change{
 				From: object.ChangeEntry{},
-				To: object.ChangeEntry{Name: name},
+				To:   object.ChangeEntry{Name: name},
 			}
 		} else if action == "-" {
 			change = object.Change{
 				From: object.ChangeEntry{Name: name},
-				To: object.ChangeEntry{},
+				To:   object.ChangeEntry{},
 			}
 		} else if action == "=" {
 			change = object.Change{
@@ -60,7 +60,7 @@ func generateChanges(names ...string) object.Changes {
 }
 
 func TestCouplesConsumeFinalize(t *testing.T) {
-  c := fixtureCouples()
+	c := fixtureCouples()
 	deps := map[string]interface{}{}
 	deps["author"] = 0
 	deps["renamed_changes"] = generateChanges("+two", "+four", "+six")

@@ -54,7 +54,7 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	deps["index"] = 20
 	res, err = dss.Consume(deps)
 	assert.Nil(t, err)
-  assert.Equal(t, res["day"].(int), 1)
+	assert.Equal(t, res["day"].(int), 1)
 	assert.Equal(t, dss.previousDay, 1)
 
 	commit, _ = testRepository.CommitObject(plumbing.NewHash(
@@ -63,7 +63,7 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	deps["index"] = 20
 	res, err = dss.Consume(deps)
 	assert.Nil(t, err)
-  assert.Equal(t, res["day"].(int), 2)
+	assert.Equal(t, res["day"].(int), 2)
 	assert.Equal(t, dss.previousDay, 2)
 
 	commit, _ = testRepository.CommitObject(plumbing.NewHash(
@@ -72,6 +72,6 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	deps["index"] = 30
 	res, err = dss.Consume(deps)
 	assert.Nil(t, err)
-  assert.Equal(t, res["day"].(int), 2)
+	assert.Equal(t, res["day"].(int), 2)
 	assert.Equal(t, dss.previousDay, 2)
 }

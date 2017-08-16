@@ -24,7 +24,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		Granularity:  30,
 		Sampling:     30,
 		PeopleNumber: 2,
-		TrackFiles: true,
+		TrackFiles:   true,
 	}
 	burndown.Initialize(testRepository)
 	deps := map[string]interface{}{}
@@ -104,8 +104,8 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Equal(t, len(burndown.globalHistory), 0)
 	assert.Equal(t, len(burndown.fileHistories), 0)
 	burndown2 := BurndownAnalysis{
-		Granularity:  30,
-		Sampling:     0,
+		Granularity: 30,
+		Sampling:    0,
 	}
 	burndown2.Initialize(testRepository)
 	_, err = burndown2.Consume(deps)
@@ -202,10 +202,10 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Equal(t, len(burndown.fileHistories), 3)
 	out := burndown.Finalize().(BurndownResult)
 	/*
-	GlobalHistory   [][]int64
-	FileHistories   map[string][][]int64
-	PeopleHistories [][][]int64
-	PeopleMatrix    [][]int64
+		GlobalHistory   [][]int64
+		FileHistories   map[string][][]int64
+		PeopleHistories [][][]int64
+		PeopleMatrix    [][]int64
 	*/
 	assert.Equal(t, len(out.GlobalHistory), 2)
 	for i := 0; i < 2; i++ {
@@ -249,5 +249,5 @@ func (c panickingCloser) Close() error {
 
 func TestCheckClose(t *testing.T) {
 	closer := panickingCloser{}
-	assert.Panics(t, func() {checkClose(closer)})
+	assert.Panics(t, func() { checkClose(closer) })
 }

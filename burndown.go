@@ -321,7 +321,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 
 func (analyser *BurndownAnalysis) handleModification(
 	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob,
-  diffs map[string]FileDiffData) error {
+	diffs map[string]FileDiffData) error {
 
 	file, exists := analyser.files[change.From.Name]
 	if !exists {

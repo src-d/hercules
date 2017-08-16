@@ -78,7 +78,8 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 			reduced_changes = append(
 				reduced_changes,
 				&object.Change{From: deleted[d].change.From, To: added[a].change.To})
-			a++; d++
+			a++
+			d++
 		} else if added[a].Less(&deleted[d]) {
 			still_added = append(still_added, added[a].change)
 			a++

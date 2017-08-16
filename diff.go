@@ -6,8 +6,8 @@ import (
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
@@ -18,7 +18,7 @@ type FileDiff struct {
 type FileDiffData struct {
 	OldLinesOfCode int
 	NewLinesOfCode int
-	Diffs []diffmatchpatch.Diff
+	Diffs          []diffmatchpatch.Diff
 }
 
 func (diff *FileDiff) Name() string {
@@ -67,7 +67,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			result[change.To.Name] = FileDiffData{
 				OldLinesOfCode: len(src),
 				NewLinesOfCode: len(dst),
-				Diffs: diffs,
+				Diffs:          diffs,
 			}
 		default:
 			continue

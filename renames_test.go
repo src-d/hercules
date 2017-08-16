@@ -1,14 +1,14 @@
 package hercules
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"testing"
 )
 
 func fixtureRenameAnalysis() *RenameAnalysis {
-  ra := RenameAnalysis{SimilarityThreshold: 80}
+	ra := RenameAnalysis{SimilarityThreshold: 80}
 	ra.Initialize(testRepository)
 	return &ra
 }
@@ -25,9 +25,9 @@ func TestRenameAnalysisMeta(t *testing.T) {
 
 func TestRenameAnalysisInitializeInvalidThreshold(t *testing.T) {
 	ra := RenameAnalysis{SimilarityThreshold: -10}
-	assert.Panics(t, func() {ra.Initialize(testRepository)})
+	assert.Panics(t, func() { ra.Initialize(testRepository) })
 	ra = RenameAnalysis{SimilarityThreshold: 110}
-	assert.Panics(t, func() {ra.Initialize(testRepository)})
+	assert.Panics(t, func() { ra.Initialize(testRepository) })
 	ra = RenameAnalysis{SimilarityThreshold: 0}
 	ra.Initialize(testRepository)
 	ra = RenameAnalysis{SimilarityThreshold: 100}

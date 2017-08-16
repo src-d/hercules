@@ -4,12 +4,12 @@ import (
 	"io"
 	"testing"
 
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 func TestCreateDummyBlob(t *testing.T) {
-  dummy, err := createDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"))
+	dummy, err := createDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"))
 	assert.Nil(t, err)
 	assert.Equal(t, dummy.Hash.String(), "334cde09da4afcb74f8d2b3e6fd6cce61228b485")
 	assert.Equal(t, dummy.Size, int64(0))
@@ -29,9 +29,9 @@ func TestNotUsedDummyStuff(t *testing.T) {
 	n, err := dio.Write([]byte{})
 	assert.Nil(t, err)
 	assert.Equal(t, n, 0)
-  obj := dummyEncodedObject{}
+	obj := dummyEncodedObject{}
 	obj.SetSize(int64(100))
-  obj.SetType(plumbing.CommitObject)
+	obj.SetType(plumbing.CommitObject)
 	writer, err := obj.Writer()
 	assert.Nil(t, err)
 	assert.NotNil(t, writer)

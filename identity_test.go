@@ -213,7 +213,7 @@ func (obj fakeTreeEncodedObject) Writer() (io.WriteCloser, error) {
 }
 
 type fakeEncodedObjectStorer struct {
-	Name string
+	Name     string
 	Contents string
 }
 
@@ -226,11 +226,11 @@ func (strr fakeEncodedObjectStorer) SetEncodedObject(plumbing.EncodedObject) (pl
 }
 
 func (strr fakeEncodedObjectStorer) EncodedObject(objType plumbing.ObjectType, hash plumbing.Hash) (plumbing.EncodedObject, error) {
-  if objType == plumbing.TreeObject {
-	  return fakeTreeEncodedObject{Name: strr.Name}, nil
-  } else if objType == plumbing.BlobObject {
-	  return fakeBlobEncodedObject{Contents: strr.Contents}, nil
-  }
+	if objType == plumbing.TreeObject {
+		return fakeTreeEncodedObject{Name: strr.Name}, nil
+	} else if objType == plumbing.BlobObject {
+		return fakeBlobEncodedObject{Contents: strr.Contents}, nil
+	}
 	return nil, nil
 }
 
@@ -242,14 +242,14 @@ func getFakeCommitWithFile(name string, contents string) *object.Commit {
 	c := object.Commit{
 		Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
 		Author: object.Signature{
-			Name: "Vadim Markovtsev",
+			Name:  "Vadim Markovtsev",
 			Email: "vadim@sourced.tech",
 		},
 		Committer: object.Signature{
-			Name: "Vadim Markovtsev",
+			Name:  "Vadim Markovtsev",
 			Email: "vadim@sourced.tech",
 		},
-		Message: "Virtual file " + name,
+		Message:  "Virtual file " + name,
 		TreeHash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
 	}
 	voc := reflect.ValueOf(&c)
@@ -272,9 +272,9 @@ func TestGeneratePeopleDictMailmap(t *testing.T) {
 		}
 		commits = append(commits, commit)
 	}
-  fake := getFakeCommitWithFile(
-	  ".mailmap",
-	  "Strange Guy <vadim@sourced.tech>\nVadim Markovtsev <vadim@sourced.tech> Strange Guy <vadim@sourced.tech>")
+	fake := getFakeCommitWithFile(
+		".mailmap",
+		"Strange Guy <vadim@sourced.tech>\nVadim Markovtsev <vadim@sourced.tech> Strange Guy <vadim@sourced.tech>")
 	commits = append(commits, fake)
 	id.GeneratePeopleDict(commits)
 	assert.Contains(t, id.ReversePeopleDict,

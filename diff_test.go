@@ -3,10 +3,10 @@ package hercules
 import (
 	"testing"
 
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"unicode/utf8"
 )
 
@@ -110,7 +110,7 @@ func TestFileDiffConsume(t *testing.T) {
 }
 
 func TestFileDiffConsumeInvalidBlob(t *testing.T) {
-  fd := fixtureFileDiff()
+	fd := fixtureFileDiff()
 	deps := map[string]interface{}{}
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")

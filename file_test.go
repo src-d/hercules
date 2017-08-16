@@ -383,11 +383,11 @@ func TestMinMaxAbs64Funcs(t *testing.T) {
 func TestNewFileFromTreeInvalidSize(t *testing.T) {
 	keys := [...]int{1, 2, 3}
 	vals := [...]int{4, 5}
-	assert.Panics(t, func() {NewFileFromTree(keys[:], vals[:])})
+	assert.Panics(t, func() { NewFileFromTree(keys[:], vals[:]) })
 }
 
 func TestUpdatePanic(t *testing.T) {
-  keys := [...]int{0}
+	keys := [...]int{0}
 	vals := [...]int{-1}
 	file := NewFileFromTree(keys[:], vals[:])
 	file.tree.DeleteWithKey(0)
@@ -395,16 +395,16 @@ func TestUpdatePanic(t *testing.T) {
 	var paniced interface{}
 	func() {
 		defer func() {
-      paniced = recover()
-    }()
+			paniced = recover()
+		}()
 		file.Update(1, 0, 1, 0)
 	}()
-  assert.Contains(t, paniced, "invalid tree state")
+	assert.Contains(t, paniced, "invalid tree state")
 }
 
 func TestFileStatus(t *testing.T) {
 	f, _ := fixtureFile()
-	assert.Panics(t, func() {f.Status(1)})
+	assert.Panics(t, func() { f.Status(1) })
 	assert.NotNil(t, f.Status(0))
 }
 
@@ -414,18 +414,18 @@ func TestFileValidate(t *testing.T) {
 	file := NewFileFromTree(keys[:], vals[:])
 	file.tree.DeleteWithKey(0)
 	file.tree.Insert(rbtree.Item{-1, -1})
-	assert.Panics(t, func() {file.Validate()})
+	assert.Panics(t, func() { file.Validate() })
 	file.tree.DeleteWithKey(-1)
 	file.tree.Insert(rbtree.Item{0, -1})
 	file.Validate()
 	file.tree.DeleteWithKey(0)
 	file.tree.Insert(rbtree.Item{0, 0})
-	assert.Panics(t, func() {file.Validate()})
+	assert.Panics(t, func() { file.Validate() })
 	file.tree.DeleteWithKey(0)
 	file.tree.Insert(rbtree.Item{0, 1})
 	file.tree.Insert(rbtree.Item{1, 1})
 	file.tree.Insert(rbtree.Item{2, -1})
 	file.Validate()
 	file.tree.FindGE(2).Item().Key = 1
-	assert.Panics(t, func() {file.Validate()})
+	assert.Panics(t, func() { file.Validate() })
 }
