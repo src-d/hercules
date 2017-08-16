@@ -28,8 +28,10 @@ each identity on separate line, matching names and emails separated with |
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -56,6 +58,23 @@ func sortedKeys(m map[string][][]int64) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+type OneLineWriter struct {
+	Writer io.Writer
+}
+
+func (writer OneLineWriter) Write(p []byte) (n int, err error) {
+	if p[len(p) - 1] == '\n' {
+		p = p[:len(p) - 1]
+		if bytes.Compare(p[len(p) - 5:], []byte("done.")) == 0 {
+			p = []byte("cloning...")
+		}
+		p = append(p, '\r')
+		writer.Writer.Write([]byte("\r" + strings.Repeat(" ", 80) + "\r"))
+	}
+	n, err = writer.Writer.Write(p)
+	return
 }
 
 func main() {
@@ -119,8 +138,9 @@ func main() {
 		fmt.Fprint(os.Stderr, "cloning...\r")
 		repository, err = git.Clone(backend, nil, &git.CloneOptions{
 			URL: uri,
+			Progress: OneLineWriter{Writer: os.Stderr},
 		})
-		fmt.Fprint(os.Stderr, "          \r")
+		fmt.Fprint(os.Stderr, strings.Repeat(" ", 80) + "\r")
 	} else {
 		if uri[len(uri)-1] == os.PathSeparator {
 			uri = uri[:len(uri)-1]
