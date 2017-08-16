@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	
+
 	"gopkg.in/src-d/hercules.v2"
 )
 
@@ -43,6 +43,7 @@ func PrintMatrix(matrix [][]int64, name string, fixNegative bool) {
 		indent += 2
 	}
 	// print the resulting triangular matrix
+	first := true
 	for _, status := range matrix {
 		fmt.Print(strings.Repeat(" ", indent-1))
 		for i := 0; i < last; i++ {
@@ -55,7 +56,12 @@ func PrintMatrix(matrix [][]int64, name string, fixNegative bool) {
 					val = 0
 				}
 			}
-			fmt.Printf(" %[1]*[2]d", width, val)
+			if !first {
+				fmt.Printf(" %[1]*[2]d", width, val)
+			} else {
+				first = false
+				fmt.Printf("%d%s", val, strings.Repeat(" ", width-len(strconv.FormatInt(val, 10))))
+			}
 		}
 		fmt.Println()
 	}
@@ -120,7 +126,7 @@ func PrintCouples(result *hercules.CouplesResult, peopleDict []string) {
 }
 
 func sortByNumberOfFiles(
-		peopleFiles [][]int, peopleDict []string, filesDict []string) authorFilesList {
+	peopleFiles [][]int, peopleDict []string, filesDict []string) authorFilesList {
 	var pfl authorFilesList
 	for peopleIdx, files := range peopleFiles {
 		if peopleIdx < len(peopleDict) {
