@@ -67,6 +67,7 @@ func main() {
 	var profile bool
 	var granularity, sampling, similarity_threshold int
 	var commitsFile string
+	var ignoreMissingSubmodules bool
 	var debug bool
 	flag.BoolVar(&withFiles, "files", false, "Output detailed statistics per each file.")
 	flag.BoolVar(&withPeople, "people", false, "Output detailed statistics per each developer.")
@@ -83,6 +84,8 @@ func main() {
 		"commit history to follow instead of the default rev-list "+
 		"--first-parent. The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
+	flag.BoolVar(&ignoreMissingSubmodules, "ignore-missing-submodules", false,
+		"Do not panic on submodules which are not registered..")
 	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
 	flag.Parse()
 	if granularity <= 0 {
@@ -149,7 +152,9 @@ func main() {
 		}
 	}
 
-	pipeline.AddItem(&hercules.BlobCache{})
+	pipeline.AddItem(&hercules.BlobCache{
+		IgnoreMissingSubmodules: ignoreMissingSubmodules,
+	})
 	pipeline.AddItem(&hercules.DaysSinceStart{})
 	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarity_threshold})
 	pipeline.AddItem(&hercules.TreeDiff{})

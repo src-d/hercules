@@ -12,6 +12,8 @@ import (
 )
 
 type BlobCache struct {
+	IgnoreMissingSubmodules bool
+
 	repository *git.Repository
 }
 
@@ -89,6 +91,12 @@ func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter
 		if err.Error() != plumbing.ErrObjectNotFound.Error() {
 			fmt.Fprintf(os.Stderr, "getBlob(%s)\n", entry.TreeEntry.Hash.String())
 			return nil, err
+		}
+		if entry.TreeEntry.Mode != 0160000 {
+			// this is not a submodule
+			return nil, err
+		} else if cache.IgnoreMissingSubmodules {
+			return createDummyBlob(entry.TreeEntry.Hash)
 		}
 		file, err_modules := fileGetter(".gitmodules")
 		if err_modules != nil {

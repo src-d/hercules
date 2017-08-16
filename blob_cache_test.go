@@ -269,3 +269,30 @@ func TestBlobCacheInsertInvalidBlob(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, len(result), 0)
 }
+
+func TestBlobCacheGetBlobIgnoreMissing(t *testing.T) {
+	cache := fixtureBlobCache()
+	cache.IgnoreMissingSubmodules = true
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
+	entry := object.ChangeEntry{
+		Name: "commit",
+		Tree: treeFrom,
+		TreeEntry: object.TreeEntry{
+			Name: "commit",
+			Mode: 0160000,
+			Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
+		},
+	}
+	getter := func(path string) (*object.File, error) {
+		return nil, plumbing.ErrObjectNotFound
+	}
+	blob, err := cache.getBlob(&entry, getter)
+	assert.NotNil(t, blob)
+	assert.Nil(t, err)
+	assert.Equal(t, blob.Size, int64(0))
+	cache.IgnoreMissingSubmodules = false
+	blob, err = cache.getBlob(&entry, getter)
+	assert.Nil(t, blob)
+	assert.NotNil(t, err)
+}
