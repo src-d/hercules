@@ -292,6 +292,12 @@ func TestBlobCacheGetBlobIgnoreMissing(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, blob.Size, int64(0))
 	cache.IgnoreMissingSubmodules = false
+	getter = func(path string) (*object.File, error) {
+		assert.Equal(t, path, ".gitmodules")
+		commit, _ := testRepository.CommitObject(plumbing.NewHash(
+			"13272b66c55e1ba1237a34104f30b84d7f6e4082"))
+		return commit.File("test_data/gitmodules")
+	}
 	blob, err = cache.getBlob(&entry, getter)
 	assert.Nil(t, blob)
 	assert.NotNil(t, err)
