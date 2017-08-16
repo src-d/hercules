@@ -115,8 +115,8 @@ The sequence of developers is stored in `people_sequence` YAML node.
 
 #### Code ownership
 
-![Wireshark top 20 code ownership](doc/wireshark_people.png)
-<p align="center">Wireshark top 20 devs - code ownership</p>
+![Ember.js top 20 code ownership](doc/emberjs_people.png)
+<p align="center">Ember.js top 20 devs - code ownership</p>
 
 ```
 hercules -people [-people-dict=/path/to/identities]
@@ -171,11 +171,12 @@ hercules -people https://github.com/... | python3 fix_yaml_unicode.py | python3 
 These options affects all plots:
 
 ```
-python3 labours.py [--style=white|black] [--backend=]
+python3 labours.py [--style=white|black] [--backend=] [--size=Y,X]
 ```
 
 `--style` changes the background to be either white ("black" foreground) or black ("white" foreground).
 `--backend` chooses the Matplotlib backend.
+`--size` sets the size of the figure in inches. The default is `12,9`.
 
 (required in macOS) you can pin the default Matplotlib backend with
 

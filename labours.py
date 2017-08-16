@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument("--backend", help="Matplotlib backend to use.")
     parser.add_argument("--style", choices=["black", "white"], default="black",
                         help="Plot's general color scheme.")
+    parser.add_argument("--size", help="Axes' size in inches, for example \"12,9\"")
     parser.add_argument("--relative", action="store_true",
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
@@ -209,8 +210,12 @@ def load_people(header, sequence, contents):
     return sequence, people, date_range_sampling, last
 
 
-def apply_plot_style(figure, axes, legend, style, text_size):
-    figure.set_size_inches(12, 9)
+def apply_plot_style(figure, axes, legend, style, text_size, axes_size):
+    if axes_size is None:
+        axes_size = (12, 9)
+    else:
+        axes_size = tuple(float(p) for p in axes_size.split(","))
+    figure.set_size_inches(*axes_size)
     for side in ("bottom", "top", "left", "right"):
         axes.spines[side].set_color(style)
     for axis in (axes.xaxis, axes.yaxis):
@@ -269,7 +274,7 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
     legend = pyplot.legend(loc=legend_loc, fontsize=args.text_size)
     pyplot.ylabel("Lines of code")
     pyplot.xlabel("Time")
-    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.style, args.text_size)
+    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.style, args.text_size, args.size)
     pyplot.xlim(date_range_sampling[0], date_range_sampling[-1])
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
@@ -366,7 +371,7 @@ def plot_churn_matrix(args, repo, people, matrix):
     ax.set_xticks(numpy.arange(0.5, matrix.shape[1] + 0.5), minor=True)
     ax.set_yticks(numpy.arange(0.5, matrix.shape[0] + 0.5), minor=True)
     ax.grid(which="minor")
-    apply_plot_style(fig, ax, None, args.style, args.text_size)
+    apply_plot_style(fig, ax, None, args.style, args.text_size, args.size)
     if not args.output:
         pos1 = ax.get_position()
         pos2 = (pos1.x0 + 0.245, pos1.y0 - 0.1, pos1.width * 0.9, pos1.height * 0.9)
@@ -407,7 +412,7 @@ def plot_people(args, repo, names, people, date_range, last):
     else:
         legend_loc = 2
     legend = pyplot.legend(loc=legend_loc, fontsize=args.text_size)
-    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.style, args.text_size)
+    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.style, args.text_size, args.size)
     if args.mode == "all":
         output = get_plot_path(args.output, "people")
     else:
