@@ -113,7 +113,10 @@ developers.
 
 The sequence of developers is stored in `people_sequence` YAML node.
 
-#### Code share
+#### Code ownership
+
+![Wireshark top 20 code ownership](doc/wireshark_people.png)
+<p align="center">Wireshark top 20 devs - code ownership</p>
 
 ```
 hercules -people [-people-dict=/path/to/identities]
