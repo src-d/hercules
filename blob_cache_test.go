@@ -129,6 +129,35 @@ func TestBlobCacheConsumeNoAction(t *testing.T) {
 		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
 	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
 		"63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
+	changes[0] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{}}
+	deps := map[string]interface{}{}
+	deps["commit"] = commit
+	deps["changes"] = changes
+	result, err := fixtureBlobCache().Consume(deps)
+	assert.Nil(t, result)
+	assert.NotNil(t, err)
+	changes[0] = &object.Change{From: object.ChangeEntry{
+		Name:      "labours.py",
+		Tree:      treeFrom,
+		TreeEntry: object.TreeEntry{},
+	}, To: object.ChangeEntry{
+		Name:      "labours.py",
+		Tree:      treeTo,
+		TreeEntry: object.TreeEntry{},
+	}}
+	result, err = fixtureBlobCache().Consume(deps)
+	assert.Nil(t, result)
+	assert.NotNil(t, err)
+}
+
+func TestBlobCacheConsumeBadHashes(t *testing.T) {
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+		"af2d8db70f287b52d2428d9887a69a10bc4d1f46"))
+	changes := make(object.Changes, 1)
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name:      "labours.py",
 		Tree:      treeFrom,
@@ -142,6 +171,24 @@ func TestBlobCacheConsumeNoAction(t *testing.T) {
 	deps["commit"] = commit
 	deps["changes"] = changes
 	result, err := fixtureBlobCache().Consume(deps)
+	assert.Nil(t, result)
+	assert.NotNil(t, err)
+	changes[0] = &object.Change{From: object.ChangeEntry{
+		Name:      "labours.py",
+		Tree:      treeFrom,
+		TreeEntry: object.TreeEntry{},
+	}, To: object.ChangeEntry{}}
+	result, err = fixtureBlobCache().Consume(deps)
+	// Deleting a missing blob is fine
+	assert.NotNil(t, result)
+	assert.Nil(t, err)
+	changes[0] = &object.Change{From: object.ChangeEntry{},
+		To: object.ChangeEntry{
+		Name:      "labours.py",
+		Tree:      treeTo,
+		TreeEntry: object.TreeEntry{},
+	}}
+	result, err = fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
 }

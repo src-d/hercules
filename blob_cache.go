@@ -15,6 +15,7 @@ type BlobCache struct {
 	IgnoreMissingSubmodules bool
 
 	repository *git.Repository
+	cache map[plumbing.Hash]*object.Blob
 }
 
 func (cache *BlobCache) Name() string {
@@ -33,48 +34,66 @@ func (cache *BlobCache) Requires() []string {
 
 func (cache *BlobCache) Initialize(repository *git.Repository) {
 	cache.repository = repository
+	cache.cache = map[plumbing.Hash]*object.Blob{}
 }
 
 func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps["commit"].(*object.Commit)
 	changes := deps["changes"].(object.Changes)
-	cache := make(map[plumbing.Hash]*object.Blob)
+	cache := map[plumbing.Hash]*object.Blob{}
+	newCache := map[plumbing.Hash]*object.Blob{}
 	for _, change := range changes {
 		action, err := change.Action()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "no action in %s\n", change.To.TreeEntry.Hash)
 			return nil, err
 		}
+		var exists bool
+		var blob *object.Blob
 		switch action {
 		case merkletrie.Insert:
-			cache[change.To.TreeEntry.Hash], err = self.getBlob(&change.To, commit.File)
+			blob, err = self.getBlob(&change.To, commit.File)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "file to %s %s\n", change.To.Name, change.To.TreeEntry.Hash)
+			} else {
+				cache[change.To.TreeEntry.Hash] = blob
+				newCache[change.To.TreeEntry.Hash] = blob
 			}
 		case merkletrie.Delete:
-			cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit.File)
-			if err != nil {
-				if err.Error() != plumbing.ErrObjectNotFound.Error() {
-					fmt.Fprintf(os.Stderr, "file from %s %s\n", change.From.Name, change.From.TreeEntry.Hash)
-				} else {
-					cache[change.From.TreeEntry.Hash], err = createDummyBlob(
-						change.From.TreeEntry.Hash)
+			cache[change.From.TreeEntry.Hash], exists = self.cache[change.From.TreeEntry.Hash]
+			if !exists {
+				cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit.File)
+				if err != nil {
+					if err.Error() != plumbing.ErrObjectNotFound.Error() {
+						fmt.Fprintf(os.Stderr, "file from %s %s\n", change.From.Name,
+							change.From.TreeEntry.Hash)
+					} else {
+						cache[change.From.TreeEntry.Hash], err = createDummyBlob(
+							change.From.TreeEntry.Hash)
+					}
 				}
 			}
 		case merkletrie.Modify:
-			cache[change.To.TreeEntry.Hash], err = self.getBlob(&change.To, commit.File)
+			blob, err = self.getBlob(&change.To, commit.File)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "file to %s\n", change.To.Name)
+			} else {
+				cache[change.To.TreeEntry.Hash] = blob
+				newCache[change.To.TreeEntry.Hash] = blob
 			}
-			cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit.File)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
+			cache[change.From.TreeEntry.Hash], exists = self.cache[change.From.TreeEntry.Hash]
+			if !exists {
+				cache[change.From.TreeEntry.Hash], err = self.getBlob(&change.From, commit.File)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
+				}
 			}
 		}
 		if err != nil {
 			return nil, err
 		}
 	}
+	self.cache = newCache
 	return map[string]interface{}{"blob_cache": cache}, nil
 }
 
