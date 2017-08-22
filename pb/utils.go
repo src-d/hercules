@@ -5,7 +5,7 @@ func ToBurndownSparseMatrix(matrix [][]int64, name string) *BurndownSparseMatrix
 	  Name: name,
 	  NumberOfRows: int32(len(matrix)),
 	  NumberOfColumns: int32(len(matrix[len(matrix)-1])),
-	  Row: make([]*BurndownSparseMatrixRow, len(matrix)),
+	  Rows: make([]*BurndownSparseMatrixRow, len(matrix)),
   }
   for i, status := range matrix {
 	  nnz := make([]uint32, 0, len(status))
@@ -22,11 +22,11 @@ func ToBurndownSparseMatrix(matrix [][]int64, name string) *BurndownSparseMatrix
 			  nnz = append(nnz, uint32(v))
 		  }
 	  }
-	  r.Row[i] = &BurndownSparseMatrixRow{
-		  Column: make([]uint32, len(nnz)),
+	  r.Rows[i] = &BurndownSparseMatrixRow{
+		  Columns: make([]uint32, len(nnz)),
 	  }
 	  for j := range nnz {
-		  r.Row[i].Column[j] = nnz[len(nnz) - 1 - j]
+		  r.Rows[i].Columns[j] = nnz[len(nnz) - 1 - j]
 	  }
 	}
 	return &r
@@ -42,15 +42,15 @@ func DenseToCompressedSparseRowMatrix(matrix [][]int64) *CompressedSparseRowMatr
 	}
 	r.Indptr[0] = 0
 	for _, row := range matrix {
+		nnz := 0
 		for x, col := range row {
-			nnz := 0
 			if col != 0 {
 				r.Data = append(r.Data, col)
 				r.Indices = append(r.Indices, int32(x))
 				nnz += 1
 			}
-			r.Indptr = append(r.Indptr, r.Indptr[len(r.Indptr) - 1] + int64(nnz))
 		}
+		r.Indptr = append(r.Indptr, r.Indptr[len(r.Indptr) - 1] + int64(nnz))
 	}
 	return &r
 }
@@ -68,8 +68,8 @@ func MapToCompressedSparseRowMatrix(matrix []map[int]int64) *CompressedSparseRow
 		for x, col := range row {
 			r.Data = append(r.Data, col)
 			r.Indices = append(r.Indices, int32(x))
-			r.Indptr = append(r.Indptr, r.Indptr[len(r.Indptr) - 1] + int64(len(row)))
 		}
+		r.Indptr = append(r.Indptr, r.Indptr[len(r.Indptr) - 1] + int64(len(row)))
 	}
 	return &r
 }

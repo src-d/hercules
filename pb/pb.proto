@@ -20,7 +20,7 @@ message Metadata {
 message BurndownSparseMatrixRow {
     // the first `len(column)` elements are stored,
     // the rest `number_of_columns - len(column)` values are zeros
-    repeated uint32 column = 1;
+    repeated uint32 columns = 1;
 }
 
 message BurndownSparseMatrix {
@@ -28,7 +28,7 @@ message BurndownSparseMatrix {
     int32 number_of_rows = 2;
     int32 number_of_columns = 3;
     // `len(row)` matches `number_of_rows`
-    repeated BurndownSparseMatrixRow row = 4;
+    repeated BurndownSparseMatrixRow rows = 4;
 }
 
 message CompressedSparseRowMatrix {
@@ -48,12 +48,12 @@ message Couples {
 }
 
 message TouchedFiles {
-    repeated int32 file = 1;  // values correspond to `file_couples::index`
+    repeated int32 files = 1;  // values correspond to `file_couples::index`
 }
 
 message DeveloperTouchedFiles {
     // order corresponds to `developer_couples::index`
-    repeated TouchedFiles developer = 1;
+    repeated TouchedFiles developers = 1;
 }
 
 message AnalysisResults {
@@ -62,10 +62,10 @@ message AnalysisResults {
     BurndownSparseMatrix burndown_project = 2;
 
     // this is included if `-files` was specified
-    repeated BurndownSparseMatrix burndown_file = 3;
+    repeated BurndownSparseMatrix burndown_files = 3;
 
     // these two are included if `-people` was specified
-    repeated BurndownSparseMatrix burndown_developer = 4;
+    repeated BurndownSparseMatrix burndown_developers = 4;
     // rows and cols order correspond to `burndown_developer`
     CompressedSparseRowMatrix developers_interaction = 5;
 

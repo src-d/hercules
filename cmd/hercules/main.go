@@ -294,21 +294,21 @@ func serializeResults(
 	}
 
 	if withFiles {
-		message.BurndownFile = make([]*pb.BurndownSparseMatrix, len(burndownResults.FileHistories))
+		message.BurndownFiles = make([]*pb.BurndownSparseMatrix, len(burndownResults.FileHistories))
 		keys := sortedKeys(burndownResults.FileHistories)
 		i := 0
 		for _, key := range keys {
-			message.BurndownFile[i] = pb.ToBurndownSparseMatrix(
+			message.BurndownFiles[i] = pb.ToBurndownSparseMatrix(
 				burndownResults.FileHistories[key], key)
 			i++
 		}
 	}
 
 	if withPeople {
-		message.BurndownDeveloper = make(
+		message.BurndownDevelopers = make(
 		  []*pb.BurndownSparseMatrix, len(burndownResults.PeopleHistories))
 		for key, val := range burndownResults.PeopleHistories {
-			message.BurndownDeveloper[key] = pb.ToBurndownSparseMatrix(val, reversePeopleDict[key])
+			message.BurndownDevelopers[key] = pb.ToBurndownSparseMatrix(val, reversePeopleDict[key])
 		}
 		message.DevelopersInteraction = pb.DenseToCompressedSparseRowMatrix(
 			burndownResults.PeopleMatrix)
@@ -324,7 +324,7 @@ func serializeResults(
 			Matrix: pb.MapToCompressedSparseRowMatrix(couplesResult.PeopleMatrix),
 		}
 		message.TouchedFiles = &pb.DeveloperTouchedFiles{
-      Developer: make([]*pb.TouchedFiles, len(reversePeopleDict)),
+      Developers: make([]*pb.TouchedFiles, len(reversePeopleDict)),
 		}
 		for key := range reversePeopleDict {
 			files := couplesResult.PeopleFiles[key]
@@ -332,8 +332,8 @@ func serializeResults(
 			for i, f := range files {
 				int32Files[i] = int32(f)
 			}
-			message.TouchedFiles.Developer[key] = &pb.TouchedFiles{
-				File: int32Files,
+			message.TouchedFiles.Developers[key] = &pb.TouchedFiles{
+				Files: int32Files,
 			}
 		}
 	}

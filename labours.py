@@ -107,7 +107,6 @@ class YamlReader(Reader):
             print("\nInvalid unicode in the input: %s\nPlease filter it through "
                   "fix_yaml_unicode.py" % e)
             sys.exit(1)
-        print("done")
         self.data = data
 
     def get_name(self):
@@ -161,7 +160,58 @@ class YamlReader(Reader):
 
 class ProtobufReader(Reader):
     def read(self, file):
-        pass
+        from pb.pb_pb2 import AnalysisResults
+        self.data = AnalysisResults()
+        if file != "-":
+            with open(file, "rb") as fin:
+                self.data.ParseFromString(fin.read())
+        else:
+            self.data.ParseFromString(sys.stdin.buffer.read())
+
+    def get_name(self):
+        return self.data.header.repository
+
+    def get_header(self):
+        header = self.data.header
+        return header.begin_unix_time, header.end_unix_time, \
+            header.sampling, header.granularity
+
+    def get_project_burndown(self):
+        return self._parse_burndown_matrix(self.data.burndown_project)
+
+    def get_files_burndown(self):
+        return [self._parse_burndown_matrix(i) for i in self.data.burndown_files]
+
+    def get_people_burndown(self):
+        return [self._parse_burndown_matrix(i) for i in self.data.burndown_developers]
+
+    def get_ownership_burndown(self):
+        people = self.get_people_burndown()
+        return [p[0] for p in people], {p[0]: p[1].T for p in people}
+
+    def get_people_interaction(self):
+        return [i.name for i in self.data.burndown_developers], \
+            self._parse_sparse_matrix(self.data.developers_interaction).toarray()
+
+    def get_files_coocc(self):
+        node = self.data.file_couples
+        return list(node.index), self._parse_sparse_matrix(node.matrix)
+
+    def get_people_coocc(self):
+        node = self.data.developer_couples
+        return list(node.index), self._parse_sparse_matrix(node.matrix)
+
+    def _parse_burndown_matrix(self, matrix):
+        dense = numpy.zeros((matrix.number_of_rows, matrix.number_of_columns), dtype=int)
+        for y, row in enumerate(matrix.rows):
+            for x, col in enumerate(row.columns):
+                dense[y, x] = col
+        return matrix.name, dense.T
+
+    def _parse_sparse_matrix(self, matrix):
+        from scipy.sparse import csr_matrix
+        return csr_matrix((list(matrix.data), list(matrix.indices), list(matrix.indptr)),
+                          shape=(matrix.number_of_rows, matrix.number_of_columns))
 
 
 READERS = {"yaml": YamlReader, "pb": ProtobufReader}
@@ -172,6 +222,7 @@ def read_input(args):
     sys.stdout.flush()
     reader = READERS[args.input_format]()
     reader.read(args.input)
+    print("done")
     return reader
 
 
