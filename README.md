@@ -46,8 +46,8 @@ wget https://github.com/src-d/hercules/raw/master/labours.py
 hercules https://github.com/src-d/go-git | python3 labours.py --resample month
 # Use "file system" go-git backend and print the raw data.
 hercules /path/to/cloned/go-git
-# Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache and display the unresampled plot.
-hercules https://github.com/git/git /tmp/repo-cache | python3 labours.py --resample raw
+# Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache, use Protocol Buffers and display the unresampled plot.
+hercules -pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -f pb --resample raw
 
 # Now something fun
 # Get the linear history from git rev-list, reverse it
@@ -199,7 +199,8 @@ so you should clone repos instead of reading them from disk whenever possible. P
 in-memory storage may require much RAM, for example, the Linux kernel takes over 200GB in 2017.
 1. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
-parsed. However, most of the repositories are parsed within a minute.
+parsed. However, most of the repositories are parsed within a minute. Try using Protocol Buffers
+instead (`hercules -pb` and `labours.py -f pb`).
 1. To speed-up yaml parsing
    ```
    # Debian, Ubuntu
