@@ -67,7 +67,7 @@ type OneLineWriter struct {
 func (writer OneLineWriter) Write(p []byte) (n int, err error) {
 	if p[len(p) - 1] == '\n' {
 		p = p[:len(p) - 1]
-		if bytes.Compare(p[len(p) - 5:], []byte("done.")) == 0 {
+		if len(p) > 5 && bytes.Compare(p[len(p) - 5:], []byte("done.")) == 0 {
 			p = []byte("cloning...")
 		}
 		p = append(p, '\r')
