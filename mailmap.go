@@ -34,8 +34,9 @@ func ParseMailmap(contents string) map[string]object.Signature {
 		}
 		toEmail := ""
 		if gtp > 0 {
+			line = line[:gtp]
 			ltp = strings.LastIndex(line, "<")
-			toEmail = line[ltp+1 : gtp]
+			toEmail = line[ltp+1:]
 			line = strings.TrimSpace(line[:ltp])
 		}
 		toName := line
