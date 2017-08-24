@@ -1,3 +1,5 @@
+dist: trusty
+
 language: go
 
 go:
@@ -5,11 +7,15 @@ go:
   - master
 
 go_import_path: gopkg.in/src-d/hercules.v2
+
+before_install:
+  - pip3 install -r requirements.txt
+  - pip3 install tensorflow
   
 script:
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v2
-  - $GOPATH/bin/hercules -files -people -couples https://github.com/src-d/hercules > /dev/null
-  - $GOPATH/bin/hercules -files -people -couples -pb https://github.com/src-d/hercules > /dev/null
+  - $GOPATH/bin/hercules -files -people -couples https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules -files -people -couples -pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
