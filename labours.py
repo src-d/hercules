@@ -53,6 +53,8 @@ def parse_args():
                         help="Do not run Tensorflow Projector on couples.")
     parser.add_argument("--max-people", default=20, type=int,
                         help="Maximum number of developers in churn matrix and people plots.")
+    parser.add_argument("--no-plotting", action="store_true",
+                        help="labours won't plot anything, just return a JSON with the raw data")
     args = parser.parse_args()
     return args
 
@@ -358,10 +360,10 @@ def apply_plot_style(figure, axes, legend, style, text_size, axes_size):
             text.set_color(style)
 
 
-def get_plot_path(base, name):
+def get_plot_path(base, name, defaultExt=".png"):
     root, ext = os.path.splitext(base)
     if not ext:
-        ext = ".png"
+        ext = defaultExt
     output = os.path.join(root, name + ext)
     os.makedirs(os.path.dirname(output), exist_ok=True)
     return output
@@ -731,6 +733,48 @@ def write_embeddings(name, output, run_server, index, embeddings):
     if run_server:
         os.system("xdg-open " + url)
 
+def write_project_json(args, data, header, name):
+    write_json(args, name, {
+        'header': header,
+        'name': name,
+        'projectAnalysisData': {
+            "name": data[0],
+            "matrix": data[1],
+            "dateRangeSampling": data[2],
+            "labels": data[3],
+            "granularity": data[4],
+            "sampling": data[5],
+            "resample": data[6]
+            },
+        'resample': args.resample
+        })
+
+def write_json(args, name, content):
+    jsonified = safe_json_dump(content)
+
+    if not args.output:
+        sys.stdout.write(jsonified)
+        sys.stdout.flush()
+    else:
+        output = get_plot_path(args.output, name, defaultExt=".json")
+        file = open(output, "w")
+        file.write(jsonified)
+        file.close()
+
+def safe_json_dump(content):
+    import json
+    return json.dumps(content, default=herculesDefaultJsonConverter)
+
+def herculesDefaultJsonConverter(x):
+    if has_method(x, "tolist"):
+        return x.tolist();
+
+    if has_method(x, "isoformat"):
+        return x.isoformat()
+
+def has_method(x, method):
+    attr = getattr(x, method, None)
+    return callable(attr)
 
 def main():
     args = parse_args()
@@ -743,8 +787,11 @@ def main():
     couples_warning = "Coupling stats were not collected. Re-run hercules with -couples."
 
     def project_burndown():
-        plot_burndown(args, "project",
-                      *load_burndown(header, *reader.get_project_burndown(), args.resample))
+        data = load_burndown(header, *reader.get_project_burndown(), args.resample)
+        if args.no_plotting:
+            write_project_json(args, data, header, name)
+        else:
+            plot_burndown(args, "project", *data)
 
     def files_burndown():
         try:
