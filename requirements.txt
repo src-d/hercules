@@ -10,3 +10,4 @@ pytz==2017.2
 PyYAML==3.12
 scipy==0.19.1
 six==1.10.0
+protobuf>=3.0.0

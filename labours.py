@@ -723,7 +723,7 @@ def write_embeddings(name, output, run_server, index, embeddings):
   ]
 }
 """ % (output, name, len(embeddings), len(embeddings[0]), dataf, metaf))
-    print("Wrote %s", jsonf)
+    print("Wrote %s" % jsonf)
     if run_server and not web_server.running:
         web_server.start()
     url = "http://projector.tensorflow.org/?config=http://0.0.0.0:8000/" + jsonf
