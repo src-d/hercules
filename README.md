@@ -120,7 +120,7 @@ The sequence of developers is stored in `people_sequence` YAML node.
 
 ```
 hercules -people [-people-dict=/path/to/identities]
-python3 labours.py -m people
+python3 labours.py -m ownership
 ```
 
 `-people` also allows to draw the code share through time stacked area plot. That is,
@@ -191,6 +191,13 @@ python3 labours.py [--text-size] [--relative]
 ```
 
 `--text-size` changes the font size, `--relative` activate the stretched burndown layout.
+
+### custom plotting backend
+
+It is possible to output all the information needed to draw the plots in JSON format.
+Simply append `.json` to the output (`-o`) and you are done. The data format is not fully
+specified and depends on the Python code which generates it. Each JSON file should
+contain `"type"` which reflects the plot kind.
 
 ### Caveats
 

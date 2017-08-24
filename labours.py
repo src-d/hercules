@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime, timedelta
 import io
+import json
 import os
 import re
 import sys
@@ -26,7 +27,9 @@ if sys.version_info[0] < 3:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output", default="",
-                        help="Path to the output file/directory (empty for display).")
+                        help="Path to the output file/directory (empty for display). "
+                             "If the extension is JSON, the data is saved instead of "
+                             "the real image.")
     parser.add_argument("-i", "--input", default="-",
                         help="Path to the input file (- for stdin).")
     parser.add_argument("-f", "--input-format", default="yaml", choices=["yaml", "pb"])
@@ -40,7 +43,7 @@ def parse_args():
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
-                        choices=["project", "file", "person", "churn_matrix", "people", "couples",
+                        choices=["project", "file", "person", "churn_matrix", "ownership", "couples",
                                  "all"],
                         default="project", help="What to plot.")
     parser.add_argument(
@@ -322,7 +325,7 @@ def load_burndown(header, name, matrix, resample):
     return name, matrix, date_range_sampling, labels, granularity, sampling, resample
 
 
-def load_people(header, sequence, contents):
+def load_ownership(header, sequence, contents, max_people):
     import pandas
 
     start, last, sampling, _ = header
@@ -335,7 +338,35 @@ def load_people(header, sequence, contents):
     date_range_sampling = pandas.date_range(
         start + timedelta(days=sampling), periods=people[0].shape[0],
         freq="%dD" % sampling)
+
+    if people.shape[0] > max_people:
+        order = numpy.argsort(-people.sum(axis=1))
+        people = people[order[:max_people]]
+        sequence = [sequence[i] for i in order[:max_people]]
+        print("Warning: truncated people to most owning %d" % max_people)
+    for i, name in enumerate(sequence):
+        if len(name) > 40:
+            sequence[i] = name[:37] + "..."
+
     return sequence, people, date_range_sampling, last
+
+
+def load_churn_matrix(people, matrix, max_people):
+    matrix = matrix.astype(float)
+    if matrix.shape[0] > max_people:
+        order = numpy.argsort(-matrix[:, 0])
+        matrix = matrix[order[:max_people]][:, [0, 1] + list(2 + order[:max_people])]
+        people = [people[i] for i in order[:max_people]]
+        print("Warning: truncated people to most productive %d" % max_people)
+    zeros = matrix[:, 0] == 0
+    matrix[zeros, :] = 1
+    matrix /= matrix[:, 0][:, None]
+    matrix = -matrix[:, 1:]
+    matrix[zeros, :] = 0
+    for i, name in enumerate(people):
+        if len(name) > 40:
+            people[i] = name[:37] + "..."
+    return people, matrix
 
 
 def apply_plot_style(figure, axes, legend, style, text_size, axes_size):
@@ -384,8 +415,30 @@ def deploy_plot(title, output, style):
     pyplot.clf()
 
 
+def default_json(x):
+    if hasattr(x, "tolist"):
+        return x.tolist()
+    if hasattr(x, "isoformat"):
+        return x.isoformat()
+    return x
+
+
 def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granularity,
                   sampling, resample):
+    if args.output and args.output.endswith(".json"):
+        data = locals().copy()
+        del data["args"]
+        data["type"] = "burndown"
+        if args.mode == "project" and target == "project":
+            output = args.output
+        else:
+            if target == "project":
+                name = "project"
+            output = get_plot_path(args.output, name)
+        with open(output, "w") as fout:
+            json.dump(data, fout, sort_keys=True, default=default_json)
+        return
+
     import matplotlib
     if args.backend:
         matplotlib.use(args.backend)
@@ -452,7 +505,7 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
     deploy_plot(title, output, args.style)
 
 
-def plot_many(args, target, header, parts):
+def plot_many_burndown(args, target, header, parts):
     if not args.output:
         print("Warning: output not set, showing %d plots." % len(parts))
     itercnt = progress.bar(parts, expected_size=len(parts)) \
@@ -467,20 +520,17 @@ def plot_many(args, target, header, parts):
 
 
 def plot_churn_matrix(args, repo, people, matrix):
-    matrix = matrix.astype(float)
-    if matrix.shape[0] > args.max_people:
-        order = numpy.argsort(-matrix[:, 0])
-        matrix = matrix[order[:args.max_people]][:, [0, 1] + list(2 + order[:args.max_people])]
-        people = [people[i] for i in order[:args.max_people]]
-        print("Warning: truncated people to most productive %d" % args.max_people)
-    zeros = matrix[:, 0] == 0
-    matrix[zeros, :] = 1
-    matrix /= matrix[:, 0][:, None]
-    matrix = -matrix[:, 1:]
-    matrix[zeros, :] = 0
-    for i, name in enumerate(people):
-        if len(name) > 40:
-            people[i] = name[:37] + "..."
+    if args.output and args.output.endswith(".json"):
+        data = locals().copy()
+        del data["args"]
+        data["type"] = "churn_matrix"
+        if args.mode == "all":
+            output = get_plot_path(args.output, "matrix")
+        else:
+            output = args.output
+        with open(output, "w") as fout:
+            json.dump(data, fout, sort_keys=True, default=default_json)
+        return
 
     import matplotlib
     if args.backend:
@@ -515,20 +565,23 @@ def plot_churn_matrix(args, repo, people, matrix):
     deploy_plot(title, output, args.style)
 
 
-def plot_people(args, repo, names, people, date_range, last):
+def plot_ownership(args, repo, names, people, date_range, last):
+    if args.output and args.output.endswith(".json"):
+        data = locals().copy()
+        del data["args"]
+        data["type"] = "ownership"
+        if args.mode == "all":
+            output = get_plot_path(args.output, "people")
+        else:
+            output = args.output
+        with open(output, "w") as fout:
+            json.dump(data, fout, sort_keys=True, default=default_json)
+        return
+
     import matplotlib
     if args.backend:
         matplotlib.use(args.backend)
     import matplotlib.pyplot as pyplot
-
-    if people.shape[0] > args.max_people:
-        order = numpy.argsort(-people.sum(axis=1))
-        people = people[order[:args.max_people]]
-        names = [names[i] for i in order[:args.max_people]]
-        print("Warning: truncated people to most owning %d" % args.max_people)
-    for i, name in enumerate(names):
-        if len(name) > 40:
-            names[i] = name[:37] + "..."
 
     pyplot.stackplot(date_range, people, labels=names)
     pyplot.xlim(date_range[0], last)
@@ -698,6 +751,9 @@ def write_embeddings(name, output, run_server, index, embeddings):
     print("Writing Tensorflow Projector files...")
     if not output:
         output = "couples_" + name
+    if output.endswith(".json"):
+        output = os.path.join(output[:-5], "couples")
+        run_server = False
     metaf = "%s_%s_meta.tsv" % (output, name)
     with open(metaf, "w") as fout:
         fout.write("name\tcommits\n")
@@ -748,25 +804,27 @@ def main():
 
     def files_burndown():
         try:
-            plot_many(args, "file", header, reader.get_files_burndown())
+            plot_many_burndown(args, "file", header, reader.get_files_burndown())
         except KeyError:
             print(files_warning)
 
     def people_burndown():
         try:
-            plot_many(args, "person", header, reader.get_people_burndown())
+            plot_many_burndown(args, "person", header, reader.get_people_burndown())
         except KeyError:
             print(people_warning)
 
     def churn_matrix():
         try:
-            plot_churn_matrix(args, name, *reader.get_people_interaction())
+            plot_churn_matrix(args, name, *load_churn_matrix(
+                *reader.get_people_interaction(), args.max_people))
         except KeyError:
             print(people_warning)
 
     def ownership_burndown():
         try:
-            plot_people(args, name, *load_people(header, *reader.get_ownership_burndown()))
+            plot_ownership(args, name, *load_ownership(
+                header, *reader.get_ownership_burndown(), args.max_people))
         except KeyError:
             print(people_warning)
 
@@ -787,7 +845,7 @@ def main():
         people_burndown()
     elif args.mode == "churn_matrix":
         churn_matrix()
-    elif args.mode == "people":
+    elif args.mode == "ownership":
         ownership_burndown()
     elif args.mode == "couples":
         couples()
