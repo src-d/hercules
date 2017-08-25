@@ -59,6 +59,19 @@ git rev-list HEAD | tac | hercules -commits - https://github.com/git/git | tee c
 
 `labours.py -i /path/to/yaml` allows to read the output from `hercules` which was saved on disk.
 
+#### Caching
+
+It is possible to store the cloned repository on disk. The subsequent analysis can run on the
+corresponding directory instead of cloning from scratch:
+
+```
+# First time - cache
+hercules https://github.com/git/git /tmp/repo-cache
+
+# Second time - use the cache
+hercules /tmp/repo-cache
+```
+
 ### Extensions
 
 #### Files

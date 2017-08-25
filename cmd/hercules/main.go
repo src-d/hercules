@@ -132,6 +132,11 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+			_, err = os.Stat(flag.Arg(1))
+			if !os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "warning: deleted %s\n", flag.Arg(1))
+				os.RemoveAll(flag.Arg(1))
+			}
 		} else {
 			backend = memory.NewStorage()
 		}
