@@ -223,15 +223,17 @@ func init() {
 	if err == nil {
 		testRepository, err = git.PlainOpen(cwd)
 		if err == nil {
-			iter, _ := testRepository.CommitObjects()
-			commits := -1
-			for ; err != io.EOF; _, err = iter.Next() {
-				if err != nil {
-					panic(err)
-				}
-				commits++
-				if commits >= 100 {
-					return
+			iter, err := testRepository.CommitObjects()
+			if err == nil {
+				commits := -1
+				for ; err != io.EOF; _, err = iter.Next() {
+					if err != nil {
+						panic(err)
+					}
+					commits++
+					if commits >= 100 {
+						return
+					}
 				}
 			}
 		}
