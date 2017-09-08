@@ -18,12 +18,14 @@ go:
 go_import_path: gopkg.in/src-d/hercules.v2
 
 before_install:
-  - pip3 install -r requirements.txt
-  - pip3 install tensorflow
+  - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
+  - export PATH=$PATH:~/.local/bin
+  - pip3 install --user -r requirements.txt
+  - pip3 install --user tensorflow
   - docker run -d --privileged -p 9432:9432 --name bblfsh bblfsh/server
   - git clone https://github.com/bblfsh/libuast
   - cd libuast && cmake -DCMAKE_BUILD_TYPE=Release . && make && ln -s src libuast && cd ..
-  - export CGO_CFLAGS="-I$(pwd)/libuast" && export CGO_LDFLAGS="-L$(pwd)/libuast/lib -Wl,-rpath -Wl,$(pwd)/libuast/lib"
+  - export CGO_CFLAGS="-I$(pwd)/libuast -I$(pwd)/libuast/libuast" && export CGO_LDFLAGS="-luast -L$(pwd)/libuast/lib -Wl,-rpath -Wl,$(pwd)/libuast/lib"
   
 script:
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v2

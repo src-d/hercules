@@ -800,7 +800,8 @@ def main():
 
     def project_burndown():
         plot_burndown(args, "project",
-                      *load_burndown(header, *reader.get_project_burndown(), args.resample))
+                      *load_burndown(header, *reader.get_project_burndown(),
+                                     resample=args.resample))
 
     def files_burndown():
         try:
@@ -817,23 +818,25 @@ def main():
     def churn_matrix():
         try:
             plot_churn_matrix(args, name, *load_churn_matrix(
-                *reader.get_people_interaction(), args.max_people))
+                *reader.get_people_interaction(), max_people=args.max_people))
         except KeyError:
             print(people_warning)
 
     def ownership_burndown():
         try:
             plot_ownership(args, name, *load_ownership(
-                header, *reader.get_ownership_burndown(), args.max_people))
+                header, *reader.get_ownership_burndown(), max_people=args.max_people))
         except KeyError:
             print(people_warning)
 
     def couples():
         try:
             write_embeddings("files", args.output, not args.disable_projector,
-                             *train_embeddings(*reader.get_files_coocc(), args.couples_tmp_dir))
+                             *train_embeddings(*reader.get_files_coocc(),
+                                               tmpdir=args.couples_tmp_dir))
             write_embeddings("people", args.output, not args.disable_projector,
-                             *train_embeddings(*reader.get_people_coocc(), args.couples_tmp_dir))
+                             *train_embeddings(*reader.get_people_coocc(),
+                                               tmpdir=args.couples_tmp_dir))
         except KeyError:
             print(couples_warning)
 
