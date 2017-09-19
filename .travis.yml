@@ -4,13 +4,15 @@ language: go
 
 go:
   - 1.8
-  - master
+  - 1.9
 
 go_import_path: gopkg.in/src-d/hercules.v2
 
 before_install:
-  - pip3 install -r requirements.txt
-  - pip3 install tensorflow
+  - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
+  - export PATH=$PATH:~/.local/bin
+  - pip3 install --user -r requirements.txt
+  - pip3 install --user tensorflow
   
 script:
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v2
