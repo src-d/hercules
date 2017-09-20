@@ -33,12 +33,15 @@ Unresampled bands are apparently not aligned and start from the project's birth 
 There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lightning/) available.
 
 ### Installation
-You are going to need Go and Python 2 or 3.
+You are going to need Go (>= v1.8) and Python 2 or 3.
 ```
 go get gopkg.in/src-d/hercules.v2/cmd/hercules
 pip install -r requirements.txt
 wget https://github.com/src-d/hercules/raw/master/labours.py
 ```
+
+#### Windows
+Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.
 
 ### Usage
 ```
