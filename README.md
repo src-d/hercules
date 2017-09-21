@@ -208,7 +208,7 @@ python3 labours.py [--text-size] [--relative]
 
 `--text-size` changes the font size, `--relative` activate the stretched burndown layout.
 
-### custom plotting backend
+### Custom plotting backend
 
 It is possible to output all the information needed to draw the plots in JSON format.
 Simply append `.json` to the output (`-o`) and you are done. The data format is not fully
