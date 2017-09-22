@@ -12,8 +12,10 @@ RUN apt-get update && \
     cp -r /root/src/gopkg.in/src-d/hercules.v2/*.py /root/src/gopkg.in/src-d/hercules.v2/pb /usr/local/bin && \
     sed -i 's/parser.add_argument("--backend",/parser.add_argument("--backend", default="Agg",/' /usr/local/bin/labours.py && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 && \
-    pip3 install -r /root/src/gopkg.in/src-d/hercules.v2/requirements.txt && \
+    pip3 install --no-cache-dir -r /root/src/gopkg.in/src-d/hercules.v2/requirements.txt && \
     rm -rf /root/* && \
     apt-get remove -y software-properties-common golang-1.9-go python3-dev libyaml-dev curl git && \
+    apt-get remove *-doc && \
     apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/* && \
     apt-get clean
