@@ -614,6 +614,8 @@ def train_embeddings(index, matrix, tmpdir, shard_size=IDEAL_SHARD_SIZE):
 
     assert matrix.shape[0] == matrix.shape[1]
     assert len(index) <= matrix.shape[0]
+    outlier_threshold = numpy.percentile(matrix.data, 99)
+    matrix.data[matrix.data > outlier_threshold] = outlier_threshold
     nshards = len(index) // shard_size
     if nshards * shard_size < len(index):
         nshards += 1
