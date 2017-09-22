@@ -883,10 +883,11 @@ def main():
         couples()
 
     if web_server.running:
-        print("Sleeping for 60 seconds, safe to Ctrl-C")
+        secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
+        print("Sleeping for %d seconds, safe to Ctrl-C" % secs)
         sys.stdout.flush()
         try:
-            time.sleep(60)
+            time.sleep(secs)
         except KeyboardInterrupt:
             pass
         web_server.stop()
