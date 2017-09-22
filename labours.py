@@ -884,6 +884,7 @@ def main():
 
     if web_server.running:
         print("Sleeping for 60 seconds, safe to Ctrl-C")
+        sys.stdout.flush()
         try:
             time.sleep(60)
         except KeyboardInterrupt:
