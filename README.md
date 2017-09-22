@@ -75,6 +75,12 @@ hercules https://github.com/git/git /tmp/repo-cache
 hercules /tmp/repo-cache
 ```
 
+#### Docker image
+
+```
+docker run --rm srcd/hercules hercules -pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -o /io/git_git.png
+```
+
 ### Extensions
 
 #### Files
