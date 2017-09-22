@@ -5,6 +5,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
 import threading
@@ -786,7 +787,14 @@ def write_embeddings(name, output, run_server, index, embeddings):
     url = "http://projector.tensorflow.org/?config=http://0.0.0.0:8000/" + jsonf
     print(url)
     if run_server:
-        os.system("xdg-open " + url)
+        if shutil.which("xdg-open") is not None:
+            os.system("xdg-open " + url)
+        else:
+            browser = os.getenv("BROWSER", "")
+            if browser:
+                os.system(browser + " " + url)
+            else:
+                print("\t" + url)
 
 
 def main():
