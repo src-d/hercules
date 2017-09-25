@@ -107,7 +107,7 @@ func (pipeline *Pipeline) Initialize() {
 		graph.AddNode(name)
 		name2item[name] = item
 		for _, key := range item.Provides() {
-			key += "_entity"
+			key = "[" + key + "]"
 			graph.AddNode(key)
 			graph.AddEdge(name, key)
 		}
@@ -115,7 +115,7 @@ func (pipeline *Pipeline) Initialize() {
 	for index, item := range pipeline.items {
 		name := fmt.Sprintf("%s_%d", item.Name(), index)
 		for _, key := range item.Requires() {
-			key += "_entity"
+			key = "[" + key + "]"
 			if !graph.AddEdge(key, name) {
 				panic(fmt.Sprintf("Unsatisfied dependency: %s -> %s", key, item.Name()))
 			}

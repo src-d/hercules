@@ -29,9 +29,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -49,6 +51,7 @@ import (
 	"gopkg.in/src-d/hercules.v2/stdout"
 	"gopkg.in/src-d/hercules.v2/pb"
 	"github.com/gogo/protobuf/proto"
+	"time"
 )
 
 func sortedKeys(m map[string][][]int64) []string {
@@ -82,9 +85,13 @@ func main() {
 	var withFiles bool
 	var withPeople bool
 	var withCouples bool
+	var withUasts bool
 	var people_dict_path string
 	var profile bool
-	var granularity, sampling, similarity_threshold int
+	var granularity, sampling, similarityThreshold int
+	var bblfshEndpoint string
+	var bblfshTimeout int
+	var uastPoolSize int
 	var commitsFile string
 	var ignoreMissingSubmodules bool
 	var debug bool
@@ -92,11 +99,13 @@ func main() {
 	flag.BoolVar(&withPeople, "people", false, "Output detailed statistics per each developer.")
 	flag.BoolVar(&withCouples, "couples", false, "Gather the co-occurrence matrix "+
 		"for files and people.")
+	flag.BoolVar(&withUasts, "uasts", false, "Output pairs of Universal Abstract Syntax Trees for " +
+			"every changed file in each commit.")
 	flag.StringVar(&people_dict_path, "people-dict", "", "Path to the developers' email associations.")
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
 	flag.IntVar(&granularity, "granularity", 30, "How many days there are in a single band.")
 	flag.IntVar(&sampling, "sampling", 30, "How frequently to record the state in days.")
-	flag.IntVar(&similarity_threshold, "M", 90,
+	flag.IntVar(&similarityThreshold, "M", 90,
 		"A threshold on the similarity index used to detect renames.")
 	flag.BoolVar(&debug, "debug", false, "Validate the trees on each step.")
 	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
@@ -106,6 +115,9 @@ func main() {
 	flag.BoolVar(&ignoreMissingSubmodules, "ignore-missing-submodules", false,
 		"Do not panic on submodules which are not registered..")
 	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
+	flag.IntVar(&uastPoolSize, "uast-pool-size", 1, "Number of goroutines to extract UASTs.")
+	flag.StringVar(&bblfshEndpoint, "bblfsh", "0.0.0.0:9432", "Babelfish server's endpoint.")
+	flag.IntVar(&bblfshTimeout, "bblfsh-timeout", 20, "Babelfish's server timeout.")
 	flag.Parse()
 	if granularity <= 0 {
 		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
@@ -180,22 +192,37 @@ func main() {
 	pipeline.AddItem(&hercules.BlobCache{
 		IgnoreMissingSubmodules: ignoreMissingSubmodules,
 	})
+	var uastSaver *hercules.UASTChangesSaver
+	if withUasts {
+		pipeline.AddItem(&hercules.UASTExtractor{
+			Endpoint: bblfshEndpoint,
+			Context: func() context.Context {
+				ctx, _ := context.WithTimeout(context.Background(),
+					                            time.Duration(bblfshTimeout) * time.Second)
+				return ctx
+			},
+			PoolSize: uastPoolSize,
+		  Extensions: map[string]bool {"py": true, "java": true}})
+		pipeline.AddItem(&hercules.UASTChanges{})
+		uastSaver = &hercules.UASTChangesSaver{}
+		pipeline.AddItem(uastSaver)
+	}
 	pipeline.AddItem(&hercules.DaysSinceStart{})
-	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarity_threshold})
+	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarityThreshold})
 	pipeline.AddItem(&hercules.TreeDiff{})
 	pipeline.AddItem(&hercules.FileDiff{})
-	id_matcher := &hercules.IdentityDetector{}
+	idMatcher := &hercules.IdentityDetector{}
 	var peopleCount int
 	if withPeople || withCouples {
 		if people_dict_path != "" {
-			id_matcher.LoadPeopleDict(people_dict_path)
-			peopleCount = len(id_matcher.ReversePeopleDict) - 1
+			idMatcher.LoadPeopleDict(people_dict_path)
+			peopleCount = len(idMatcher.ReversePeopleDict) - 1
 		} else {
-			id_matcher.GeneratePeopleDict(commits)
-			peopleCount = len(id_matcher.ReversePeopleDict)
+			idMatcher.GeneratePeopleDict(commits)
+			peopleCount = len(idMatcher.ReversePeopleDict)
 		}
 	}
-	pipeline.AddItem(id_matcher)
+	pipeline.AddItem(idMatcher)
 	burndowner := &hercules.BurndownAnalysis{
 		Granularity:  granularity,
 		Sampling:     sampling,
@@ -217,23 +244,47 @@ func main() {
 	}
 	fmt.Fprint(os.Stderr, "writing...    \r")
 	burndownResults := result[burndowner].(hercules.BurndownResult)
+	if len(burndownResults.GlobalHistory) == 0 {
+		return
+	}
 	var couplesResult hercules.CouplesResult
 	if withCouples {
 		couplesResult = result[coupler].(hercules.CouplesResult)
 	}
-	if len(burndownResults.GlobalHistory) == 0 {
-		return
+	if withUasts {
+		changedUasts := result[uastSaver].([][]hercules.UASTChange)
+		for i, changes := range changedUasts {
+			for j, change := range changes {
+				if change.Before == nil || change.After == nil {
+					continue
+				}
+				bs, _ := change.Before.Marshal()
+				ioutil.WriteFile(fmt.Sprintf(
+					"%d_%d_before_%s.pb", i, j, change.Change.From.TreeEntry.Hash.String()), bs, 0666)
+				blob, _ := repository.BlobObject(change.Change.From.TreeEntry.Hash)
+				s, _ := (&object.File{Blob: *blob}).Contents()
+				ioutil.WriteFile(fmt.Sprintf(
+					"%d_%d_before_%s.src", i, j, change.Change.From.TreeEntry.Hash.String()), []byte(s), 0666)
+				bs, _ = change.After.Marshal()
+				ioutil.WriteFile(fmt.Sprintf(
+					"%d_%d_after_%s.pb", i, j, change.Change.To.TreeEntry.Hash.String()), bs, 0666)
+				blob, _ = repository.BlobObject(change.Change.To.TreeEntry.Hash)
+				s, _ = (&object.File{Blob: *blob}).Contents()
+				ioutil.WriteFile(fmt.Sprintf(
+					"%d_%d_after_%s.src", i, j, change.Change.To.TreeEntry.Hash.String()), []byte(s), 0666)
+			}
+		}
 	}
 	begin := commits[0].Author.When.Unix()
 	end := commits[len(commits)-1].Author.When.Unix()
 	if !protobuf {
 		printResults(uri, begin, end, granularity, sampling,
 			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, id_matcher.ReversePeopleDict)
+			burndownResults, couplesResult, idMatcher.ReversePeopleDict)
 	} else {
 		serializeResults(uri, begin, end, granularity, sampling,
 			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, id_matcher.ReversePeopleDict)
+			burndownResults, couplesResult, idMatcher.ReversePeopleDict)
 	}
 }
 
