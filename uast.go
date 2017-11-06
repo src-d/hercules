@@ -3,6 +3,8 @@ package hercules
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -15,8 +17,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"fmt"
-	"os"
 )
 
 type UASTExtractor struct {
@@ -64,8 +64,26 @@ func (exr *UASTExtractor) Provides() []string {
 }
 
 func (exr *UASTExtractor) Requires() []string {
-	arr := [...]string{"renamed_changes", "blob_cache"}
+	arr := [...]string{"changes", "blob_cache"}
 	return arr[:]
+}
+
+func (exr *UASTExtractor) Construct(facts map[string]interface{}) {
+	if val, exists := facts["UAST.Endpoint"].(string); exists {
+		exr.Endpoint = val
+	}
+	if val, exists := facts["UAST.Context"].(func() context.Context); exists {
+		exr.Context = val
+	}
+	if val, exists := facts["UAST.PoolSize"].(int); exists {
+		exr.PoolSize = val
+	}
+	if val, exists := facts["UAST.Extensions"].(map[string]bool); exists {
+		exr.Extensions = val
+	}
+	if val, exists := facts["UAST.FailOnErrors"].(bool); exists {
+		exr.FailOnErrors = val
+	}
 }
 
 func (exr *UASTExtractor) Initialize(repository *git.Repository) {
@@ -100,7 +118,7 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 
 func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
-	treeDiffs := deps["renamed_changes"].(object.Changes)
+	treeDiffs := deps["changes"].(object.Changes)
 	uasts := map[plumbing.Hash]*uast.Node{}
 	lock := sync.RWMutex{}
 	errs := make([]error, 0)
@@ -220,9 +238,11 @@ func (uc *UASTChanges) Provides() []string {
 }
 
 func (uc *UASTChanges) Requires() []string {
-	arr := [...]string{"uasts", "renamed_changes"}
+	arr := [...]string{"uasts", "changes"}
 	return arr[:]
 }
+
+func (uc *UASTChanges) Construct(facts map[string]interface{}) {}
 
 func (uc *UASTChanges) Initialize(repository *git.Repository) {
 	uc.cache = map[plumbing.Hash]*uast.Node{}
@@ -230,7 +250,7 @@ func (uc *UASTChanges) Initialize(repository *git.Repository) {
 
 func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
   uasts := deps["uasts"].(map[plumbing.Hash]*uast.Node)
-	treeDiffs := deps["renamed_changes"].(object.Changes)
+	treeDiffs := deps["changes"].(object.Changes)
 	commit := make([]UASTChange, 0, len(treeDiffs))
 	for _, change := range treeDiffs {
 		action, err := change.Action()
@@ -280,6 +300,8 @@ func (saver *UASTChangesSaver) Requires() []string {
 	return arr[:]
 }
 
+func (saver *UASTChangesSaver) Construct(facts map[string]interface{}) {}
+
 func (saver *UASTChangesSaver) Initialize(repository *git.Repository) {
 	saver.result = [][]UASTChange{}
 }
@@ -292,4 +314,10 @@ func (saver *UASTChangesSaver) Consume(deps map[string]interface{}) (map[string]
 
 func (saver *UASTChangesSaver) Finalize() interface{} {
 	return saver.result
+}
+
+func init() {
+  Registry.Register(&UASTExtractor{})
+	Registry.Register(&UASTChanges{})
+	Registry.Register(&UASTChangesSaver{})
 }

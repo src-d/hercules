@@ -14,7 +14,7 @@ type IdentityDetector struct {
 	// Maps email || name  -> developer id.
 	PeopleDict map[string]int
 	// Maps developer id -> description
-	ReversePeopleDict []string
+	ReversedPeopleDict []string
 }
 
 const MISSING_AUTHOR = (1 << 18) - 1
@@ -31,6 +31,30 @@ func (id *IdentityDetector) Provides() []string {
 
 func (id *IdentityDetector) Requires() []string {
 	return []string{}
+}
+
+func (id *IdentityDetector) Construct(facts map[string]interface{}) {
+	if val, exists := facts["IdentityDetector.PeopleDict"].(map[string]int); exists {
+		id.PeopleDict = val
+	}
+	if val, exists := facts["IdentityDetector.ReversedPeopleDict"].([]string); exists {
+		id.ReversedPeopleDict = val
+	}
+	if id.PeopleDict == nil {
+		if id.ReversedPeopleDict != nil {
+			panic("IdentityDetector: ReversedPeopleDict != nil while PeopleDict == nil")
+		}
+		peopleDictPath := facts["IdentityDetector.PeopleDictPath"].(string)
+		if peopleDictPath != "" {
+			id.LoadPeopleDict(peopleDictPath)
+			facts["PeopleCount"] = len(id.ReversedPeopleDict) - 1
+		} else {
+			id.GeneratePeopleDict(facts["commits"].([]*object.Commit))
+			facts["PeopleCount"] = len(id.ReversedPeopleDict)
+		}
+	} else {
+		facts["PeopleCount"] = len(id.ReversedPeopleDict)
+	}
 }
 
 func (id *IdentityDetector) Initialize(repository *git.Repository) {
@@ -73,7 +97,7 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 	}
 	reverse_dict = append(reverse_dict, "<unmatched>")
 	id.PeopleDict = dict
-	id.ReversePeopleDict = reverse_dict
+	id.ReversedPeopleDict = reverse_dict
 	return nil
 }
 
@@ -169,5 +193,9 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 		reverse_dict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
 	}
 	id.PeopleDict = dict
-	id.ReversePeopleDict = reverse_dict
+	id.ReversedPeopleDict = reverse_dict
+}
+
+func init() {
+  Registry.Register(&IdentityDetector{})
 }

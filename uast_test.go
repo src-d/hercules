@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/bblfsh/sdk.v0/uast"
+	"gopkg.in/bblfsh/sdk.v1/uast"
 )
 
 func fixtureUASTExtractor() *UASTExtractor {

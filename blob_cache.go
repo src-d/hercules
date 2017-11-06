@@ -32,6 +32,12 @@ func (cache *BlobCache) Requires() []string {
 	return arr[:]
 }
 
+func (cache *BlobCache) Construct(facts map[string]interface{}) {
+	if val, exists := facts["BlobCache.IgnoreMissingSubmodules"].(bool); exists {
+		cache.IgnoreMissingSubmodules = val
+	}
+}
+
 func (cache *BlobCache) Initialize(repository *git.Repository) {
 	cache.repository = repository
 	cache.cache = map[plumbing.Hash]*object.Blob{}
@@ -138,4 +144,8 @@ func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter
 		return nil, err
 	}
 	return blob, nil
+}
+
+func init() {
+  Registry.Register(&BlobCache{})
 }

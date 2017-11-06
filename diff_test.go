@@ -22,7 +22,7 @@ func TestFileDiffMeta(t *testing.T) {
 	assert.Equal(t, len(fd.Provides()), 1)
 	assert.Equal(t, fd.Provides()[0], "file_diff")
 	assert.Equal(t, len(fd.Requires()), 2)
-	assert.Equal(t, fd.Requires()[0], "renamed_changes")
+	assert.Equal(t, fd.Requires()[0], "changes")
 	assert.Equal(t, fd.Requires()[1], "blob_cache")
 }
 
@@ -85,7 +85,7 @@ func TestFileDiffConsume(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps["renamed_changes"] = changes
+	deps["changes"] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, err)
 	diffs := res["file_diff"].(map[string]FileDiffData)
@@ -142,7 +142,7 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 			Hash: plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"),
 		},
 	}}
-	deps["renamed_changes"] = changes
+	deps["changes"] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, res)
 	assert.NotNil(t, err)

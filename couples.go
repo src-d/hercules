@@ -36,8 +36,14 @@ func (couples *Couples) Provides() []string {
 }
 
 func (couples *Couples) Requires() []string {
-	arr := [...]string{"author", "renamed_changes"}
+	arr := [...]string{"author", "changes"}
 	return arr[:]
+}
+
+func (couples *Couples) Construct(facts map[string]interface{}) {
+	if val, exists := facts["PeopleNumber"].(int); exists {
+		couples.PeopleNumber = val
+	}
 }
 
 func (couples *Couples) Initialize(repository *git.Repository) {
@@ -55,7 +61,7 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 		author = couples.PeopleNumber
 	}
 	couples.people_commits[author] += 1
-	tree_diff := deps["renamed_changes"].(object.Changes)
+	tree_diff := deps["changes"].(object.Changes)
 	context := make([]string, 0)
 	deleteFile := func(name string) {
 		// we do not remove the file from people - the context does not expire
@@ -160,4 +166,8 @@ func (couples *Couples) Finalize() interface{} {
 	return CouplesResult{
 		PeopleMatrix: peopleMatrix, PeopleFiles: peopleFiles,
 		Files: filesSequence, FilesMatrix: filesMatrix}
+}
+
+func init() {
+  Registry.Register(&Couples{})
 }

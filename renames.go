@@ -25,13 +25,19 @@ func (ra *RenameAnalysis) Name() string {
 }
 
 func (ra *RenameAnalysis) Provides() []string {
-	arr := [...]string{"renamed_changes"}
+	arr := [...]string{"changes"}
 	return arr[:]
 }
 
 func (ra *RenameAnalysis) Requires() []string {
 	arr := [...]string{"blob_cache", "changes"}
 	return arr[:]
+}
+
+func (ra *RenameAnalysis) Construct(facts map[string]interface{}) {
+	if val, exists := facts["RenameAnalysis.SimilarityThreshold"].(int); exists {
+		ra.SimilarityThreshold = val
+	}
 }
 
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
@@ -149,7 +155,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	for _, blob := range deleted_blobs {
 		reduced_changes = append(reduced_changes, blob.change)
 	}
-	return map[string]interface{}{"renamed_changes": reduced_changes}, nil
+	return map[string]interface{}{"changes": reduced_changes}, nil
 }
 
 func (ra *RenameAnalysis) Finalize() interface{} {
@@ -232,4 +238,8 @@ func (slice sortableBlobs) Less(i, j int) bool {
 
 func (slice sortableBlobs) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func init() {
+  Registry.Register(&RenameAnalysis{})
 }

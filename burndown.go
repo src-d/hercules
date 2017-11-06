@@ -78,8 +78,26 @@ func (analyser *BurndownAnalysis) Provides() []string {
 }
 
 func (analyser *BurndownAnalysis) Requires() []string {
-	arr := [...]string{"file_diff", "renamed_changes", "blob_cache", "day", "author"}
+	arr := [...]string{"file_diff", "changes", "blob_cache", "day", "author"}
 	return arr[:]
+}
+
+func (analyser *BurndownAnalysis) Construct(facts map[string]interface{}) {
+	if val, exists := facts["Burndown.Granularity"].(int); exists {
+		analyser.Granularity = val
+	}
+	if val, exists := facts["Burndown.Sampling"].(int); exists {
+		analyser.Sampling = val
+	}
+	if val, exists := facts["Burndown.TrackFiles"].(bool); exists {
+		analyser.TrackFiles = val
+	}
+	if val, exists := facts["PeopleNumber"].(int); exists {
+		analyser.PeopleNumber = val
+	}
+	if val, exists := facts["Burndown.Debug"].(bool); exists {
+		analyser.Debug = val
+	}
 }
 
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
@@ -109,7 +127,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 		analyser.updateHistories(gs, fss, pss, delta)
 	}
 	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
-	treeDiffs := deps["renamed_changes"].(object.Changes)
+	treeDiffs := deps["changes"].(object.Changes)
 	fileDiffs := deps["file_diff"].(map[string]FileDiffData)
 	for _, change := range treeDiffs {
 		action, err := change.Action()
@@ -530,4 +548,8 @@ func (analyser *BurndownAnalysis) updateHistories(
 		}
 		analyser.peopleHistories[key] = ph
 	}
+}
+
+func init() {
+  Registry.Register(&BurndownAnalysis{})
 }

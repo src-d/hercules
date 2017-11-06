@@ -23,8 +23,8 @@ func fixtureIdentityDetector() *IdentityDetector {
 	reversePeopleDict := make([]string, 1)
 	reversePeopleDict[0] = "Vadim"
 	id := IdentityDetector{
-		PeopleDict:        peopleDict,
-		ReversePeopleDict: reversePeopleDict,
+		PeopleDict:         peopleDict,
+		ReversedPeopleDict: reversePeopleDict,
 	}
 	id.Initialize(testRepository)
 	return &id
@@ -66,11 +66,11 @@ func TestLoadPeopleDict(t *testing.T) {
 	assert.Contains(t, id.PeopleDict, "another@one.com")
 	assert.Contains(t, id.PeopleDict, "máximo cuadros")
 	assert.Contains(t, id.PeopleDict, "maximo@sourced.tech")
-	assert.Equal(t, len(id.ReversePeopleDict), 4)
-	assert.Equal(t, id.ReversePeopleDict[0], "Linus Torvalds")
-	assert.Equal(t, id.ReversePeopleDict[1], "Vadim Markovtsev")
-	assert.Equal(t, id.ReversePeopleDict[2], "Máximo Cuadros")
-	assert.Equal(t, id.ReversePeopleDict[3], "<unmatched>")
+	assert.Equal(t, len(id.ReversedPeopleDict), 4)
+	assert.Equal(t, id.ReversedPeopleDict[0], "Linus Torvalds")
+	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim Markovtsev")
+	assert.Equal(t, id.ReversedPeopleDict[2], "Máximo Cuadros")
+	assert.Equal(t, id.ReversedPeopleDict[3], "<unmatched>")
 }
 
 /*
@@ -128,7 +128,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 	}
 	id.GeneratePeopleDict(commits)
 	assert.True(t, len(id.PeopleDict) >= 7)
-	assert.True(t, len(id.ReversePeopleDict) >= 3)
+	assert.True(t, len(id.ReversedPeopleDict) >= 3)
 	assert.Equal(t, id.PeopleDict["vadim markovtsev"], 0)
 	assert.Equal(t, id.PeopleDict["vadim@sourced.tech"], 0)
 	assert.Equal(t, id.PeopleDict["gmarkhor@gmail.com"], 0)
@@ -136,9 +136,9 @@ func TestGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.PeopleDict["bzz@apache.org"], 1)
 	assert.Equal(t, id.PeopleDict["máximo cuadros"], 2)
 	assert.Equal(t, id.PeopleDict["mcuadros@gmail.com"], 2)
-	assert.Equal(t, id.ReversePeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
-	assert.Equal(t, id.ReversePeopleDict[1], "alexander bezzubov|bzz@apache.org")
-	assert.Equal(t, id.ReversePeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
+	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
+	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
+	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
 }
 
 func TestIdentityDetectorFinalize(t *testing.T) {
@@ -277,6 +277,6 @@ func TestGeneratePeopleDictMailmap(t *testing.T) {
 		"Strange Guy <vadim@sourced.tech>\nVadim Markovtsev <vadim@sourced.tech> Strange Guy <vadim@sourced.tech>")
 	commits = append(commits, fake)
 	id.GeneratePeopleDict(commits)
-	assert.Contains(t, id.ReversePeopleDict,
+	assert.Contains(t, id.ReversedPeopleDict,
 		"strange guy|vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 }

@@ -17,7 +17,7 @@ func TestRenameAnalysisMeta(t *testing.T) {
 	ra := fixtureRenameAnalysis()
 	assert.Equal(t, ra.Name(), "RenameAnalysis")
 	assert.Equal(t, len(ra.Provides()), 1)
-	assert.Equal(t, ra.Provides()[0], "renamed_changes")
+	assert.Equal(t, ra.Provides()[0], "changes")
 	assert.Equal(t, len(ra.Requires()), 2)
 	assert.Equal(t, ra.Requires()[0], "blob_cache")
 	assert.Equal(t, ra.Requires()[1], "changes")
@@ -101,12 +101,12 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	ra.SimilarityThreshold = 33
 	res, err := ra.Consume(deps)
 	assert.Nil(t, err)
-	renamed := res["renamed_changes"].(object.Changes)
+	renamed := res["changes"].(object.Changes)
 	assert.Equal(t, len(renamed), 2)
 	ra.SimilarityThreshold = 35
 	res, err = ra.Consume(deps)
 	assert.Nil(t, err)
-	renamed = res["renamed_changes"].(object.Changes)
+	renamed = res["changes"].(object.Changes)
 	assert.Equal(t, len(renamed), 3)
 }
 

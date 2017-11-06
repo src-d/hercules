@@ -13,7 +13,7 @@ func TestBurndownMeta(t *testing.T) {
 	burndown := BurndownAnalysis{}
 	assert.Equal(t, burndown.Name(), "Burndown")
 	assert.Equal(t, len(burndown.Provides()), 0)
-	required := [...]string{"file_diff", "renamed_changes", "blob_cache", "day", "author"}
+	required := [...]string{"file_diff", "changes", "blob_cache", "day", "author"}
 	for _, name := range required {
 		assert.Contains(t, burndown.Requires(), name)
 	}
@@ -84,7 +84,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		},
 	},
 	}
-	deps["renamed_changes"] = changes
+	deps["changes"] = changes
 	fd := fixtureFileDiff()
 	result, err := fd.Consume(deps)
 	assert.Nil(t, err)
@@ -181,7 +181,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps["renamed_changes"] = changes
+	deps["changes"] = changes
 	fd = fixtureFileDiff()
 	result, err = fd.Consume(deps)
 	assert.Nil(t, err)

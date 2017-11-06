@@ -25,6 +25,8 @@ func (days *DaysSinceStart) Requires() []string {
 	return []string{}
 }
 
+func (days *DaysSinceStart) Construct(facts map[string]interface{}) {}
+
 func (days *DaysSinceStart) Initialize(repository *git.Repository) {
 	days.day0 = time.Time{}
 	days.previousDay = 0
@@ -48,4 +50,8 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 
 func (days *DaysSinceStart) Finalize() interface{} {
 	return nil
+}
+
+func init() {
+  Registry.Register(&DaysSinceStart{})
 }

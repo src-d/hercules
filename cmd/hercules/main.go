@@ -216,10 +216,10 @@ func main() {
 	if withPeople || withCouples {
 		if people_dict_path != "" {
 			idMatcher.LoadPeopleDict(people_dict_path)
-			peopleCount = len(idMatcher.ReversePeopleDict) - 1
+			peopleCount = len(idMatcher.ReversedPeopleDict) - 1
 		} else {
 			idMatcher.GeneratePeopleDict(commits)
-			peopleCount = len(idMatcher.ReversePeopleDict)
+			peopleCount = len(idMatcher.ReversedPeopleDict)
 		}
 	}
 	pipeline.AddItem(idMatcher)
@@ -236,8 +236,8 @@ func main() {
 		coupler = &hercules.Couples{PeopleNumber: peopleCount}
 		pipeline.AddItem(coupler)
 	}
-
-	pipeline.Initialize()
+	facts := map[string]interface{}{}
+	pipeline.Initialize(facts)
 	result, err := pipeline.Run(commits)
 	if err != nil {
 		panic(err)
@@ -280,11 +280,11 @@ func main() {
 	if !protobuf {
 		printResults(uri, begin, end, granularity, sampling,
 			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, idMatcher.ReversePeopleDict)
+			burndownResults, couplesResult, idMatcher.ReversedPeopleDict)
 	} else {
 		serializeResults(uri, begin, end, granularity, sampling,
 			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, idMatcher.ReversePeopleDict)
+			burndownResults, couplesResult, idMatcher.ReversedPeopleDict)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
+	"path"
 )
 
 type testPipelineItem struct {
@@ -33,6 +34,9 @@ func (item *testPipelineItem) Provides() []string {
 
 func (item *testPipelineItem) Requires() []string {
 	return []string{}
+}
+
+func (item *testPipelineItem) Construct(facts map[string]interface{}) {
 }
 
 func (item *testPipelineItem) Initialize(repository *git.Repository) {
@@ -80,6 +84,9 @@ func (item *dependingTestPipelineItem) Requires() []string {
 	return arr[:]
 }
 
+func (item *dependingTestPipelineItem) Construct(facts map[string]interface{}) {
+}
+
 func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) {
 }
 
@@ -101,7 +108,7 @@ func TestPipelineRun(t *testing.T) {
 	pipeline := NewPipeline(testRepository)
 	item := &testPipelineItem{}
 	pipeline.AddItem(item)
-	pipeline.Initialize()
+	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
@@ -193,7 +200,7 @@ func TestPipelineDeps(t *testing.T) {
 	item2 := &testPipelineItem{}
 	pipeline.AddItem(item1)
 	pipeline.AddItem(item2)
-	pipeline.Initialize()
+	pipeline.Initialize(map[string]interface{}{})
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
@@ -209,13 +216,52 @@ func TestPipelineError(t *testing.T) {
 	item := &testPipelineItem{}
 	item.TestError = true
 	pipeline.AddItem(item)
-	pipeline.Initialize()
+	pipeline.Initialize(map[string]interface{}{})
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
+}
+
+func TestPipelineSerialize(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.DeployItem(&BurndownAnalysis{})
+	facts := map[string]interface{}{}
+	facts["Pipeline.DryRun"] = true
+	tmpdir, _ := ioutil.TempDir("", "hercules-")
+	defer os.RemoveAll(tmpdir)
+	dotpath := path.Join(tmpdir, "graph.dot")
+	facts["Pipeline.DumpPath"] = dotpath
+	pipeline.Initialize(facts)
+	bdot, _ := ioutil.ReadFile(dotpath)
+	dot := string(bdot)
+	assert.Equal(t, `digraph Hercules {
+  "6 BlobCache" -> "7 [blob_cache]"
+  "0 DaysSinceStart" -> "3 [day]"
+  "10 FileDiff" -> "12 [file_diff]"
+  "15 FileDiffRefiner" -> "16 Burndown"
+  "1 IdentityDetector" -> "4 [author]"
+  "8 RenameAnalysis" -> "16 Burndown"
+  "8 RenameAnalysis" -> "10 FileDiff"
+  "8 RenameAnalysis" -> "9 UAST"
+  "8 RenameAnalysis" -> "13 UASTChanges"
+  "2 TreeDiff" -> "5 [changes]"
+  "9 UAST" -> "11 [uasts]"
+  "13 UASTChanges" -> "14 [changed_uasts]"
+  "4 [author]" -> "16 Burndown"
+  "7 [blob_cache]" -> "16 Burndown"
+  "7 [blob_cache]" -> "10 FileDiff"
+  "7 [blob_cache]" -> "8 RenameAnalysis"
+  "7 [blob_cache]" -> "9 UAST"
+  "14 [changed_uasts]" -> "15 FileDiffRefiner"
+  "5 [changes]" -> "6 BlobCache"
+  "5 [changes]" -> "8 RenameAnalysis"
+  "3 [day]" -> "16 Burndown"
+  "12 [file_diff]" -> "15 FileDiffRefiner"
+  "11 [uasts]" -> "13 UASTChanges"
+}`, dot)
 }
 
 func init() {

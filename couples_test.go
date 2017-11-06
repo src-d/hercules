@@ -20,7 +20,7 @@ func TestCouplesMeta(t *testing.T) {
 	assert.Equal(t, len(c.Provides()), 0)
 	assert.Equal(t, len(c.Requires()), 2)
 	assert.Equal(t, c.Requires()[0], "author")
-	assert.Equal(t, c.Requires()[1], "renamed_changes")
+	assert.Equal(t, c.Requires()[1], "changes")
 }
 
 func generateChanges(names ...string) object.Changes {
@@ -63,15 +63,15 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	c := fixtureCouples()
 	deps := map[string]interface{}{}
 	deps["author"] = 0
-	deps["renamed_changes"] = generateChanges("+two", "+four", "+six")
+	deps["changes"] = generateChanges("+two", "+four", "+six")
 	c.Consume(deps)
-	deps["renamed_changes"] = generateChanges("+one", "-two", "=three", ">four>five")
+	deps["changes"] = generateChanges("+one", "-two", "=three", ">four>five")
 	c.Consume(deps)
 	deps["author"] = 1
-	deps["renamed_changes"] = generateChanges("=one", "=three", "-six")
+	deps["changes"] = generateChanges("=one", "=three", "-six")
 	c.Consume(deps)
 	deps["author"] = 2
-	deps["renamed_changes"] = generateChanges("=five")
+	deps["changes"] = generateChanges("=five")
 	c.Consume(deps)
 	assert.Equal(t, len(c.people[0]), 5)
 	assert.Equal(t, c.people[0]["one"], 1)
