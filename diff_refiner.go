@@ -21,6 +21,11 @@ func (ref *FileDiffRefiner) Requires() []string {
 	return arr[:]
 }
 
+func (ref *FileDiffRefiner) Features() []string {
+	arr := [...]string{"uast"}
+	return arr[:]
+}
+
 func (ref *FileDiffRefiner) Construct(facts map[string]interface{}) {}
 
 func (ref *FileDiffRefiner) Initialize(repository *git.Repository) {

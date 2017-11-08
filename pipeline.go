@@ -38,6 +38,13 @@ type PipelineItem interface {
 	Finalize() interface{}
 }
 
+type FeaturedPipelineItem interface {
+	PipelineItem
+	// Features returns the list of names which enable this item to be automatically inserted
+	// in Pipeline.DeployItem().
+	Features() []string
+}
+
 type PipelineItemRegistry struct {
 	provided map[string][]reflect.Type
 }
@@ -85,18 +92,24 @@ type Pipeline struct {
 	// repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 
-	// items are the registered analysers in the pipeline.
+	// items are the registered building blocks in the pipeline. The order defines the
+	// execution sequence.
 	items []PipelineItem
-
-	// plan is the resolved execution sequence.
-	plan []PipelineItem
 
 	// the collection of parameters to create items.
 	facts map[string]interface{}
+
+	// Feature flags which enable the corresponding items.
+	features map[string]bool
 }
 
 func NewPipeline(repository *git.Repository) *Pipeline {
-	return &Pipeline{repository: repository, items: []PipelineItem{}, plan: []PipelineItem{}}
+	return &Pipeline{
+		repository: repository,
+		items: []PipelineItem{},
+		facts: map[string]interface{}{},
+		features: map[string]bool{},
+	}
 }
 
 func (pipeline *Pipeline) GetFact(name string) interface{} {
@@ -105,6 +118,14 @@ func (pipeline *Pipeline) GetFact(name string) interface{} {
 
 func (pipeline *Pipeline) SetFact(name string, value interface{}) {
 	pipeline.facts[name] = value
+}
+
+func (pipeline *Pipeline) GetFeature(name string) bool {
+	return pipeline.features[name]
+}
+
+func (pipeline *Pipeline) SetFeature(name string) {
+	pipeline.features[name] = true
 }
 
 func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
@@ -119,6 +140,19 @@ func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
 		for _, dep := range head.Requires() {
 		  for _, sibling := range Registry.Summon(dep) {
 			  if _, exists := added[sibling.Name()]; !exists {
+				  disabled := false
+				  // If this item supports features, check them against the activated in pipeline.features
+				  if fpi, matches := interface{}(sibling).(FeaturedPipelineItem); matches {
+					  for _, feature := range fpi.Features() {
+						  if !pipeline.features[feature] {
+							  disabled = true
+							  break
+						  }
+					  }
+				  }
+				  if disabled {
+					  continue
+				  }
 				  added[sibling.Name()] = sibling
 				  queue = append(queue, sibling)
 				  pipeline.AddItem(sibling)
@@ -171,7 +205,7 @@ func (pipeline *Pipeline) Commits() []*object.Commit {
 	return result
 }
 
-func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
+func (pipeline *Pipeline) resolve(dumpPath string) {
 	graph := toposort.NewGraph()
 	name2item := map[string]PipelineItem{}
 	ambiguousMap := map[string][]string{}
@@ -256,30 +290,28 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 			graph.ReindexNode(key)
 		}
 	}
-	if dumpPath, exists := facts["Pipeline.DumpPath"].(string); exists {
-		ioutil.WriteFile(dumpPath, []byte(graph.Serialize([]string{})), 0666)
-	}
 	var graphCopy *toposort.Graph
-	if _, exists := facts["Pipeline.DumpPath"].(string); exists {
+	if dumpPath != "" {
 		graphCopy = graph.Copy()
 	}
 	strplan, ok := graph.Toposort()
 	if !ok {
 		panic("Failed to resolve pipeline dependencies.")
 	}
+	pipeline.items = make([]PipelineItem, 0, len(pipeline.items))
 	for _, key := range strplan {
-		item, ok := name2item[key]
-		if ok {
-			pipeline.plan = append(pipeline.plan, item)
+		if item, ok := name2item[key]; ok {
+			pipeline.items = append(pipeline.items, item)
 		}
 	}
-	if len(pipeline.plan) != len(pipeline.items) {
-		panic("Internal pipeline dependency resolution error.")
-	}
-	if dumpPath, exists := facts["Pipeline.DumpPath"].(string); exists {
+	if dumpPath != "" {
 		ioutil.WriteFile(dumpPath, []byte(graphCopy.Serialize(strplan)), 0666)
 	}
-	if dryRun, exists := facts["Pipeline.DryRun"].(bool); exists && dryRun {
+}
+
+func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
+	pipeline.resolve(facts["Pipeline.DumpPath"].(string))
+	if facts["Pipeline.DryRun"].(bool) {
 		return
 	}
 	for _, item := range pipeline.items {
@@ -303,7 +335,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[PipelineItem]interf
 	for index, commit := range commits {
 		onProgress(index, len(commits))
 		state := map[string]interface{}{"commit": commit, "index": index}
-		for _, item := range pipeline.plan {
+		for _, item := range pipeline.items {
 			update, err := item.Consume(state)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s failed on commit #%d %s\n",

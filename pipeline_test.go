@@ -227,6 +227,7 @@ func TestPipelineError(t *testing.T) {
 
 func TestPipelineSerialize(t *testing.T) {
 	pipeline := NewPipeline(testRepository)
+	pipeline.SetFeature("uast")
 	pipeline.DeployItem(&BurndownAnalysis{})
 	facts := map[string]interface{}{}
 	facts["Pipeline.DryRun"] = true
@@ -261,6 +262,38 @@ func TestPipelineSerialize(t *testing.T) {
   "3 [day]" -> "16 Burndown"
   "12 [file_diff]" -> "15 FileDiffRefiner"
   "11 [uasts]" -> "13 UASTChanges"
+}`, dot)
+}
+
+func TestPipelineSerializeNoUast(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	// pipeline.SetFeature("uast")
+	pipeline.DeployItem(&BurndownAnalysis{})
+	facts := map[string]interface{}{}
+	facts["Pipeline.DryRun"] = true
+	tmpdir, _ := ioutil.TempDir("", "hercules-")
+	defer os.RemoveAll(tmpdir)
+	dotpath := path.Join(tmpdir, "graph.dot")
+	facts["Pipeline.DumpPath"] = dotpath
+	pipeline.Initialize(facts)
+	bdot, _ := ioutil.ReadFile(dotpath)
+	dot := string(bdot)
+	assert.Equal(t, `digraph Hercules {
+  "6 BlobCache" -> "7 [blob_cache]"
+  "0 DaysSinceStart" -> "3 [day]"
+  "9 FileDiff" -> "10 [file_diff]"
+  "1 IdentityDetector" -> "4 [author]"
+  "8 RenameAnalysis" -> "11 Burndown"
+  "8 RenameAnalysis" -> "9 FileDiff"
+  "2 TreeDiff" -> "5 [changes]"
+  "4 [author]" -> "11 Burndown"
+  "7 [blob_cache]" -> "11 Burndown"
+  "7 [blob_cache]" -> "9 FileDiff"
+  "7 [blob_cache]" -> "8 RenameAnalysis"
+  "5 [changes]" -> "6 BlobCache"
+  "5 [changes]" -> "8 RenameAnalysis"
+  "3 [day]" -> "11 Burndown"
+  "10 [file_diff]" -> "11 Burndown"
 }`, dot)
 }
 

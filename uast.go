@@ -68,6 +68,11 @@ func (exr *UASTExtractor) Requires() []string {
 	return arr[:]
 }
 
+func (exr *UASTExtractor) Features() []string {
+	arr := [...]string{"uast"}
+	return arr[:]
+}
+
 func (exr *UASTExtractor) Construct(facts map[string]interface{}) {
 	if val, exists := facts["UAST.Endpoint"].(string); exists {
 		exr.Endpoint = val
@@ -242,6 +247,11 @@ func (uc *UASTChanges) Requires() []string {
 	return arr[:]
 }
 
+func (uc *UASTChanges) Features() []string {
+	arr := [...]string{"uast"}
+	return arr[:]
+}
+
 func (uc *UASTChanges) Construct(facts map[string]interface{}) {}
 
 func (uc *UASTChanges) Initialize(repository *git.Repository) {
@@ -297,6 +307,11 @@ func (saver *UASTChangesSaver) Provides() []string {
 
 func (saver *UASTChangesSaver) Requires() []string {
 	arr := [...]string{"changed_uasts"}
+	return arr[:]
+}
+
+func (saver *UASTChangesSaver) Features() []string {
+	arr := [...]string{"uast"}
 	return arr[:]
 }
 
