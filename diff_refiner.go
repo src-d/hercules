@@ -26,7 +26,11 @@ func (ref *FileDiffRefiner) Features() []string {
 	return arr[:]
 }
 
-func (ref *FileDiffRefiner) Construct(facts map[string]interface{}) {}
+func (ref *FileDiffRefiner) ListConfigurationOptions() []ConfigurationOption {
+	return []ConfigurationOption{}
+}
+
+func (ref *FileDiffRefiner) Configure(facts map[string]interface{}) {}
 
 func (ref *FileDiffRefiner) Initialize(repository *git.Repository) {
 }
@@ -40,18 +44,14 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 		}
 	}
 	diffs := deps["file_diff"].(map[string]FileDiffData)
-	for fileName, _/*diff*/ := range diffs {
-		_/*change*/ = changes[fileName]
+	for fileName, _ /*diff*/ := range diffs {
+		_ /*change*/ = changes[fileName]
 		// TODO: scan diff line by line
 	}
 	result := map[string]FileDiffData{}
 	return map[string]interface{}{"file_diff": result}, nil
 }
 
-func (ref *FileDiffRefiner) Finalize() interface{} {
-	return nil
-}
-
 func init() {
-  Registry.Register(&FileDiffRefiner{})
+	Registry.Register(&FileDiffRefiner{})
 }

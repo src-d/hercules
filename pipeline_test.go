@@ -36,7 +36,7 @@ func (item *testPipelineItem) Requires() []string {
 	return []string{}
 }
 
-func (item *testPipelineItem) Construct(facts map[string]interface{}) {
+func (item *testPipelineItem) Configure(facts map[string]interface{}) {
 }
 
 func (item *testPipelineItem) Initialize(repository *git.Repository) {
@@ -84,7 +84,7 @@ func (item *dependingTestPipelineItem) Requires() []string {
 	return arr[:]
 }
 
-func (item *dependingTestPipelineItem) Construct(facts map[string]interface{}) {
+func (item *dependingTestPipelineItem) Configure(facts map[string]interface{}) {
 }
 
 func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) {

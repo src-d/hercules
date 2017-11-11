@@ -184,10 +184,10 @@ func TestBlobCacheConsumeBadHashes(t *testing.T) {
 	assert.Nil(t, err)
 	changes[0] = &object.Change{From: object.ChangeEntry{},
 		To: object.ChangeEntry{
-		Name:      "labours.py",
-		Tree:      treeTo,
-		TreeEntry: object.TreeEntry{},
-	}}
+			Name:      "labours.py",
+			Tree:      treeTo,
+			TreeEntry: object.TreeEntry{},
+		}}
 	result, err = fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
@@ -220,11 +220,6 @@ func TestBlobCacheConsumeInvalidHash(t *testing.T) {
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
-}
-
-func TestBlobCacheFinalize(t *testing.T) {
-	outcome := fixtureBlobCache().Finalize()
-	assert.Nil(t, outcome)
 }
 
 func TestBlobCacheGetBlob(t *testing.T) {

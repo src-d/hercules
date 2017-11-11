@@ -1,6 +1,8 @@
 package hercules
 
 import (
+	"fmt"
+	"os"
 	"sort"
 	"unicode/utf8"
 
@@ -20,6 +22,10 @@ type RenameAnalysis struct {
 	repository *git.Repository
 }
 
+const (
+	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
+)
+
 func (ra *RenameAnalysis) Name() string {
 	return "RenameAnalysis"
 }
@@ -34,15 +40,27 @@ func (ra *RenameAnalysis) Requires() []string {
 	return arr[:]
 }
 
-func (ra *RenameAnalysis) Construct(facts map[string]interface{}) {
-	if val, exists := facts["RenameAnalysis.SimilarityThreshold"].(int); exists {
+func (ra *RenameAnalysis) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        ConfigBurndownGranularity,
+		Description: "How many days there are in a single band.",
+		Flag:        "M",
+		Type:        IntConfigurationOption,
+		Default:     90},
+	}
+	return options[:]
+}
+
+func (ra *RenameAnalysis) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigRenameAnalysisSimilarityThreshold].(int); exists {
 		ra.SimilarityThreshold = val
 	}
 }
 
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
-		panic("hercules.RenameAnalysis: an invalid SimilarityThreshold was specified")
+		fmt.Fprintln(os.Stderr, "Warning: adjusted the similarity threshold to 90")
+		ra.SimilarityThreshold = 90
 	}
 	ra.repository = repository
 }
@@ -158,10 +176,6 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	return map[string]interface{}{"changes": reduced_changes}, nil
 }
 
-func (ra *RenameAnalysis) Finalize() interface{} {
-	return nil
-}
-
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 	return abs64(size1-size2)*100/max64(1, min64(size1, size2)) <=
 		int64(100-ra.SimilarityThreshold)
@@ -241,5 +255,5 @@ func (slice sortableBlobs) Swap(i, j int) {
 }
 
 func init() {
-  Registry.Register(&RenameAnalysis{})
+	Registry.Register(&RenameAnalysis{})
 }

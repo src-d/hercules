@@ -81,9 +81,3 @@ func TestTreeDiffConsumeFirst(t *testing.T) {
 		assert.Equal(t, action, merkletrie.Insert)
 	}
 }
-
-func TestTreeDiffFinalize(t *testing.T) {
-	id := fixtureTreeDiff()
-	res := id.Finalize()
-	assert.Nil(t, res)
-}

@@ -40,8 +40,12 @@ func (couples *Couples) Requires() []string {
 	return arr[:]
 }
 
-func (couples *Couples) Construct(facts map[string]interface{}) {
-	if val, exists := facts["PeopleNumber"].(int); exists {
+func (couples *Couples) ListConfigurationOptions() []ConfigurationOption {
+	return []ConfigurationOption{}
+}
+
+func (couples *Couples) Configure(facts map[string]interface{}) {
+	if val, exists := facts[FactIdentityDetectorPeopleCount].(int); exists {
 		couples.PeopleNumber = val
 	}
 }
@@ -169,5 +173,5 @@ func (couples *Couples) Finalize() interface{} {
 }
 
 func init() {
-  Registry.Register(&Couples{})
+	Registry.Register(&Couples{})
 }

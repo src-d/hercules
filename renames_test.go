@@ -34,12 +34,6 @@ func TestRenameAnalysisInitializeInvalidThreshold(t *testing.T) {
 	ra.Initialize(testRepository)
 }
 
-func TestRenameAnalysisFinalize(t *testing.T) {
-	ra := fixtureRenameAnalysis()
-	r := ra.Finalize()
-	assert.Nil(t, r)
-}
-
 func TestRenameAnalysisConsume(t *testing.T) {
 	ra := fixtureRenameAnalysis()
 	changes := make(object.Changes, 3)

@@ -1,6 +1,7 @@
 package hercules
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -8,27 +9,41 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jeffail/tunny"
 	"gopkg.in/bblfsh/client-go.v1"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/src-d/enry.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/utils/ioutil"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
 type UASTExtractor struct {
-	Endpoint string
-	Context  func() context.Context
-	PoolSize int
-	Extensions map[string]bool
-	FailOnErrors bool
+	Endpoint       string
+	Context        func() context.Context
+	PoolSize       int
+	Languages      map[string]bool
+	FailOnErrors   bool
+	ProcessedFiles map[string]int
 
 	clients []*bblfsh.BblfshClient
-	pool   *tunny.WorkPool
+	pool    *tunny.WorkPool
 }
+
+const (
+	UAST_EXTRACTION_SKIPPED = -(1 << 31)
+
+	ConfigUASTEndpoint     = "UAST.Endpoint"
+	ConfigUASTTimeout      = "UAST.Timeout"
+	ConfigUASTPoolSize     = "UAST.PoolSize"
+	ConfigUASTFailOnErrors = "UAST.FailOnErrors"
+	ConfigUASTLanguages    = "UAST.Languages"
+)
 
 type uastTask struct {
 	Client *bblfsh.BblfshClient
@@ -41,7 +56,7 @@ type uastTask struct {
 
 type worker struct {
 	Client *bblfsh.BblfshClient
-	Job func(interface{}) interface{}
+	Job    func(interface{}) interface{}
 }
 
 func (w worker) TunnyReady() bool {
@@ -73,20 +88,58 @@ func (exr *UASTExtractor) Features() []string {
 	return arr[:]
 }
 
-func (exr *UASTExtractor) Construct(facts map[string]interface{}) {
-	if val, exists := facts["UAST.Endpoint"].(string); exists {
+func (exr *UASTExtractor) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        ConfigUASTEndpoint,
+		Description: "How many days there are in a single band.",
+		Flag:        "bblfsh",
+		Type:        StringConfigurationOption,
+		Default:     "0.0.0.0:9432"}, {
+		Name:        ConfigUASTTimeout,
+		Description: "Babelfish's server timeout in seconds.",
+		Flag:        "bblfsh-timeout",
+		Type:        IntConfigurationOption,
+		Default:     20}, {
+		Name:        ConfigUASTPoolSize,
+		Description: "Number of goroutines to extract UASTs.",
+		Flag:        "bblfsh-pool-size",
+		Type:        IntConfigurationOption,
+		Default:     runtime.NumCPU()}, {
+		Name:        ConfigUASTFailOnErrors,
+		Description: "Panic if there is a UAST extraction error.",
+		Flag:        "bblfsh-fail-on-error",
+		Type:        BoolConfigurationOption,
+		Default:     false}, {
+		Name:        ConfigUASTLanguages,
+		Description: "Programming languages from which to extract UASTs. Separated by comma \",\".",
+		Flag:        "languages",
+		Type:        StringConfigurationOption,
+		Default:     "Python,Java"},
+	}
+	return options[:]
+}
+
+func (exr *UASTExtractor) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigUASTEndpoint].(string); exists {
 		exr.Endpoint = val
 	}
-	if val, exists := facts["UAST.Context"].(func() context.Context); exists {
-		exr.Context = val
+	if val, exists := facts["UAST.Timeout"].(int); exists {
+		exr.Context = func() context.Context {
+			ctx, _ := context.WithTimeout(context.Background(),
+				time.Duration(val)*time.Second)
+			return ctx
+		}
 	}
-	if val, exists := facts["UAST.PoolSize"].(int); exists {
+	if val, exists := facts[ConfigUASTPoolSize].(int); exists {
 		exr.PoolSize = val
 	}
-	if val, exists := facts["UAST.Extensions"].(map[string]bool); exists {
-		exr.Extensions = val
+	if val, exists := facts[ConfigUASTLanguages].(string); exists {
+		exr.Languages = map[string]bool{}
+		for _, lang := range strings.Split(val, ",") {
+			exr.Languages[lang] = true
+		}
 	}
-	if val, exists := facts["UAST.FailOnErrors"].(bool); exists {
+	if val, exists := facts[ConfigUASTFailOnErrors].(bool); exists {
 		exr.FailOnErrors = val
 	}
 }
@@ -119,6 +172,7 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 	if err != nil {
 		panic(err)
 	}
+	exr.ProcessedFiles = map[string]int{}
 }
 
 func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -130,16 +184,25 @@ func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]inter
 	status := make(chan int)
 	pending := 0
 	submit := func(change *object.Change) {
-		var ext string
-		dotpos := strings.LastIndex(change.To.Name, ".")
-		if dotpos >= 0 {
-			ext = change.To.Name[dotpos + 1:]
-		} else {
-			ext = change.To.Name
-		}
-		_, exists := exr.Extensions[ext]
-		if !exists {
-			return
+		{
+			reader, err := cache[change.To.TreeEntry.Hash].Reader()
+			if err != nil {
+				errs = append(errs, err)
+				return
+			}
+			defer ioutil.CheckClose(reader, &err)
+
+			buf := new(bytes.Buffer)
+			if _, err := buf.ReadFrom(reader); err != nil {
+				errs = append(errs, err)
+				return
+			}
+			lang, _ := enry.GetLanguageByContent(change.To.Name, buf.Bytes())
+			if _, exists := exr.Languages[lang]; !exists {
+				exr.ProcessedFiles[change.To.Name] = UAST_EXTRACTION_SKIPPED
+				return
+			}
+			exr.ProcessedFiles[change.To.Name]++
 		}
 		pending++
 		exr.pool.SendWorkAsync(uastTask{
@@ -180,12 +243,8 @@ func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]inter
 	return map[string]interface{}{"uasts": uasts}, nil
 }
 
-func (exr *UASTExtractor) Finalize() interface{} {
-	return nil
-}
-
 func (exr *UASTExtractor) extractUAST(
-		client *bblfsh.BblfshClient, file *object.File) (*uast.Node, error) {
+	client *bblfsh.BblfshClient, file *object.File) (*uast.Node, error) {
 	request := client.NewParseRequest()
 	contents, err := file.Contents()
 	if err != nil {
@@ -225,12 +284,12 @@ func (exr *UASTExtractor) extractTask(data interface{}) interface{} {
 
 type UASTChange struct {
 	Before *uast.Node
-	After *uast.Node
+	After  *uast.Node
 	Change *object.Change
 }
 
 type UASTChanges struct {
-  cache map[plumbing.Hash]*uast.Node
+	cache map[plumbing.Hash]*uast.Node
 }
 
 func (uc *UASTChanges) Name() string {
@@ -252,14 +311,18 @@ func (uc *UASTChanges) Features() []string {
 	return arr[:]
 }
 
-func (uc *UASTChanges) Construct(facts map[string]interface{}) {}
+func (uc *UASTChanges) ListConfigurationOptions() []ConfigurationOption {
+	return []ConfigurationOption{}
+}
+
+func (uc *UASTChanges) Configure(facts map[string]interface{}) {}
 
 func (uc *UASTChanges) Initialize(repository *git.Repository) {
 	uc.cache = map[plumbing.Hash]*uast.Node{}
 }
 
 func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-  uasts := deps["uasts"].(map[plumbing.Hash]*uast.Node)
+	uasts := deps["uasts"].(map[plumbing.Hash]*uast.Node)
 	treeDiffs := deps["changes"].(object.Changes)
 	commit := make([]UASTChange, 0, len(treeDiffs))
 	for _, change := range treeDiffs {
@@ -289,12 +352,8 @@ func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interfac
 	return map[string]interface{}{"changed_uasts": commit}, nil
 }
 
-func (uc *UASTChanges) Finalize() interface{} {
-	return nil
-}
-
 type UASTChangesSaver struct {
-  result [][]UASTChange
+	result [][]UASTChange
 }
 
 func (saver *UASTChangesSaver) Name() string {
@@ -315,7 +374,11 @@ func (saver *UASTChangesSaver) Features() []string {
 	return arr[:]
 }
 
-func (saver *UASTChangesSaver) Construct(facts map[string]interface{}) {}
+func (saver *UASTChangesSaver) ListConfigurationOptions() []ConfigurationOption {
+	return []ConfigurationOption{}
+}
+
+func (saver *UASTChangesSaver) Configure(facts map[string]interface{}) {}
 
 func (saver *UASTChangesSaver) Initialize(repository *git.Repository) {
 	saver.result = [][]UASTChange{}
@@ -332,7 +395,7 @@ func (saver *UASTChangesSaver) Finalize() interface{} {
 }
 
 func init() {
-  Registry.Register(&UASTExtractor{})
+	Registry.Register(&UASTExtractor{})
 	Registry.Register(&UASTChanges{})
 	Registry.Register(&UASTChangesSaver{})
 }

@@ -24,7 +24,11 @@ func (treediff *TreeDiff) Requires() []string {
 	return []string{}
 }
 
-func (treediff *TreeDiff) Construct(facts map[string]interface{}) {}
+func (treediff *TreeDiff) ListConfigurationOptions() []ConfigurationOption {
+	return []ConfigurationOption{}
+}
+
+func (treediff *TreeDiff) Configure(facts map[string]interface{}) {}
 
 func (treediff *TreeDiff) Initialize(repository *git.Repository) {
 	treediff.previousTree = nil
@@ -69,10 +73,6 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 	return map[string]interface{}{"changes": diff}, nil
 }
 
-func (treediff *TreeDiff) Finalize() interface{} {
-	return nil
-}
-
 func init() {
-  Registry.Register(&TreeDiff{})
+	Registry.Register(&TreeDiff{})
 }

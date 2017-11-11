@@ -15,8 +15,12 @@ type BlobCache struct {
 	IgnoreMissingSubmodules bool
 
 	repository *git.Repository
-	cache map[plumbing.Hash]*object.Blob
+	cache      map[plumbing.Hash]*object.Blob
 }
+
+const (
+	ConfigBlobCacheIgnoreMissingSubmodules = "BlobCache.IgnoreMissingSubmodules"
+)
 
 func (cache *BlobCache) Name() string {
 	return "BlobCache"
@@ -32,8 +36,19 @@ func (cache *BlobCache) Requires() []string {
 	return arr[:]
 }
 
-func (cache *BlobCache) Construct(facts map[string]interface{}) {
-	if val, exists := facts["BlobCache.IgnoreMissingSubmodules"].(bool); exists {
+func (cache *BlobCache) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name: ConfigBlobCacheIgnoreMissingSubmodules,
+		Description: "Specifies whether to panic if some submodules do not exist and thus " +
+			"the corresponding Git objects cannot be loaded.",
+		Flag:    "ignore-missing-submodules",
+		Type:    BoolConfigurationOption,
+		Default: false}}
+	return options[:]
+}
+
+func (cache *BlobCache) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigBlobCacheIgnoreMissingSubmodules].(bool); exists {
 		cache.IgnoreMissingSubmodules = val
 	}
 }
@@ -103,10 +118,6 @@ func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interfac
 	return map[string]interface{}{"blob_cache": cache}, nil
 }
 
-func (cache *BlobCache) Finalize() interface{} {
-	return nil
-}
-
 type FileGetter func(path string) (*object.File, error)
 
 func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter) (
@@ -147,5 +158,5 @@ func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter
 }
 
 func init() {
-  Registry.Register(&BlobCache{})
+	Registry.Register(&BlobCache{})
 }

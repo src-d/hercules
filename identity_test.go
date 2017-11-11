@@ -141,12 +141,6 @@ func TestGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
 }
 
-func TestIdentityDetectorFinalize(t *testing.T) {
-	id := fixtureIdentityDetector()
-	res := id.Finalize()
-	assert.Nil(t, res)
-}
-
 func TestLoadPeopleDictInvalidPath(t *testing.T) {
 	id := fixtureIdentityDetector()
 	ipath := "/xxxyyyzzzInvalidPath!hehe"

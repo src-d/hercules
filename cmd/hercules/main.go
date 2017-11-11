@@ -29,11 +29,9 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -50,8 +48,9 @@ import (
 	"gopkg.in/src-d/hercules.v2"
 	"gopkg.in/src-d/hercules.v2/stdout"
 	"gopkg.in/src-d/hercules.v2/pb"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 	"github.com/gogo/protobuf/proto"
-	"time"
 )
 
 func sortedKeys(m map[string][][]int64) []string {
@@ -80,61 +79,7 @@ func (writer OneLineWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func main() {
-	var protobuf bool
-	var withFiles bool
-	var withPeople bool
-	var withCouples bool
-	var withUasts bool
-	var people_dict_path string
-	var profile bool
-	var granularity, sampling, similarityThreshold int
-	var bblfshEndpoint string
-	var bblfshTimeout int
-	var uastPoolSize int
-	var commitsFile string
-	var ignoreMissingSubmodules bool
-	var debug bool
-	flag.BoolVar(&withFiles, "files", false, "Output detailed statistics per each file.")
-	flag.BoolVar(&withPeople, "people", false, "Output detailed statistics per each developer.")
-	flag.BoolVar(&withCouples, "couples", false, "Gather the co-occurrence matrix "+
-		"for files and people.")
-	flag.BoolVar(&withUasts, "uasts", false, "Output pairs of Universal Abstract Syntax Trees for " +
-			"every changed file in each commit.")
-	flag.StringVar(&people_dict_path, "people-dict", "", "Path to the developers' email associations.")
-	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
-	flag.IntVar(&granularity, "granularity", 30, "How many days there are in a single band.")
-	flag.IntVar(&sampling, "sampling", 30, "How frequently to record the state in days.")
-	flag.IntVar(&similarityThreshold, "M", 90,
-		"A threshold on the similarity index used to detect renames.")
-	flag.BoolVar(&debug, "debug", false, "Validate the trees on each step.")
-	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
-		"commit history to follow instead of the default rev-list "+
-		"--first-parent. The format is the list of hashes, each hash on a "+
-		"separate line. The first hash is the root.")
-	flag.BoolVar(&ignoreMissingSubmodules, "ignore-missing-submodules", false,
-		"Do not panic on submodules which are not registered..")
-	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
-	flag.IntVar(&uastPoolSize, "uast-pool-size", 1, "Number of goroutines to extract UASTs.")
-	flag.StringVar(&bblfshEndpoint, "bblfsh", "0.0.0.0:9432", "Babelfish server's endpoint.")
-	flag.IntVar(&bblfshTimeout, "bblfsh-timeout", 20, "Babelfish's server timeout.")
-	flag.Parse()
-	if granularity <= 0 {
-		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
-		granularity = 1
-	}
-	if profile {
-		go http.ListenAndServe("localhost:6060", nil)
-		prof, _ := os.Create("hercules.pprof")
-		pprof.StartCPUProfile(prof)
-		defer pprof.StopCPUProfile()
-	}
-	if len(flag.Args()) == 0 || len(flag.Args()) > 3 {
-		fmt.Fprint(os.Stderr,
-			"Usage: hercules <path to repo or URL> [<disk cache path>]\n")
-		os.Exit(1)
-	}
-	uri := flag.Arg(0)
+func loadRepository(uri string) *git.Repository {
 	var repository *git.Repository
 	var backend storage.Storer
 	var err error
@@ -152,7 +97,7 @@ func main() {
 		} else {
 			backend = memory.NewStorage()
 		}
-		fmt.Fprint(os.Stderr, "cloning...\r")
+		fmt.Fprint(os.Stderr, "connecting...\r")
 		repository, err = git.Clone(backend, nil, &git.CloneOptions{
 			URL: uri,
 			Progress: OneLineWriter{Writer: os.Stderr},
@@ -167,31 +112,76 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	return repository
+}
+
+func main() {
+	var protobuf bool
+	var profile bool
+	var commitsFile string
+	var withBurndown bool
+	var withCouples bool
+	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
+	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
+		"commit history to follow instead of the default rev-list "+
+		"--first-parent. The format is the list of hashes, each hash on a "+
+		"separate line. The first hash is the root.")
+	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
+	flag.BoolVar(&withBurndown, "burndown", false, "Analyse lines burndown.")
+	flag.BoolVar(&withCouples, "couples", false, "Analyse file and developer couples.")
+	facts := hercules.Registry.AddFlags()
+	flag.Parse()
+
+	if profile {
+		go http.ListenAndServe("localhost:6060", nil)
+		prof, _ := os.Create("hercules.pprof")
+		pprof.StartCPUProfile(prof)
+		defer pprof.StopCPUProfile()
+	}
+	if len(flag.Args()) == 0 || len(flag.Args()) > 3 {
+		fmt.Fprint(os.Stderr,
+			"Usage: hercules <path to repo or URL> [<disk cache path>]\n")
+		os.Exit(1)
+	}
+	uri := flag.Arg(0)
+	repository := loadRepository(uri)
 
 	// core logic
 	pipeline := hercules.NewPipeline(repository)
+	pipeline.SetFeaturesFromFlags()
+	progress := mpb.New(mpb.Output(os.Stderr))
+	var bar *mpb.Bar
 	pipeline.OnProgress = func(commit, length int) {
-		if commit < length {
-			fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
-		} else {
-			fmt.Fprint(os.Stderr, "finalizing...    \r")
+		if bar == nil {
+			bar = progress.AddBar(int64(length + 1),
+				mpb.PrependDecorators(decor.DynamicName(
+					func (stats *decor.Statistics) string {
+						if stats.Current < stats.Total {
+							return fmt.Sprintf("%d / %d", stats.Current, length)
+						}
+						return "finalizing"
+					}, 10, 0)),
+				mpb.AppendDecorators(decor.ETA(4, 0)),
+			)
 		}
+		bar.Incr(commit - int(bar.Current()))
 	}
-	// list of commits belonging to the default branch, from oldest to newest
-	// rev-list --first-parent
+
 	var commits []*object.Commit
 	if commitsFile == "" {
+		// list of commits belonging to the default branch, from oldest to newest
+		// rev-list --first-parent
 		commits = pipeline.Commits()
 	} else {
+		var err error
 		commits, err = hercules.LoadCommitsFromFile(commitsFile, repository)
 		if err != nil {
 			panic(err)
 		}
 	}
+	facts["commits"] = commits
 
-	pipeline.AddItem(&hercules.BlobCache{
-		IgnoreMissingSubmodules: ignoreMissingSubmodules,
-	})
+	/*
 	var uastSaver *hercules.UASTChangesSaver
 	if withUasts {
 		pipeline.AddItem(&hercules.UASTExtractor{
@@ -207,42 +197,26 @@ func main() {
 		uastSaver = &hercules.UASTChangesSaver{}
 		pipeline.AddItem(uastSaver)
 	}
-	pipeline.AddItem(&hercules.DaysSinceStart{})
-	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarityThreshold})
-	pipeline.AddItem(&hercules.TreeDiff{})
-	pipeline.AddItem(&hercules.FileDiff{})
-	idMatcher := &hercules.IdentityDetector{}
-	var peopleCount int
-	if withPeople || withCouples {
-		if people_dict_path != "" {
-			idMatcher.LoadPeopleDict(people_dict_path)
-			peopleCount = len(idMatcher.ReversedPeopleDict) - 1
-		} else {
-			idMatcher.GeneratePeopleDict(commits)
-			peopleCount = len(idMatcher.ReversedPeopleDict)
-		}
+	*/
+	var burndowner hercules.PipelineItem
+	if withBurndown {
+		burndowner = pipeline.DeployItem(&hercules.BurndownAnalysis{})
 	}
-	pipeline.AddItem(idMatcher)
-	burndowner := &hercules.BurndownAnalysis{
-		Granularity:  granularity,
-		Sampling:     sampling,
-		Debug:        debug,
-		TrackFiles:   withFiles,
-		PeopleNumber: peopleCount,
-	}
-	pipeline.AddItem(burndowner)
-	var coupler *hercules.Couples
+	var coupler hercules.PipelineItem
 	if withCouples {
-		coupler = &hercules.Couples{PeopleNumber: peopleCount}
-		pipeline.AddItem(coupler)
+		coupler = pipeline.DeployItem(&hercules.Couples{})
 	}
-	facts := map[string]interface{}{}
 	pipeline.Initialize(facts)
 	result, err := pipeline.Run(commits)
 	if err != nil {
 		panic(err)
 	}
+	progress.Stop()
 	fmt.Fprint(os.Stderr, "writing...    \r")
+	_ = result
+	_ = burndowner
+	_ = coupler
+	/*
 	burndownResults := result[burndowner].(hercules.BurndownResult)
 	if len(burndownResults.GlobalHistory) == 0 {
 		return
@@ -251,6 +225,8 @@ func main() {
 	if withCouples {
 		couplesResult = result[coupler].(hercules.CouplesResult)
 	}
+	*/
+	/*
 	if withUasts {
 		changedUasts := result[uastSaver].([][]hercules.UASTChange)
 		for i, changes := range changedUasts {
@@ -275,17 +251,20 @@ func main() {
 			}
 		}
 	}
+	*/
+	/*
+	reversedPeopleDict := facts[hercules.FactIdentityDetectorReversedPeopleDict].([]string)
 	begin := commits[0].Author.When.Unix()
 	end := commits[len(commits)-1].Author.When.Unix()
 	if !protobuf {
 		printResults(uri, begin, end, granularity, sampling,
 			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, idMatcher.ReversedPeopleDict)
+			burndownResults, couplesResult, reversedPeopleDict)
 	} else {
 		serializeResults(uri, begin, end, granularity, sampling,
 			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, idMatcher.ReversedPeopleDict)
-	}
+			burndownResults, couplesResult, reversedPeopleDict)
+	}*/
 }
 
 func printResults(

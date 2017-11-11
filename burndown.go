@@ -69,6 +69,14 @@ type BurndownResult struct {
 	PeopleMatrix    [][]int64
 }
 
+const (
+	ConfigBurndownGranularity = "Burndown.Granularity"
+	ConfigBurndownSampling    = "Burndown.Sampling"
+	ConfigBurndownTrackFiles  = "Burndown.TrackFiles"
+	ConfigBurndownTrackPeople = "Burndown.TrackPeople"
+	ConfigBurndownDebug       = "Burndown.Debug"
+)
+
 func (analyser *BurndownAnalysis) Name() string {
 	return "Burndown"
 }
@@ -82,25 +90,66 @@ func (analyser *BurndownAnalysis) Requires() []string {
 	return arr[:]
 }
 
-func (analyser *BurndownAnalysis) Construct(facts map[string]interface{}) {
-	if val, exists := facts["Burndown.Granularity"].(int); exists {
+func (analyser *BurndownAnalysis) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        ConfigBurndownGranularity,
+		Description: "How many days there are in a single band.",
+		Flag:        "granularity",
+		Type:        IntConfigurationOption,
+		Default:     30}, {
+		Name:        ConfigBurndownSampling,
+		Description: "How frequently to record the state in days.",
+		Flag:        "sampling",
+		Type:        IntConfigurationOption,
+		Default:     30}, {
+		Name:        ConfigBurndownTrackFiles,
+		Description: "Record detailed statistics per each file.",
+		Flag:        "burndown-files",
+		Type:        BoolConfigurationOption,
+		Default:     false}, {
+		Name:        ConfigBurndownTrackPeople,
+		Description: "Record detailed statistics per each developer.",
+		Flag:        "burndown-people",
+		Type:        BoolConfigurationOption,
+		Default:     false}, {
+		Name:        ConfigBurndownDebug,
+		Description: "Validate the trees on each step.",
+		Flag:        "burndown-debug",
+		Type:        BoolConfigurationOption,
+		Default:     false},
+	}
+	return options[:]
+}
+
+func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigBurndownGranularity].(int); exists {
 		analyser.Granularity = val
 	}
-	if val, exists := facts["Burndown.Sampling"].(int); exists {
+	if val, exists := facts[ConfigBurndownSampling].(int); exists {
 		analyser.Sampling = val
 	}
-	if val, exists := facts["Burndown.TrackFiles"].(bool); exists {
+	if val, exists := facts[ConfigBurndownTrackFiles].(bool); exists {
 		analyser.TrackFiles = val
 	}
-	if val, exists := facts["PeopleNumber"].(int); exists {
-		analyser.PeopleNumber = val
+	if people, _ := facts[ConfigBurndownTrackPeople].(bool); people {
+		if val, exists := facts[FactIdentityDetectorPeopleCount].(int); exists {
+			analyser.PeopleNumber = val
+		}
 	}
-	if val, exists := facts["Burndown.Debug"].(bool); exists {
+	if val, exists := facts[ConfigBurndownDebug].(bool); exists {
 		analyser.Debug = val
 	}
 }
 
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
+	if analyser.Granularity <= 0 {
+		fmt.Fprintln(os.Stderr, "Warning: adjusted the granularity to 30 days")
+		analyser.Granularity = 30
+	}
+	if analyser.Sampling <= 0 {
+		fmt.Fprintln(os.Stderr, "Warning: adjusted the sampling to 30 days")
+		analyser.Sampling = 30
+	}
 	analyser.repository = repository
 	analyser.globalStatus = map[int]int64{}
 	analyser.globalHistory = [][]int64{}
@@ -551,5 +600,5 @@ func (analyser *BurndownAnalysis) updateHistories(
 }
 
 func init() {
-  Registry.Register(&BurndownAnalysis{})
+	Registry.Register(&BurndownAnalysis{})
 }

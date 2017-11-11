@@ -26,12 +26,6 @@ func TestFileDiffMeta(t *testing.T) {
 	assert.Equal(t, fd.Requires()[1], "blob_cache")
 }
 
-func TestFileDiffFinalize(t *testing.T) {
-	fd := fixtureFileDiff()
-	r := fd.Finalize()
-	assert.Nil(t, r)
-}
-
 func TestFileDiffConsume(t *testing.T) {
 	fd := fixtureFileDiff()
 	deps := map[string]interface{}{}

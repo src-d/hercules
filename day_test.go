@@ -21,12 +21,6 @@ func TestDaysSinceStartMeta(t *testing.T) {
 	assert.Equal(t, len(dss.Requires()), 0)
 }
 
-func TestDaysSinceStartFinalize(t *testing.T) {
-	dss := fixtureDaysSinceStart()
-	r := dss.Finalize()
-	assert.Nil(t, r)
-}
-
 func TestDaysSinceStartConsume(t *testing.T) {
 	dss := fixtureDaysSinceStart()
 	deps := map[string]interface{}{}

@@ -35,7 +35,11 @@ func (diff *FileDiff) Requires() []string {
 	return arr[:]
 }
 
-func (diff *FileDiff) Construct(facts map[string]interface{}) {}
+func (diff *FileDiff) ListConfigurationOptions() []ConfigurationOption {
+	return []ConfigurationOption{}
+}
+
+func (diff *FileDiff) Configure(facts map[string]interface{}) {}
 
 func (diff *FileDiff) Initialize(repository *git.Repository) {}
 
@@ -77,10 +81,6 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{"file_diff": result}, nil
 }
 
-func (diff *FileDiff) Finalize() interface{} {
-	return nil
-}
-
 func blobToString(file *object.Blob) (string, error) {
 	if file == nil {
 		return "", errors.New("Blob not cached.")
@@ -96,5 +96,5 @@ func blobToString(file *object.Blob) (string, error) {
 }
 
 func init() {
-  Registry.Register(&FileDiff{})
+	Registry.Register(&FileDiff{})
 }

@@ -4,14 +4,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 func fixtureUASTExtractor() *UASTExtractor {
 	exr := UASTExtractor{Endpoint: "0.0.0.0:9432"}
 	exr.Initialize(testRepository)
+	exr.Languages["Python"] = true
 	return &exr
 }
 
@@ -23,12 +24,6 @@ func TestUASTExtractorMeta(t *testing.T) {
 	assert.Equal(t, len(exr.Requires()), 2)
 	assert.Equal(t, exr.Requires()[0], "changes")
 	assert.Equal(t, exr.Requires()[1], "blob_cache")
-}
-
-func TestUASTExtractorFinalize(t *testing.T) {
-	exr := fixtureUASTExtractor()
-	r := exr.Finalize()
-	assert.Nil(t, r)
 }
 
 func TestUASTExtractorConsume(t *testing.T) {

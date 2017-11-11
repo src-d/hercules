@@ -3,11 +3,14 @@ package hercules
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
+	"unsafe"
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -15,6 +18,32 @@ import (
 	"gopkg.in/src-d/hercules.v2/toposort"
 )
 
+type ConfigurationOptionType int
+
+const (
+	// Boolean value type.
+	BoolConfigurationOption ConfigurationOptionType = iota
+	// Integer value type.
+	IntConfigurationOption
+	// String value type.
+	StringConfigurationOption
+)
+
+// ConfigurationOption allows for the unified, retrospective way to setup PipelineItem-s.
+type ConfigurationOption struct {
+	// Name identifies the configuration option in facts.
+	Name string
+	// Description represents the help text about the configuration option.
+	Description string
+	// Flag corresponds to the CLI token with "-" prepended.
+	Flag string
+	// Type specifies the kind of the configuration option's value.
+	Type ConfigurationOptionType
+	// Default is the initial value of the configuration option.
+	Default interface{}
+}
+
+// PipelineItem is the interface for all the units of the Git commit analysis pipeline.
 type PipelineItem interface {
 	// Name returns the name of the analysis.
 	Name() string
@@ -23,9 +52,11 @@ type PipelineItem interface {
 	Provides() []string
 	// Requires returns the list of keys of needed entities which must be supplied in Consume().
 	Requires() []string
-	// Construct performs the initial creation of the object by taking parameters from facts.
+	// ListConfigurationOptions returns the list of available options which can be consumed by Configure().
+	ListConfigurationOptions() []ConfigurationOption
+	// Configure performs the initial setup of the object by applying parameters from facts.
 	// It allows to create PipelineItems in a universal way.
-	Construct(facts map[string]interface{})
+	Configure(facts map[string]interface{})
 	// Initialize prepares and resets the item. Consume() requires Initialize()
 	// to be called at least once beforehand.
 	Initialize(*git.Repository)
@@ -34,10 +65,9 @@ type PipelineItem interface {
 	// "commit" and "index".
 	// Returns the calculated entities which match Provides().
 	Consume(deps map[string]interface{}) (map[string]interface{}, error)
-	// Finalize returns the result of the analysis.
-	Finalize() interface{}
 }
 
+// FeaturedPipelineItem enables switching the automatic insertion of pipeline items on or off.
 type FeaturedPipelineItem interface {
 	PipelineItem
 	// Features returns the list of names which enable this item to be automatically inserted
@@ -45,15 +75,21 @@ type FeaturedPipelineItem interface {
 	Features() []string
 }
 
+// FinalizedPipelineItem corresponds to the top level pipeline items which produce the end results.
+type FinalizedPipelineItem interface {
+	PipelineItem
+	// Finalize returns the result of the analysis.
+	Finalize() interface{}
+}
+
 type PipelineItemRegistry struct {
-	provided map[string][]reflect.Type
+	provided   map[string][]reflect.Type
+	registered map[string]reflect.Type
 }
 
 func (registry *PipelineItemRegistry) Register(example PipelineItem) {
-	if registry.provided == nil {
-		registry.provided = map[string][]reflect.Type{}
-	}
 	t := reflect.TypeOf(example)
+	registry.registered[example.Name()] = t
 	for _, dep := range example.Provides() {
 		ts := registry.provided[dep]
 		if ts == nil {
@@ -76,10 +112,76 @@ func (registry *PipelineItemRegistry) Summon(provides string) []PipelineItem {
 	return items
 }
 
-var Registry = &PipelineItemRegistry{}
+type arrayFeatureFlags struct {
+	// Flags containts the features activated through the command line.
+	Flags []string
+	// Choices contains all registered features.
+	Choices map[string]bool
+}
+
+func (acf *arrayFeatureFlags) String() string {
+	return strings.Join([]string(acf.Flags), ", ")
+}
+
+func (acf *arrayFeatureFlags) Set(value string) error {
+	if _, exists := acf.Choices[value]; !exists {
+		return errors.New(fmt.Sprintf("Feature \"%s\" is not registered.", value))
+	}
+	acf.Flags = append(acf.Flags, value)
+	return nil
+}
+
+var featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
+
+func (registry *PipelineItemRegistry) AddFlags() map[string]interface{} {
+	flags := map[string]interface{}{}
+	for name, it := range registry.registered {
+		formatHelp := func(desc string) string {
+			return fmt.Sprintf("%s [%s]", desc, name)
+		}
+		itemIface := reflect.New(it.Elem()).Interface()
+		for _, opt := range itemIface.(PipelineItem).ListConfigurationOptions() {
+			var iface interface{}
+			switch opt.Type {
+			case BoolConfigurationOption:
+				iface = interface{}(true)
+				ptr := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+				*ptr = flag.Bool(opt.Flag, opt.Default.(bool), formatHelp(opt.Description))
+			case IntConfigurationOption:
+				iface = interface{}(0)
+				ptr := (**int)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+				*ptr = flag.Int(opt.Flag, opt.Default.(int), formatHelp(opt.Description))
+			case StringConfigurationOption:
+				iface = interface{}("")
+				ptr := (**string)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+				*ptr = flag.String(opt.Flag, opt.Default.(string), formatHelp(opt.Description))
+			}
+			flags[opt.Name] = iface
+		}
+		if fpi, ok := itemIface.(FeaturedPipelineItem); ok {
+			for _, f := range fpi.Features() {
+				featureFlags.Choices[f] = true
+			}
+		}
+	}
+	features := []string{}
+	for f := range featureFlags.Choices {
+		features = append(features, f)
+	}
+	flag.Var(&featureFlags, "feature",
+		fmt.Sprintf("Enables specific analysis features, can be specified "+
+			"multiple times. Available features: [%s].", strings.Join(features, ", ")))
+	return flags
+}
+
+// Registry contains all known pipeline item types.
+var Registry = &PipelineItemRegistry{
+	provided:   map[string][]reflect.Type{},
+	registered: map[string]reflect.Type{},
+}
 
 type wrappedPipelineItem struct {
-	Item PipelineItem
+	Item     PipelineItem
 	Children []wrappedPipelineItem
 }
 
@@ -106,9 +208,9 @@ type Pipeline struct {
 func NewPipeline(repository *git.Repository) *Pipeline {
 	return &Pipeline{
 		repository: repository,
-		items: []PipelineItem{},
-		facts: map[string]interface{}{},
-		features: map[string]bool{},
+		items:      []PipelineItem{},
+		facts:      map[string]interface{}{},
+		features:   map[string]bool{},
 	}
 }
 
@@ -128,6 +230,12 @@ func (pipeline *Pipeline) SetFeature(name string) {
 	pipeline.features[name] = true
 }
 
+func (pipeline *Pipeline) SetFeaturesFromFlags() {
+	for _, feature := range featureFlags.Flags {
+		pipeline.SetFeature(feature)
+	}
+}
+
 func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
 	queue := []PipelineItem{}
 	queue = append(queue, item)
@@ -138,27 +246,27 @@ func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
 		head := queue[0]
 		queue = queue[1:]
 		for _, dep := range head.Requires() {
-		  for _, sibling := range Registry.Summon(dep) {
-			  if _, exists := added[sibling.Name()]; !exists {
-				  disabled := false
-				  // If this item supports features, check them against the activated in pipeline.features
-				  if fpi, matches := interface{}(sibling).(FeaturedPipelineItem); matches {
-					  for _, feature := range fpi.Features() {
-						  if !pipeline.features[feature] {
-							  disabled = true
-							  break
-						  }
-					  }
-				  }
-				  if disabled {
-					  continue
-				  }
-				  added[sibling.Name()] = sibling
-				  queue = append(queue, sibling)
-				  pipeline.AddItem(sibling)
-			  }
-		  }
-	  }
+			for _, sibling := range Registry.Summon(dep) {
+				if _, exists := added[sibling.Name()]; !exists {
+					disabled := false
+					// If this item supports features, check them against the activated in pipeline.features
+					if fpi, matches := interface{}(sibling).(FeaturedPipelineItem); matches {
+						for _, feature := range fpi.Features() {
+							if !pipeline.features[feature] {
+								disabled = true
+								break
+							}
+						}
+					}
+					if disabled {
+						continue
+					}
+					added[sibling.Name()] = sibling
+					queue = append(queue, sibling)
+					pipeline.AddItem(sibling)
+				}
+			}
+		}
 	}
 	return item
 }
@@ -175,6 +283,10 @@ func (pipeline *Pipeline) RemoveItem(item PipelineItem) {
 			return
 		}
 	}
+}
+
+func (pipeline *Pipeline) Len() int {
+	return len(pipeline.items)
 }
 
 // Commits returns the critical path in the repository's history. It starts
@@ -310,12 +422,13 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 }
 
 func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
-	pipeline.resolve(facts["Pipeline.DumpPath"].(string))
-	if facts["Pipeline.DryRun"].(bool) {
+	dumpPath, _ := facts["Pipeline.DumpPath"].(string)
+	pipeline.resolve(dumpPath)
+	if dryRun, _ := facts["Pipeline.DryRun"].(bool); dryRun {
 		return
 	}
 	for _, item := range pipeline.items {
-		item.Construct(facts)
+		item.Configure(facts)
 	}
 	for _, item := range pipeline.items {
 		item.Initialize(pipeline.repository)
@@ -354,7 +467,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[PipelineItem]interf
 	onProgress(len(commits), len(commits))
 	result := map[PipelineItem]interface{}{}
 	for _, item := range pipeline.items {
-		result[item] = item.Finalize()
+		if fpi, ok := interface{}(item).(FinalizedPipelineItem); ok {
+			result[item] = fpi.Finalize()
+		}
 	}
 	return result, nil
 }
