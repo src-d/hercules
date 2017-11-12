@@ -32,9 +32,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"plugin"
 	"runtime/pprof"
 	"sort"
 	"strings"
@@ -115,21 +117,52 @@ func loadRepository(uri string) *git.Repository {
 	return repository
 }
 
+
+type arrayPluginFlags map[string]bool
+
+func (apf *arrayPluginFlags) String() string {
+	list := []string{}
+	for key := range *apf {
+		list = append(list, key)
+	}
+	return strings.Join(list, ", ")
+}
+
+func (apf *arrayPluginFlags) Set(value string) error {
+	(*apf)[value] = true
+	return nil
+}
+
+func loadPlugins() {
+	pluginFlags := arrayPluginFlags{}
+	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	fs.SetOutput(ioutil.Discard)
+	pluginFlagName := "plugin"
+	pluginDesc := "Load the specified plugin by the full or relative path. " +
+			"Can be specified multiple times."
+	fs.Var(&pluginFlags, pluginFlagName, pluginDesc)
+	flag.Var(&pluginFlags, pluginFlagName, pluginDesc)
+	fs.Parse(os.Args[1:])
+	for path := range pluginFlags {
+		_, err := plugin.Open(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to load plugin from %s %s", path, err)
+		}
+	}
+}
+
 func main() {
+	loadPlugins()
 	var protobuf bool
 	var profile bool
 	var commitsFile string
-	var withBurndown bool
-	var withCouples bool
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
 	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
 		"commit history to follow instead of the default rev-list "+
 		"--first-parent. The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
 	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
-	flag.BoolVar(&withBurndown, "burndown", false, "Analyse lines burndown.")
-	flag.BoolVar(&withCouples, "couples", false, "Analyse file and developer couples.")
-	facts := hercules.Registry.AddFlags()
+	facts, deployChoices := hercules.Registry.AddFlags()
 	flag.Parse()
 
 	if profile {
@@ -198,13 +231,11 @@ func main() {
 		pipeline.AddItem(uastSaver)
 	}
 	*/
-	var burndowner hercules.PipelineItem
-	if withBurndown {
-		burndowner = pipeline.DeployItem(&hercules.BurndownAnalysis{})
-	}
-	var coupler hercules.PipelineItem
-	if withCouples {
-		coupler = pipeline.DeployItem(&hercules.Couples{})
+	deployed := []hercules.PipelineItem{}
+	for name, valPtr := range deployChoices {
+		if *valPtr {
+			deployed = append(deployed, pipeline.DeployItem(hercules.Registry.Summon(name)[0]))
+		}
 	}
 	pipeline.Initialize(facts)
 	result, err := pipeline.Run(commits)
@@ -214,8 +245,6 @@ func main() {
 	progress.Stop()
 	fmt.Fprint(os.Stderr, "writing...    \r")
 	_ = result
-	_ = burndowner
-	_ = coupler
 	/*
 	burndownResults := result[burndowner].(hercules.BurndownResult)
 	if len(burndownResults.GlobalHistory) == 0 {

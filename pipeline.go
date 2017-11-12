@@ -80,16 +80,22 @@ type FinalizedPipelineItem interface {
 	PipelineItem
 	// Finalize returns the result of the analysis.
 	Finalize() interface{}
+	// Flag returns the cmdline name of the item.
+	Flag() string
 }
 
 type PipelineItemRegistry struct {
 	provided   map[string][]reflect.Type
 	registered map[string]reflect.Type
+	flags map[string]reflect.Type
 }
 
 func (registry *PipelineItemRegistry) Register(example PipelineItem) {
 	t := reflect.TypeOf(example)
 	registry.registered[example.Name()] = t
+	if fpi, ok := interface{}(example).(FinalizedPipelineItem); ok {
+		registry.flags[fpi.Flag()] = t
+	}
 	for _, dep := range example.Provides() {
 		ts := registry.provided[dep]
 		if ts == nil {
@@ -100,13 +106,16 @@ func (registry *PipelineItemRegistry) Register(example PipelineItem) {
 	}
 }
 
-func (registry *PipelineItemRegistry) Summon(provides string) []PipelineItem {
+func (registry *PipelineItemRegistry) Summon(providesOrName string) []PipelineItem {
 	if registry.provided == nil {
 		return []PipelineItem{}
 	}
-	ts := registry.provided[provides]
+	ts := registry.provided[providesOrName]
 	items := []PipelineItem{}
 	for _, t := range ts {
+		items = append(items, reflect.New(t.Elem()).Interface().(PipelineItem))
+	}
+	if t, exists := registry.registered[providesOrName]; exists {
 		items = append(items, reflect.New(t.Elem()).Interface().(PipelineItem))
 	}
 	return items
@@ -133,8 +142,9 @@ func (acf *arrayFeatureFlags) Set(value string) error {
 
 var featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
 
-func (registry *PipelineItemRegistry) AddFlags() map[string]interface{} {
+func (registry *PipelineItemRegistry) AddFlags() (map[string]interface{}, map[string]*bool) {
 	flags := map[string]interface{}{}
+	deployed := map[string]*bool{}
 	for name, it := range registry.registered {
 		formatHelp := func(desc string) string {
 			return fmt.Sprintf("%s [%s]", desc, name)
@@ -163,6 +173,10 @@ func (registry *PipelineItemRegistry) AddFlags() map[string]interface{} {
 				featureFlags.Choices[f] = true
 			}
 		}
+		if fpi, ok := itemIface.(FinalizedPipelineItem); ok {
+			deployed[fpi.Name()] = flag.Bool(
+				fpi.Flag(), false, fmt.Sprintf("Runs %s analysis.", fpi.Name()))
+		}
 	}
 	features := []string{}
 	for f := range featureFlags.Choices {
@@ -171,13 +185,14 @@ func (registry *PipelineItemRegistry) AddFlags() map[string]interface{} {
 	flag.Var(&featureFlags, "feature",
 		fmt.Sprintf("Enables specific analysis features, can be specified "+
 			"multiple times. Available features: [%s].", strings.Join(features, ", ")))
-	return flags
+	return flags, deployed
 }
 
 // Registry contains all known pipeline item types.
 var Registry = &PipelineItemRegistry{
 	provided:   map[string][]reflect.Type{},
 	registered: map[string]reflect.Type{},
+	flags: map[string]reflect.Type{},
 }
 
 type wrappedPipelineItem struct {

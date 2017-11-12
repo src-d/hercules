@@ -141,6 +141,10 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
 	}
 }
 
+func (analyser *BurndownAnalysis) Flag() string {
+	return "burndown"
+}
+
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	if analyser.Granularity <= 0 {
 		fmt.Fprintln(os.Stderr, "Warning: adjusted the granularity to 30 days")

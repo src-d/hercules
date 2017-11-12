@@ -50,6 +50,10 @@ func (couples *Couples) Configure(facts map[string]interface{}) {
 	}
 }
 
+func (couples *Couples) Flag() string {
+	return "couples"
+}
+
 func (couples *Couples) Initialize(repository *git.Repository) {
 	couples.people = make([]map[string]int, couples.PeopleNumber+1)
 	for i := range couples.people {
