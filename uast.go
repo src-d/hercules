@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	goioutil "io/ioutil"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/jeffail/tunny"
 	"gopkg.in/bblfsh/client-go.v1"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/uast"
@@ -21,6 +22,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/ioutil"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
+	"gopkg.in/src-d/hercules.v3/pb"
+	"github.com/jeffail/tunny"
+	"github.com/gogo/protobuf/proto"
 )
 
 type UASTExtractor struct {
@@ -353,8 +357,16 @@ func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interfac
 }
 
 type UASTChangesSaver struct {
+	// OutputPath points to the target directory with UASTs
+	OutputPath string
+
+	repository *git.Repository
 	result [][]UASTChange
 }
+
+const (
+	ConfigUASTChangesSaverOutputPath = "UASTChangesSaver.OutputPath"
+)
 
 func (saver *UASTChangesSaver) Name() string {
 	return "UASTChangesSaver"
@@ -375,12 +387,24 @@ func (saver *UASTChangesSaver) Features() []string {
 }
 
 func (saver *UASTChangesSaver) ListConfigurationOptions() []ConfigurationOption {
-	return []ConfigurationOption{}
+	options := [...]ConfigurationOption{{
+		Name:        ConfigUASTChangesSaverOutputPath,
+		Description: "The target directory where to store the changed UAST files.",
+		Flag:        "changed-uast-dir",
+		Type:        StringConfigurationOption,
+		Default:     "."},
+	}
+	return options[:]
+}
+
+func (saver *UASTChangesSaver) Flag() string {
+	return "dump-uast-changes"
 }
 
 func (saver *UASTChangesSaver) Configure(facts map[string]interface{}) {}
 
 func (saver *UASTChangesSaver) Initialize(repository *git.Repository) {
+	saver.repository = repository
 	saver.result = [][]UASTChange{}
 }
 
@@ -392,6 +416,69 @@ func (saver *UASTChangesSaver) Consume(deps map[string]interface{}) (map[string]
 
 func (saver *UASTChangesSaver) Finalize() interface{} {
 	return saver.result
+}
+
+func (saver *UASTChangesSaver) Serialize(result interface{}, binary bool, writer io.Writer) error {
+	saverResult := result.([][]UASTChange)
+	fileNames := saver.dumpFiles(saverResult)
+	if binary {
+		return saver.serializeBinary(fileNames, writer)
+	}
+	saver.serializeText(fileNames, writer)
+	return nil
+}
+
+func (saver *UASTChangesSaver) dumpFiles(result [][]UASTChange) []*pb.UASTChange {
+	fileNames := []*pb.UASTChange{}
+	for i, changes := range result {
+		for j, change := range changes {
+			if change.Before == nil || change.After == nil {
+				continue
+			}
+			record := &pb.UASTChange{FileName: change.Change.To.Name}
+			bs, _ := change.Before.Marshal()
+			record.UastBefore = fmt.Sprintf(
+				"%d_%d_before_%s.pb", i, j, change.Change.From.TreeEntry.Hash.String())
+			goioutil.WriteFile(record.UastBefore, bs, 0666)
+			blob, _ := saver.repository.BlobObject(change.Change.From.TreeEntry.Hash)
+			s, _ := (&object.File{Blob: *blob}).Contents()
+			record.SrcBefore = fmt.Sprintf(
+				"%d_%d_before_%s.src", i, j, change.Change.From.TreeEntry.Hash.String())
+			goioutil.WriteFile(record.SrcBefore, []byte(s), 0666)
+			bs, _ = change.After.Marshal()
+			record.UastAfter = fmt.Sprintf(
+				"%d_%d_after_%s.pb", i, j, change.Change.To.TreeEntry.Hash.String())
+			goioutil.WriteFile(record.UastAfter, bs, 0666)
+			blob, _ = saver.repository.BlobObject(change.Change.To.TreeEntry.Hash)
+			s, _ = (&object.File{Blob: *blob}).Contents()
+			record.SrcAfter = fmt.Sprintf(
+				"%d_%d_after_%s.src", i, j, change.Change.To.TreeEntry.Hash.String())
+			goioutil.WriteFile(record.SrcAfter, []byte(s), 0666)
+			fileNames = append(fileNames, record)
+		}
+	}
+	return fileNames
+}
+
+func (saver *UASTChangesSaver) serializeText(result []*pb.UASTChange, writer io.Writer) {
+	for _, sc := range result {
+		kv := [...]string{
+			"file: " + sc.FileName,
+			"src0: " + sc.SrcBefore, "src1: " + sc.SrcAfter,
+			"uast0: " + sc.UastBefore, "uast1: " + sc.UastAfter,
+		}
+		fmt.Fprintf(writer, "  - {%s}\n", strings.Join(kv[:], ", "))
+	}
+}
+
+func (saver *UASTChangesSaver) serializeBinary(result []*pb.UASTChange, writer io.Writer) error {
+  message := pb.UASTChangesSaverResults{Changes: result}
+	serialized, err := proto.Marshal(&message)
+	if err != nil {
+		return err
+	}
+  writer.Write(serialized)
+	return nil
 }
 
 func init() {

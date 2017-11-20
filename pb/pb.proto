@@ -11,10 +11,6 @@ message Metadata {
     int64 begin_unix_time = 4;
     // timestamp of the last analysed commit
     int64 end_unix_time = 5;
-    // how many days are in each band [burndown_project, burndown_file, burndown_developer]
-    int32 granularity = 6;
-    // how frequently we measure the state of each band [burndown_project, burndown_file, burndown_developer]
-    int32 sampling = 7;
 }
 
 message BurndownSparseMatrixRow {
@@ -29,6 +25,21 @@ message BurndownSparseMatrix {
     int32 number_of_columns = 3;
     // `len(row)` matches `number_of_rows`
     repeated BurndownSparseMatrixRow rows = 4;
+}
+
+message BurndownAnalysisResults {
+    // how many days are in each band [burndown_project, burndown_file, burndown_developer]
+    int32 granularity = 1;
+    // how frequently we measure the state of each band [burndown_project, burndown_file, burndown_developer]
+    int32 sampling = 2;
+    // always exists
+    BurndownSparseMatrix project = 3;
+    // this is included if `-burndown-files` was specified
+    repeated BurndownSparseMatrix files = 4;
+    // these two are included if `-burndown-people` was specified
+    repeated BurndownSparseMatrix people = 5;
+    // rows and cols order correspond to `burndown_developer`
+    CompressedSparseRowMatrix people_interaction = 6;
 }
 
 message CompressedSparseRowMatrix {
@@ -56,21 +67,26 @@ message DeveloperTouchedFiles {
     repeated TouchedFiles developers = 1;
 }
 
-message AnalysisResults {
-    // these two are always included
-    Metadata header = 1;
-    BurndownSparseMatrix burndown_project = 2;
-
-    // this is included if `-files` was specified
-    repeated BurndownSparseMatrix burndown_files = 3;
-
-    // these two are included if `-people` was specified
-    repeated BurndownSparseMatrix burndown_developers = 4;
-    // rows and cols order correspond to `burndown_developer`
-    CompressedSparseRowMatrix developers_interaction = 5;
-
-    // these three are included if `-couples` was specified
+message CouplesResults {
     Couples file_couples = 6;
     Couples developer_couples = 7;
     DeveloperTouchedFiles touched_files = 8;
+}
+
+message UASTChange {
+    string file_name = 1;
+    string src_before = 2;
+	string src_after = 3;
+	string uast_before = 4;
+	string uast_after = 5;
+}
+
+message UASTChangesSaverResults {
+    repeated UASTChange changes = 1;
+}
+
+message AnalysisResults {
+    Metadata header = 1;
+    // the mapped values are dynamic messages which require the second parsing pass.
+    map<string, bytes> contents = 2;
 }

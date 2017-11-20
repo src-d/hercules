@@ -38,7 +38,6 @@ import (
 	"os"
 	"plugin"
 	"runtime/pprof"
-	"sort"
 	"strings"
 
 	"gopkg.in/src-d/go-billy.v3/osfs"
@@ -47,22 +46,12 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"gopkg.in/src-d/hercules.v2"
-	"gopkg.in/src-d/hercules.v2/stdout"
-	"gopkg.in/src-d/hercules.v2/pb"
+	"gopkg.in/src-d/hercules.v3"
+	"gopkg.in/src-d/hercules.v3/pb"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 	"github.com/gogo/protobuf/proto"
 )
-
-func sortedKeys(m map[string][][]int64) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
 
 type OneLineWriter struct {
 	Writer io.Writer
@@ -213,24 +202,6 @@ func main() {
 		}
 	}
 	facts["commits"] = commits
-
-	/*
-	var uastSaver *hercules.UASTChangesSaver
-	if withUasts {
-		pipeline.AddItem(&hercules.UASTExtractor{
-			Endpoint: bblfshEndpoint,
-			Context: func() context.Context {
-				ctx, _ := context.WithTimeout(context.Background(),
-					                            time.Duration(bblfshTimeout) * time.Second)
-				return ctx
-			},
-			PoolSize: uastPoolSize,
-		  Extensions: map[string]bool {"py": true, "java": true}})
-		pipeline.AddItem(&hercules.UASTChanges{})
-		uastSaver = &hercules.UASTChangesSaver{}
-		pipeline.AddItem(uastSaver)
-	}
-	*/
 	deployed := []hercules.PipelineItem{}
 	for name, valPtr := range deployChoices {
 		if *valPtr {
@@ -238,109 +209,44 @@ func main() {
 		}
 	}
 	pipeline.Initialize(facts)
-	result, err := pipeline.Run(commits)
+	results, err := pipeline.Run(commits)
 	if err != nil {
 		panic(err)
 	}
 	progress.Stop()
-	fmt.Fprint(os.Stderr, "writing...    \r")
-	_ = result
-	/*
-	burndownResults := result[burndowner].(hercules.BurndownResult)
-	if len(burndownResults.GlobalHistory) == 0 {
-		return
-	}
-	var couplesResult hercules.CouplesResult
-	if withCouples {
-		couplesResult = result[coupler].(hercules.CouplesResult)
-	}
-	*/
-	/*
-	if withUasts {
-		changedUasts := result[uastSaver].([][]hercules.UASTChange)
-		for i, changes := range changedUasts {
-			for j, change := range changes {
-				if change.Before == nil || change.After == nil {
-					continue
-				}
-				bs, _ := change.Before.Marshal()
-				ioutil.WriteFile(fmt.Sprintf(
-					"%d_%d_before_%s.pb", i, j, change.Change.From.TreeEntry.Hash.String()), bs, 0666)
-				blob, _ := repository.BlobObject(change.Change.From.TreeEntry.Hash)
-				s, _ := (&object.File{Blob: *blob}).Contents()
-				ioutil.WriteFile(fmt.Sprintf(
-					"%d_%d_before_%s.src", i, j, change.Change.From.TreeEntry.Hash.String()), []byte(s), 0666)
-				bs, _ = change.After.Marshal()
-				ioutil.WriteFile(fmt.Sprintf(
-					"%d_%d_after_%s.pb", i, j, change.Change.To.TreeEntry.Hash.String()), bs, 0666)
-				blob, _ = repository.BlobObject(change.Change.To.TreeEntry.Hash)
-				s, _ = (&object.File{Blob: *blob}).Contents()
-				ioutil.WriteFile(fmt.Sprintf(
-					"%d_%d_after_%s.src", i, j, change.Change.To.TreeEntry.Hash.String()), []byte(s), 0666)
-			}
-		}
-	}
-	*/
-	/*
-	reversedPeopleDict := facts[hercules.FactIdentityDetectorReversedPeopleDict].([]string)
+	fmt.Fprint(os.Stderr, "writing...\r")
 	begin := commits[0].Author.When.Unix()
 	end := commits[len(commits)-1].Author.When.Unix()
 	if !protobuf {
-		printResults(uri, begin, end, granularity, sampling,
-			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, reversedPeopleDict)
+		printResults(uri, begin, end, deployed, results)
 	} else {
-		serializeResults(uri, begin, end, granularity, sampling,
-			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, reversedPeopleDict)
-	}*/
+		protobufResults(uri, begin, end, deployed, results)
+	}
 }
 
 func printResults(
-	uri string, begin, end int64, granularity, sampling int,
-	withFiles, withPeople, withCouples bool,
-	burndownResults hercules.BurndownResult,
-	couplesResult hercules.CouplesResult,
-	reversePeopleDict []string) {
+	uri string, begin, end int64, deployed []hercules.PipelineItem,
+	results map[hercules.PipelineItem]interface{}) {
+	fmt.Println("hercules:")
+	fmt.Println("  version: 3")
+	fmt.Println("  cmdline:", strings.Join(os.Args, " "))
+	fmt.Println("  repository:", uri)
+	fmt.Println("  begin_unix_time:", begin)
+	fmt.Println("  end_unix_time:", end)
 
-	fmt.Println("burndown:")
-	fmt.Println("  version: 1")
-	fmt.Println("  begin:", begin)
-	fmt.Println("  end:", end)
-	fmt.Println("  granularity:", granularity)
-	fmt.Println("  sampling:", sampling)
-	fmt.Println("project:")
-	stdout.PrintMatrix(burndownResults.GlobalHistory, uri, true)
-	if withFiles {
-		fmt.Println("files:")
-		keys := sortedKeys(burndownResults.FileHistories)
-		for _, key := range keys {
-			stdout.PrintMatrix(burndownResults.FileHistories[key], key, true)
+	for _, item := range deployed {
+		result := results[item]
+		fmt.Printf("%s:\n", item.Name())
+		err := interface{}(item).(hercules.LeafPipelineItem).Serialize(result, false, os.Stdout)
+		if err != nil {
+			panic(err)
 		}
-	}
-	if withPeople {
-		fmt.Println("people_sequence:")
-		for key := range burndownResults.PeopleHistories {
-			fmt.Println("  - " + stdout.SafeString(reversePeopleDict[key]))
-		}
-		fmt.Println("people:")
-		for key, val := range burndownResults.PeopleHistories {
-			stdout.PrintMatrix(val, reversePeopleDict[key], true)
-		}
-		fmt.Println("people_interaction: |-")
-		stdout.PrintMatrix(burndownResults.PeopleMatrix, "", false)
-	}
-	if withCouples {
-		stdout.PrintCouples(&couplesResult, reversePeopleDict)
 	}
 }
 
-func serializeResults(
-	uri string, begin, end int64, granularity, sampling int,
-	withFiles, withPeople, withCouples bool,
-	burndownResults hercules.BurndownResult,
-	couplesResult hercules.CouplesResult,
-	reversePeopleDict []string) {
+func protobufResults(
+	uri string, begin, end int64, deployed []hercules.PipelineItem,
+	results map[hercules.PipelineItem]interface{}) {
 
   header := pb.Metadata{
 	  Version: 1,
@@ -348,58 +254,21 @@ func serializeResults(
 	  Repository: uri,
     BeginUnixTime: begin,
 	  EndUnixTime: end,
-	  Granularity: int32(granularity),
-	  Sampling: int32(sampling),
   }
 
 	message := pb.AnalysisResults{
 		Header: &header,
-		BurndownProject: pb.ToBurndownSparseMatrix(burndownResults.GlobalHistory, uri),
+		Contents: map[string][]byte{},
 	}
 
-	if withFiles {
-		message.BurndownFiles = make([]*pb.BurndownSparseMatrix, len(burndownResults.FileHistories))
-		keys := sortedKeys(burndownResults.FileHistories)
-		i := 0
-		for _, key := range keys {
-			message.BurndownFiles[i] = pb.ToBurndownSparseMatrix(
-				burndownResults.FileHistories[key], key)
-			i++
+	for _, item := range deployed {
+		result := results[item]
+		buffer := &bytes.Buffer{}
+		err := interface{}(item).(hercules.LeafPipelineItem).Serialize(result, true, buffer)
+		if err != nil {
+			panic(err)
 		}
-	}
-
-	if withPeople {
-		message.BurndownDevelopers = make(
-		  []*pb.BurndownSparseMatrix, len(burndownResults.PeopleHistories))
-		for key, val := range burndownResults.PeopleHistories {
-			message.BurndownDevelopers[key] = pb.ToBurndownSparseMatrix(val, reversePeopleDict[key])
-		}
-		message.DevelopersInteraction = pb.DenseToCompressedSparseRowMatrix(
-			burndownResults.PeopleMatrix)
-	}
-
-	if withCouples {
-		message.FileCouples = &pb.Couples{
-			Index: couplesResult.Files,
-			Matrix: pb.MapToCompressedSparseRowMatrix(couplesResult.FilesMatrix),
-		}
-		message.DeveloperCouples = &pb.Couples{
-			Index: reversePeopleDict,
-			Matrix: pb.MapToCompressedSparseRowMatrix(couplesResult.PeopleMatrix),
-		}
-		message.TouchedFiles = &pb.DeveloperTouchedFiles{
-      Developers: make([]*pb.TouchedFiles, len(reversePeopleDict)),
-		}
-		for key := range reversePeopleDict {
-			files := couplesResult.PeopleFiles[key]
-			int32Files := make([]int32, len(files))
-			for i, f := range files {
-				int32Files[i] = int32(f)
-			}
-			message.TouchedFiles.Developers[key] = &pb.TouchedFiles{
-				Files: int32Files,
-			}
-		}
+		message.Contents[item.Name()] = buffer.Bytes()
 	}
 
 	serialized, err := proto.Marshal(&message)

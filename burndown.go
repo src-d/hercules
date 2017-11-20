@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -13,6 +14,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
+	"gopkg.in/src-d/hercules.v3/stdout"
+	"gopkg.in/src-d/hercules.v3/pb"
+	"github.com/gogo/protobuf/proto"
 )
 
 // BurndownAnalyser allows to gather the line burndown statistics for a Git repository.
@@ -60,6 +64,8 @@ type BurndownAnalysis struct {
 	// previousDay is the day from the previous sample period -
 	// different from DaysSinceStart.previousDay.
 	previousDay int
+	// references IdentityDetector.ReversedPeopleDict
+	reversedPeopleDict []string
 }
 
 type BurndownResult struct {
@@ -134,6 +140,7 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
 	if people, _ := facts[ConfigBurndownTrackPeople].(bool); people {
 		if val, exists := facts[FactIdentityDetectorPeopleCount].(int); exists {
 			analyser.PeopleNumber = val
+			analyser.reversedPeopleDict = facts[FactIdentityDetectorReversedPeopleDict].([]string)
 		}
 	}
 	if val, exists := facts[ConfigBurndownDebug].(bool); exists {
@@ -238,7 +245,85 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		GlobalHistory:   analyser.globalHistory,
 		FileHistories:   analyser.fileHistories,
 		PeopleHistories: analyser.peopleHistories,
-		PeopleMatrix:    peopleMatrix}
+		PeopleMatrix:    peopleMatrix,
+	}
+}
+
+func (analyser *BurndownAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
+	burndownResult := result.(BurndownResult)
+	if binary {
+		return analyser.serializeBinary(&burndownResult, writer)
+	}
+	analyser.serializeText(&burndownResult, writer)
+	return nil
+}
+
+func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
+	fmt.Fprintln(writer, "  granularity:", analyser.Granularity)
+	fmt.Fprintln(writer, "  sampling:", analyser.Sampling)
+	stdout.PrintMatrix(writer, result.GlobalHistory, 2, "project", true)
+	if len(result.FileHistories) > 0 {
+		fmt.Fprintln(writer, "  files:")
+		keys := sortedKeys(result.FileHistories)
+		for _, key := range keys {
+			stdout.PrintMatrix(writer, result.FileHistories[key], 4, key, true)
+		}
+	}
+
+	if len(result.PeopleHistories) > 0 {
+		fmt.Fprintln(writer, "  people_sequence:")
+		for key := range result.PeopleHistories {
+			fmt.Fprintln(writer, "    - " + stdout.SafeString(analyser.reversedPeopleDict[key]))
+		}
+		fmt.Fprintln(writer, "  people:")
+		for key, val := range result.PeopleHistories {
+			stdout.PrintMatrix(writer, val, 4, analyser.reversedPeopleDict[key], true)
+		}
+		fmt.Fprintln(writer, "  people_interaction: |-")
+		stdout.PrintMatrix(writer, result.PeopleMatrix, 4, "", false)
+	}
+}
+
+func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer io.Writer) error {
+	message := pb.BurndownAnalysisResults{
+		Granularity: int32(analyser.Granularity),
+		Sampling: int32(analyser.Sampling),
+		Project: pb.ToBurndownSparseMatrix(result.GlobalHistory, "project"),
+	}
+	if len(result.FileHistories) > 0 {
+		message.Files = make([]*pb.BurndownSparseMatrix, len(result.FileHistories))
+		keys := sortedKeys(result.FileHistories)
+		i := 0
+		for _, key := range keys {
+			message.Files[i] = pb.ToBurndownSparseMatrix(
+				result.FileHistories[key], key)
+			i++
+		}
+	}
+
+	if len(result.PeopleHistories) > 0 {
+		message.People = make(
+		  []*pb.BurndownSparseMatrix, len(result.PeopleHistories))
+		for key, val := range result.PeopleHistories {
+			message.People[key] = pb.ToBurndownSparseMatrix(val, analyser.reversedPeopleDict[key])
+		}
+		message.PeopleInteraction = pb.DenseToCompressedSparseRowMatrix(result.PeopleMatrix)
+	}
+	serialized, err := proto.Marshal(&message)
+	if err != nil {
+		return err
+	}
+  writer.Write(serialized)
+	return nil
+}
+
+func sortedKeys(m map[string][][]int64) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func checkClose(c io.Closer) {

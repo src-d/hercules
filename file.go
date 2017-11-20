@@ -2,7 +2,7 @@ package hercules
 
 import (
 	"fmt"
-	"gopkg.in/src-d/hercules.v2/rbtree"
+	"gopkg.in/src-d/hercules.v3/rbtree"
 )
 
 // A status is the something we would like to update during File.Update().

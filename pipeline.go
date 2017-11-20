@@ -15,7 +15,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v2/toposort"
+	"gopkg.in/src-d/hercules.v3/toposort"
 )
 
 type ConfigurationOptionType int
@@ -75,25 +75,29 @@ type FeaturedPipelineItem interface {
 	Features() []string
 }
 
-// FinalizedPipelineItem corresponds to the top level pipeline items which produce the end results.
-type FinalizedPipelineItem interface {
+// LeafPipelineItem corresponds to the top level pipeline items which produce the end results.
+type LeafPipelineItem interface {
 	PipelineItem
-	// Finalize returns the result of the analysis.
-	Finalize() interface{}
 	// Flag returns the cmdline name of the item.
 	Flag() string
+	// Finalize returns the result of the analysis.
+	Finalize() interface{}
+	// Serialize encodes the object returned by Finalize() to Text or Protocol Buffers.
+	Serialize(result interface{}, binary bool, writer io.Writer) error
 }
 
+// PipelineItemRegistry contains all the known PipelineItem-s.
 type PipelineItemRegistry struct {
 	provided   map[string][]reflect.Type
 	registered map[string]reflect.Type
 	flags map[string]reflect.Type
 }
 
+// Register adds another PipelineItem to the registry.
 func (registry *PipelineItemRegistry) Register(example PipelineItem) {
 	t := reflect.TypeOf(example)
 	registry.registered[example.Name()] = t
-	if fpi, ok := interface{}(example).(FinalizedPipelineItem); ok {
+	if fpi, ok := interface{}(example).(LeafPipelineItem); ok {
 		registry.flags[fpi.Flag()] = t
 	}
 	for _, dep := range example.Provides() {
@@ -173,7 +177,7 @@ func (registry *PipelineItemRegistry) AddFlags() (map[string]interface{}, map[st
 				featureFlags.Choices[f] = true
 			}
 		}
-		if fpi, ok := itemIface.(FinalizedPipelineItem); ok {
+		if fpi, ok := itemIface.(LeafPipelineItem); ok {
 			deployed[fpi.Name()] = flag.Bool(
 				fpi.Flag(), false, fmt.Sprintf("Runs %s analysis.", fpi.Name()))
 		}
@@ -482,7 +486,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[PipelineItem]interf
 	onProgress(len(commits), len(commits))
 	result := map[PipelineItem]interface{}{}
 	for _, item := range pipeline.items {
-		if fpi, ok := interface{}(item).(FinalizedPipelineItem); ok {
+		if fpi, ok := interface{}(item).(LeafPipelineItem); ok {
 			result[item] = fpi.Finalize()
 		}
 	}
