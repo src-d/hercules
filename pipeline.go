@@ -441,6 +441,9 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 }
 
 func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
+	if facts == nil {
+		facts = map[string]interface{}{}
+	}
 	dumpPath, _ := facts["Pipeline.DumpPath"].(string)
 	pipeline.resolve(dumpPath)
 	if dryRun, _ := facts["Pipeline.DryRun"].(bool); dryRun {

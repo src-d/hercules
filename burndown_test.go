@@ -5,10 +5,10 @@ import (
 	"io"
 	"testing"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"github.com/gogo/protobuf/proto"
 	"gopkg.in/src-d/hercules.v3/pb"
 )
 

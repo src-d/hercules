@@ -6,7 +6,7 @@ The analysis is expressed in a form of the tree: there are nodes - "pipeline ite
 require some other nodes to be executed prior to selves and in turn provide the data for
 dependent nodes. There are several service items which do not produce any useful
 statistics but rather provide the requirements for other items. The top-level items
-are:
+include:
 
 - BurndownAnalysis - line burndown statistics for project, files and developers.
 - Couples - coupling statistics for files and developers.
@@ -19,31 +19,21 @@ The typical API usage is to initialize the Pipeline class:
 	// ...initialize repository...
 	pipeline := hercules.NewPipeline(repository)
 
-Then add the required analysis tree nodes:
+Then add the required analysis:
 
-  pipeline.AddItem(&hercules.BlobCache{})
-	pipeline.AddItem(&hercules.DaysSinceStart{})
-	pipeline.AddItem(&hercules.TreeDiff{})
-	pipeline.AddItem(&hercules.FileDiff{})
-	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: 80})
-	pipeline.AddItem(&hercules.IdentityDetector{})
-
-Then initialize BurndownAnalysis:
-
-  burndowner := &hercules.BurndownAnalysis{
+  ba := pipeline.DeployItem(&hercules.BurndownAnalysis{
     Granularity:  30,
 		Sampling:     30,
-  }
-  pipeline.AddItem(burndowner)
+  })
 
-Then execute the analysis tree:
+This call will add all the needed intermediate pipeline items. Then link and execute the analysis tree:
 
-  pipeline.Initialize()
-	result, err := pipeline.Run(commits)
+  pipeline.Initialize(nil)
+	result, err := pipeline.Run(pipeline.Commits())
 
 Finally extract the result:
 
-  burndownResults := result[burndowner].(hercules.BurndownResult)
+  result := result[ba].(hercules.BurndownResult)
 
 The actual usage example is cmd/hercules/main.go - the command line tool's code.
 
