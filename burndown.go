@@ -9,14 +9,14 @@ import (
 	"sort"
 	"unicode/utf8"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v3/stdout"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"github.com/gogo/protobuf/proto"
+	"gopkg.in/src-d/hercules.v3/stdout"
 )
 
 // BurndownAnalyser allows to gather the line burndown statistics for a Git repository.
@@ -137,11 +137,13 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigBurndownTrackFiles].(bool); exists {
 		analyser.TrackFiles = val
 	}
-	if people, _ := facts[ConfigBurndownTrackPeople].(bool); people {
+	if people, exists := facts[ConfigBurndownTrackPeople].(bool); people {
 		if val, exists := facts[FactIdentityDetectorPeopleCount].(int); exists {
 			analyser.PeopleNumber = val
 			analyser.reversedPeopleDict = facts[FactIdentityDetectorReversedPeopleDict].([]string)
 		}
+	} else if exists {
+		analyser.PeopleNumber = 0
 	}
 	if val, exists := facts[ConfigBurndownDebug].(bool); exists {
 		analyser.Debug = val
@@ -273,7 +275,7 @@ func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer i
 	if len(result.PeopleHistories) > 0 {
 		fmt.Fprintln(writer, "  people_sequence:")
 		for key := range result.PeopleHistories {
-			fmt.Fprintln(writer, "    - " + stdout.SafeString(analyser.reversedPeopleDict[key]))
+			fmt.Fprintln(writer, "    - "+stdout.SafeString(analyser.reversedPeopleDict[key]))
 		}
 		fmt.Fprintln(writer, "  people:")
 		for key, val := range result.PeopleHistories {
@@ -287,8 +289,8 @@ func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer i
 func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer io.Writer) error {
 	message := pb.BurndownAnalysisResults{
 		Granularity: int32(analyser.Granularity),
-		Sampling: int32(analyser.Sampling),
-		Project: pb.ToBurndownSparseMatrix(result.GlobalHistory, "project"),
+		Sampling:    int32(analyser.Sampling),
+		Project:     pb.ToBurndownSparseMatrix(result.GlobalHistory, "project"),
 	}
 	if len(result.FileHistories) > 0 {
 		message.Files = make([]*pb.BurndownSparseMatrix, len(result.FileHistories))
@@ -303,7 +305,7 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 
 	if len(result.PeopleHistories) > 0 {
 		message.People = make(
-		  []*pb.BurndownSparseMatrix, len(result.PeopleHistories))
+			[]*pb.BurndownSparseMatrix, len(result.PeopleHistories))
 		for key, val := range result.PeopleHistories {
 			message.People[key] = pb.ToBurndownSparseMatrix(val, analyser.reversedPeopleDict[key])
 		}
@@ -313,7 +315,7 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	if err != nil {
 		return err
 	}
-  writer.Write(serialized)
+	writer.Write(serialized)
 	return nil
 }
 

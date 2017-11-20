@@ -5,12 +5,12 @@ import (
 	"io"
 	"sort"
 
+	"github.com/gogo/protobuf/proto"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v3/stdout"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"github.com/gogo/protobuf/proto"
+	"gopkg.in/src-d/hercules.v3/stdout"
 )
 
 type Couples struct {
@@ -288,15 +288,15 @@ func (couples *Couples) serializeBinary(result *CouplesResult, writer io.Writer)
 	message := pb.CouplesResults{}
 
 	message.FileCouples = &pb.Couples{
-		Index: result.Files,
+		Index:  result.Files,
 		Matrix: pb.MapToCompressedSparseRowMatrix(result.FilesMatrix),
 	}
 	message.DeveloperCouples = &pb.Couples{
-		Index: couples.reversedPeopleDict,
+		Index:  couples.reversedPeopleDict,
 		Matrix: pb.MapToCompressedSparseRowMatrix(result.PeopleMatrix),
 	}
 	message.TouchedFiles = &pb.DeveloperTouchedFiles{
-    Developers: make([]*pb.TouchedFiles, len(couples.reversedPeopleDict)),
+		Developers: make([]*pb.TouchedFiles, len(couples.reversedPeopleDict)),
 	}
 	for key := range couples.reversedPeopleDict {
 		files := result.PeopleFiles[key]
@@ -313,7 +313,7 @@ func (couples *Couples) serializeBinary(result *CouplesResult, writer io.Writer)
 	if err != nil {
 		return err
 	}
-  writer.Write(serialized)
+	writer.Write(serialized)
 	return nil
 }
 

@@ -57,7 +57,7 @@ func PrintMatrix(writer io.Writer, matrix [][]int64, indent int, name string, fi
 				fmt.Fprintf(writer, " %[1]*[2]d", width, val)
 			} else {
 				first = false
-				fmt.Fprintf(writer, "%d%s", val, strings.Repeat(" ", width-len(strconv.FormatInt(val, 10))))
+				fmt.Fprintf(writer, " %d%s", val, strings.Repeat(" ", width-len(strconv.FormatInt(val, 10))))
 			}
 		}
 		fmt.Fprintln(writer)

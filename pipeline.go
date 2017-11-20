@@ -90,7 +90,7 @@ type LeafPipelineItem interface {
 type PipelineItemRegistry struct {
 	provided   map[string][]reflect.Type
 	registered map[string]reflect.Type
-	flags map[string]reflect.Type
+	flags      map[string]reflect.Type
 }
 
 // Register adds another PipelineItem to the registry.
@@ -196,7 +196,7 @@ func (registry *PipelineItemRegistry) AddFlags() (map[string]interface{}, map[st
 var Registry = &PipelineItemRegistry{
 	provided:   map[string][]reflect.Type{},
 	registered: map[string]reflect.Type{},
-	flags: map[string]reflect.Type{},
+	flags:      map[string]reflect.Type{},
 }
 
 type wrappedPipelineItem struct {

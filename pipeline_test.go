@@ -39,6 +39,17 @@ func (item *testPipelineItem) Requires() []string {
 func (item *testPipelineItem) Configure(facts map[string]interface{}) {
 }
 
+func (item *testPipelineItem) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        "TestOption",
+		Description: "The option description.",
+		Flag:        "test-option",
+		Type:        IntConfigurationOption,
+		Default:     10,
+	}}
+	return options[:]
+}
+
 func (item *testPipelineItem) Initialize(repository *git.Repository) {
 	item.Initialized = repository != nil
 }
@@ -82,6 +93,17 @@ func (item *dependingTestPipelineItem) Provides() []string {
 func (item *dependingTestPipelineItem) Requires() []string {
 	arr := [...]string{"test"}
 	return arr[:]
+}
+
+func (item *dependingTestPipelineItem) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        "TestOption",
+		Description: "The option description.",
+		Flag:        "test-option",
+		Type:        IntConfigurationOption,
+		Default:     10,
+	}}
+	return options[:]
 }
 
 func (item *dependingTestPipelineItem) Configure(facts map[string]interface{}) {

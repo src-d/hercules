@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
+	"github.com/jeffail/tunny"
 	"gopkg.in/bblfsh/client-go.v1"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/uast"
@@ -23,8 +25,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/ioutil"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"github.com/jeffail/tunny"
-	"github.com/gogo/protobuf/proto"
 )
 
 type UASTExtractor struct {
@@ -361,7 +361,7 @@ type UASTChangesSaver struct {
 	OutputPath string
 
 	repository *git.Repository
-	result [][]UASTChange
+	result     [][]UASTChange
 }
 
 const (
@@ -472,12 +472,12 @@ func (saver *UASTChangesSaver) serializeText(result []*pb.UASTChange, writer io.
 }
 
 func (saver *UASTChangesSaver) serializeBinary(result []*pb.UASTChange, writer io.Writer) error {
-  message := pb.UASTChangesSaverResults{Changes: result}
+	message := pb.UASTChangesSaverResults{Changes: result}
 	serialized, err := proto.Marshal(&message)
 	if err != nil {
 		return err
 	}
-  writer.Write(serialized)
+	writer.Write(serialized)
 	return nil
 }
 

@@ -17,9 +17,17 @@ func fixtureBlobCache() *BlobCache {
 	return cache
 }
 
-func TestBlobCacheInitialize(t *testing.T) {
+func TestBlobCacheConfigureInitialize(t *testing.T) {
 	cache := fixtureBlobCache()
 	assert.Equal(t, testRepository, cache.repository)
+	assert.False(t, cache.IgnoreMissingSubmodules)
+	facts := map[string]interface{}{}
+	facts[ConfigBlobCacheIgnoreMissingSubmodules] = true
+	cache.Configure(facts)
+	assert.True(t, cache.IgnoreMissingSubmodules)
+	facts = map[string]interface{}{}
+	cache.Configure(facts)
+	assert.True(t, cache.IgnoreMissingSubmodules)
 }
 
 func TestBlobCacheMetadata(t *testing.T) {
@@ -30,6 +38,19 @@ func TestBlobCacheMetadata(t *testing.T) {
 	assert.Equal(t, len(cache.Requires()), 1)
 	changes := &TreeDiff{}
 	assert.Equal(t, cache.Requires()[0], changes.Provides()[0])
+	opts := cache.ListConfigurationOptions()
+	assert.Len(t, opts, 1)
+	assert.Equal(t, opts[0].Name, ConfigBlobCacheIgnoreMissingSubmodules)
+}
+
+func TestBlobCacheRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&BlobCache{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "BlobCache")
+	tps, exists := Registry.provided[(&BlobCache{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.Len(t, tps, 1)
+	assert.Equal(t, tps[0].Elem().Name(), "BlobCache")
 }
 
 func TestBlobCacheConsumeModification(t *testing.T) {
