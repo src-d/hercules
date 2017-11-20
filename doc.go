@@ -9,7 +9,7 @@ statistics but rather provide the requirements for other items. The top-level it
 include:
 
 - BurndownAnalysis - line burndown statistics for project, files and developers.
-- Couples - coupling statistics for files and developers.
+- CouplesAnalysis - coupling statistics for files and developers.
 
 The typical API usage is to initialize the Pipeline class:
 

@@ -67,7 +67,7 @@ message DeveloperTouchedFiles {
     repeated TouchedFiles developers = 1;
 }
 
-message CouplesResults {
+message CouplesAnalysisResults {
     Couples file_couples = 6;
     Couples developer_couples = 7;
     DeveloperTouchedFiles touched_files = 8;

@@ -1,15 +1,18 @@
 package hercules
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/hercules.v3/pb"
+	"github.com/gogo/protobuf/proto"
 )
 
-func fixtureCouples() *Couples {
-	c := Couples{PeopleNumber: 3}
+func fixtureCouples() *CouplesAnalysis {
+	c := CouplesAnalysis{PeopleNumber: 3}
 	c.Initialize(testRepository)
 	return &c
 }
@@ -21,6 +24,17 @@ func TestCouplesMeta(t *testing.T) {
 	assert.Equal(t, len(c.Requires()), 2)
 	assert.Equal(t, c.Requires()[0], "author")
 	assert.Equal(t, c.Requires()[1], "changes")
+	assert.Equal(t, c.Flag(), "couples")
+	assert.Len(t, c.ListConfigurationOptions(), 0)
+}
+
+func TestCouplesRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&CouplesAnalysis{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "CouplesAnalysis")
+	tp, exists = Registry.flags[(&CouplesAnalysis{}).Flag()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "CouplesAnalysis")
 }
 
 func generateChanges(names ...string) object.Changes {
@@ -140,4 +154,66 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, cr.FilesMatrix[2][0], int64(1))
 	assert.Equal(t, cr.FilesMatrix[2][1], int64(2))
 	assert.Equal(t, cr.FilesMatrix[2][2], int64(2))
+}
+
+func TestCouplesSerialize(t *testing.T) {
+	c := fixtureCouples()
+	c.PeopleNumber = 1
+	people := [...]string{"p1", "p2", "p3"}
+	facts := map[string]interface{}{}
+	c.Configure(facts)
+	assert.Equal(t, c.PeopleNumber, 1)
+	facts[FactIdentityDetectorPeopleCount] = 3
+	facts[FactIdentityDetectorReversedPeopleDict] = people[:]
+	c.Configure(facts)
+	assert.Equal(t, c.PeopleNumber, 3)
+	deps := map[string]interface{}{}
+	deps["author"] = 0
+	deps["changes"] = generateChanges("+two", "+four", "+six")
+	c.Consume(deps)
+	deps["changes"] = generateChanges("+one", "-two", "=three", ">four>five")
+	c.Consume(deps)
+	deps["author"] = 1
+	deps["changes"] = generateChanges("=one", "=three", "-six")
+	c.Consume(deps)
+	deps["author"] = 2
+	deps["changes"] = generateChanges("=five")
+	c.Consume(deps)
+	result := c.Finalize().(CouplesResult)
+	buffer := &bytes.Buffer{}
+	c.Serialize(result, false, buffer)
+	assert.Equal(t, buffer.String(), `  files_coocc:
+    index:
+      - "five"
+      - "one"
+      - "three"
+    matrix:
+      - {0: 3, 1: 1, 2: 1}
+      - {0: 1, 1: 2, 2: 2}
+      - {0: 1, 1: 2, 2: 2}
+  people_coocc:
+    index:
+      - "p1"
+      - "p2"
+      - "p3"
+    matrix:
+      - {0: 7, 1: 3, 2: 1}
+      - {0: 3, 1: 3}
+      - {0: 1, 2: 1}
+      - {}
+    author_files:
+      - "p3":
+        - "five"
+      - "p2":
+        - "one"
+        - "three"
+      - "p1":
+        - "five"
+        - "one"
+        - "three"
+`)
+	buffer = &bytes.Buffer{}
+	c.Serialize(result, true, buffer)
+	msg := pb.CouplesAnalysisResults{}
+	proto.Unmarshal(buffer.Bytes(), &msg)
 }

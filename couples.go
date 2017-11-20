@@ -13,7 +13,7 @@ import (
 	"gopkg.in/src-d/hercules.v3/stdout"
 )
 
-type Couples struct {
+type CouplesAnalysis struct {
 	// The number of developers for which to build the matrix. 0 disables this analysis.
 	PeopleNumber int
 
@@ -34,35 +34,35 @@ type CouplesResult struct {
 	Files        []string
 }
 
-func (couples *Couples) Name() string {
+func (couples *CouplesAnalysis) Name() string {
 	return "Couples"
 }
 
-func (couples *Couples) Provides() []string {
+func (couples *CouplesAnalysis) Provides() []string {
 	return []string{}
 }
 
-func (couples *Couples) Requires() []string {
+func (couples *CouplesAnalysis) Requires() []string {
 	arr := [...]string{"author", "changes"}
 	return arr[:]
 }
 
-func (couples *Couples) ListConfigurationOptions() []ConfigurationOption {
+func (couples *CouplesAnalysis) ListConfigurationOptions() []ConfigurationOption {
 	return []ConfigurationOption{}
 }
 
-func (couples *Couples) Configure(facts map[string]interface{}) {
+func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[FactIdentityDetectorPeopleCount].(int); exists {
 		couples.PeopleNumber = val
 		couples.reversedPeopleDict = facts[FactIdentityDetectorReversedPeopleDict].([]string)
 	}
 }
 
-func (couples *Couples) Flag() string {
+func (couples *CouplesAnalysis) Flag() string {
 	return "couples"
 }
 
-func (couples *Couples) Initialize(repository *git.Repository) {
+func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 	couples.people = make([]map[string]int, couples.PeopleNumber+1)
 	for i := range couples.people {
 		couples.people[i] = map[string]int{}
@@ -71,7 +71,7 @@ func (couples *Couples) Initialize(repository *git.Repository) {
 	couples.files = map[string]map[string]int{}
 }
 
-func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	author := deps["author"].(int)
 	if author == MISSING_AUTHOR {
 		author = couples.PeopleNumber
@@ -136,7 +136,7 @@ func (couples *Couples) Consume(deps map[string]interface{}) (map[string]interfa
 	return nil, nil
 }
 
-func (couples *Couples) Finalize() interface{} {
+func (couples *CouplesAnalysis) Finalize() interface{} {
 	filesSequence := make([]string, len(couples.files))
 	i := 0
 	for file := range couples.files {
@@ -184,7 +184,7 @@ func (couples *Couples) Finalize() interface{} {
 		Files: filesSequence, FilesMatrix: filesMatrix}
 }
 
-func (couples *Couples) Serialize(result interface{}, binary bool, writer io.Writer) error {
+func (couples *CouplesAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
 	couplesResult := result.(CouplesResult)
 	if binary {
 		return couples.serializeBinary(&couplesResult, writer)
@@ -193,7 +193,7 @@ func (couples *Couples) Serialize(result interface{}, binary bool, writer io.Wri
 	return nil
 }
 
-func (couples *Couples) serializeText(result *CouplesResult, writer io.Writer) {
+func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.Writer) {
 	fmt.Fprintln(writer, "  files_coocc:")
 	fmt.Fprintln(writer, "    index:")
 	for _, file := range result.Files {
@@ -284,8 +284,8 @@ func (s authorFilesList) Less(i, j int) bool {
 	return len(s[i].Files) < len(s[j].Files)
 }
 
-func (couples *Couples) serializeBinary(result *CouplesResult, writer io.Writer) error {
-	message := pb.CouplesResults{}
+func (couples *CouplesAnalysis) serializeBinary(result *CouplesResult, writer io.Writer) error {
+	message := pb.CouplesAnalysisResults{}
 
 	message.FileCouples = &pb.Couples{
 		Index:  result.Files,
@@ -318,5 +318,5 @@ func (couples *Couples) serializeBinary(result *CouplesResult, writer io.Writer)
 }
 
 func init() {
-	Registry.Register(&Couples{})
+	Registry.Register(&CouplesAnalysis{})
 }
