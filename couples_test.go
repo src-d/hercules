@@ -216,4 +216,30 @@ func TestCouplesSerialize(t *testing.T) {
 	c.Serialize(result, true, buffer)
 	msg := pb.CouplesAnalysisResults{}
 	proto.Unmarshal(buffer.Bytes(), &msg)
+	assert.Len(t, msg.TouchedFiles.Developers, 3)
+	tmp1 := [...]int32{0, 1, 2}
+	assert.Equal(t, msg.TouchedFiles.Developers[0].Files, tmp1[:])
+	tmp2 := [...]int32{1, 2}
+	assert.Equal(t, msg.TouchedFiles.Developers[1].Files, tmp2[:])
+	tmp3 := [...]int32{0}
+	assert.Equal(t, msg.TouchedFiles.Developers[2].Files, tmp3[:])
+	assert.Equal(t, msg.DeveloperCouples.Index, people[:])
+	assert.Equal(t, msg.DeveloperCouples.Matrix.NumberOfRows, int32(4))
+	assert.Equal(t, msg.DeveloperCouples.Matrix.NumberOfColumns, int32(4))
+	data := [...]int64{7, 3, 1, 3, 3, 1, 1}
+	assert.Equal(t, msg.DeveloperCouples.Matrix.Data, data[:])
+	indices := [...]int32{0, 1, 2, 0, 1, 0, 2}
+	assert.Equal(t, msg.DeveloperCouples.Matrix.Indices, indices[:])
+	indptr := [...]int64{0, 3, 5, 7, 7}
+	assert.Equal(t, msg.DeveloperCouples.Matrix.Indptr, indptr[:])
+	files := [...]string{"five", "one", "three"}
+	assert.Equal(t, msg.FileCouples.Index, files[:])
+	assert.Equal(t, msg.FileCouples.Matrix.NumberOfRows, int32(3))
+	assert.Equal(t, msg.FileCouples.Matrix.NumberOfColumns, int32(3))
+	data2 := [...]int64{3, 1, 1, 1, 2, 2, 1, 2, 2}
+	assert.Equal(t, msg.FileCouples.Matrix.Data, data2[:])
+	indices2 := [...]int32{0, 1, 2, 0, 1, 2, 0, 1, 2}
+	assert.Equal(t, msg.FileCouples.Matrix.Indices, indices2[:])
+	indptr2 := [...]int64{0, 3, 6, 9}
+	assert.Equal(t, msg.FileCouples.Matrix.Indptr, indptr2[:])
 }

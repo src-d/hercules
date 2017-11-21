@@ -1,5 +1,7 @@
 package pb
 
+import "sort"
+
 func ToBurndownSparseMatrix(matrix [][]int64, name string) *BurndownSparseMatrix {
   r := BurndownSparseMatrix{
 	  Name: name,
@@ -65,9 +67,17 @@ func MapToCompressedSparseRowMatrix(matrix []map[int]int64) *CompressedSparseRow
 	}
 	r.Indptr[0] = 0
 	for _, row := range matrix {
-		for x, col := range row {
-			r.Data = append(r.Data, col)
-			r.Indices = append(r.Indices, int32(x))
+		order := make([]int, len(row))
+		i := 0
+		for col := range row {
+			order[i] = col
+			i++
+		}
+		sort.Ints(order)
+		for _, col := range order {
+			val := row[col]
+			r.Data = append(r.Data, val)
+			r.Indices = append(r.Indices, int32(col))
 		}
 		r.Indptr = append(r.Indptr, r.Indptr[len(r.Indptr) - 1] + int64(len(row)))
 	}
