@@ -24,6 +24,22 @@ func TestFileDiffMeta(t *testing.T) {
 	assert.Equal(t, len(fd.Requires()), 2)
 	assert.Equal(t, fd.Requires()[0], "changes")
 	assert.Equal(t, fd.Requires()[1], "blob_cache")
+	assert.Len(t, fd.ListConfigurationOptions(), 0)
+	fd.Configure(nil)
+}
+
+func TestFileDiffRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&FileDiff{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "FileDiff")
+	tps, exists := Registry.provided[(&FileDiff{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.True(t, len(tps) >= 1)
+	matched := false
+	for _, tp := range tps {
+		matched = matched || tp.Elem().Name() == "FileDiff"
+	}
+	assert.True(t, matched)
 }
 
 func TestFileDiffConsume(t *testing.T) {

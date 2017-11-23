@@ -19,6 +19,18 @@ func TestDaysSinceStartMeta(t *testing.T) {
 	assert.Equal(t, len(dss.Provides()), 1)
 	assert.Equal(t, dss.Provides()[0], "day")
 	assert.Equal(t, len(dss.Requires()), 0)
+	assert.Len(t, dss.ListConfigurationOptions(), 0)
+	dss.Configure(nil)
+}
+
+func TestDaysSinceStartRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&DaysSinceStart{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "DaysSinceStart")
+	tps, exists := Registry.provided[(&DaysSinceStart{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.Len(t, tps, 1)
+	assert.Equal(t, tps[0].Elem().Name(), "DaysSinceStart")
 }
 
 func TestDaysSinceStartConsume(t *testing.T) {

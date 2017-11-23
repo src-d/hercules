@@ -36,6 +36,19 @@ func TestIdentityDetectorMeta(t *testing.T) {
 	assert.Equal(t, len(id.Requires()), 0)
 	assert.Equal(t, len(id.Provides()), 1)
 	assert.Equal(t, id.Provides()[0], "author")
+	opts := id.ListConfigurationOptions()
+	assert.Len(t, opts, 1)
+	assert.Equal(t, opts[0].Name, ConfigIdentityDetectorPeopleDictPath)
+}
+
+func TestIdentityDetectorRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&IdentityDetector{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "IdentityDetector")
+	tps, exists := Registry.provided[(&IdentityDetector{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.Len(t, tps, 1)
+	assert.Equal(t, tps[0].Elem().Name(), "IdentityDetector")
 }
 
 func TestIdentityDetectorConsume(t *testing.T) {
@@ -74,7 +87,7 @@ func TestLoadPeopleDict(t *testing.T) {
 }
 
 /*
-// internal compiler error
+// internal compiler error in 1.8
 func TestGeneratePeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	commits := make([]*object.Commit, 0)
