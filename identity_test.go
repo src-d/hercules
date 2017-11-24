@@ -41,6 +41,78 @@ func TestIdentityDetectorMeta(t *testing.T) {
 	assert.Equal(t, opts[0].Name, ConfigIdentityDetectorPeopleDictPath)
 }
 
+func TestIdentityDetectorConfigure(t *testing.T) {
+	id := fixtureIdentityDetector()
+	facts := map[string]interface{}{}
+	m1 := map[string]int{}
+	m2 := []string{}
+	facts[FactIdentityDetectorPeopleDict] = m1
+	facts[FactIdentityDetectorReversedPeopleDict] = m2
+	id.Configure(facts)
+	assert.Equal(t, m1, facts[FactIdentityDetectorPeopleDict])
+	assert.Equal(t, m2, facts[FactIdentityDetectorReversedPeopleDict])
+	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
+	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
+	id = fixtureIdentityDetector()
+	tmpf, err := ioutil.TempFile("", "hercules-test-")
+	assert.Nil(t, err)
+	defer os.Remove(tmpf.Name())
+	_, err = tmpf.WriteString(`Egor|egor@sourced.tech
+Vadim|vadim@sourced.tech`)
+	assert.Nil(t, err)
+	assert.Nil(t, tmpf.Close())
+	delete(facts, FactIdentityDetectorPeopleDict)
+	delete(facts, FactIdentityDetectorReversedPeopleDict)
+	facts[ConfigIdentityDetectorPeopleDictPath] = tmpf.Name()
+	id.Configure(facts)
+	assert.Len(t, id.PeopleDict, 2)
+	assert.Len(t, id.ReversedPeopleDict, 1)
+	assert.Equal(t, id.ReversedPeopleDict[0], "Vadim")
+	delete(facts, FactIdentityDetectorPeopleDict)
+	delete(facts, FactIdentityDetectorReversedPeopleDict)
+	id = fixtureIdentityDetector()
+	id.PeopleDict = nil
+	id.Configure(facts)
+	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
+	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
+	assert.Len(t, id.PeopleDict, 4)
+	assert.Len(t, id.ReversedPeopleDict, 3)
+	assert.Equal(t, id.ReversedPeopleDict[0], "Egor")
+	assert.Equal(t, facts[FactIdentityDetectorPeopleCount], 2)
+	delete(facts, FactIdentityDetectorPeopleDict)
+	delete(facts, FactIdentityDetectorReversedPeopleDict)
+	id = fixtureIdentityDetector()
+	id.ReversedPeopleDict = nil
+	id.Configure(facts)
+	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
+	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
+	assert.Len(t, id.PeopleDict, 4)
+	assert.Len(t, id.ReversedPeopleDict, 3)
+	assert.Equal(t, id.ReversedPeopleDict[0], "Egor")
+	assert.Equal(t, facts[FactIdentityDetectorPeopleCount], 2)
+	delete(facts, FactIdentityDetectorPeopleDict)
+	delete(facts, FactIdentityDetectorReversedPeopleDict)
+	delete(facts, ConfigIdentityDetectorPeopleDictPath)
+	commits := make([]*object.Commit, 0)
+	iter, err := testRepository.CommitObjects()
+	commit, err := iter.Next()
+	for ; err != io.EOF; commit, err = iter.Next() {
+		if err != nil {
+			panic(err)
+		}
+		commits = append(commits, commit)
+	}
+	facts["commits"] = commits
+	id = fixtureIdentityDetector()
+	id.PeopleDict = nil
+	id.ReversedPeopleDict = nil
+	id.Configure(facts)
+	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
+	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
+	assert.True(t, len(id.PeopleDict) >= 3)
+	assert.True(t, len(id.ReversedPeopleDict) >= 4)
+}
+
 func TestIdentityDetectorRegistration(t *testing.T) {
 	tp, exists := Registry.registered[(&IdentityDetector{}).Name()]
 	assert.True(t, exists)
@@ -83,7 +155,7 @@ func TestLoadPeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "Linus Torvalds")
 	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim Markovtsev")
 	assert.Equal(t, id.ReversedPeopleDict[2], "Máximo Cuadros")
-	assert.Equal(t, id.ReversedPeopleDict[3], "<unmatched>")
+	assert.Equal(t, id.ReversedPeopleDict[3], UNMATCHED_AUTHOR)
 }
 
 /*
@@ -152,6 +224,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
+	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict) - 1], UNMATCHED_AUTHOR)
 }
 
 func TestLoadPeopleDictInvalidPath(t *testing.T) {

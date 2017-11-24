@@ -20,6 +20,7 @@ type IdentityDetector struct {
 const (
 	MISSING_AUTHOR = (1 << 18) - 1
 	SELF_AUTHOR    = (1 << 18) - 2
+	UNMATCHED_AUTHOR = "<unmatched>"
 
 	FactIdentityDetectorPeopleDict         = "IdentityDetector.PeopleDict"
 	FactIdentityDetectorReversedPeopleDict = "IdentityDetector.ReversedPeopleDict"
@@ -58,10 +59,7 @@ func (id *IdentityDetector) Configure(facts map[string]interface{}) {
 	if val, exists := facts[FactIdentityDetectorReversedPeopleDict].([]string); exists {
 		id.ReversedPeopleDict = val
 	}
-	if id.PeopleDict == nil {
-		if id.ReversedPeopleDict != nil {
-			panic("IdentityDetector: ReversedPeopleDict != nil while PeopleDict == nil")
-		}
+	if id.PeopleDict == nil || id.ReversedPeopleDict == nil {
 		peopleDictPath, _ := facts[ConfigIdentityDetectorPeopleDictPath].(string)
 		if peopleDictPath != "" {
 			id.LoadPeopleDict(peopleDictPath)
@@ -111,7 +109,7 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 		reverse_dict = append(reverse_dict, ids[0])
 		size += 1
 	}
-	reverse_dict = append(reverse_dict, "<unmatched>")
+	reverse_dict = append(reverse_dict, UNMATCHED_AUTHOR)
 	id.PeopleDict = dict
 	id.ReversedPeopleDict = reverse_dict
 	return nil
