@@ -18,8 +18,8 @@ type IdentityDetector struct {
 }
 
 const (
-	MISSING_AUTHOR = (1 << 18) - 1
-	SELF_AUTHOR    = (1 << 18) - 2
+	MISSING_AUTHOR   = (1 << 18) - 1
+	SELF_AUTHOR      = (1 << 18) - 2
 	UNMATCHED_AUTHOR = "<unmatched>"
 
 	FactIdentityDetectorPeopleDict         = "IdentityDetector.PeopleDict"

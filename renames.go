@@ -23,6 +23,8 @@ type RenameAnalysis struct {
 }
 
 const (
+	RENAME_ANALYSIS_DEFAULT_THRESHOLD = 90
+
 	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
 )
 
@@ -42,11 +44,11 @@ func (ra *RenameAnalysis) Requires() []string {
 
 func (ra *RenameAnalysis) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
-		Name:        ConfigBurndownGranularity,
-		Description: "How many days there are in a single band.",
+		Name:        ConfigRenameAnalysisSimilarityThreshold,
+		Description: "The threshold on the similarity index used to detect renames.",
 		Flag:        "M",
 		Type:        IntConfigurationOption,
-		Default:     90},
+		Default:     RENAME_ANALYSIS_DEFAULT_THRESHOLD},
 	}
 	return options[:]
 }
@@ -59,8 +61,9 @@ func (ra *RenameAnalysis) Configure(facts map[string]interface{}) {
 
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
-		fmt.Fprintln(os.Stderr, "Warning: adjusted the similarity threshold to 90")
-		ra.SimilarityThreshold = 90
+		fmt.Fprintf(os.Stderr, "Warning: adjusted the similarity threshold to %d\n",
+			RENAME_ANALYSIS_DEFAULT_THRESHOLD)
+		ra.SimilarityThreshold = RENAME_ANALYSIS_DEFAULT_THRESHOLD
 	}
 	ra.repository = repository
 }

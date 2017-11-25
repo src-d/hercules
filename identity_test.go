@@ -224,7 +224,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
-	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict) - 1], UNMATCHED_AUTHOR)
+	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], UNMATCHED_AUTHOR)
 }
 
 func TestLoadPeopleDictInvalidPath(t *testing.T) {
