@@ -5,6 +5,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +14,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"path"
+	"flag"
 )
 
 type testPipelineItem struct {
@@ -50,6 +52,15 @@ func (item *testPipelineItem) ListConfigurationOptions() []ConfigurationOption {
 	return options[:]
 }
 
+func (item *testPipelineItem) Flag() string {
+	return "mytest"
+}
+
+func (item *testPipelineItem) Features() []string {
+	f := [...]string{"power"}
+	return f[:]
+}
+
 func (item *testPipelineItem) Initialize(repository *git.Repository) {
 	item.Initialized = repository != nil
 }
@@ -74,6 +85,40 @@ func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]i
 
 func (item *testPipelineItem) Finalize() interface{} {
 	return item
+}
+
+func (item *testPipelineItem) Serialize(result interface{}, binary bool, writer io.Writer) error {
+	return nil
+}
+
+func getRegistry() *PipelineItemRegistry {
+	return &PipelineItemRegistry{
+		provided:   map[string][]reflect.Type{},
+		registered: map[string]reflect.Type{},
+		flags:      map[string]reflect.Type{},
+	}
+}
+
+func TestPipelineItemRegistrySummon(t *testing.T) {
+	reg := getRegistry()
+	reg.Register(&testPipelineItem{})
+	summoned := reg.Summon((&testPipelineItem{}).Provides()[0])
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), (&testPipelineItem{}).Name())
+	summoned = reg.Summon((&testPipelineItem{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), (&testPipelineItem{}).Name())
+}
+
+func TestPipelineItemRegistryAddFlags(t *testing.T) {
+	reg := getRegistry()
+	reg.Register(&testPipelineItem{})
+	facts, deployed := reg.AddFlags()
+	assert.Len(t, facts, 1)
+	assert.IsType(t, 0, facts[(&testPipelineItem{}).ListConfigurationOptions()[0].Name])
+	assert.Len(t, deployed, 1)
+	assert.Contains(t, deployed, (&testPipelineItem{}).Name())
+	assert.NotNil(t, flag.Lookup((&testPipelineItem{}).Flag()))
 }
 
 type dependingTestPipelineItem struct {
@@ -120,10 +165,6 @@ func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map
 	} else {
 		return nil, nil
 	}
-}
-
-func (item *dependingTestPipelineItem) Finalize() interface{} {
-	return item.DependencySatisfied
 }
 
 func TestPipelineRun(t *testing.T) {

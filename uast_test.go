@@ -24,6 +24,42 @@ func TestUASTExtractorMeta(t *testing.T) {
 	assert.Equal(t, len(exr.Requires()), 2)
 	assert.Equal(t, exr.Requires()[0], "changes")
 	assert.Equal(t, exr.Requires()[1], "blob_cache")
+	opts := exr.ListConfigurationOptions()
+	assert.Len(t, opts, 5)
+	assert.Equal(t, opts[0].Name, ConfigUASTEndpoint)
+	assert.Equal(t, opts[1].Name, ConfigUASTTimeout)
+	assert.Equal(t, opts[2].Name, ConfigUASTPoolSize)
+	assert.Equal(t, opts[3].Name, ConfigUASTFailOnErrors)
+	assert.Equal(t, opts[4].Name, ConfigUASTLanguages)
+}
+
+func TestUASTExtractorConfiguration(t *testing.T) {
+	exr := fixtureUASTExtractor()
+	facts := map[string]interface{}{}
+	exr.Configure(facts)
+	facts[ConfigUASTEndpoint] = "localhost:9432"
+	facts[ConfigUASTTimeout] = 15
+	facts[ConfigUASTPoolSize] = 7
+	facts[ConfigUASTLanguages] = "C, Go"
+	facts[ConfigUASTFailOnErrors] = true
+	exr.Configure(facts)
+	assert.Equal(t, exr.Endpoint, facts[ConfigUASTEndpoint])
+	assert.NotNil(t, exr.Context)
+	assert.Equal(t, exr.PoolSize, facts[ConfigUASTPoolSize])
+	assert.True(t, exr.Languages["C"])
+	assert.True(t, exr.Languages["Go"])
+	assert.False(t, exr.Languages["Python"])
+	assert.Equal(t, exr.FailOnErrors, true)
+}
+
+func TestUASTExtractorRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&UASTExtractor{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "UAST")
+	tps, exists := Registry.provided[(&UASTExtractor{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.Len(t, tps, 1)
+	assert.Equal(t, tps[0].Elem().Name(), "UAST")
 }
 
 func TestUASTExtractorConsume(t *testing.T) {

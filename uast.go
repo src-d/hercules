@@ -42,11 +42,11 @@ type UASTExtractor struct {
 const (
 	UAST_EXTRACTION_SKIPPED = -(1 << 31)
 
-	ConfigUASTEndpoint     = "UAST.Endpoint"
-	ConfigUASTTimeout      = "UAST.Timeout"
-	ConfigUASTPoolSize     = "UAST.PoolSize"
-	ConfigUASTFailOnErrors = "UAST.FailOnErrors"
-	ConfigUASTLanguages    = "UAST.Languages"
+	ConfigUASTEndpoint     = "ConfigUASTEndpoint"
+	ConfigUASTTimeout      = "ConfigUASTTimeout"
+	ConfigUASTPoolSize     = "ConfigUASTPoolSize"
+	ConfigUASTFailOnErrors = "ConfigUASTFailOnErrors"
+	ConfigUASTLanguages    = "ConfigUASTLanguages"
 )
 
 type uastTask struct {
@@ -127,7 +127,7 @@ func (exr *UASTExtractor) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigUASTEndpoint].(string); exists {
 		exr.Endpoint = val
 	}
-	if val, exists := facts["UAST.Timeout"].(int); exists {
+	if val, exists := facts[ConfigUASTTimeout].(int); exists {
 		exr.Context = func() context.Context {
 			ctx, _ := context.WithTimeout(context.Background(),
 				time.Duration(val)*time.Second)
@@ -140,7 +140,7 @@ func (exr *UASTExtractor) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigUASTLanguages].(string); exists {
 		exr.Languages = map[string]bool{}
 		for _, lang := range strings.Split(val, ",") {
-			exr.Languages[lang] = true
+			exr.Languages[strings.TrimSpace(lang)] = true
 		}
 	}
 	if val, exists := facts[ConfigUASTFailOnErrors].(bool); exists {
@@ -177,6 +177,9 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 		panic(err)
 	}
 	exr.ProcessedFiles = map[string]int{}
+	if exr.Languages == nil {
+		exr.Languages = map[string]bool{}
+	}
 }
 
 func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {

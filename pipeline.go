@@ -146,6 +146,12 @@ func (acf *arrayFeatureFlags) Set(value string) error {
 
 var featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
 
+// AddFlags inserts the cmdline options from PipelineItem.ListConfigurationOptions(),
+// FeaturedPipelineItem().Features() and LeafPipelineItem.Flag() into the global "flag" parser
+// built into the Go runtime.
+// Returns the "facts" which can be fed into PipelineItem.Configure() and the dictionary of
+// runnable analysis (LeafPipelineItem) choices. E.g. if "BurndownAnalysis" was activated
+// through "-burndown" cmdline argument, this mapping would contain ["BurndownAnalysis"] = *true.
 func (registry *PipelineItemRegistry) AddFlags() (map[string]interface{}, map[string]*bool) {
 	flags := map[string]interface{}{}
 	deployed := map[string]*bool{}
