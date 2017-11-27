@@ -157,6 +157,10 @@ func (item *dependingTestPipelineItem) Configure(facts map[string]interface{}) {
 func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) {
 }
 
+func (item *dependingTestPipelineItem) Flag() string {
+	return "depflag"
+}
+
 func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	_, exists := deps["test"]
 	item.DependencySatisfied = exists
@@ -165,6 +169,29 @@ func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map
 	} else {
 		return nil, nil
 	}
+}
+
+func (item *dependingTestPipelineItem) Finalize() interface{} {
+	return true
+}
+
+func (item *dependingTestPipelineItem) Serialize(result interface{}, binary bool, writer io.Writer) error {
+	return nil
+}
+
+func TestPipelineFacts(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.SetFact("fact", "value")
+	assert.Equal(t, pipeline.GetFact("fact"), "value")
+}
+
+func TestPipelineFeatures(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.SetFeature("feat")
+	val, _ := pipeline.GetFeature("feat")
+	assert.True(t, val)
+	val, exists := pipeline.GetFeature("!")
+	assert.False(t, exists)
 }
 
 func TestPipelineRun(t *testing.T) {
@@ -263,6 +290,7 @@ func TestPipelineDeps(t *testing.T) {
 	item2 := &testPipelineItem{}
 	pipeline.AddItem(item1)
 	pipeline.AddItem(item2)
+	assert.Equal(t, pipeline.Len(), 2)
 	pipeline.Initialize(map[string]interface{}{})
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
@@ -270,6 +298,7 @@ func TestPipelineDeps(t *testing.T) {
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
 	assert.True(t, result[item1].(bool))
+	assert.Equal(t, result[item2], item2)
 	item1.TestNilConsumeReturn = true
 	assert.Panics(t, func() { pipeline.Run(commits) })
 }
@@ -304,27 +333,27 @@ func TestPipelineSerialize(t *testing.T) {
 	assert.Equal(t, `digraph Hercules {
   "6 BlobCache" -> "7 [blob_cache]"
   "0 DaysSinceStart" -> "3 [day]"
-  "10 FileDiff" -> "12 [file_diff]"
+  "9 FileDiff" -> "11 [file_diff]"
   "15 FileDiffRefiner" -> "16 Burndown"
   "1 IdentityDetector" -> "4 [author]"
   "8 RenameAnalysis" -> "16 Burndown"
-  "8 RenameAnalysis" -> "10 FileDiff"
-  "8 RenameAnalysis" -> "9 UAST"
+  "8 RenameAnalysis" -> "9 FileDiff"
+  "8 RenameAnalysis" -> "10 UAST"
   "8 RenameAnalysis" -> "13 UASTChanges"
   "2 TreeDiff" -> "5 [changes]"
-  "9 UAST" -> "11 [uasts]"
+  "10 UAST" -> "12 [uasts]"
   "13 UASTChanges" -> "14 [changed_uasts]"
   "4 [author]" -> "16 Burndown"
   "7 [blob_cache]" -> "16 Burndown"
-  "7 [blob_cache]" -> "10 FileDiff"
+  "7 [blob_cache]" -> "9 FileDiff"
   "7 [blob_cache]" -> "8 RenameAnalysis"
-  "7 [blob_cache]" -> "9 UAST"
+  "7 [blob_cache]" -> "10 UAST"
   "14 [changed_uasts]" -> "15 FileDiffRefiner"
   "5 [changes]" -> "6 BlobCache"
   "5 [changes]" -> "8 RenameAnalysis"
   "3 [day]" -> "16 Burndown"
-  "12 [file_diff]" -> "15 FileDiffRefiner"
-  "11 [uasts]" -> "13 UASTChanges"
+  "11 [file_diff]" -> "15 FileDiffRefiner"
+  "12 [uasts]" -> "13 UASTChanges"
 }`, dot)
 }
 

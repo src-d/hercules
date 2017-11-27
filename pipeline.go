@@ -16,6 +16,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v3/toposort"
+	"sort"
 )
 
 type ConfigurationOptionType int
@@ -247,8 +248,9 @@ func (pipeline *Pipeline) SetFact(name string, value interface{}) {
 	pipeline.facts[name] = value
 }
 
-func (pipeline *Pipeline) GetFeature(name string) bool {
-	return pipeline.features[name]
+func (pipeline *Pipeline) GetFeature(name string) (bool, bool) {
+	val, exists := pipeline.features[name]
+	return val, exists
 }
 
 func (pipeline *Pipeline) SetFeature(name string) {
@@ -342,8 +344,23 @@ func (pipeline *Pipeline) Commits() []*object.Commit {
 	return result
 }
 
+type sortablePipelineItems []PipelineItem
+
+func (items sortablePipelineItems) Len() int {
+	return len(items)
+}
+
+func (items sortablePipelineItems) Less(i, j int) bool {
+	return items[i].Name() < items[j].Name()
+}
+
+func (items sortablePipelineItems) Swap(i, j int) {
+	items[i], items[j] = items[j], items[i]
+}
+
 func (pipeline *Pipeline) resolve(dumpPath string) {
 	graph := toposort.NewGraph()
+	sort.Sort(sortablePipelineItems(pipeline.items))
 	name2item := map[string]PipelineItem{}
 	ambiguousMap := map[string][]string{}
 	nameUsages := map[string]int{}
