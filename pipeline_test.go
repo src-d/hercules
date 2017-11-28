@@ -9,12 +9,12 @@ import (
 	"reflect"
 	"testing"
 
+	"flag"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"flag"
 )
 
 type testPipelineItem struct {
@@ -191,6 +191,13 @@ func TestPipelineFeatures(t *testing.T) {
 	val, _ := pipeline.GetFeature("feat")
 	assert.True(t, val)
 	val, exists := pipeline.GetFeature("!")
+	assert.False(t, exists)
+	featureFlags.Set("777")
+	defer func() {
+		featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
+	}()
+	pipeline.SetFeaturesFromFlags()
+	_, exists = pipeline.GetFeature("777")
 	assert.False(t, exists)
 }
 

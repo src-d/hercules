@@ -404,7 +404,11 @@ func (saver *UASTChangesSaver) Flag() string {
 	return "dump-uast-changes"
 }
 
-func (saver *UASTChangesSaver) Configure(facts map[string]interface{}) {}
+func (saver *UASTChangesSaver) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigUASTChangesSaverOutputPath]; exists {
+		saver.OutputPath = val.(string)
+	}
+}
 
 func (saver *UASTChangesSaver) Initialize(repository *git.Repository) {
 	saver.repository = repository

@@ -31,6 +31,9 @@ func TestUASTExtractorMeta(t *testing.T) {
 	assert.Equal(t, opts[2].Name, ConfigUASTPoolSize)
 	assert.Equal(t, opts[3].Name, ConfigUASTFailOnErrors)
 	assert.Equal(t, opts[4].Name, ConfigUASTLanguages)
+	feats := exr.Features()
+	assert.Len(t, feats, 1)
+	assert.Equal(t, feats[0], "uast")
 }
 
 func TestUASTExtractorConfiguration(t *testing.T) {
@@ -55,11 +58,11 @@ func TestUASTExtractorConfiguration(t *testing.T) {
 func TestUASTExtractorRegistration(t *testing.T) {
 	tp, exists := Registry.registered[(&UASTExtractor{}).Name()]
 	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "UAST")
+	assert.Equal(t, tp.Elem().Name(), "UASTExtractor")
 	tps, exists := Registry.provided[(&UASTExtractor{}).Provides()[0]]
 	assert.True(t, exists)
 	assert.Len(t, tps, 1)
-	assert.Equal(t, tps[0].Elem().Name(), "UAST")
+	assert.Equal(t, tps[0].Elem().Name(), "UASTExtractor")
 }
 
 func TestUASTExtractorConsume(t *testing.T) {
@@ -131,4 +134,162 @@ func TestUASTExtractorConsume(t *testing.T) {
 	uasts := res["uasts"].(map[string]*uast.Node)
 	assert.Equal(t, len(uasts), 1)
 	assert.Equal(t, len(uasts["labours.py"].Children), 24)
+}
+
+func fixtureUASTChanges() *UASTChanges {
+	ch := UASTChanges{}
+	ch.Configure(nil)
+	ch.Initialize(testRepository)
+	return &ch
+}
+
+func TestUASTChangesMeta(t *testing.T) {
+	ch := fixtureUASTChanges()
+	assert.Equal(t, ch.Name(), "UASTChanges")
+	assert.Equal(t, len(ch.Provides()), 1)
+	assert.Equal(t, ch.Provides()[0], "changed_uasts")
+	assert.Equal(t, len(ch.Requires()), 2)
+	assert.Equal(t, ch.Requires()[0], "uasts")
+	assert.Equal(t, ch.Requires()[1], "changes")
+	opts := ch.ListConfigurationOptions()
+	assert.Len(t, opts, 0)
+	feats := ch.Features()
+	assert.Len(t, feats, 1)
+	assert.Equal(t, feats[0], "uast")
+}
+
+func TestUASTChangesRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&UASTChanges{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "UASTChanges")
+	tps, exists := Registry.provided[(&UASTChanges{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.True(t, len(tps) >= 1)
+	matched := false
+	for _, tp := range tps {
+		matched = matched || tp.Elem().Name() == "UASTChanges"
+	}
+	assert.True(t, matched)
+}
+
+func TestUASTChangesConsume(t *testing.T) {
+	uastsArray := []*uast.Node{}
+	uasts := map[plumbing.Hash]*uast.Node{}
+	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
+	uasts[hash] = &uast.Node{}
+	uasts[hash].InternalType = "uno"
+	uastsArray = append(uastsArray, uasts[hash])
+	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
+	uasts[hash] = &uast.Node{}
+	uasts[hash].InternalType = "dos"
+	uastsArray = append(uastsArray, uasts[hash])
+	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
+	uasts[hash] = &uast.Node{}
+	uasts[hash].InternalType = "tres"
+	uastsArray = append(uastsArray, uasts[hash])
+	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
+	uasts[hash] = &uast.Node{}
+	uasts[hash].InternalType = "quatro"
+	uastsArray = append(uastsArray, uasts[hash])
+	changes := make(object.Changes, 3)
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"994eac1cd07235bb9815e547a75c84265dea00f5"))
+	changes[0] = &object.Change{From: object.ChangeEntry{
+		Name: "analyser.go",
+		Tree: treeFrom,
+		TreeEntry: object.TreeEntry{
+			Name: "analyser.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"),
+		},
+	}, To: object.ChangeEntry{
+		Name: "analyser.go",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "analyser.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1"),
+		},
+	}}
+	changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: "cmd/hercules/main.go",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "cmd/hercules/main.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9"),
+		},
+	},
+	}
+	changes[2] = &object.Change{To: object.ChangeEntry{}, From: object.ChangeEntry{
+		Name: ".travis.yml",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: ".travis.yml",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"),
+		},
+	},
+	}
+	deps := map[string]interface{}{}
+	deps["uasts"] = uasts
+	deps["changes"] = changes
+	ch := fixtureUASTChanges()
+	ch.cache[changes[0].From.TreeEntry.Hash] = uastsArray[3]
+	ch.cache[changes[2].From.TreeEntry.Hash] = uastsArray[0]
+	resultMap, err := ch.Consume(deps)
+	assert.Nil(t, err)
+	result := resultMap["changed_uasts"].([]UASTChange)
+	assert.Len(t, result, 3)
+	assert.Equal(t, result[0].Change, changes[0])
+	assert.Equal(t, result[0].Before, uastsArray[3])
+	assert.Equal(t, result[0].After, uastsArray[2])
+	assert.Equal(t, result[1].Change, changes[1])
+	assert.Nil(t, result[1].Before)
+	assert.Equal(t, result[1].After, uastsArray[1])
+	assert.Equal(t, result[2].Change, changes[2])
+	assert.Equal(t, result[2].Before, uastsArray[0])
+	assert.Nil(t, result[2].After)
+}
+
+func fixtureUASTChangesSaver() *UASTChangesSaver {
+	ch := UASTChangesSaver{}
+	ch.Initialize(testRepository)
+	return &ch
+}
+
+func TestUASTChangesSaverMeta(t *testing.T) {
+	ch := fixtureUASTChangesSaver()
+	assert.Equal(t, ch.Name(), "UASTChangesSaver")
+	assert.Equal(t, len(ch.Provides()), 0)
+	assert.Equal(t, len(ch.Requires()), 1)
+	assert.Equal(t, ch.Requires()[0], "changed_uasts")
+	opts := ch.ListConfigurationOptions()
+	assert.Len(t, opts, 1)
+	assert.Equal(t, opts[0].Name, ConfigUASTChangesSaverOutputPath)
+	feats := ch.Features()
+	assert.Len(t, feats, 1)
+	assert.Equal(t, feats[0], "uast")
+	assert.Equal(t, ch.Flag(), "dump-uast-changes")
+}
+
+func TestUASTChangesSaverConfiguration(t *testing.T) {
+	facts := map[string]interface{}{}
+	ch := fixtureUASTChangesSaver()
+	ch.Configure(facts)
+	assert.Empty(t, ch.OutputPath)
+	facts[ConfigUASTChangesSaverOutputPath] = "libre"
+	ch.Configure(facts)
+	assert.Equal(t, ch.OutputPath, "libre")
+}
+
+func TestUASTChangesSaverRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&UASTChangesSaver{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "UASTChangesSaver")
+	tp, exists = Registry.flags[(&UASTChangesSaver{}).Flag()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "UASTChangesSaver")
 }

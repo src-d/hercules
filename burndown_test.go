@@ -24,11 +24,8 @@ func TestBurndownMeta(t *testing.T) {
 	matches := 0
 	for _, opt := range opts {
 		switch opt.Name {
-		case ConfigBurndownGranularity:
-		case ConfigBurndownSampling:
-		case ConfigBurndownTrackFiles:
-		case ConfigBurndownTrackPeople:
-		case ConfigBurndownDebug:
+		case ConfigBurndownGranularity, ConfigBurndownSampling, ConfigBurndownTrackFiles,
+			ConfigBurndownTrackPeople, ConfigBurndownDebug:
 			matches++
 		}
 	}
