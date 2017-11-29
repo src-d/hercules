@@ -114,26 +114,32 @@ func TestUASTExtractorConsume(t *testing.T) {
 	deps["blob_cache"] = cache
 	deps["changes"] = changes
 	res, err := exr.Consume(deps)
+	// Language not enabled
+	assert.Len(t, res["uasts"], 0)
+	assert.Nil(t, err)
+	exr.Languages["Go"] = true
+	res, err = exr.Consume(deps)
 	// No Go driver
-	assert.Nil(t, res)
-	assert.NotNil(t, err)
+	assert.Len(t, res["uasts"], 0)
+	assert.Nil(t, err)
 
+	hash = plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619")
 	changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
 		Name: "labours.py",
 		Tree: treeTo,
 		TreeEntry: object.TreeEntry{
 			Name: "labours.py",
 			Mode: 0100644,
-			Hash: plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619"),
+			Hash: hash,
 		},
 	},
 	}
 
 	res, err = exr.Consume(deps)
 	assert.Nil(t, err)
-	uasts := res["uasts"].(map[string]*uast.Node)
+	uasts := res["uasts"].(map[plumbing.Hash]*uast.Node)
 	assert.Equal(t, len(uasts), 1)
-	assert.Equal(t, len(uasts["labours.py"].Children), 24)
+	assert.Equal(t, len(uasts[hash].Children), 24)
 }
 
 func fixtureUASTChanges() *UASTChanges {

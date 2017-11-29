@@ -204,7 +204,7 @@ func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]inter
 				errs = append(errs, err)
 				return
 			}
-			lang, _ := enry.GetLanguageByContent(change.To.Name, buf.Bytes())
+			lang := enry.GetLanguage(change.To.Name, buf.Bytes())
 			if _, exists := exr.Languages[lang]; !exists {
 				exr.ProcessedFiles[change.To.Name] = UAST_EXTRACTION_SKIPPED
 				return
@@ -285,7 +285,9 @@ func (exr *UASTExtractor) extractTask(data interface{}) interface{} {
 		*task.Errors = append(*task.Errors, errors.New(task.File.Name+": "+err.Error()))
 		return nil
 	}
-	task.Dest[task.File.Hash] = node
+	if node != nil {
+		task.Dest[task.File.Hash] = node
+	}
 	return nil
 }
 
