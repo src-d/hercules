@@ -79,10 +79,13 @@ func (g *Graph) ReindexNode(node string) {
 	if !ok {
 		return
 	}
-	i := 1
+	keys := []string{}
 	for key := range children {
-		children[key] = i
-		i++
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for i, key := range keys {
+		children[key] = i + 1
 	}
 }
 
