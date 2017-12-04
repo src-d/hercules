@@ -142,6 +142,7 @@ func loadPlugins() {
 
 func main() {
 	loadPlugins()
+	var printVersion bool
 	var protobuf bool
 	var profile bool
 	var commitsFile string
@@ -151,8 +152,14 @@ func main() {
 		"--first-parent. The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
 	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
+	flag.BoolVar(&printVersion, "version", false, "Print version information and exit.")
 	facts, deployChoices := hercules.Registry.AddFlags()
 	flag.Parse()
+
+	if printVersion {
+		fmt.Printf("Version: 3\nGit:     %s\n", hercules.GIT_HASH)
+		return
+	}
 
 	if profile {
 		go http.ListenAndServe("localhost:6060", nil)
