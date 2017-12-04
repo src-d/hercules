@@ -3,8 +3,8 @@ syntax = "proto3";
 message Metadata {
     // this format is versioned
     int32 version = 1;
-    // complete command line used to write this message
-    string cmdline = 2;
+    // git hash of the revision from which Hercules is built
+    string hash = 2;
     // repository's name
     string repository = 3;
     // timestamp of the first analysed commit

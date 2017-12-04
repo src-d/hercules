@@ -217,14 +217,14 @@ type Pipeline struct {
 	// second is the total number of commits.
 	OnProgress func(int, int)
 
-	// repository points to the analysed Git repository struct from go-git.
+	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 
-	// items are the registered building blocks in the pipeline. The order defines the
+	// Items are the registered building blocks in the pipeline. The order defines the
 	// execution sequence.
 	items []PipelineItem
 
-	// the collection of parameters to create items.
+	// The collection of parameters to create items.
 	facts map[string]interface{}
 
 	// Feature flags which enable the corresponding items.

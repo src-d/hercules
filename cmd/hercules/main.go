@@ -229,7 +229,7 @@ func printResults(
 	results map[hercules.PipelineItem]interface{}) {
 	fmt.Println("hercules:")
 	fmt.Println("  version: 3")
-	fmt.Println("  cmdline:", strings.Join(os.Args, " "))
+	fmt.Println("  hash:", hercules.GIT_HASH)
 	fmt.Println("  repository:", uri)
 	fmt.Println("  begin_unix_time:", begin)
 	fmt.Println("  end_unix_time:", end)
@@ -251,7 +251,7 @@ func protobufResults(
 
   header := pb.Metadata{
 	  Version: 1,
-	  Cmdline: strings.Join(os.Args, " "),
+	  Hash: hercules.GIT_HASH,
 	  Repository: uri,
     BeginUnixTime: begin,
 	  EndUnixTime: end,
