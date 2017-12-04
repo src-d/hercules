@@ -218,14 +218,14 @@ func main() {
 	begin := commits[0].Author.When.Unix()
 	end := commits[len(commits)-1].Author.When.Unix()
 	if !protobuf {
-		printResults(uri, begin, end, deployed, results)
+		printResults(uri, begin, end, len(commits), deployed, results)
 	} else {
-		protobufResults(uri, begin, end, deployed, results)
+		protobufResults(uri, begin, end, len(commits), deployed, results)
 	}
 }
 
 func printResults(
-	uri string, begin, end int64, deployed []hercules.PipelineItem,
+	uri string, begin, end int64, commitsCount int, deployed []hercules.PipelineItem,
 	results map[hercules.PipelineItem]interface{}) {
 	fmt.Println("hercules:")
 	fmt.Println("  version: 3")
@@ -233,6 +233,7 @@ func printResults(
 	fmt.Println("  repository:", uri)
 	fmt.Println("  begin_unix_time:", begin)
 	fmt.Println("  end_unix_time:", end)
+	fmt.Println("  commits:", commitsCount)
 
 	for _, item := range deployed {
 		result := results[item]
@@ -245,7 +246,7 @@ func printResults(
 }
 
 func protobufResults(
-	uri string, begin, end int64, deployed []hercules.PipelineItem,
+	uri string, begin, end int64, commitsCount int, deployed []hercules.PipelineItem,
 	results map[hercules.PipelineItem]interface{}) {
 
   header := pb.Metadata{
@@ -254,6 +255,7 @@ func protobufResults(
 	  Repository: uri,
     BeginUnixTime: begin,
 	  EndUnixTime: end,
+	  Commits: int32(commitsCount),
   }
 
 	message := pb.AnalysisResults{

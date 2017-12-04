@@ -11,6 +11,8 @@ message Metadata {
     int64 begin_unix_time = 4;
     // timestamp of the last analysed commit
     int64 end_unix_time = 5;
+    // number of processed commits
+    int32 commits = 6;
 }
 
 message BurndownSparseMatrixRow {
