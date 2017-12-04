@@ -38,6 +38,7 @@ import (
 	"os"
 	"plugin"
 	"runtime/pprof"
+	"strconv"
 	"strings"
 
 	"gopkg.in/src-d/go-billy.v3/osfs"
@@ -179,9 +180,11 @@ func main() {
 	pipeline := hercules.NewPipeline(repository)
 	pipeline.SetFeaturesFromFlags()
 	progress := mpb.New(mpb.Output(os.Stderr))
+	defer progress.Stop()
 	var bar *mpb.Bar
 	pipeline.OnProgress = func(commit, length int) {
 		if bar == nil {
+			width := len(strconv.Itoa(length)) * 2 + 3
 			bar = progress.AddBar(int64(length + 1),
 				mpb.PrependDecorators(decor.DynamicName(
 					func (stats *decor.Statistics) string {
@@ -189,7 +192,7 @@ func main() {
 							return fmt.Sprintf("%d / %d", stats.Current, length)
 						}
 						return "finalizing"
-					}, 10, 0)),
+					}, width, 0)),
 				mpb.AppendDecorators(decor.ETA(4, 0)),
 			)
 		}
@@ -220,7 +223,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	progress.Stop()
 	fmt.Fprint(os.Stderr, "writing...\r")
 	begin := commits[0].Author.When.Unix()
 	end := commits[len(commits)-1].Author.When.Unix()
