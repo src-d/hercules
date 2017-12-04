@@ -35,10 +35,12 @@ There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lig
 ### Installation
 You are going to need Go (>= v1.8) and Python 2 or 3.
 ```
-go get gopkg.in/src-d/hercules.v2/cmd/hercules
-pip install -r requirements.txt
-wget https://github.com/src-d/hercules/raw/master/labours.py
+go get gopkg.in/src-d/hercules.v3/cmd/hercules
+cd $GOPATH/src/gopkg.in/hercules.v3/cmd/hercules
+make
 ```
+
+The first command is going to fail - this is intended.
 
 #### Windows
 Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.
