@@ -15,7 +15,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/jeffail/tunny"
-	"gopkg.in/bblfsh/client-go.v1"
+	"gopkg.in/bblfsh/client-go.v2"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/enry.v1"
@@ -35,7 +35,7 @@ type UASTExtractor struct {
 	FailOnErrors   bool
 	ProcessedFiles map[string]int
 
-	clients []*bblfsh.BblfshClient
+	clients []*bblfsh.Client
 	pool    *tunny.WorkPool
 }
 
@@ -50,7 +50,7 @@ const (
 )
 
 type uastTask struct {
-	Client *bblfsh.BblfshClient
+	Client *bblfsh.Client
 	Lock   *sync.RWMutex
 	Dest   map[plumbing.Hash]*uast.Node
 	File   *object.File
@@ -59,7 +59,7 @@ type uastTask struct {
 }
 
 type worker struct {
-	Client *bblfsh.BblfshClient
+	Client *bblfsh.Client
 	Job    func(interface{}) interface{}
 }
 
@@ -157,9 +157,9 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 		poolSize = runtime.NumCPU()
 	}
 	var err error
-	exr.clients = make([]*bblfsh.BblfshClient, poolSize)
+	exr.clients = make([]*bblfsh.Client, poolSize)
 	for i := 0; i < poolSize; i++ {
-		client, err := bblfsh.NewBblfshClient(exr.Endpoint)
+		client, err := bblfsh.NewClient(exr.Endpoint)
 		if err != nil {
 			panic(err)
 		}
@@ -251,7 +251,7 @@ func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]inter
 }
 
 func (exr *UASTExtractor) extractUAST(
-	client *bblfsh.BblfshClient, file *object.File) (*uast.Node, error) {
+	client *bblfsh.Client, file *object.File) (*uast.Node, error) {
 	request := client.NewParseRequest()
 	contents, err := file.Contents()
 	if err != nil {
