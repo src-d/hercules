@@ -420,3 +420,10 @@ func init() {
 		URL: "https://github.com/src-d/hercules",
 	})
 }
+
+func TestPipelineResolveIntegration(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.DeployItem(&BurndownAnalysis{})
+	pipeline.DeployItem(&CouplesAnalysis{})
+	pipeline.Initialize(nil)
+}

@@ -65,7 +65,10 @@ func (id *IdentityDetector) Configure(facts map[string]interface{}) {
 			id.LoadPeopleDict(peopleDictPath)
 			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict) - 1
 		} else {
-			id.GeneratePeopleDict(facts["commits"].([]*object.Commit))
+			if _, exists := facts[FactPipelineCommits]; !exists {
+				panic("IdentityDetector needs a list of commits to initialize.")
+			}
+			id.GeneratePeopleDict(facts[FactPipelineCommits].([]*object.Commit))
 			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict)
 		}
 	} else {

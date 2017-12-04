@@ -123,6 +123,11 @@ func TestIdentityDetectorRegistration(t *testing.T) {
 	assert.Equal(t, tps[0].Elem().Name(), "IdentityDetector")
 }
 
+func TestIdentityDetectorConfigureEmpty(t *testing.T) {
+	id := IdentityDetector{}
+	assert.Panics(t, func() {id.Configure(map[string]interface{}{})})
+}
+
 func TestIdentityDetectorConsume(t *testing.T) {
 	commit, _ := testRepository.CommitObject(plumbing.NewHash(
 		"5c0e755dd85ac74584d9988cc361eccf02ce1a48"))

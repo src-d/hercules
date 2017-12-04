@@ -231,6 +231,8 @@ type Pipeline struct {
 	features map[string]bool
 }
 
+const FactPipelineCommits = "commits"
+
 func NewPipeline(repository *git.Repository) *Pipeline {
 	return &Pipeline{
 		repository: repository,
@@ -267,6 +269,9 @@ func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
 	queue := []PipelineItem{}
 	queue = append(queue, item)
 	added := map[string]PipelineItem{}
+	for _, item := range pipeline.items {
+		added[item.Name()] = item
+	}
 	added[item.Name()] = item
 	pipeline.AddItem(item)
 	for len(queue) > 0 {
@@ -382,7 +387,21 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 			graph.AddNode(key)
 			if graph.AddEdge(name, key) > 1 {
 				if ambiguousMap[key] != nil {
-					panic("Failed to resolve pipeline dependencies.")
+					fmt.Fprintln(os.Stderr, "Pipeline:")
+					for _, item2 := range pipeline.items {
+						if item2 == item {
+							fmt.Fprint(os.Stderr, "> ")
+						}
+						fmt.Fprint(os.Stderr, item2.Name(), " [")
+						for i, key2 := range item2.Provides() {
+							fmt.Fprint(os.Stderr, key2)
+							if i < len(item.Provides()) - 1 {
+								fmt.Fprint(os.Stderr, ", ")
+							}
+						}
+						fmt.Fprintln(os.Stderr, "]")
+					}
+					panic("Failed to resolve pipeline dependencies: ambiguous graph.")
 				}
 				ambiguousMap[key] = graph.FindParents(key)
 			}
@@ -450,7 +469,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 	}
 	strplan, ok := graph.Toposort()
 	if !ok {
-		panic("Failed to resolve pipeline dependencies.")
+		panic("Failed to resolve pipeline dependencies: unable to topologically sort the items.")
 	}
 	pipeline.items = make([]PipelineItem, 0, len(pipeline.items))
 	for _, key := range strplan {
@@ -466,6 +485,9 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 	if facts == nil {
 		facts = map[string]interface{}{}
+	}
+	if _, exists := facts[FactPipelineCommits]; !exists {
+		facts[FactPipelineCommits] = pipeline.Commits()
 	}
 	dumpPath, _ := facts["Pipeline.DumpPath"].(string)
 	pipeline.resolve(dumpPath)
