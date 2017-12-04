@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from datetime import datetime, timedelta
+from importlib import import_module
 import io
 import json
 import os
@@ -24,6 +25,12 @@ import yaml
 if sys.version_info[0] < 3:
     # OK, ancients, I will support Python 2, but you owe me a beer
     input = raw_input
+
+
+PB_MESSAGES = {
+    "Burndown": "pb.pb_pb2.BurndownAnalysisResults",
+    "Couples": "pb.pb_pb2.CouplesAnalysisResults",
+}
 
 
 def parse_args():
@@ -172,6 +179,16 @@ class ProtobufReader(Reader):
                 self.data.ParseFromString(fin.read())
         else:
             self.data.ParseFromString(sys.stdin.buffer.read())
+        self.contents = {}
+        for key, val in self.data.contents.items():
+            try:
+                mod, name = PB_MESSAGES[key].rsplit(".", 1)
+            except KeyError:
+                sys.stderr.write("Warning: there is no registered PB decoder for %s\n" % key)
+                continue
+            cls = getattr(import_module(mod), name)
+            self.contents[key] = msg = cls()
+            msg.ParseFromString(val)
 
     def get_name(self):
         return self.data.header.repository
@@ -179,7 +196,7 @@ class ProtobufReader(Reader):
     def get_header(self):
         header = self.data.header
         return header.begin_unix_time, header.end_unix_time, \
-            header.sampling, header.granularity
+            self.contents["Burndown"].sampling, self.contents["Burndown"].granularity
 
     def get_project_burndown(self):
         return self._parse_burndown_matrix(self.data.burndown_project)
@@ -196,7 +213,7 @@ class ProtobufReader(Reader):
 
     def get_people_interaction(self):
         return [i.name for i in self.data.burndown_developers], \
-            self._parse_sparse_matrix(self.data.developers_interaction).toarray()
+            self._parse_sparse_matrix(self.contents["Couples"].developers_interaction).toarray()
 
     def get_files_coocc(self):
         node = self.data.file_couples
