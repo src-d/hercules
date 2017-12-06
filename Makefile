@@ -1,11 +1,17 @@
-all: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 ${GOPATH}/bin/hercules
+ifneq (oneshell, $(findstring oneshell, $(.FEATURES)))
+  $(error GNU make 3.82 or later is required)
+endif
+
+all: dependencies ${GOPATH}/bin/hercules
 
 test: all
 	go test gopkg.in/src-d/hercules.v3
 
+dependencies: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2
+
 .ONESHELL:
 ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2:
-	go get -v gopkg.in/bblfsh/client-go.v2/...
+	go get -v gopkg.in/bblfsh/client-go.v2/... || true
 	cd $$GOPATH/src/gopkg.in/bblfsh/client-go.v2
 	make dependencies
 

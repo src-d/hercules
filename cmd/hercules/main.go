@@ -52,6 +52,7 @@ import (
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 	"github.com/gogo/protobuf/proto"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type OneLineWriter struct {
@@ -179,24 +180,26 @@ func main() {
 	// core logic
 	pipeline := hercules.NewPipeline(repository)
 	pipeline.SetFeaturesFromFlags()
-	progress := mpb.New(mpb.Output(os.Stderr))
-	defer progress.Stop()
-	var bar *mpb.Bar
-	pipeline.OnProgress = func(commit, length int) {
-		if bar == nil {
-			width := len(strconv.Itoa(length)) * 2 + 3
-			bar = progress.AddBar(int64(length + 1),
-				mpb.PrependDecorators(decor.DynamicName(
-					func (stats *decor.Statistics) string {
-						if stats.Current < stats.Total {
-							return fmt.Sprintf("%d / %d", stats.Current, length)
-						}
-						return "finalizing"
-					}, width, 0)),
-				mpb.AppendDecorators(decor.ETA(4, 0)),
-			)
+	if terminal.IsTerminal(int(os.Stderr.Fd())) {
+		progress := mpb.New(mpb.Output(os.Stderr))
+		defer progress.Stop()
+		var bar *mpb.Bar
+		pipeline.OnProgress = func(commit, length int) {
+			if bar == nil {
+				width := len(strconv.Itoa(length))*2 + 3
+				bar = progress.AddBar(int64(length+1),
+					mpb.PrependDecorators(decor.DynamicName(
+						func(stats *decor.Statistics) string {
+							if stats.Current < stats.Total {
+								return fmt.Sprintf("%d / %d", stats.Current, length)
+							}
+							return "finalizing"
+						}, width, 0)),
+					mpb.AppendDecorators(decor.ETA(4, 0)),
+				)
+			}
+			bar.Incr(commit - int(bar.Current()))
 		}
-		bar.Incr(commit - int(bar.Current()))
 	}
 
 	var commits []*object.Commit

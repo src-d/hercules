@@ -4,12 +4,12 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"flag"
 	"os"
 	"path"
 	"reflect"
 	"testing"
 
-	"flag"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -113,9 +113,12 @@ func TestPipelineItemRegistrySummon(t *testing.T) {
 func TestPipelineItemRegistryAddFlags(t *testing.T) {
 	reg := getRegistry()
 	reg.Register(&testPipelineItem{})
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	facts, deployed := reg.AddFlags()
-	assert.Len(t, facts, 1)
+	assert.Len(t, facts, 3)
 	assert.IsType(t, 0, facts[(&testPipelineItem{}).ListConfigurationOptions()[0].Name])
+	assert.Contains(t, facts, ConfigPipelineDryRun)
+	assert.Contains(t, facts, ConfigPipelineDumpPath)
 	assert.Len(t, deployed, 1)
 	assert.Contains(t, deployed, (&testPipelineItem{}).Name())
 	assert.NotNil(t, flag.Lookup((&testPipelineItem{}).Flag()))
@@ -142,9 +145,9 @@ func (item *dependingTestPipelineItem) Requires() []string {
 
 func (item *dependingTestPipelineItem) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
-		Name:        "TestOption",
+		Name:        "TestOption2",
 		Description: "The option description.",
-		Flag:        "test-option",
+		Flag:        "test-option2",
 		Type:        IntConfigurationOption,
 		Default:     10,
 	}}
