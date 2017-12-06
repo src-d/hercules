@@ -52,9 +52,9 @@ def parse_args():
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
-                        choices=["project", "file", "person", "churn_matrix", "ownership", "couples",
-                                 "all"],
-                        default="project", help="What to plot.")
+                        choices=["project", "file", "person", "churn_matrix", "ownership",
+                                 "couples", "all"],
+                        help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
