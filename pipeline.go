@@ -8,7 +8,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"unsafe"
 
@@ -16,7 +18,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v3/toposort"
-	"sort"
 )
 
 type ConfigurationOptionType int
@@ -28,6 +29,11 @@ const (
 	IntConfigurationOption
 	// String value type.
 	StringConfigurationOption
+)
+
+const (
+	ConfigPipelineDumpPath = "Pipeline.DumpPath"
+	ConfigPipelineDryRun = "Pipeline.DryRun"
 )
 
 // ConfigurationOption allows for the unified, retrospective way to setup PipelineItem-s.
@@ -188,6 +194,18 @@ func (registry *PipelineItemRegistry) AddFlags() (map[string]interface{}, map[st
 			deployed[fpi.Name()] = flag.Bool(
 				fpi.Flag(), false, fmt.Sprintf("Runs %s analysis.", fpi.Name()))
 		}
+	}
+	{
+		// Pipeline flags
+		iface := interface{}("")
+		ptr1 := (**string)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+		*ptr1 = flag.String("dump-dag", "", "Write the pipeline DAG to a Graphviz file.")
+		flags[ConfigPipelineDumpPath] = iface
+		iface = interface{}(true)
+		ptr2 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+		*ptr2 = flag.Bool("dry-run", false, "Do not run any analyses - only resolve the DAG. " +
+				"Useful for -dump-dag.")
+		flags[ConfigPipelineDryRun] = iface
 	}
 	features := []string{}
 	for f := range featureFlags.Choices {
@@ -489,9 +507,9 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 	if _, exists := facts[FactPipelineCommits]; !exists {
 		facts[FactPipelineCommits] = pipeline.Commits()
 	}
-	dumpPath, _ := facts["Pipeline.DumpPath"].(string)
+	dumpPath, _ := facts[ConfigPipelineDumpPath].(string)
 	pipeline.resolve(dumpPath)
-	if dryRun, _ := facts["Pipeline.DryRun"].(bool); dryRun {
+	if dryRun, _ := facts[ConfigPipelineDryRun].(bool); dryRun {
 		return
 	}
 	for _, item := range pipeline.items {
