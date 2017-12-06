@@ -219,6 +219,9 @@ func main() {
 		}
 	}
 	pipeline.Initialize(facts)
+	if dryRun, _ := facts[hercules.ConfigPipelineDryRun].(bool); dryRun {
+		return
+	}
 	results, err := pipeline.Run(commits)
 	if err != nil {
 		panic(err)
