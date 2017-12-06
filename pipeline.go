@@ -497,6 +497,8 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 	}
 	if dumpPath != "" {
 		ioutil.WriteFile(dumpPath, []byte(graphCopy.Serialize(strplan)), 0666)
+		absPath, _ := filepath.Abs(dumpPath)
+		fmt.Fprintf(os.Stderr, "Wrote the DAG to %s\n", absPath)
 	}
 }
 
