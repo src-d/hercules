@@ -72,7 +72,7 @@ func (writer OneLineWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func loadRepository(uri string) *git.Repository {
+func loadRepository(uri string, disableStatus bool) *git.Repository {
 	var repository *git.Repository
 	var backend storage.Storer
 	var err error
@@ -90,12 +90,15 @@ func loadRepository(uri string) *git.Repository {
 		} else {
 			backend = memory.NewStorage()
 		}
-		fmt.Fprint(os.Stderr, "connecting...\r")
-		repository, err = git.Clone(backend, nil, &git.CloneOptions{
-			URL: uri,
-			Progress: OneLineWriter{Writer: os.Stderr},
-		})
-		fmt.Fprint(os.Stderr, strings.Repeat(" ", 80) + "\r")
+		cloneOptions := &git.CloneOptions{URL: uri}
+		if !disableStatus {
+			fmt.Fprint(os.Stderr, "connecting...\r")
+			cloneOptions.Progress = OneLineWriter{Writer: os.Stderr}
+		}
+		repository, err = git.Clone(backend, nil, cloneOptions)
+		if !disableStatus {
+			fmt.Fprint(os.Stderr, strings.Repeat(" ", 80)+"\r")
+		}
 	} else {
 		if uri[len(uri)-1] == os.PathSeparator {
 			uri = uri[:len(uri)-1]
@@ -144,9 +147,7 @@ func loadPlugins() {
 
 func main() {
 	loadPlugins()
-	var printVersion bool
-	var protobuf bool
-	var profile bool
+	var printVersion, protobuf, profile, disableStatus bool
 	var commitsFile string
 	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
 	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
@@ -155,6 +156,7 @@ func main() {
 		"separate line. The first hash is the root.")
 	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
 	flag.BoolVar(&printVersion, "version", false, "Print version information and exit.")
+	flag.BoolVar(&disableStatus, "quiet", false, "Do not print status updates to stderr.")
 	facts, deployChoices := hercules.Registry.AddFlags()
 	flag.Parse()
 
@@ -175,12 +177,12 @@ func main() {
 		os.Exit(1)
 	}
 	uri := flag.Arg(0)
-	repository := loadRepository(uri)
+	repository := loadRepository(uri, disableStatus)
 
 	// core logic
 	pipeline := hercules.NewPipeline(repository)
 	pipeline.SetFeaturesFromFlags()
-	if terminal.IsTerminal(int(os.Stderr.Fd())) {
+	if terminal.IsTerminal(int(os.Stderr.Fd())) && !disableStatus {
 		progress := mpb.New(mpb.Output(os.Stderr))
 		defer progress.Stop()
 		var bar *mpb.Bar
@@ -229,7 +231,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprint(os.Stderr, "writing...\r")
+	if !disableStatus {
+		fmt.Fprint(os.Stderr, "writing...\r")
+	}
 	begin := commits[0].Author.When.Unix()
 	end := commits[len(commits)-1].Author.When.Unix()
 	if !protobuf {
