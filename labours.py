@@ -148,12 +148,12 @@ class YamlReader(Reader):
                 for p in self.data["Burndown"]["people"].items()]
 
     def get_ownership_burndown(self):
-        return self.data["Burndown"]["people_sequence"],\
+        return self.data["Burndown"]["people_sequence"].copy(),\
                {p[0]: self._parse_burndown_matrix(p[1])
                 for p in self.data["Burndown"]["people"].items()}
 
     def get_people_interaction(self):
-        return self.data["Burndown"]["people_sequence"], \
+        return self.data["Burndown"]["people_sequence"].copy(), \
                self._parse_burndown_matrix(self.data["Burndown"]["people_interaction"])
 
     def get_files_coocc(self):
