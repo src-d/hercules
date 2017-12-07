@@ -1,6 +1,8 @@
 package hercules
 
 import (
+	"fmt"
+	"os"
 	"sort"
 	"unicode/utf8"
 
@@ -20,12 +22,18 @@ type RenameAnalysis struct {
 	repository *git.Repository
 }
 
+const (
+	RENAME_ANALYSIS_DEFAULT_THRESHOLD = 90
+
+	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
+)
+
 func (ra *RenameAnalysis) Name() string {
 	return "RenameAnalysis"
 }
 
 func (ra *RenameAnalysis) Provides() []string {
-	arr := [...]string{"renamed_changes"}
+	arr := [...]string{"changes"}
 	return arr[:]
 }
 
@@ -34,9 +42,28 @@ func (ra *RenameAnalysis) Requires() []string {
 	return arr[:]
 }
 
+func (ra *RenameAnalysis) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        ConfigRenameAnalysisSimilarityThreshold,
+		Description: "The threshold on the similarity index used to detect renames.",
+		Flag:        "M",
+		Type:        IntConfigurationOption,
+		Default:     RENAME_ANALYSIS_DEFAULT_THRESHOLD},
+	}
+	return options[:]
+}
+
+func (ra *RenameAnalysis) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigRenameAnalysisSimilarityThreshold].(int); exists {
+		ra.SimilarityThreshold = val
+	}
+}
+
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
-		panic("hercules.RenameAnalysis: an invalid SimilarityThreshold was specified")
+		fmt.Fprintf(os.Stderr, "Warning: adjusted the similarity threshold to %d\n",
+			RENAME_ANALYSIS_DEFAULT_THRESHOLD)
+		ra.SimilarityThreshold = RENAME_ANALYSIS_DEFAULT_THRESHOLD
 	}
 	ra.repository = repository
 }
@@ -149,11 +176,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	for _, blob := range deleted_blobs {
 		reduced_changes = append(reduced_changes, blob.change)
 	}
-	return map[string]interface{}{"renamed_changes": reduced_changes}, nil
-}
-
-func (ra *RenameAnalysis) Finalize() interface{} {
-	return nil
+	return map[string]interface{}{"changes": reduced_changes}, nil
 }
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
@@ -232,4 +255,8 @@ func (slice sortableBlobs) Less(i, j int) bool {
 
 func (slice sortableBlobs) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func init() {
+	Registry.Register(&RenameAnalysis{})
 }

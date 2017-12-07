@@ -31,17 +31,22 @@ func (diff *FileDiff) Provides() []string {
 }
 
 func (diff *FileDiff) Requires() []string {
-	arr := [...]string{"renamed_changes", "blob_cache"}
+	arr := [...]string{"changes", "blob_cache"}
 	return arr[:]
 }
 
-func (diff *FileDiff) Initialize(repository *git.Repository) {
+func (diff *FileDiff) ListConfigurationOptions() []ConfigurationOption {
+	return []ConfigurationOption{}
 }
+
+func (diff *FileDiff) Configure(facts map[string]interface{}) {}
+
+func (diff *FileDiff) Initialize(repository *git.Repository) {}
 
 func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	result := map[string]FileDiffData{}
 	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
-	tree_diff := deps["renamed_changes"].(object.Changes)
+	tree_diff := deps["changes"].(object.Changes)
 	for _, change := range tree_diff {
 		action, err := change.Action()
 		if err != nil {
@@ -76,10 +81,6 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{"file_diff": result}, nil
 }
 
-func (diff *FileDiff) Finalize() interface{} {
-	return nil
-}
-
 func blobToString(file *object.Blob) (string, error) {
 	if file == nil {
 		return "", errors.New("Blob not cached.")
@@ -92,4 +93,8 @@ func blobToString(file *object.Blob) (string, error) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(reader)
 	return buf.String(), nil
+}
+
+func init() {
+	Registry.Register(&FileDiff{})
 }

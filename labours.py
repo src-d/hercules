@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from datetime import datetime, timedelta
+from importlib import import_module
 import io
 import json
 import os
@@ -26,6 +27,12 @@ if sys.version_info[0] < 3:
     input = raw_input
 
 
+PB_MESSAGES = {
+    "Burndown": "pb.pb_pb2.BurndownAnalysisResults",
+    "Couples": "pb.pb_pb2.CouplesAnalysisResults",
+}
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output", default="",
@@ -45,9 +52,9 @@ def parse_args():
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
-                        choices=["project", "file", "person", "churn_matrix", "ownership", "couples",
-                                 "all"],
-                        default="project", help="What to plot.")
+                        choices=["project", "file", "person", "churn_matrix", "ownership",
+                                 "couples", "all"],
+                        help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
@@ -70,6 +77,9 @@ class Reader(object):
         raise NotImplementedError
 
     def get_header(self):
+        raise NotImplementedError
+
+    def get_burndown_parameters(self):
         raise NotImplementedError
 
     def get_project_burndown(self):
@@ -115,35 +125,43 @@ class YamlReader(Reader):
         self.data = data
 
     def get_name(self):
-        return next(iter(self.data["project"]))
+        return next(iter(self.data["Burndown"]["project"]))
 
     def get_header(self):
-        header = self.data["burndown"]
-        return header["begin"], header["end"], header["sampling"], header["granularity"]
+        header = self.data["hercules"]
+        return header["begin_unix_time"], header["end_unix_time"]
+
+    def get_burndown_parameters(self):
+        header = self.data["Burndown"]
+        return header["sampling"], header["granularity"]
 
     def get_project_burndown(self):
-        name, matrix = next(iter(self.data["project"].items()))
-        return name, self._parse_burndown_matrix(matrix).T
+        return self.data["hercules"]["repository"], \
+               self._parse_burndown_matrix(self.data["Burndown"]["project"]).T
 
     def get_files_burndown(self):
-        return [(p[0], self._parse_burndown_matrix(p[1]).T) for p in self.data["files"].items()]
+        return [(p[0], self._parse_burndown_matrix(p[1]).T)
+                for p in self.data["Burndown"]["files"].items()]
 
     def get_people_burndown(self):
-        return [(p[0], self._parse_burndown_matrix(p[1]).T) for p in self.data["people"].items()]
+        return [(p[0], self._parse_burndown_matrix(p[1]).T)
+                for p in self.data["Burndown"]["people"].items()]
 
     def get_ownership_burndown(self):
-        return self.data["people_sequence"], {p[0]: self._parse_burndown_matrix(p[1])
-                                              for p in self.data["people"].items()}
+        return self.data["Burndown"]["people_sequence"].copy(),\
+               {p[0]: self._parse_burndown_matrix(p[1])
+                for p in self.data["Burndown"]["people"].items()}
 
     def get_people_interaction(self):
-        return self.data["people_sequence"], self._parse_burndown_matrix(self.data["people_interaction"])
+        return self.data["Burndown"]["people_sequence"].copy(), \
+               self._parse_burndown_matrix(self.data["Burndown"]["people_interaction"])
 
     def get_files_coocc(self):
-        coocc = self.data["files_coocc"]
+        coocc = self.data["Couples"]["files_coocc"]
         return coocc["index"], self._parse_coocc_matrix(coocc["matrix"])
 
     def get_people_coocc(self):
-        coocc = self.data["people_coocc"]
+        coocc = self.data["Couples"]["people_coocc"]
         return coocc["index"], self._parse_coocc_matrix(coocc["matrix"])
 
     def _parse_burndown_matrix(self, matrix):
@@ -172,38 +190,52 @@ class ProtobufReader(Reader):
                 self.data.ParseFromString(fin.read())
         else:
             self.data.ParseFromString(sys.stdin.buffer.read())
+        self.contents = {}
+        for key, val in self.data.contents.items():
+            try:
+                mod, name = PB_MESSAGES[key].rsplit(".", 1)
+            except KeyError:
+                sys.stderr.write("Warning: there is no registered PB decoder for %s\n" % key)
+                continue
+            cls = getattr(import_module(mod), name)
+            self.contents[key] = msg = cls()
+            msg.ParseFromString(val)
 
     def get_name(self):
         return self.data.header.repository
 
     def get_header(self):
         header = self.data.header
-        return header.begin_unix_time, header.end_unix_time, \
-            header.sampling, header.granularity
+        return header.begin_unix_time, header.end_unix_time
+
+    def get_burndown_parameters(self):
+        burndown = self.contents["Burndown"]
+        return burndown.sampling, burndown.granularity
 
     def get_project_burndown(self):
-        return self._parse_burndown_matrix(self.data.burndown_project)
+        return self._parse_burndown_matrix(self.contents["Burndown"].project)
 
     def get_files_burndown(self):
-        return [self._parse_burndown_matrix(i) for i in self.data.burndown_files]
+        return [self._parse_burndown_matrix(i) for i in self.contents["Burndown"].files]
 
     def get_people_burndown(self):
-        return [self._parse_burndown_matrix(i) for i in self.data.burndown_developers]
+        return [self._parse_burndown_matrix(i) for i in self.contents["Burndown"].people]
 
     def get_ownership_burndown(self):
         people = self.get_people_burndown()
         return [p[0] for p in people], {p[0]: p[1].T for p in people}
 
     def get_people_interaction(self):
-        return [i.name for i in self.data.burndown_developers], \
-            self._parse_sparse_matrix(self.data.developers_interaction).toarray()
+        burndown = self.contents["Burndown"]
+        return [i.name for i in burndown.people], \
+            self._parse_sparse_matrix(burndown.people_interaction).toarray()
 
     def get_files_coocc(self):
-        node = self.data.file_couples
+        node = self.contents["Couples"].file_couples
         return list(node.index), self._parse_sparse_matrix(node.matrix)
 
     def get_people_coocc(self):
-        node = self.data.developer_couples
+        node = self.contents["Couples"].developer_couples
         return list(node.index), self._parse_sparse_matrix(node.matrix)
 
     def _parse_burndown_matrix(self, matrix):
@@ -678,7 +710,10 @@ def train_embeddings(index, matrix, tmpdir, shard_size=IDEAL_SHARD_SIZE):
         print("Training Swivel model...")
         swivel.FLAGS.submatrix_rows = shard_size
         swivel.FLAGS.submatrix_cols = shard_size
-        if len(meta_index) <= IDEAL_SHARD_SIZE:
+        if len(meta_index) <= IDEAL_SHARD_SIZE / 16:
+            embedding_size = 50
+            num_epochs = 20000
+        elif len(meta_index) <= IDEAL_SHARD_SIZE:
             embedding_size = 50
             num_epochs = 10000
         elif len(meta_index) <= IDEAL_SHARD_SIZE * 2:
@@ -816,40 +851,65 @@ def main():
     header = reader.get_header()
     name = reader.get_name()
 
-    files_warning = "Files stats were not collected. Re-run hercules with -files."
-    people_warning = "People stats were not collected. Re-run hercules with -people."
+    burndown_warning = "Burndown stats were not collected. Re-run hercules with -burndown."
+    burndown_files_warning = \
+        "Burndown stats for files were not collected. Re-run hercules with " \
+        "-burndown -burndown-files."
+    burndown_people_warning = \
+        "Burndown stats for people were not collected. Re-run hercules with " \
+        "-burndown -burndown-people."
     couples_warning = "Coupling stats were not collected. Re-run hercules with -couples."
 
     def project_burndown():
+        try:
+            full_header = header + reader.get_burndown_parameters()
+        except KeyError:
+            print("project: " + burndown_warning)
+            return
         plot_burndown(args, "project",
-                      *load_burndown(header, *reader.get_project_burndown(),
+                      *load_burndown(full_header, *reader.get_project_burndown(),
                                      resample=args.resample))
 
     def files_burndown():
         try:
-            plot_many_burndown(args, "file", header, reader.get_files_burndown())
+            full_header = header + reader.get_burndown_parameters()
         except KeyError:
-            print(files_warning)
+            print(burndown_warning)
+            return
+        try:
+            plot_many_burndown(args, "file", full_header, reader.get_files_burndown())
+        except KeyError:
+            print("files: " + burndown_files_warning)
 
     def people_burndown():
         try:
-            plot_many_burndown(args, "person", header, reader.get_people_burndown())
+            full_header = header + reader.get_burndown_parameters()
         except KeyError:
-            print(people_warning)
+            print(burndown_warning)
+            return
+        try:
+            plot_many_burndown(args, "person", full_header, reader.get_people_burndown())
+        except KeyError:
+            print("people: " + burndown_people_warning)
 
     def churn_matrix():
         try:
             plot_churn_matrix(args, name, *load_churn_matrix(
                 *reader.get_people_interaction(), max_people=args.max_people))
         except KeyError:
-            print(people_warning)
+            print("churn_matrix: " + burndown_people_warning)
 
     def ownership_burndown():
         try:
-            plot_ownership(args, name, *load_ownership(
-                header, *reader.get_ownership_burndown(), max_people=args.max_people))
+            full_header = header + reader.get_burndown_parameters()
         except KeyError:
-            print(people_warning)
+            print(burndown_warning)
+            return
+        try:
+            plot_ownership(args, name, *load_ownership(
+                full_header, *reader.get_ownership_burndown(), max_people=args.max_people))
+        except KeyError:
+            print("ownership: " + burndown_people_warning)
 
     def couples():
         try:

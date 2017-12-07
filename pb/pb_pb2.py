@@ -19,9 +19,8 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='pb/pb.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n\x0bpb/pb.proto\"\x97\x01\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0f\n\x07\x63mdline\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x13\n\x0bgranularity\x18\x06 \x01(\x05\x12\x10\n\x08sampling\x18\x07 \x01(\x05\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\":\n\x15\x44\x65veloperTouchedFiles\x12!\n\ndevelopers\x18\x01 \x03(\x0b\x32\r.TouchedFiles\"\xf0\x02\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12/\n\x10\x62urndown_project\x18\x02 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12-\n\x0e\x62urndown_files\x18\x03 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x32\n\x13\x62urndown_developers\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12:\n\x16\x64\x65velopers_interaction\x18\x05 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12#\n\x11\x64\x65veloper_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12-\n\rtouched_files\x18\x08 \x01(\x0b\x32\x16.DeveloperTouchedFilesb\x06proto3')
+  serialized_pb=_b('\n\x0bpb/pb.proto\"~\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0c\n\x04hash\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x0f\n\x07\x63ommits\x18\x06 \x01(\x05\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"\xed\x01\n\x17\x42urndownAnalysisResults\x12\x13\n\x0bgranularity\x18\x01 \x01(\x05\x12\x10\n\x08sampling\x18\x02 \x01(\x05\x12&\n\x07project\x18\x03 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12$\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12%\n\x06people\x18\x05 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x36\n\x12people_interaction\x18\x06 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\":\n\x15\x44\x65veloperTouchedFiles\x12!\n\ndevelopers\x18\x01 \x03(\x0b\x32\r.TouchedFiles\"\x8c\x01\n\x16\x43ouplesAnalysisResults\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12#\n\x11\x64\x65veloper_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12-\n\rtouched_files\x18\x08 \x01(\x0b\x32\x16.DeveloperTouchedFiles\"o\n\nUASTChange\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x12\n\nsrc_before\x18\x02 \x01(\t\x12\x11\n\tsrc_after\x18\x03 \x01(\t\x12\x13\n\x0buast_before\x18\x04 \x01(\t\x12\x12\n\nuast_after\x18\x05 \x01(\t\"7\n\x17UASTChangesSaverResults\x12\x1c\n\x07\x63hanges\x18\x01 \x03(\x0b\x32\x0b.UASTChange\"\x8f\x01\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12\x30\n\x08\x63ontents\x18\x02 \x03(\x0b\x32\x1e.AnalysisResults.ContentsEntry\x1a/\n\rContentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x62\x06proto3')
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 
@@ -41,7 +40,7 @@ _METADATA = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='cmdline', full_name='Metadata.cmdline', index=1,
+      name='hash', full_name='Metadata.hash', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -69,15 +68,8 @@ _METADATA = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='granularity', full_name='Metadata.granularity', index=5,
+      name='commits', full_name='Metadata.commits', index=5,
       number=6, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='sampling', full_name='Metadata.sampling', index=6,
-      number=7, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -94,8 +86,8 @@ _METADATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=16,
-  serialized_end=167,
+  serialized_start=15,
+  serialized_end=141,
 )
 
 
@@ -125,8 +117,8 @@ _BURNDOWNSPARSEMATRIXROW = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=169,
-  serialized_end=211,
+  serialized_start=143,
+  serialized_end=185,
 )
 
 
@@ -177,8 +169,74 @@ _BURNDOWNSPARSEMATRIX = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=213,
-  serialized_end=340,
+  serialized_start=187,
+  serialized_end=314,
+)
+
+
+_BURNDOWNANALYSISRESULTS = _descriptor.Descriptor(
+  name='BurndownAnalysisResults',
+  full_name='BurndownAnalysisResults',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='granularity', full_name='BurndownAnalysisResults.granularity', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='sampling', full_name='BurndownAnalysisResults.sampling', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='project', full_name='BurndownAnalysisResults.project', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='files', full_name='BurndownAnalysisResults.files', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='people', full_name='BurndownAnalysisResults.people', index=4,
+      number=5, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='people_interaction', full_name='BurndownAnalysisResults.people_interaction', index=5,
+      number=6, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=317,
+  serialized_end=554,
 )
 
 
@@ -236,8 +294,8 @@ _COMPRESSEDSPARSEROWMATRIX = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=342,
-  serialized_end=467,
+  serialized_start=556,
+  serialized_end=681,
 )
 
 
@@ -274,8 +332,8 @@ _COUPLES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=469,
-  serialized_end=537,
+  serialized_start=683,
+  serialized_end=751,
 )
 
 
@@ -305,8 +363,8 @@ _TOUCHEDFILES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=539,
-  serialized_end=568,
+  serialized_start=753,
+  serialized_end=782,
 )
 
 
@@ -336,69 +394,34 @@ _DEVELOPERTOUCHEDFILES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=570,
-  serialized_end=628,
+  serialized_start=784,
+  serialized_end=842,
 )
 
 
-_ANALYSISRESULTS = _descriptor.Descriptor(
-  name='AnalysisResults',
-  full_name='AnalysisResults',
+_COUPLESANALYSISRESULTS = _descriptor.Descriptor(
+  name='CouplesAnalysisResults',
+  full_name='CouplesAnalysisResults',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='header', full_name='AnalysisResults.header', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='burndown_project', full_name='AnalysisResults.burndown_project', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='burndown_files', full_name='AnalysisResults.burndown_files', index=2,
-      number=3, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='burndown_developers', full_name='AnalysisResults.burndown_developers', index=3,
-      number=4, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='developers_interaction', full_name='AnalysisResults.developers_interaction', index=4,
-      number=5, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='file_couples', full_name='AnalysisResults.file_couples', index=5,
+      name='file_couples', full_name='CouplesAnalysisResults.file_couples', index=0,
       number=6, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='developer_couples', full_name='AnalysisResults.developer_couples', index=6,
+      name='developer_couples', full_name='CouplesAnalysisResults.developer_couples', index=1,
       number=7, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='touched_files', full_name='AnalysisResults.touched_files', index=7,
+      name='touched_files', full_name='CouplesAnalysisResults.touched_files', index=2,
       number=8, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -416,29 +439,202 @@ _ANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=631,
-  serialized_end=999,
+  serialized_start=845,
+  serialized_end=985,
+)
+
+
+_UASTCHANGE = _descriptor.Descriptor(
+  name='UASTChange',
+  full_name='UASTChange',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='file_name', full_name='UASTChange.file_name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='src_before', full_name='UASTChange.src_before', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='src_after', full_name='UASTChange.src_after', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='uast_before', full_name='UASTChange.uast_before', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='uast_after', full_name='UASTChange.uast_after', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=987,
+  serialized_end=1098,
+)
+
+
+_UASTCHANGESSAVERRESULTS = _descriptor.Descriptor(
+  name='UASTChangesSaverResults',
+  full_name='UASTChangesSaverResults',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='changes', full_name='UASTChangesSaverResults.changes', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1100,
+  serialized_end=1155,
+)
+
+
+_ANALYSISRESULTS_CONTENTSENTRY = _descriptor.Descriptor(
+  name='ContentsEntry',
+  full_name='AnalysisResults.ContentsEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='AnalysisResults.ContentsEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='AnalysisResults.ContentsEntry.value', index=1,
+      number=2, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=_descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001')),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1254,
+  serialized_end=1301,
+)
+
+_ANALYSISRESULTS = _descriptor.Descriptor(
+  name='AnalysisResults',
+  full_name='AnalysisResults',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='AnalysisResults.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='contents', full_name='AnalysisResults.contents', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[_ANALYSISRESULTS_CONTENTSENTRY, ],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1158,
+  serialized_end=1301,
 )
 
 _BURNDOWNSPARSEMATRIX.fields_by_name['rows'].message_type = _BURNDOWNSPARSEMATRIXROW
+_BURNDOWNANALYSISRESULTS.fields_by_name['project'].message_type = _BURNDOWNSPARSEMATRIX
+_BURNDOWNANALYSISRESULTS.fields_by_name['files'].message_type = _BURNDOWNSPARSEMATRIX
+_BURNDOWNANALYSISRESULTS.fields_by_name['people'].message_type = _BURNDOWNSPARSEMATRIX
+_BURNDOWNANALYSISRESULTS.fields_by_name['people_interaction'].message_type = _COMPRESSEDSPARSEROWMATRIX
 _COUPLES.fields_by_name['matrix'].message_type = _COMPRESSEDSPARSEROWMATRIX
 _DEVELOPERTOUCHEDFILES.fields_by_name['developers'].message_type = _TOUCHEDFILES
+_COUPLESANALYSISRESULTS.fields_by_name['file_couples'].message_type = _COUPLES
+_COUPLESANALYSISRESULTS.fields_by_name['developer_couples'].message_type = _COUPLES
+_COUPLESANALYSISRESULTS.fields_by_name['touched_files'].message_type = _DEVELOPERTOUCHEDFILES
+_UASTCHANGESSAVERRESULTS.fields_by_name['changes'].message_type = _UASTCHANGE
+_ANALYSISRESULTS_CONTENTSENTRY.containing_type = _ANALYSISRESULTS
 _ANALYSISRESULTS.fields_by_name['header'].message_type = _METADATA
-_ANALYSISRESULTS.fields_by_name['burndown_project'].message_type = _BURNDOWNSPARSEMATRIX
-_ANALYSISRESULTS.fields_by_name['burndown_files'].message_type = _BURNDOWNSPARSEMATRIX
-_ANALYSISRESULTS.fields_by_name['burndown_developers'].message_type = _BURNDOWNSPARSEMATRIX
-_ANALYSISRESULTS.fields_by_name['developers_interaction'].message_type = _COMPRESSEDSPARSEROWMATRIX
-_ANALYSISRESULTS.fields_by_name['file_couples'].message_type = _COUPLES
-_ANALYSISRESULTS.fields_by_name['developer_couples'].message_type = _COUPLES
-_ANALYSISRESULTS.fields_by_name['touched_files'].message_type = _DEVELOPERTOUCHEDFILES
+_ANALYSISRESULTS.fields_by_name['contents'].message_type = _ANALYSISRESULTS_CONTENTSENTRY
 DESCRIPTOR.message_types_by_name['Metadata'] = _METADATA
 DESCRIPTOR.message_types_by_name['BurndownSparseMatrixRow'] = _BURNDOWNSPARSEMATRIXROW
 DESCRIPTOR.message_types_by_name['BurndownSparseMatrix'] = _BURNDOWNSPARSEMATRIX
+DESCRIPTOR.message_types_by_name['BurndownAnalysisResults'] = _BURNDOWNANALYSISRESULTS
 DESCRIPTOR.message_types_by_name['CompressedSparseRowMatrix'] = _COMPRESSEDSPARSEROWMATRIX
 DESCRIPTOR.message_types_by_name['Couples'] = _COUPLES
 DESCRIPTOR.message_types_by_name['TouchedFiles'] = _TOUCHEDFILES
 DESCRIPTOR.message_types_by_name['DeveloperTouchedFiles'] = _DEVELOPERTOUCHEDFILES
+DESCRIPTOR.message_types_by_name['CouplesAnalysisResults'] = _COUPLESANALYSISRESULTS
+DESCRIPTOR.message_types_by_name['UASTChange'] = _UASTCHANGE
+DESCRIPTOR.message_types_by_name['UASTChangesSaverResults'] = _UASTCHANGESSAVERRESULTS
 DESCRIPTOR.message_types_by_name['AnalysisResults'] = _ANALYSISRESULTS
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Metadata = _reflection.GeneratedProtocolMessageType('Metadata', (_message.Message,), dict(
   DESCRIPTOR = _METADATA,
@@ -460,6 +656,13 @@ BurndownSparseMatrix = _reflection.GeneratedProtocolMessageType('BurndownSparseM
   # @@protoc_insertion_point(class_scope:BurndownSparseMatrix)
   ))
 _sym_db.RegisterMessage(BurndownSparseMatrix)
+
+BurndownAnalysisResults = _reflection.GeneratedProtocolMessageType('BurndownAnalysisResults', (_message.Message,), dict(
+  DESCRIPTOR = _BURNDOWNANALYSISRESULTS,
+  __module__ = 'pb.pb_pb2'
+  # @@protoc_insertion_point(class_scope:BurndownAnalysisResults)
+  ))
+_sym_db.RegisterMessage(BurndownAnalysisResults)
 
 CompressedSparseRowMatrix = _reflection.GeneratedProtocolMessageType('CompressedSparseRowMatrix', (_message.Message,), dict(
   DESCRIPTOR = _COMPRESSEDSPARSEROWMATRIX,
@@ -489,12 +692,43 @@ DeveloperTouchedFiles = _reflection.GeneratedProtocolMessageType('DeveloperTouch
   ))
 _sym_db.RegisterMessage(DeveloperTouchedFiles)
 
+CouplesAnalysisResults = _reflection.GeneratedProtocolMessageType('CouplesAnalysisResults', (_message.Message,), dict(
+  DESCRIPTOR = _COUPLESANALYSISRESULTS,
+  __module__ = 'pb.pb_pb2'
+  # @@protoc_insertion_point(class_scope:CouplesAnalysisResults)
+  ))
+_sym_db.RegisterMessage(CouplesAnalysisResults)
+
+UASTChange = _reflection.GeneratedProtocolMessageType('UASTChange', (_message.Message,), dict(
+  DESCRIPTOR = _UASTCHANGE,
+  __module__ = 'pb.pb_pb2'
+  # @@protoc_insertion_point(class_scope:UASTChange)
+  ))
+_sym_db.RegisterMessage(UASTChange)
+
+UASTChangesSaverResults = _reflection.GeneratedProtocolMessageType('UASTChangesSaverResults', (_message.Message,), dict(
+  DESCRIPTOR = _UASTCHANGESSAVERRESULTS,
+  __module__ = 'pb.pb_pb2'
+  # @@protoc_insertion_point(class_scope:UASTChangesSaverResults)
+  ))
+_sym_db.RegisterMessage(UASTChangesSaverResults)
+
 AnalysisResults = _reflection.GeneratedProtocolMessageType('AnalysisResults', (_message.Message,), dict(
+
+  ContentsEntry = _reflection.GeneratedProtocolMessageType('ContentsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _ANALYSISRESULTS_CONTENTSENTRY,
+    __module__ = 'pb.pb_pb2'
+    # @@protoc_insertion_point(class_scope:AnalysisResults.ContentsEntry)
+    ))
+  ,
   DESCRIPTOR = _ANALYSISRESULTS,
   __module__ = 'pb.pb_pb2'
   # @@protoc_insertion_point(class_scope:AnalysisResults)
   ))
 _sym_db.RegisterMessage(AnalysisResults)
+_sym_db.RegisterMessage(AnalysisResults.ContentsEntry)
 
 
+_ANALYSISRESULTS_CONTENTSENTRY.has_options = True
+_ANALYSISRESULTS_CONTENTSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 # @@protoc_insertion_point(module_scope)

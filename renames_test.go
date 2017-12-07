@@ -17,27 +17,48 @@ func TestRenameAnalysisMeta(t *testing.T) {
 	ra := fixtureRenameAnalysis()
 	assert.Equal(t, ra.Name(), "RenameAnalysis")
 	assert.Equal(t, len(ra.Provides()), 1)
-	assert.Equal(t, ra.Provides()[0], "renamed_changes")
+	assert.Equal(t, ra.Provides()[0], "changes")
 	assert.Equal(t, len(ra.Requires()), 2)
 	assert.Equal(t, ra.Requires()[0], "blob_cache")
 	assert.Equal(t, ra.Requires()[1], "changes")
+	opts := ra.ListConfigurationOptions()
+	assert.Len(t, opts, 1)
+	assert.Equal(t, opts[0].Name, ConfigRenameAnalysisSimilarityThreshold)
+	ra.SimilarityThreshold = 0
+	facts := map[string]interface{}{}
+	facts[ConfigRenameAnalysisSimilarityThreshold] = 70
+	ra.Configure(facts)
+	assert.Equal(t, ra.SimilarityThreshold, 70)
+	delete(facts, ConfigRenameAnalysisSimilarityThreshold)
+	ra.Configure(facts)
+	assert.Equal(t, ra.SimilarityThreshold, 70)
+}
+
+func TestRenameAnalysisRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&RenameAnalysis{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "RenameAnalysis")
+	tps, exists := Registry.provided[(&RenameAnalysis{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.True(t, len(tps) >= 1)
+	matched := false
+	for _, tp := range tps {
+		matched = matched || tp.Elem().Name() == "RenameAnalysis"
+	}
+	assert.True(t, matched)
 }
 
 func TestRenameAnalysisInitializeInvalidThreshold(t *testing.T) {
 	ra := RenameAnalysis{SimilarityThreshold: -10}
-	assert.Panics(t, func() { ra.Initialize(testRepository) })
+	ra.Initialize(testRepository)
+	assert.Equal(t, ra.SimilarityThreshold, RENAME_ANALYSIS_DEFAULT_THRESHOLD)
 	ra = RenameAnalysis{SimilarityThreshold: 110}
-	assert.Panics(t, func() { ra.Initialize(testRepository) })
+	ra.Initialize(testRepository)
+	assert.Equal(t, ra.SimilarityThreshold, RENAME_ANALYSIS_DEFAULT_THRESHOLD)
 	ra = RenameAnalysis{SimilarityThreshold: 0}
 	ra.Initialize(testRepository)
 	ra = RenameAnalysis{SimilarityThreshold: 100}
 	ra.Initialize(testRepository)
-}
-
-func TestRenameAnalysisFinalize(t *testing.T) {
-	ra := fixtureRenameAnalysis()
-	r := ra.Finalize()
-	assert.Nil(t, r)
 }
 
 func TestRenameAnalysisConsume(t *testing.T) {
@@ -101,12 +122,12 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	ra.SimilarityThreshold = 33
 	res, err := ra.Consume(deps)
 	assert.Nil(t, err)
-	renamed := res["renamed_changes"].(object.Changes)
+	renamed := res["changes"].(object.Changes)
 	assert.Equal(t, len(renamed), 2)
 	ra.SimilarityThreshold = 35
 	res, err = ra.Consume(deps)
 	assert.Nil(t, err)
-	renamed = res["renamed_changes"].(object.Changes)
+	renamed = res["changes"].(object.Changes)
 	assert.Equal(t, len(renamed), 3)
 }
 

@@ -32,11 +32,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"plugin"
 	"runtime/pprof"
-	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/src-d/go-billy.v3/osfs"
@@ -45,20 +47,13 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"gopkg.in/src-d/hercules.v2"
-	"gopkg.in/src-d/hercules.v2/stdout"
-	"gopkg.in/src-d/hercules.v2/pb"
+	"gopkg.in/src-d/hercules.v3"
+	"gopkg.in/src-d/hercules.v3/pb"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 	"github.com/gogo/protobuf/proto"
+	"golang.org/x/crypto/ssh/terminal"
 )
-
-func sortedKeys(m map[string][][]int64) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
 
 type OneLineWriter struct {
 	Writer io.Writer
@@ -77,52 +72,7 @@ func (writer OneLineWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func main() {
-	var protobuf bool
-	var withFiles bool
-	var withPeople bool
-	var withCouples bool
-	var people_dict_path string
-	var profile bool
-	var granularity, sampling, similarity_threshold int
-	var commitsFile string
-	var ignoreMissingSubmodules bool
-	var debug bool
-	flag.BoolVar(&withFiles, "files", false, "Output detailed statistics per each file.")
-	flag.BoolVar(&withPeople, "people", false, "Output detailed statistics per each developer.")
-	flag.BoolVar(&withCouples, "couples", false, "Gather the co-occurrence matrix "+
-		"for files and people.")
-	flag.StringVar(&people_dict_path, "people-dict", "", "Path to the developers' email associations.")
-	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
-	flag.IntVar(&granularity, "granularity", 30, "How many days there are in a single band.")
-	flag.IntVar(&sampling, "sampling", 30, "How frequently to record the state in days.")
-	flag.IntVar(&similarity_threshold, "M", 90,
-		"A threshold on the similarity index used to detect renames.")
-	flag.BoolVar(&debug, "debug", false, "Validate the trees on each step.")
-	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
-		"commit history to follow instead of the default rev-list "+
-		"--first-parent. The format is the list of hashes, each hash on a "+
-		"separate line. The first hash is the root.")
-	flag.BoolVar(&ignoreMissingSubmodules, "ignore-missing-submodules", false,
-		"Do not panic on submodules which are not registered..")
-	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
-	flag.Parse()
-	if granularity <= 0 {
-		fmt.Fprint(os.Stderr, "Warning: adjusted the granularity to 1 day\n")
-		granularity = 1
-	}
-	if profile {
-		go http.ListenAndServe("localhost:6060", nil)
-		prof, _ := os.Create("hercules.pprof")
-		pprof.StartCPUProfile(prof)
-		defer pprof.StopCPUProfile()
-	}
-	if len(flag.Args()) == 0 || len(flag.Args()) > 3 {
-		fmt.Fprint(os.Stderr,
-			"Usage: hercules <path to repo or URL> [<disk cache path>]\n")
-		os.Exit(1)
-	}
-	uri := flag.Arg(0)
+func loadRepository(uri string, disableStatus bool) *git.Repository {
 	var repository *git.Repository
 	var backend storage.Storer
 	var err error
@@ -140,12 +90,15 @@ func main() {
 		} else {
 			backend = memory.NewStorage()
 		}
-		fmt.Fprint(os.Stderr, "cloning...\r")
-		repository, err = git.Clone(backend, nil, &git.CloneOptions{
-			URL: uri,
-			Progress: OneLineWriter{Writer: os.Stderr},
-		})
-		fmt.Fprint(os.Stderr, strings.Repeat(" ", 80) + "\r")
+		cloneOptions := &git.CloneOptions{URL: uri}
+		if !disableStatus {
+			fmt.Fprint(os.Stderr, "connecting...\r")
+			cloneOptions.Progress = OneLineWriter{Writer: os.Stderr}
+		}
+		repository, err = git.Clone(backend, nil, cloneOptions)
+		if !disableStatus {
+			fmt.Fprint(os.Stderr, strings.Repeat(" ", 80)+"\r")
+		}
 	} else {
 		if uri[len(uri)-1] == os.PathSeparator {
 			uri = uri[:len(uri)-1]
@@ -155,192 +108,188 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	return repository
+}
+
+
+type arrayPluginFlags map[string]bool
+
+func (apf *arrayPluginFlags) String() string {
+	list := []string{}
+	for key := range *apf {
+		list = append(list, key)
+	}
+	return strings.Join(list, ", ")
+}
+
+func (apf *arrayPluginFlags) Set(value string) error {
+	(*apf)[value] = true
+	return nil
+}
+
+func loadPlugins() {
+	pluginFlags := arrayPluginFlags{}
+	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	fs.SetOutput(ioutil.Discard)
+	pluginFlagName := "plugin"
+	pluginDesc := "Load the specified plugin by the full or relative path. " +
+			"Can be specified multiple times."
+	fs.Var(&pluginFlags, pluginFlagName, pluginDesc)
+	flag.Var(&pluginFlags, pluginFlagName, pluginDesc)
+	fs.Parse(os.Args[1:])
+	for path := range pluginFlags {
+		_, err := plugin.Open(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to load plugin from %s %s", path, err)
+		}
+	}
+}
+
+func main() {
+	loadPlugins()
+	var printVersion, protobuf, profile, disableStatus bool
+	var commitsFile string
+	flag.BoolVar(&profile, "profile", false, "Collect the profile to hercules.pprof.")
+	flag.StringVar(&commitsFile, "commits", "", "Path to the text file with the "+
+		"commit history to follow instead of the default rev-list "+
+		"--first-parent. The format is the list of hashes, each hash on a "+
+		"separate line. The first hash is the root.")
+	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
+	flag.BoolVar(&printVersion, "version", false, "Print version information and exit.")
+	flag.BoolVar(&disableStatus, "quiet", false, "Do not print status updates to stderr.")
+	facts, deployChoices := hercules.Registry.AddFlags()
+	flag.Parse()
+
+	if printVersion {
+		fmt.Printf("Version: 3\nGit:     %s\n", hercules.GIT_HASH)
+		return
+	}
+
+	if profile {
+		go http.ListenAndServe("localhost:6060", nil)
+		prof, _ := os.Create("hercules.pprof")
+		pprof.StartCPUProfile(prof)
+		defer pprof.StopCPUProfile()
+	}
+	if len(flag.Args()) == 0 || len(flag.Args()) > 3 {
+		fmt.Fprint(os.Stderr,
+			"Usage: hercules <path to repo or URL> [<disk cache path>]\n")
+		os.Exit(1)
+	}
+	uri := flag.Arg(0)
+	repository := loadRepository(uri, disableStatus)
 
 	// core logic
 	pipeline := hercules.NewPipeline(repository)
-	pipeline.OnProgress = func(commit, length int) {
-		if commit < length {
-			fmt.Fprintf(os.Stderr, "%d / %d\r", commit, length)
-		} else {
-			fmt.Fprint(os.Stderr, "finalizing...    \r")
+	pipeline.SetFeaturesFromFlags()
+	if terminal.IsTerminal(int(os.Stderr.Fd())) && !disableStatus {
+		progress := mpb.New(mpb.Output(os.Stderr))
+		defer progress.Stop()
+		var bar *mpb.Bar
+		pipeline.OnProgress = func(commit, length int) {
+			if bar == nil {
+				width := len(strconv.Itoa(length))*2 + 3
+				bar = progress.AddBar(int64(length+1),
+					mpb.PrependDecorators(decor.DynamicName(
+						func(stats *decor.Statistics) string {
+							if stats.Current < stats.Total {
+								return fmt.Sprintf("%d / %d", stats.Current, length)
+							}
+							return "finalizing"
+						}, width, 0)),
+					mpb.AppendDecorators(decor.ETA(4, 0)),
+				)
+			}
+			bar.Incr(commit - int(bar.Current()))
 		}
 	}
-	// list of commits belonging to the default branch, from oldest to newest
-	// rev-list --first-parent
+
 	var commits []*object.Commit
 	if commitsFile == "" {
+		// list of commits belonging to the default branch, from oldest to newest
+		// rev-list --first-parent
 		commits = pipeline.Commits()
 	} else {
+		var err error
 		commits, err = hercules.LoadCommitsFromFile(commitsFile, repository)
 		if err != nil {
 			panic(err)
 		}
 	}
-
-	pipeline.AddItem(&hercules.BlobCache{
-		IgnoreMissingSubmodules: ignoreMissingSubmodules,
-	})
-	pipeline.AddItem(&hercules.DaysSinceStart{})
-	pipeline.AddItem(&hercules.RenameAnalysis{SimilarityThreshold: similarity_threshold})
-	pipeline.AddItem(&hercules.TreeDiff{})
-	pipeline.AddItem(&hercules.FileDiff{})
-	id_matcher := &hercules.IdentityDetector{}
-	var peopleCount int
-	if withPeople || withCouples {
-		if people_dict_path != "" {
-			id_matcher.LoadPeopleDict(people_dict_path)
-			peopleCount = len(id_matcher.ReversePeopleDict) - 1
-		} else {
-			id_matcher.GeneratePeopleDict(commits)
-			peopleCount = len(id_matcher.ReversePeopleDict)
+	facts["commits"] = commits
+	deployed := []hercules.PipelineItem{}
+	for name, valPtr := range deployChoices {
+		if *valPtr {
+			deployed = append(deployed, pipeline.DeployItem(hercules.Registry.Summon(name)[0]))
 		}
 	}
-	pipeline.AddItem(id_matcher)
-	burndowner := &hercules.BurndownAnalysis{
-		Granularity:  granularity,
-		Sampling:     sampling,
-		Debug:        debug,
-		TrackFiles:   withFiles,
-		PeopleNumber: peopleCount,
+	pipeline.Initialize(facts)
+	if dryRun, _ := facts[hercules.ConfigPipelineDryRun].(bool); dryRun {
+		return
 	}
-	pipeline.AddItem(burndowner)
-	var coupler *hercules.Couples
-	if withCouples {
-		coupler = &hercules.Couples{PeopleNumber: peopleCount}
-		pipeline.AddItem(coupler)
-	}
-
-	pipeline.Initialize()
-	result, err := pipeline.Run(commits)
+	results, err := pipeline.Run(commits)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprint(os.Stderr, "writing...    \r")
-	burndownResults := result[burndowner].(hercules.BurndownResult)
-	var couplesResult hercules.CouplesResult
-	if withCouples {
-		couplesResult = result[coupler].(hercules.CouplesResult)
-	}
-	if len(burndownResults.GlobalHistory) == 0 {
-		return
+	if !disableStatus {
+		fmt.Fprint(os.Stderr, "writing...\r")
 	}
 	begin := commits[0].Author.When.Unix()
 	end := commits[len(commits)-1].Author.When.Unix()
 	if !protobuf {
-		printResults(uri, begin, end, granularity, sampling,
-			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, id_matcher.ReversePeopleDict)
+		printResults(uri, begin, end, len(commits), deployed, results)
 	} else {
-		serializeResults(uri, begin, end, granularity, sampling,
-			withFiles, withPeople, withCouples,
-			burndownResults, couplesResult, id_matcher.ReversePeopleDict)
+		protobufResults(uri, begin, end, len(commits), deployed, results)
 	}
 }
 
 func printResults(
-	uri string, begin, end int64, granularity, sampling int,
-	withFiles, withPeople, withCouples bool,
-	burndownResults hercules.BurndownResult,
-	couplesResult hercules.CouplesResult,
-	reversePeopleDict []string) {
+	uri string, begin, end int64, commitsCount int, deployed []hercules.PipelineItem,
+	results map[hercules.PipelineItem]interface{}) {
+	fmt.Println("hercules:")
+	fmt.Println("  version: 3")
+	fmt.Println("  hash:", hercules.GIT_HASH)
+	fmt.Println("  repository:", uri)
+	fmt.Println("  begin_unix_time:", begin)
+	fmt.Println("  end_unix_time:", end)
+	fmt.Println("  commits:", commitsCount)
 
-	fmt.Println("burndown:")
-	fmt.Println("  version: 1")
-	fmt.Println("  begin:", begin)
-	fmt.Println("  end:", end)
-	fmt.Println("  granularity:", granularity)
-	fmt.Println("  sampling:", sampling)
-	fmt.Println("project:")
-	stdout.PrintMatrix(burndownResults.GlobalHistory, uri, true)
-	if withFiles {
-		fmt.Println("files:")
-		keys := sortedKeys(burndownResults.FileHistories)
-		for _, key := range keys {
-			stdout.PrintMatrix(burndownResults.FileHistories[key], key, true)
+	for _, item := range deployed {
+		result := results[item]
+		fmt.Printf("%s:\n", item.Name())
+		err := interface{}(item).(hercules.LeafPipelineItem).Serialize(result, false, os.Stdout)
+		if err != nil {
+			panic(err)
 		}
-	}
-	if withPeople {
-		fmt.Println("people_sequence:")
-		for key := range burndownResults.PeopleHistories {
-			fmt.Println("  - " + stdout.SafeString(reversePeopleDict[key]))
-		}
-		fmt.Println("people:")
-		for key, val := range burndownResults.PeopleHistories {
-			stdout.PrintMatrix(val, reversePeopleDict[key], true)
-		}
-		fmt.Println("people_interaction: |-")
-		stdout.PrintMatrix(burndownResults.PeopleMatrix, "", false)
-	}
-	if withCouples {
-		stdout.PrintCouples(&couplesResult, reversePeopleDict)
 	}
 }
 
-func serializeResults(
-	uri string, begin, end int64, granularity, sampling int,
-	withFiles, withPeople, withCouples bool,
-	burndownResults hercules.BurndownResult,
-	couplesResult hercules.CouplesResult,
-	reversePeopleDict []string) {
+func protobufResults(
+	uri string, begin, end int64, commitsCount int, deployed []hercules.PipelineItem,
+	results map[hercules.PipelineItem]interface{}) {
 
   header := pb.Metadata{
 	  Version: 1,
-	  Cmdline: strings.Join(os.Args, " "),
+	  Hash: hercules.GIT_HASH,
 	  Repository: uri,
     BeginUnixTime: begin,
 	  EndUnixTime: end,
-	  Granularity: int32(granularity),
-	  Sampling: int32(sampling),
+	  Commits: int32(commitsCount),
   }
 
 	message := pb.AnalysisResults{
 		Header: &header,
-		BurndownProject: pb.ToBurndownSparseMatrix(burndownResults.GlobalHistory, uri),
+		Contents: map[string][]byte{},
 	}
 
-	if withFiles {
-		message.BurndownFiles = make([]*pb.BurndownSparseMatrix, len(burndownResults.FileHistories))
-		keys := sortedKeys(burndownResults.FileHistories)
-		i := 0
-		for _, key := range keys {
-			message.BurndownFiles[i] = pb.ToBurndownSparseMatrix(
-				burndownResults.FileHistories[key], key)
-			i++
+	for _, item := range deployed {
+		result := results[item]
+		buffer := &bytes.Buffer{}
+		err := interface{}(item).(hercules.LeafPipelineItem).Serialize(result, true, buffer)
+		if err != nil {
+			panic(err)
 		}
-	}
-
-	if withPeople {
-		message.BurndownDevelopers = make(
-		  []*pb.BurndownSparseMatrix, len(burndownResults.PeopleHistories))
-		for key, val := range burndownResults.PeopleHistories {
-			message.BurndownDevelopers[key] = pb.ToBurndownSparseMatrix(val, reversePeopleDict[key])
-		}
-		message.DevelopersInteraction = pb.DenseToCompressedSparseRowMatrix(
-			burndownResults.PeopleMatrix)
-	}
-
-	if withCouples {
-		message.FileCouples = &pb.Couples{
-			Index: couplesResult.Files,
-			Matrix: pb.MapToCompressedSparseRowMatrix(couplesResult.FilesMatrix),
-		}
-		message.DeveloperCouples = &pb.Couples{
-			Index: reversePeopleDict,
-			Matrix: pb.MapToCompressedSparseRowMatrix(couplesResult.PeopleMatrix),
-		}
-		message.TouchedFiles = &pb.DeveloperTouchedFiles{
-      Developers: make([]*pb.TouchedFiles, len(reversePeopleDict)),
-		}
-		for key := range reversePeopleDict {
-			files := couplesResult.PeopleFiles[key]
-			int32Files := make([]int32, len(files))
-			for i, f := range files {
-				int32Files[i] = int32(f)
-			}
-			message.TouchedFiles.Developers[key] = &pb.TouchedFiles{
-				Files: int32Files,
-			}
-		}
+		message.Contents[item.Name()] = buffer.Bytes()
 	}
 
 	serialized, err := proto.Marshal(&message)

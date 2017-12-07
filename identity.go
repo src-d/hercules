@@ -14,11 +14,19 @@ type IdentityDetector struct {
 	// Maps email || name  -> developer id.
 	PeopleDict map[string]int
 	// Maps developer id -> description
-	ReversePeopleDict []string
+	ReversedPeopleDict []string
 }
 
-const MISSING_AUTHOR = (1 << 18) - 1
-const SELF_AUTHOR = (1 << 18) - 2
+const (
+	MISSING_AUTHOR   = (1 << 18) - 1
+	SELF_AUTHOR      = (1 << 18) - 2
+	UNMATCHED_AUTHOR = "<unmatched>"
+
+	FactIdentityDetectorPeopleDict         = "IdentityDetector.PeopleDict"
+	FactIdentityDetectorReversedPeopleDict = "IdentityDetector.ReversedPeopleDict"
+	ConfigIdentityDetectorPeopleDictPath   = "IdentityDetector.PeopleDictPath"
+	FactIdentityDetectorPeopleCount        = "IdentityDetector.PeopleCount"
+)
 
 func (id *IdentityDetector) Name() string {
 	return "IdentityDetector"
@@ -31,6 +39,43 @@ func (id *IdentityDetector) Provides() []string {
 
 func (id *IdentityDetector) Requires() []string {
 	return []string{}
+}
+
+func (id *IdentityDetector) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        ConfigIdentityDetectorPeopleDictPath,
+		Description: "Path to the developers' email associations.",
+		Flag:        "people-dict",
+		Type:        StringConfigurationOption,
+		Default:     ""},
+	}
+	return options[:]
+}
+
+func (id *IdentityDetector) Configure(facts map[string]interface{}) {
+	if val, exists := facts[FactIdentityDetectorPeopleDict].(map[string]int); exists {
+		id.PeopleDict = val
+	}
+	if val, exists := facts[FactIdentityDetectorReversedPeopleDict].([]string); exists {
+		id.ReversedPeopleDict = val
+	}
+	if id.PeopleDict == nil || id.ReversedPeopleDict == nil {
+		peopleDictPath, _ := facts[ConfigIdentityDetectorPeopleDictPath].(string)
+		if peopleDictPath != "" {
+			id.LoadPeopleDict(peopleDictPath)
+			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict) - 1
+		} else {
+			if _, exists := facts[FactPipelineCommits]; !exists {
+				panic("IdentityDetector needs a list of commits to initialize.")
+			}
+			id.GeneratePeopleDict(facts[FactPipelineCommits].([]*object.Commit))
+			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict)
+		}
+	} else {
+		facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict)
+	}
+	facts[FactIdentityDetectorPeopleDict] = id.PeopleDict
+	facts[FactIdentityDetectorReversedPeopleDict] = id.ReversedPeopleDict
 }
 
 func (id *IdentityDetector) Initialize(repository *git.Repository) {
@@ -47,10 +92,6 @@ func (self *IdentityDetector) Consume(deps map[string]interface{}) (map[string]i
 		}
 	}
 	return map[string]interface{}{"author": id}, nil
-}
-
-func (id *IdentityDetector) Finalize() interface{} {
-	return nil
 }
 
 func (id *IdentityDetector) LoadPeopleDict(path string) error {
@@ -71,9 +112,9 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 		reverse_dict = append(reverse_dict, ids[0])
 		size += 1
 	}
-	reverse_dict = append(reverse_dict, "<unmatched>")
+	reverse_dict = append(reverse_dict, UNMATCHED_AUTHOR)
 	id.PeopleDict = dict
-	id.ReversePeopleDict = reverse_dict
+	id.ReversedPeopleDict = reverse_dict
 	return nil
 }
 
@@ -169,5 +210,9 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 		reverse_dict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
 	}
 	id.PeopleDict = dict
-	id.ReversePeopleDict = reverse_dict
+	id.ReversedPeopleDict = reverse_dict
+}
+
+func init() {
+	Registry.Register(&IdentityDetector{})
 }

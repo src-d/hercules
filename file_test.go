@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/hercules.v2/rbtree"
+	"gopkg.in/src-d/hercules.v3/rbtree"
 )
 
 func updateStatusFile(

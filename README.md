@@ -1,29 +1,19 @@
 Hercules [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules) [![codecov](https://codecov.io/github/src-d/hercules/coverage.svg)](https://codecov.io/gh/src-d/hercules)
 --------
 
-This project calculates and plots the lines burndown and other fun stats in Git repositories.
-Exactly the same what [git-of-theseus](https://github.com/erikbern/git-of-theseus)
-does actually, but using [go-git](https://github.com/src-d/go-git).
-Why? [source{d}](http://sourced.tech) builds it's own data pipeline to
-process every git repository in the world and the calculation of the
-annual burnout ratio will be embedded into it. `hercules` contains an
-open source implementation of the specific `git blame` flavour on top
-of go-git. Blaming is performed incrementally using the custom RB tree tracking
-algorithm, only the last modification date is recorded.
+Amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries included.
+Powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
 
 There are two tools: `hercules` and `labours.py`. The first is the program
-written in Go which collects the burndown and other stats from a Git repository.
-The second is the Python script which draws the stack area plots and optionally
-resamples the time series. These two tools are normally used together through
-the pipe. `hercules` prints results in plain text. The first line is four numbers:
-UNIX timestamp which corresponds to the time the repository was created,
-UNIX timestamp of the last commit, *granularity* and *sampling*.
-Granularity is the number of days each band in the stack consists of. Sampling
-is the frequency with which the burnout state is snapshotted. The smaller the
-value, the more smooth is the plot but the more work is done.
+written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of analysis tasks.
+The second is the Python script which draws some predefined plots. These two tools are normally used together through
+a pipe. It is possible to write custom analyses using the plugin system.
+
+![git/git image](doc/dag.png)
+<p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules -burndown -burndown-people -couples -feature=uast -dry-run -dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
 
 ![git/git image](doc/linux.png)
-<p align="center">torvalds/linux burndown (granularity 30, sampling 30, resampled by year)</p>
+<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year)</p>
 
 There is an option to resample the bands inside `labours.py`, so that you can
 define a very precise distribution and visualize it different ways. Besides,
@@ -35,29 +25,33 @@ There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lig
 ### Installation
 You are going to need Go (>= v1.8) and Python 2 or 3.
 ```
-go get gopkg.in/src-d/hercules.v2/cmd/hercules
-pip install -r requirements.txt
-wget https://github.com/src-d/hercules/raw/master/labours.py
+go get gopkg.in/src-d/hercules.v3/cmd/hercules
+cd $GOPATH/src/gopkg.in/hercules.v3/cmd/hercules
+make
 ```
+
+The first command fails with `libuast.h` not found - this is expected. Pretend that nothing has
+happened and carry on.
 
 #### Windows
 Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.
+Couples analysis also needs Tensorflow.
 
 ### Usage
 ```
-# Use "memory" go-git backend and display the plot. This is the fastest but the repository data must fit into RAM.
-hercules https://github.com/src-d/go-git | python3 labours.py --resample month
-# Use "file system" go-git backend and print the raw data.
+# Use "memory" go-git backend and display the burndown plot. "memory" is the fastest but the repository's git data must fit into RAM.
+hercules -burndown https://github.com/src-d/go-git | python3 labours.py -m project --resample month
+# Use "file system" go-git backend and print some basic information about the repository.
 hercules /path/to/cloned/go-git
-# Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache, use Protocol Buffers and display the unresampled plot.
-hercules -pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -f pb --resample raw
+# Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache, use Protocol Buffers and display the burndown plot without resampling.
+hercules -burndown -pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -m project -f pb --resample raw
 
 # Now something fun
 # Get the linear history from git rev-list, reverse it
-# Pipe to hercules, produce the snapshots for every 30 days grouped by 30 days
+# Pipe to hercules, produce burndown snapshots for every 30 days grouped by 30 days
 # Save the raw data to cache.yaml, so that later is possible to python3 labours.py -i cache.yaml
 # Pipe the raw data to labours.py, set text font size to 16pt, use Agg matplotlib backend and save the plot to output.png
-git rev-list HEAD | tac | hercules -commits - https://github.com/git/git | tee cache.yaml | python3 labours.py --font-size 16 --backend Agg --output git.png
+git rev-list HEAD | tac | hercules -commits - -burndown https://github.com/git/git | tee cache.yaml | python3 labours.py -m project --font-size 16 --backend Agg --output git.png
 ```
 
 `labours.py -i /path/to/yaml` allows to read the output from `hercules` which was saved on disk.
@@ -72,21 +66,38 @@ corresponding directory instead of cloning from scratch:
 hercules https://github.com/git/git /tmp/repo-cache
 
 # Second time - use the cache
-hercules /tmp/repo-cache
+hercules -some-analysis /tmp/repo-cache
 ```
 
 #### Docker image
 
 ```
-docker run --rm srcd/hercules hercules -pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -o /io/git_git.png
+docker run --rm srcd/hercules hercules -burndown -pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -m project -o /io/git_git.png
 ```
 
-### Extensions
+### Built-in analyses
+
+#### Project burndown
+
+```
+hercules -burndown
+python3 labours.py -m project
+```
+
+Line burndown statistics for the whole repository.
+Exactly the same what [git-of-theseus](https://github.com/erikbern/git-of-theseus)
+does but much faster. Blaming is performed efficiently and incrementally using a custom RB tree tracking
+algorithm, and only the last modification date is recorded while running the analysis.
+
+All burndown analyses depend on the values of *granularity* and *sampling*.
+Granularity is the number of days each band in the stack consists of. Sampling
+is the frequency with which the burnout state is snapshotted. The smaller the
+value, the more smooth is the plot but the more work is done.
 
 #### Files
 
 ```
-hercules -files
+hercules -burndown -burndown-files
 python3 labours.py -m files
 ```
 
@@ -95,11 +106,11 @@ Burndown statistics for every file in the repository which is alive in the lates
 #### People
 
 ```
-hercules -people [-people-dict=/path/to/identities]
+hercules -burndown -burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m person
 ```
 
-Burndown statistics for developers. If `-people-dict` is not specified, the identities are
+Burndown statistics for the repository's contributors. If `-people-dict` is not specified, the identities are
 discovered by the following algorithm:
 
 0. We start from the root commit towards the HEAD. Emails and names are converted to lower case.
@@ -119,7 +130,7 @@ by `|`. The case is ignored.
 <p align="center">Wireshark top 20 devs - churn matrix</p>
 
 ```
-hercules -people [-people-dict=/path/to/identities]
+hercules -burndown -burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m churn_matrix
 ```
 
@@ -141,7 +152,7 @@ The sequence of developers is stored in `people_sequence` YAML node.
 <p align="center">Ember.js top 20 devs - code ownership</p>
 
 ```
-hercules -people [-people-dict=/path/to/identities]
+hercules -burndown -burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m ownership
 ```
 
@@ -174,9 +185,13 @@ can be visualized with t-SNE implemented in TF Projector.
 #### Everything in a single pass
 
 ```
-hercules -files -people -couples [-people-dict=/path/to/identities]
+hercules -burndown -burndown-files -burndown-people -couples [-people-dict=/path/to/identities]
 python3 labours.py -m all
 ```
+
+### Plugins
+
+Hercules has a plugin system and allows to run custom analyses. See [PLUGINS.md](PLUGINS.md).
 
 ### Bad unicode errors
 
@@ -185,7 +200,7 @@ may raise exceptions. Filter the output from `hercules` through `fix_yaml_unicod
 such offending characters.
 
 ```
-hercules -people https://github.com/... | python3 fix_yaml_unicode.py | python3 labours.py -m people
+hercules -burndown -burndown-people https://github.com/... | python3 fix_yaml_unicode.py | python3 labours.py -m people
 ```
 
 ### Plotting

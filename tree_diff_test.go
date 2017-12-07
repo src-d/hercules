@@ -11,6 +11,7 @@ import (
 
 func fixtureTreeDiff() *TreeDiff {
 	td := TreeDiff{}
+	td.Configure(nil)
 	td.Initialize(testRepository)
 	return &td
 }
@@ -21,6 +22,22 @@ func TestTreeDiffMeta(t *testing.T) {
 	assert.Equal(t, len(td.Requires()), 0)
 	assert.Equal(t, len(td.Provides()), 1)
 	assert.Equal(t, td.Provides()[0], "changes")
+	opts := td.ListConfigurationOptions()
+	assert.Len(t, opts, 0)
+}
+
+func TestTreeDiffRegistration(t *testing.T) {
+	tp, exists := Registry.registered[(&TreeDiff{}).Name()]
+	assert.True(t, exists)
+	assert.Equal(t, tp.Elem().Name(), "TreeDiff")
+	tps, exists := Registry.provided[(&TreeDiff{}).Provides()[0]]
+	assert.True(t, exists)
+	assert.True(t, len(tps) >= 1)
+	matched := false
+	for _, tp := range tps {
+		matched = matched || tp.Elem().Name() == "TreeDiff"
+	}
+	assert.True(t, matched)
 }
 
 func TestTreeDiffConsume(t *testing.T) {
@@ -80,10 +97,4 @@ func TestTreeDiffConsumeFirst(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, action, merkletrie.Insert)
 	}
-}
-
-func TestTreeDiffFinalize(t *testing.T) {
-	id := fixtureTreeDiff()
-	res := id.Finalize()
-	assert.Nil(t, res)
 }

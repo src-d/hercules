@@ -4,7 +4,10 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"flag"
 	"os"
+	"path"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +38,29 @@ func (item *testPipelineItem) Requires() []string {
 	return []string{}
 }
 
+func (item *testPipelineItem) Configure(facts map[string]interface{}) {
+}
+
+func (item *testPipelineItem) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        "TestOption",
+		Description: "The option description.",
+		Flag:        "test-option",
+		Type:        IntConfigurationOption,
+		Default:     10,
+	}}
+	return options[:]
+}
+
+func (item *testPipelineItem) Flag() string {
+	return "mytest"
+}
+
+func (item *testPipelineItem) Features() []string {
+	f := [...]string{"power"}
+	return f[:]
+}
+
 func (item *testPipelineItem) Initialize(repository *git.Repository) {
 	item.Initialized = repository != nil
 }
@@ -61,6 +87,43 @@ func (item *testPipelineItem) Finalize() interface{} {
 	return item
 }
 
+func (item *testPipelineItem) Serialize(result interface{}, binary bool, writer io.Writer) error {
+	return nil
+}
+
+func getRegistry() *PipelineItemRegistry {
+	return &PipelineItemRegistry{
+		provided:   map[string][]reflect.Type{},
+		registered: map[string]reflect.Type{},
+		flags:      map[string]reflect.Type{},
+	}
+}
+
+func TestPipelineItemRegistrySummon(t *testing.T) {
+	reg := getRegistry()
+	reg.Register(&testPipelineItem{})
+	summoned := reg.Summon((&testPipelineItem{}).Provides()[0])
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), (&testPipelineItem{}).Name())
+	summoned = reg.Summon((&testPipelineItem{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), (&testPipelineItem{}).Name())
+}
+
+func TestPipelineItemRegistryAddFlags(t *testing.T) {
+	reg := getRegistry()
+	reg.Register(&testPipelineItem{})
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	facts, deployed := reg.AddFlags()
+	assert.Len(t, facts, 3)
+	assert.IsType(t, 0, facts[(&testPipelineItem{}).ListConfigurationOptions()[0].Name])
+	assert.Contains(t, facts, ConfigPipelineDryRun)
+	assert.Contains(t, facts, ConfigPipelineDumpPath)
+	assert.Len(t, deployed, 1)
+	assert.Contains(t, deployed, (&testPipelineItem{}).Name())
+	assert.NotNil(t, flag.Lookup((&testPipelineItem{}).Flag()))
+}
+
 type dependingTestPipelineItem struct {
 	DependencySatisfied  bool
 	TestNilConsumeReturn bool
@@ -80,7 +143,25 @@ func (item *dependingTestPipelineItem) Requires() []string {
 	return arr[:]
 }
 
+func (item *dependingTestPipelineItem) ListConfigurationOptions() []ConfigurationOption {
+	options := [...]ConfigurationOption{{
+		Name:        "TestOption2",
+		Description: "The option description.",
+		Flag:        "test-option2",
+		Type:        IntConfigurationOption,
+		Default:     10,
+	}}
+	return options[:]
+}
+
+func (item *dependingTestPipelineItem) Configure(facts map[string]interface{}) {
+}
+
 func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) {
+}
+
+func (item *dependingTestPipelineItem) Flag() string {
+	return "depflag"
 }
 
 func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -94,14 +175,40 @@ func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map
 }
 
 func (item *dependingTestPipelineItem) Finalize() interface{} {
-	return item.DependencySatisfied
+	return true
+}
+
+func (item *dependingTestPipelineItem) Serialize(result interface{}, binary bool, writer io.Writer) error {
+	return nil
+}
+
+func TestPipelineFacts(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.SetFact("fact", "value")
+	assert.Equal(t, pipeline.GetFact("fact"), "value")
+}
+
+func TestPipelineFeatures(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.SetFeature("feat")
+	val, _ := pipeline.GetFeature("feat")
+	assert.True(t, val)
+	val, exists := pipeline.GetFeature("!")
+	assert.False(t, exists)
+	featureFlags.Set("777")
+	defer func() {
+		featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
+	}()
+	pipeline.SetFeaturesFromFlags()
+	_, exists = pipeline.GetFeature("777")
+	assert.False(t, exists)
 }
 
 func TestPipelineRun(t *testing.T) {
 	pipeline := NewPipeline(testRepository)
 	item := &testPipelineItem{}
 	pipeline.AddItem(item)
-	pipeline.Initialize()
+	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
@@ -193,13 +300,15 @@ func TestPipelineDeps(t *testing.T) {
 	item2 := &testPipelineItem{}
 	pipeline.AddItem(item1)
 	pipeline.AddItem(item2)
-	pipeline.Initialize()
+	assert.Equal(t, pipeline.Len(), 2)
+	pipeline.Initialize(map[string]interface{}{})
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
 	assert.True(t, result[item1].(bool))
+	assert.Equal(t, result[item2], item2)
 	item1.TestNilConsumeReturn = true
 	assert.Panics(t, func() { pipeline.Run(commits) })
 }
@@ -209,7 +318,7 @@ func TestPipelineError(t *testing.T) {
 	item := &testPipelineItem{}
 	item.TestError = true
 	pipeline.AddItem(item)
-	pipeline.Initialize()
+	pipeline.Initialize(map[string]interface{}{})
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
@@ -218,20 +327,94 @@ func TestPipelineError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestPipelineSerialize(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.SetFeature("uast")
+	pipeline.DeployItem(&BurndownAnalysis{})
+	facts := map[string]interface{}{}
+	facts["Pipeline.DryRun"] = true
+	tmpdir, _ := ioutil.TempDir("", "hercules-")
+	defer os.RemoveAll(tmpdir)
+	dotpath := path.Join(tmpdir, "graph.dot")
+	facts["Pipeline.DumpPath"] = dotpath
+	pipeline.Initialize(facts)
+	bdot, _ := ioutil.ReadFile(dotpath)
+	dot := string(bdot)
+	assert.Equal(t, `digraph Hercules {
+  "6 BlobCache" -> "7 [blob_cache]"
+  "0 DaysSinceStart" -> "3 [day]"
+  "9 FileDiff" -> "11 [file_diff]"
+  "15 FileDiffRefiner" -> "16 Burndown"
+  "1 IdentityDetector" -> "4 [author]"
+  "8 RenameAnalysis" -> "16 Burndown"
+  "8 RenameAnalysis" -> "9 FileDiff"
+  "8 RenameAnalysis" -> "10 UAST"
+  "8 RenameAnalysis" -> "13 UASTChanges"
+  "2 TreeDiff" -> "5 [changes]"
+  "10 UAST" -> "12 [uasts]"
+  "13 UASTChanges" -> "14 [changed_uasts]"
+  "4 [author]" -> "16 Burndown"
+  "7 [blob_cache]" -> "16 Burndown"
+  "7 [blob_cache]" -> "9 FileDiff"
+  "7 [blob_cache]" -> "8 RenameAnalysis"
+  "7 [blob_cache]" -> "10 UAST"
+  "14 [changed_uasts]" -> "15 FileDiffRefiner"
+  "5 [changes]" -> "6 BlobCache"
+  "5 [changes]" -> "8 RenameAnalysis"
+  "3 [day]" -> "16 Burndown"
+  "11 [file_diff]" -> "15 FileDiffRefiner"
+  "12 [uasts]" -> "13 UASTChanges"
+}`, dot)
+}
+
+func TestPipelineSerializeNoUast(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	// pipeline.SetFeature("uast")
+	pipeline.DeployItem(&BurndownAnalysis{})
+	facts := map[string]interface{}{}
+	facts["Pipeline.DryRun"] = true
+	tmpdir, _ := ioutil.TempDir("", "hercules-")
+	defer os.RemoveAll(tmpdir)
+	dotpath := path.Join(tmpdir, "graph.dot")
+	facts["Pipeline.DumpPath"] = dotpath
+	pipeline.Initialize(facts)
+	bdot, _ := ioutil.ReadFile(dotpath)
+	dot := string(bdot)
+	assert.Equal(t, `digraph Hercules {
+  "6 BlobCache" -> "7 [blob_cache]"
+  "0 DaysSinceStart" -> "3 [day]"
+  "9 FileDiff" -> "10 [file_diff]"
+  "1 IdentityDetector" -> "4 [author]"
+  "8 RenameAnalysis" -> "11 Burndown"
+  "8 RenameAnalysis" -> "9 FileDiff"
+  "2 TreeDiff" -> "5 [changes]"
+  "4 [author]" -> "11 Burndown"
+  "7 [blob_cache]" -> "11 Burndown"
+  "7 [blob_cache]" -> "9 FileDiff"
+  "7 [blob_cache]" -> "8 RenameAnalysis"
+  "5 [changes]" -> "6 BlobCache"
+  "5 [changes]" -> "8 RenameAnalysis"
+  "3 [day]" -> "11 Burndown"
+  "10 [file_diff]" -> "11 Burndown"
+}`, dot)
+}
+
 func init() {
 	cwd, err := os.Getwd()
 	if err == nil {
 		testRepository, err = git.PlainOpen(cwd)
 		if err == nil {
-			iter, _ := testRepository.CommitObjects()
-			commits := -1
-			for ; err != io.EOF; _, err = iter.Next() {
-				if err != nil {
-					panic(err)
-				}
-				commits++
-				if commits >= 100 {
-					return
+			iter, err := testRepository.CommitObjects()
+			if err == nil {
+				commits := -1
+				for ; err != io.EOF; _, err = iter.Next() {
+					if err != nil {
+						panic(err)
+					}
+					commits++
+					if commits >= 100 {
+						return
+					}
 				}
 			}
 		}
@@ -239,4 +422,11 @@ func init() {
 	testRepository, _ = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL: "https://github.com/src-d/hercules",
 	})
+}
+
+func TestPipelineResolveIntegration(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.DeployItem(&BurndownAnalysis{})
+	pipeline.DeployItem(&CouplesAnalysis{})
+	pipeline.Initialize(nil)
 }
