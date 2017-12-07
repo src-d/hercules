@@ -445,6 +445,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 		for key := range ambiguousMap {
 			ambiguous = append(ambiguous, key)
 		}
+		sort.Strings(ambiguous)
 		bfsorder := graph.BreadthSort()
 		bfsindex := map[string]int{}
 		for i, s := range bfsorder {
@@ -496,6 +497,8 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 		}
 	}
 	if dumpPath != "" {
+		// If there is a floating difference, uncomment this:
+		// fmt.Fprint(os.Stderr, graphCopy.DebugDump())
 		ioutil.WriteFile(dumpPath, []byte(graphCopy.Serialize(strplan)), 0666)
 		absPath, _ := filepath.Abs(dumpPath)
 		fmt.Fprintf(os.Stderr, "Wrote the DAG to %s\n", absPath)

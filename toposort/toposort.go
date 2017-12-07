@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // Reworked from https://github.com/philopon/go-toposort
@@ -227,6 +228,7 @@ func (g *Graph) FindChildren(from string) []string {
 	for child := range g.outputs[from] {
 		result = append(result, child)
 	}
+	sort.Strings(result)
 	return result
 }
 
@@ -255,5 +257,34 @@ func (g *Graph) Serialize(sorted []string) string {
 	  }
   }
 	buffer.WriteString("}")
+	return buffer.String()
+}
+
+func (g *Graph) DebugDump() string {
+	S := make([]string, 0, len(g.outputs))
+	for n := range g.outputs {
+		if g.inputs[n] == 0 {
+			S = append(S, n)
+		}
+	}
+	sort.Strings(S)
+	var buffer bytes.Buffer
+	buffer.WriteString(strings.Join(S, " ") + "\n")
+	keys := []string{}
+	vals := map[string][]string{}
+	for key, val1 := range g.outputs {
+		val2 := make([]string, len(val1))
+		for name, idx := range val1 {
+			val2[idx - 1] = name
+		}
+		keys = append(keys, key)
+		vals[key] = val2
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		buffer.WriteString(fmt.Sprintf("%s %d = ", key, g.inputs[key]))
+		outs := vals[key]
+		buffer.WriteString(strings.Join(outs, " ") + "\n")
+	}
 	return buffer.String()
 }
