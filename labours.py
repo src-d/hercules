@@ -850,7 +850,7 @@ def main():
 
     burndown_warning = "Burndown stats were not collected. Re-run hercules with -burndown."
     burndown_files_warning = \
-        "Burndown stats for people were not collected. Re-run hercules with " \
+        "Burndown stats for files were not collected. Re-run hercules with " \
         "-burndown -burndown-files."
     burndown_people_warning = \
         "Burndown stats for people were not collected. Re-run hercules with " \
@@ -861,7 +861,7 @@ def main():
         try:
             full_header = header + reader.get_burndown_parameters()
         except KeyError:
-            print(burndown_warning)
+            print("project: " + burndown_warning)
             return
         plot_burndown(args, "project",
                       *load_burndown(full_header, *reader.get_project_burndown(),
@@ -876,7 +876,7 @@ def main():
         try:
             plot_many_burndown(args, "file", full_header, reader.get_files_burndown())
         except KeyError:
-            print(burndown_files_warning)
+            print("files: " + burndown_files_warning)
 
     def people_burndown():
         try:
@@ -887,14 +887,14 @@ def main():
         try:
             plot_many_burndown(args, "person", full_header, reader.get_people_burndown())
         except KeyError:
-            print(burndown_people_warning)
+            print("people: " + burndown_people_warning)
 
     def churn_matrix():
         try:
             plot_churn_matrix(args, name, *load_churn_matrix(
                 *reader.get_people_interaction(), max_people=args.max_people))
         except KeyError:
-            print(burndown_people_warning)
+            print("churn_matrix: " + burndown_people_warning)
 
     def ownership_burndown():
         try:
@@ -906,7 +906,7 @@ def main():
             plot_ownership(args, name, *load_ownership(
                 full_header, *reader.get_ownership_burndown(), max_people=args.max_people))
         except KeyError:
-            print(burndown_people_warning)
+            print("ownership: " + burndown_people_warning)
 
     def couples():
         try:
