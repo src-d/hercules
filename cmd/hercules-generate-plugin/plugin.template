@@ -1,0 +1,59 @@
+package {{.package}}
+
+import (
+  "gopkg.in/src-d/go-git.v4"
+  "gopkg.in/src-d/hercules.v3"
+)
+
+// {{.name}} contains the intermediate state which is mutated by Consume(). It should implement
+// hercules.LeafPipelineItem.
+type {{.name}} struct {
+}
+
+// {{.name}}Result is returned by Finalize() and represents the analysis result.
+type {{.name}}Result struct {
+}
+
+// Analysis' name in the graph is usually the same as the type's name, however, does not have to.
+func ({{.varname}} *{{.name}}) Name() string {
+	return "{{.name}}"
+}
+
+// LeafPipelineItem-s normally do not act as intermediate nodes and thus we return an empty slice.
+func ({{.varname}} *{{.name}}) Provides() []string {
+	return []string{}
+}
+
+// Requires returns the list of dependencies which must be supplied in Consume().
+func ({{.varname}} *{{.name}}) Requires() []string {
+	arr := [...]string{/* insert dependencies here */}
+	return arr[:]
+}
+
+func ({{.varname}} *{{.name}}) ListConfigurationOptions() []hercules.ConfigurationOption {
+	return []hercules.ConfigurationOption{}
+}
+
+func ({{.varname}} *{{.name}}) Flag() string {
+	return "{{.flag}}"
+}
+
+func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) {
+}
+
+func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) {
+}
+
+func ({{.varname}} *{{.name}}) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func ({{.varname}} *{{.name}}) Finalize() interface{} {
+  result := {{.name}}Result{}
+  // insert code here
+  return result
+}
+
+func init() {
+	hercules.Registry.Register(&{{.name}}{})
+}

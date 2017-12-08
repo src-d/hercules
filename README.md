@@ -25,13 +25,10 @@ There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lig
 ### Installation
 You are going to need Go (>= v1.8) and Python 2 or 3.
 ```
-go get gopkg.in/src-d/hercules.v3/cmd/hercules
+go get -d gopkg.in/src-d/hercules.v3/cmd/hercules
 cd $GOPATH/src/gopkg.in/hercules.v3/cmd/hercules
 make
 ```
-
-The first command fails with `libuast.h` not found - this is expected. Pretend that nothing has
-happened and carry on.
 
 #### Windows
 Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.

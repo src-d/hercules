@@ -37,6 +37,8 @@ script:
   - $GOPATH/bin/hercules -version
   - $GOPATH/bin/hercules -burndown -burndown-files -burndown-people -couples -quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
   - $GOPATH/bin/hercules -burndown -burndown-files -burndown-people -couples -quiet -pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules-generate-plugin -version
+  - $GOPATH/bin/hercules-generate-plugin -n MyTest && test -e my_test.go
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
