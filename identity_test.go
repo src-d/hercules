@@ -125,7 +125,7 @@ func TestIdentityDetectorRegistration(t *testing.T) {
 
 func TestIdentityDetectorConfigureEmpty(t *testing.T) {
 	id := IdentityDetector{}
-	assert.Panics(t, func() {id.Configure(map[string]interface{}{})})
+	assert.Panics(t, func() { id.Configure(map[string]interface{}{}) })
 }
 
 func TestIdentityDetectorConsume(t *testing.T) {

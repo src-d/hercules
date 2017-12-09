@@ -246,14 +246,14 @@ func (file *File) Update(time int, pos int, ins_length int, del_length int) {
 
 	if ins_length > 0 {
 		if origin.Value != time {
-			tree.Insert(rbtree.Item{pos + ins_length, origin.Value})
+			tree.Insert(rbtree.Item{Key: pos + ins_length, Value: origin.Value})
 		} else if pos == 0 {
 			// recover the beginning
-			tree.Insert(rbtree.Item{pos, time})
+			tree.Insert(rbtree.Item{Key: pos, Value: time})
 		}
 	} else if (pos > origin.Key && previous.Value != origin.Value) || pos == origin.Key || pos == 0 {
 		// continue the original interval
-		tree.Insert(rbtree.Item{pos, origin.Value})
+		tree.Insert(rbtree.Item{Key: pos, Value: origin.Value})
 	}
 }
 

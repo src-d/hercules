@@ -173,7 +173,7 @@ func main() {
 	}
 	if len(flag.Args()) == 0 || len(flag.Args()) > 3 {
 		fmt.Fprint(os.Stderr,
-			"Usage: hercules <path to repo or URL> [<disk cache path>]\n")
+			"Usage: hercules [options] <path to repo or URL> [<disk cache path>]\n")
 		os.Exit(1)
 	}
 	uri := flag.Arg(0)

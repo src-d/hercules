@@ -1,8 +1,10 @@
 package hercules
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
+	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
@@ -58,11 +60,11 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			blob_to := cache[change.To.TreeEntry.Hash]
 			// we are not validating UTF-8 here because for example
 			// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
-			str_from, err := blobToString(blob_from)
+			str_from, err := BlobToString(blob_from)
 			if err != nil {
 				return nil, err
 			}
-			str_to, err := blobToString(blob_to)
+			str_to, err := BlobToString(blob_to)
 			if err != nil {
 				return nil, err
 			}
@@ -81,9 +83,37 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{"file_diff": result}, nil
 }
 
-func blobToString(file *object.Blob) (string, error) {
+func CountLines(file *object.Blob) (int, error) {
 	if file == nil {
-		return "", errors.New("Blob not cached.")
+		return -1, errors.New("Blob is nil: probably not cached.")
+	}
+	reader, err := file.Reader()
+	if err != nil {
+		return -1, err
+	}
+	defer checkClose(reader)
+	var scanner *bufio.Scanner
+	buffer := make([]byte, bufio.MaxScanTokenSize)
+	counter := 0
+	for scanner == nil || scanner.Err() == bufio.ErrTooLong {
+		if scanner != nil && !utf8.Valid(scanner.Bytes()) {
+			return -1, errors.New("binary")
+		}
+		scanner = bufio.NewScanner(reader)
+		scanner.Buffer(buffer, 0)
+		for scanner.Scan() {
+			if !utf8.Valid(scanner.Bytes()) {
+				return -1, errors.New("binary")
+			}
+			counter++
+		}
+	}
+	return counter, nil
+}
+
+func BlobToString(file *object.Blob) (string, error) {
+	if file == nil {
+		return "", errors.New("Blob is nil: probably not cached.")
 	}
 	reader, err := file.Reader()
 	if err != nil {

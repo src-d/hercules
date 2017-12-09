@@ -186,11 +186,11 @@ func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 
 func (ra *RenameAnalysis) blobsAreClose(
 	blob1 *object.Blob, blob2 *object.Blob) (bool, error) {
-	str_from, err := blobToString(blob1)
+	str_from, err := BlobToString(blob1)
 	if err != nil {
 		return false, err
 	}
-	str_to, err := blobToString(blob2)
+	str_to, err := BlobToString(blob2)
 	if err != nil {
 		return false, err
 	}

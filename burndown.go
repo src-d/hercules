@@ -1,7 +1,6 @@
 package hercules
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -334,31 +333,6 @@ func checkClose(c io.Closer) {
 	}
 }
 
-func countLines(file *object.Blob) (int, error) {
-	reader, err := file.Reader()
-	if err != nil {
-		return 0, err
-	}
-	defer checkClose(reader)
-	var scanner *bufio.Scanner
-	buffer := make([]byte, bufio.MaxScanTokenSize)
-	counter := 0
-	for scanner == nil || scanner.Err() == bufio.ErrTooLong {
-		if scanner != nil && !utf8.Valid(scanner.Bytes()) {
-			return -1, errors.New("binary")
-		}
-		scanner = bufio.NewScanner(reader)
-		scanner.Buffer(buffer, 0)
-		for scanner.Scan() {
-			if !utf8.Valid(scanner.Bytes()) {
-				return -1, errors.New("binary")
-			}
-			counter++
-		}
-	}
-	return counter, nil
-}
-
 func (analyser *BurndownAnalysis) packPersonWithDay(person int, day int) int {
 	if analyser.PeopleNumber == 0 {
 		return day
@@ -441,7 +415,7 @@ func (analyser *BurndownAnalysis) newFile(
 func (analyser *BurndownAnalysis) handleInsertion(
 	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob) error {
 	blob := cache[change.To.TreeEntry.Hash]
-	lines, err := countLines(blob)
+	lines, err := CountLines(blob)
 	if err != nil {
 		if err.Error() == "binary" {
 			return nil
@@ -463,7 +437,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob) error {
 
 	blob := cache[change.From.TreeEntry.Hash]
-	lines, err := countLines(blob)
+	lines, err := CountLines(blob)
 	if err != nil {
 		if err.Error() == "binary" {
 			return nil

@@ -4,6 +4,8 @@ import (
   "flag"
   "fmt"
   "os"
+  "path"
+  "runtime"
   "strings"
   "text/template"
 
@@ -12,6 +14,13 @@ import (
 )
 
 //go:generate go run embed.go
+
+var SHLIB_EXT = map[string]string {
+  "window": "dll",
+  "linux": "so",
+  "darwin": "dylib",
+  "freebsd": "dylib",
+}
 
 func main() {
   var outputPath, name, varname, _flag, pkg string
@@ -24,7 +33,7 @@ func main() {
   flag.StringVar(&_flag, "flag", "", "Name of the plugin activation cmdline flag, If not " +
       "specified, inferred from -varname.")
   flag.BoolVar(&printVersion, "version", false, "Print version information and exit.")
-  flag.StringVar(&pkg, "package", "contrib", "Name of the package.")
+  flag.StringVar(&pkg, "package", "main", "Name of the package.")
   flag.Parse()
   if printVersion {
 		fmt.Printf("Version: 3\nGit:     %s\n", hercules.GIT_HASH)
@@ -38,6 +47,8 @@ func main() {
   splitted := camelcase.Split(name)
   if outputPath == "" {
     outputPath = strings.ToLower(strings.Join(splitted, "_")) + ".go"
+  } else if !strings.HasSuffix(outputPath, ".go") {
+    panic("-o must end with \".go\"")
   }
   gen := template.Must(template.New("plugin").Parse(PLUGIN_TEMPLATE_SOURCE))
   outFile, err := os.Create(outputPath)
@@ -49,9 +60,13 @@ func main() {
     varname = strings.ToLower(splitted[0])
   }
   if _flag == "" {
-    _flag = varname
+    _flag = strings.Join(splitted, "-")
   }
-  dict := map[string]string{"name": name, "varname": varname, "flag": _flag, "package": pkg}
+  outputBase := path.Base(outputPath)
+  shlib := outputBase[:len(outputBase)-2] + SHLIB_EXT[runtime.GOOS]
+  dict := map[string]string{
+    "name": name, "varname": varname, "flag": _flag, "package": pkg,
+    "output": outputPath, "shlib": shlib}
   err = gen.Execute(outFile, dict)
   if err != nil {
     panic(err)

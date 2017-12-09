@@ -177,3 +177,53 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 	assert.Nil(t, res)
 	assert.NotNil(t, err)
 }
+
+func TestCountLines(t *testing.T) {
+	blob, _ := testRepository.BlobObject(
+		plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"))
+	lines, err := CountLines(blob)
+	assert.Equal(t, lines, 12)
+	assert.Nil(t, err)
+	lines, err = CountLines(nil)
+	assert.Equal(t, lines, -1)
+	assert.NotNil(t, err)
+	blob, _ = createDummyBlob(plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"), true)
+	lines, err = CountLines(blob)
+	assert.Equal(t, lines, -1)
+	assert.NotNil(t, err)
+	// test_data/blob
+	blob, err = testRepository.BlobObject(
+		plumbing.NewHash("c86626638e0bc8cf47ca49bb1525b40e9737ee64"))
+	assert.Nil(t, err)
+	lines, err = CountLines(blob)
+	assert.Equal(t, lines, -1)
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "binary")
+}
+
+func TestBlobToString(t *testing.T) {
+	blob, _ := testRepository.BlobObject(
+		plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"))
+	str, err := BlobToString(blob)
+	assert.Nil(t, err)
+	assert.Equal(t, str, `language: go
+
+go:
+  - 1.7
+
+go_import_path: gopkg.in/src-d/hercules.v1
+`+"  "+`
+script:
+  - go test -v -cpu=1,2 ./...
+
+notifications:
+  email: false
+`)
+	str, err = BlobToString(nil)
+	assert.Equal(t, str, "")
+	assert.NotNil(t, err)
+	blob, _ = createDummyBlob(plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"), true)
+	str, err = BlobToString(blob)
+	assert.Equal(t, str, "")
+	assert.NotNil(t, err)
+}

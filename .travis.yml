@@ -1,5 +1,8 @@
 dist: trusty
 
+git:
+  depth: 9999999
+
 language: go
 
 services:
@@ -33,6 +36,7 @@ install:
   - docker exec -it bblfshd bblfshctl driver install --all
   
 script:
+  - go vet .
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
   - $GOPATH/bin/hercules -version
   - $GOPATH/bin/hercules -burndown -burndown-files -burndown-people -couples -quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
