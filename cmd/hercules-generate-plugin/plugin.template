@@ -1,3 +1,8 @@
+// Hercules plugin
+// How to build: go build -buildmode=plugin {{.output}}
+// This command creates ./{{.shlib}}
+// Usage: hercules -plugin {{.shlib}} -{{.flag}}
+
 package {{.package}}
 
 import (
@@ -16,36 +21,48 @@ type {{.name}}Result struct {
 
 // Analysis' name in the graph is usually the same as the type's name, however, does not have to.
 func ({{.varname}} *{{.name}}) Name() string {
-	return "{{.name}}"
+  return "{{.name}}"
 }
 
 // LeafPipelineItem-s normally do not act as intermediate nodes and thus we return an empty slice.
 func ({{.varname}} *{{.name}}) Provides() []string {
-	return []string{}
+  return []string{}
 }
 
 // Requires returns the list of dependencies which must be supplied in Consume().
 func ({{.varname}} *{{.name}}) Requires() []string {
-	arr := [...]string{/* insert dependencies here */}
-	return arr[:]
+  arr := [...]string{/* insert dependencies here */}
+  return arr[:]
 }
 
+// ListConfigurationOptions tells the engine which parameters can be changed through the command
+// line.
 func ({{.varname}} *{{.name}}) ListConfigurationOptions() []hercules.ConfigurationOption {
-	return []hercules.ConfigurationOption{}
+  opts := [...]hercules.ConfigurationOption{ /* {
+    Name:        "ParameterName",
+    Description: "Parameter's description.",
+    Flag:        "my-cmdline-flag",
+    Type:        hercules.BoolConfigurationOption,
+    Default:     false}, */
+  }
+  return opts[:]
 }
 
+// Flag returns the command line switch which activates the analysis.
 func ({{.varname}} *{{.name}}) Flag() string {
-	return "{{.flag}}"
+  return "{{.flag}}"
 }
 
+// Configure applies the parameters specified in the command line. Map keys correspond to "Name".
 func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) {
 }
 
+// Initialize resets the internal temporary data structures and prepares the object for Consume().
 func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) {
 }
 
 func ({{.varname}} *{{.name}}) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	return nil, nil
+  return nil, nil
 }
 
 func ({{.varname}} *{{.name}}) Finalize() interface{} {
@@ -55,5 +72,5 @@ func ({{.varname}} *{{.name}}) Finalize() interface{} {
 }
 
 func init() {
-	hercules.Registry.Register(&{{.name}}{})
+  hercules.Registry.Register(&{{.name}}{})
 }
