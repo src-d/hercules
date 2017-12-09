@@ -1,11 +1,27 @@
-// Hercules plugin
-// How to build: go build -buildmode=plugin {{.output}}
-// This command creates ./{{.shlib}}
-// Usage: hercules -plugin {{.shlib}} -{{.flag}}
+// Hercules plugin "{{.name}}"
+//
+// How to build: execute "make" *OR*
+//
+// 1. Update the Protocol Buffers definition as needed, regenerate {{.protogo}}
+//
+//     PATH=$PATH:$GOPATH/bin protoc --gogo_out={{.outdir}} --proto_path={{.outdir}} {{.proto}}
+//
+// 2. Build {{.shlib}}
+//
+//     go build -buildmode=plugin {{.output}} {{.protogo}}
+//
+// Step (1) requires GoGo Protobuf https://github.com/gogo/protobuf
+//
+// Usage:
+//
+//    hercules -plugin {{.shlib}} -{{.flag}}
 
 package {{.package}}
 
 import (
+  "io"
+
+  "github.com/gogo/protobuf/proto"
   "gopkg.in/src-d/go-git.v4"
   "gopkg.in/src-d/hercules.v3"
 )
@@ -61,14 +77,42 @@ func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) {
 func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) {
 }
 
+// Consume is called for every commit in the sequence.
 func ({{.varname}} *{{.name}}) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
   return nil, nil
 }
 
+// Finalize produces the result of the analysis. No more Consume() calls are expected afterwards.
 func ({{.varname}} *{{.name}}) Finalize() interface{} {
   result := {{.name}}Result{}
   // insert code here
   return result
+}
+
+// Serialize converts the result from Finalize() to either Protocol Buffers or YAML.
+func ({{.varname}} *{{.name}}) Serialize(result interface{}, binary bool, writer io.Writer) error {
+  {{.varname}}Result := result.({{.name}}Result)
+  if binary {
+    return {{.varname}}.serializeBinary(&{{.varname}}Result, writer)
+  }
+  {{.varname}}.serializeText(&{{.varname}}Result, writer)
+  return nil
+}
+
+func ({{.varname}} *{{.name}}) serializeText(result *{{.name}}Result, writer io.Writer) {
+  // write YAML to writer
+}
+
+func ({{.varname}} *{{.name}}) serializeBinary(result *{{.name}}Result, writer io.Writer) error {
+  message := {{.name}}ResultMessage{
+    // fill me
+  }
+  serialized, err := proto.Marshal(&message)
+  if err != nil {
+    return err
+  }
+  writer.Write(serialized)
+  return nil
 }
 
 func init() {
