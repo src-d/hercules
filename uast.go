@@ -29,7 +29,7 @@ import (
 
 type UASTExtractor struct {
 	Endpoint       string
-	Context        func() context.Context
+	Context        func() (context.Context, context.CancelFunc)
 	PoolSize       int
 	Languages      map[string]bool
 	FailOnErrors   bool
@@ -128,10 +128,9 @@ func (exr *UASTExtractor) Configure(facts map[string]interface{}) {
 		exr.Endpoint = val
 	}
 	if val, exists := facts[ConfigUASTTimeout].(int); exists {
-		exr.Context = func() context.Context {
-			ctx, _ := context.WithTimeout(context.Background(),
+		exr.Context = func() (context.Context, context.CancelFunc) {
+			return context.WithTimeout(context.Background(),
 				time.Duration(val)*time.Second)
-			return ctx
 		}
 	}
 	if val, exists := facts[ConfigUASTPoolSize].(int); exists {
@@ -150,7 +149,9 @@ func (exr *UASTExtractor) Configure(facts map[string]interface{}) {
 
 func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 	if exr.Context == nil {
-		exr.Context = func() context.Context { return context.Background() }
+		exr.Context = func() (context.Context, context.CancelFunc) {
+			return context.Background(), nil
+		}
 	}
 	poolSize := exr.PoolSize
 	if poolSize == 0 {
@@ -259,7 +260,11 @@ func (exr *UASTExtractor) extractUAST(
 	}
 	request.Content(contents)
 	request.Filename(file.Name)
-	response, err := request.DoWithContext(exr.Context())
+	ctx, cancel := exr.Context()
+	if cancel != nil {
+		defer cancel()
+	}
+	response, err := request.DoWithContext(ctx)
 	if err != nil {
 		if strings.Contains("missing driver", err.Error()) {
 			return nil, nil

@@ -391,7 +391,7 @@ func TestUpdatePanic(t *testing.T) {
 	vals := [...]int{-1}
 	file := NewFileFromTree(keys[:], vals[:])
 	file.tree.DeleteWithKey(0)
-	file.tree.Insert(rbtree.Item{-1, -1})
+	file.tree.Insert(rbtree.Item{Key: -1, Value: -1})
 	var paniced interface{}
 	func() {
 		defer func() {
@@ -413,18 +413,18 @@ func TestFileValidate(t *testing.T) {
 	vals := [...]int{-1}
 	file := NewFileFromTree(keys[:], vals[:])
 	file.tree.DeleteWithKey(0)
-	file.tree.Insert(rbtree.Item{-1, -1})
+	file.tree.Insert(rbtree.Item{Key: -1, Value: -1})
 	assert.Panics(t, func() { file.Validate() })
 	file.tree.DeleteWithKey(-1)
-	file.tree.Insert(rbtree.Item{0, -1})
+	file.tree.Insert(rbtree.Item{Key: 0, Value: -1})
 	file.Validate()
 	file.tree.DeleteWithKey(0)
-	file.tree.Insert(rbtree.Item{0, 0})
+	file.tree.Insert(rbtree.Item{Key: 0, Value: 0})
 	assert.Panics(t, func() { file.Validate() })
 	file.tree.DeleteWithKey(0)
-	file.tree.Insert(rbtree.Item{0, 1})
-	file.tree.Insert(rbtree.Item{1, 1})
-	file.tree.Insert(rbtree.Item{2, -1})
+	file.tree.Insert(rbtree.Item{Key: 0, Value: 1})
+	file.tree.Insert(rbtree.Item{Key: 1, Value: 1})
+	file.tree.Insert(rbtree.Item{Key: 2, Value: -1})
 	file.Validate()
 	file.tree.FindGE(2).Item().Key = 1
 	assert.Panics(t, func() { file.Validate() })
