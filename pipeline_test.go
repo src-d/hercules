@@ -2,9 +2,9 @@ package hercules
 
 import (
 	"errors"
+	"flag"
 	"io"
 	"io/ioutil"
-	"flag"
 	"os"
 	"path"
 	"reflect"

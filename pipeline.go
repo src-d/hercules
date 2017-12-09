@@ -33,7 +33,7 @@ const (
 
 const (
 	ConfigPipelineDumpPath = "Pipeline.DumpPath"
-	ConfigPipelineDryRun = "Pipeline.DryRun"
+	ConfigPipelineDryRun   = "Pipeline.DryRun"
 )
 
 // ConfigurationOption allows for the unified, retrospective way to setup PipelineItem-s.
@@ -203,8 +203,8 @@ func (registry *PipelineItemRegistry) AddFlags() (map[string]interface{}, map[st
 		flags[ConfigPipelineDumpPath] = iface
 		iface = interface{}(true)
 		ptr2 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
-		*ptr2 = flag.Bool("dry-run", false, "Do not run any analyses - only resolve the DAG. " +
-				"Useful for -dump-dag.")
+		*ptr2 = flag.Bool("dry-run", false, "Do not run any analyses - only resolve the DAG. "+
+			"Useful for -dump-dag.")
 		flags[ConfigPipelineDryRun] = iface
 	}
 	features := []string{}
@@ -413,7 +413,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 						fmt.Fprint(os.Stderr, item2.Name(), " [")
 						for i, key2 := range item2.Provides() {
 							fmt.Fprint(os.Stderr, key2)
-							if i < len(item.Provides()) - 1 {
+							if i < len(item.Provides())-1 {
 								fmt.Fprint(os.Stderr, ", ")
 							}
 						}
