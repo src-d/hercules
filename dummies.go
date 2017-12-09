@@ -3,6 +3,7 @@ package hercules
 import (
 	"io"
 
+	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
@@ -24,6 +25,7 @@ func (dummyIO) Close() error {
 
 type dummyEncodedObject struct {
 	FakeHash plumbing.Hash
+	Fails    bool
 }
 
 func (obj dummyEncodedObject) Hash() plumbing.Hash {
@@ -45,13 +47,26 @@ func (obj dummyEncodedObject) SetSize(int64) {
 }
 
 func (obj dummyEncodedObject) Reader() (io.ReadCloser, error) {
-	return dummyIO{}, nil
+	if !obj.Fails {
+		return dummyIO{}, nil
+	}
+	return nil, errors.New("dummy failure")
 }
 
 func (obj dummyEncodedObject) Writer() (io.WriteCloser, error) {
-	return dummyIO{}, nil
+	if !obj.Fails {
+		return dummyIO{}, nil
+	}
+	return nil, errors.New("dummy failure")
 }
 
-func createDummyBlob(hash plumbing.Hash) (*object.Blob, error) {
-	return object.DecodeBlob(dummyEncodedObject{hash})
+func createDummyBlob(hash plumbing.Hash, fails ...bool) (*object.Blob, error) {
+	if len(fails) > 1 {
+		panic("invalid usage of createDummyBlob() - this is a bug")
+	}
+	var realFails bool
+	if len(fails) == 1 {
+		realFails = fails[0]
+	}
+	return object.DecodeBlob(dummyEncodedObject{FakeHash: hash, Fails: realFails})
 }

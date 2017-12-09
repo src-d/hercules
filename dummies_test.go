@@ -24,6 +24,17 @@ func TestCreateDummyBlob(t *testing.T) {
 	reader.Close()
 }
 
+func TestCreateDummyBlobFails(t *testing.T) {
+	dummy, err := createDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"), true)
+	assert.Nil(t, err)
+	reader, err := dummy.Reader()
+	assert.Nil(t, reader)
+	assert.NotNil(t, err)
+	assert.Panics(t, func() {
+		createDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"), true, true)
+	})
+}
+
 func TestNotUsedDummyStuff(t *testing.T) {
 	dio := dummyIO{}
 	n, err := dio.Write([]byte{})
