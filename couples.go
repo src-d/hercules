@@ -10,7 +10,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"gopkg.in/src-d/hercules.v3/stdout"
+	"gopkg.in/src-d/hercules.v3/yaml"
 )
 
 type CouplesAnalysis struct {
@@ -197,7 +197,7 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 	fmt.Fprintln(writer, "  files_coocc:")
 	fmt.Fprintln(writer, "    index:")
 	for _, file := range result.Files {
-		fmt.Fprintf(writer, "      - %s\n", stdout.SafeString(file))
+		fmt.Fprintf(writer, "      - %s\n", yaml.SafeString(file))
 	}
 
 	fmt.Fprintln(writer, "    matrix:")
@@ -220,7 +220,7 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 	fmt.Fprintln(writer, "  people_coocc:")
 	fmt.Fprintln(writer, "    index:")
 	for _, person := range couples.reversedPeopleDict {
-		fmt.Fprintf(writer, "      - %s\n", stdout.SafeString(person))
+		fmt.Fprintf(writer, "      - %s\n", yaml.SafeString(person))
 	}
 
 	fmt.Fprintln(writer, "    matrix:")
@@ -243,10 +243,10 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 	fmt.Fprintln(writer, "    author_files:") // sorted by number of files each author changed
 	peopleFiles := sortByNumberOfFiles(result.PeopleFiles, couples.reversedPeopleDict, result.Files)
 	for _, authorFiles := range peopleFiles {
-		fmt.Fprintf(writer, "      - %s:\n", stdout.SafeString(authorFiles.Author))
+		fmt.Fprintf(writer, "      - %s:\n", yaml.SafeString(authorFiles.Author))
 		sort.Strings(authorFiles.Files)
 		for _, file := range authorFiles.Files {
-			fmt.Fprintf(writer, "        - %s\n", stdout.SafeString(file)) // sorted by path
+			fmt.Fprintf(writer, "        - %s\n", yaml.SafeString(file)) // sorted by path
 		}
 	}
 }

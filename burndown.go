@@ -15,7 +15,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"gopkg.in/src-d/hercules.v3/stdout"
+	"gopkg.in/src-d/hercules.v3/yaml"
 )
 
 // BurndownAnalyser allows to gather the line burndown statistics for a Git repository.
@@ -262,26 +262,26 @@ func (analyser *BurndownAnalysis) Serialize(result interface{}, binary bool, wri
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
 	fmt.Fprintln(writer, "  granularity:", analyser.Granularity)
 	fmt.Fprintln(writer, "  sampling:", analyser.Sampling)
-	stdout.PrintMatrix(writer, result.GlobalHistory, 2, "project", true)
+	yaml.PrintMatrix(writer, result.GlobalHistory, 2, "project", true)
 	if len(result.FileHistories) > 0 {
 		fmt.Fprintln(writer, "  files:")
 		keys := sortedKeys(result.FileHistories)
 		for _, key := range keys {
-			stdout.PrintMatrix(writer, result.FileHistories[key], 4, key, true)
+			yaml.PrintMatrix(writer, result.FileHistories[key], 4, key, true)
 		}
 	}
 
 	if len(result.PeopleHistories) > 0 {
 		fmt.Fprintln(writer, "  people_sequence:")
 		for key := range result.PeopleHistories {
-			fmt.Fprintln(writer, "    - "+stdout.SafeString(analyser.reversedPeopleDict[key]))
+			fmt.Fprintln(writer, "    - "+yaml.SafeString(analyser.reversedPeopleDict[key]))
 		}
 		fmt.Fprintln(writer, "  people:")
 		for key, val := range result.PeopleHistories {
-			stdout.PrintMatrix(writer, val, 4, analyser.reversedPeopleDict[key], true)
+			yaml.PrintMatrix(writer, val, 4, analyser.reversedPeopleDict[key], true)
 		}
 		fmt.Fprintln(writer, "  people_interaction: |-")
-		stdout.PrintMatrix(writer, result.PeopleMatrix, 4, "", false)
+		yaml.PrintMatrix(writer, result.PeopleMatrix, 4, "", false)
 	}
 }
 
