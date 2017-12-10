@@ -457,6 +457,7 @@ func (analyser *BurndownAnalysis) handleModification(
 
 	file, exists := analyser.files[change.From.Name]
 	if !exists {
+		// this indeed may happen
 		return analyser.handleInsertion(change, author, cache)
 	}
 
