@@ -85,7 +85,8 @@ message %sResultMessage {
   // add fields here
   // reference: https://developers.google.com/protocol-buffers/docs/proto3
   // example: pb/pb.proto https://github.com/src-d/hercules/blob/master/pb/pb.proto
-}`, pkg, name)), 0666)
+}
+`, pkg, name)), 0666)
   // generate the pb Go file
   protoc, err := exec.LookPath("protoc")
   args := [...]string{
@@ -112,8 +113,8 @@ message %sResultMessage {
 {{.shlib}}: {{.output}} {{.protogo}}
 ` + "\t" + `go build -buildmode=plugin {{.output}} {{.protogo}}
 
-{{.protogo}}:
-` + "\t" + `PATH=$PATH:$GOPATH/bin protoc --gogo_out=. --proto_path=. {{.proto}}
+{{.protogo}}: {{.proto}}
+` + "\t" + `PATH=$$PATH:$$GOPATH/bin protoc --gogo_out=. --proto_path=. {{.proto}}
 `))
     buffer := new(bytes.Buffer)
     mkrelative := func(name string) {
