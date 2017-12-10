@@ -8,6 +8,7 @@ import (
 	"io"
 	goioutil "io/ioutil"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 	"sync"
@@ -451,22 +452,22 @@ func (saver *UASTChangesSaver) dumpFiles(result [][]UASTChange) []*pb.UASTChange
 			}
 			record := &pb.UASTChange{FileName: change.Change.To.Name}
 			bs, _ := change.Before.Marshal()
-			record.UastBefore = fmt.Sprintf(
-				"%d_%d_before_%s.pb", i, j, change.Change.From.TreeEntry.Hash.String())
+			record.UastBefore = path.Join(saver.OutputPath, fmt.Sprintf(
+				"%d_%d_before_%s.pb", i, j, change.Change.From.TreeEntry.Hash.String()))
 			goioutil.WriteFile(record.UastBefore, bs, 0666)
 			blob, _ := saver.repository.BlobObject(change.Change.From.TreeEntry.Hash)
 			s, _ := (&object.File{Blob: *blob}).Contents()
-			record.SrcBefore = fmt.Sprintf(
-				"%d_%d_before_%s.src", i, j, change.Change.From.TreeEntry.Hash.String())
+			record.SrcBefore = path.Join(saver.OutputPath, fmt.Sprintf(
+				"%d_%d_before_%s.src", i, j, change.Change.From.TreeEntry.Hash.String()))
 			goioutil.WriteFile(record.SrcBefore, []byte(s), 0666)
 			bs, _ = change.After.Marshal()
-			record.UastAfter = fmt.Sprintf(
-				"%d_%d_after_%s.pb", i, j, change.Change.To.TreeEntry.Hash.String())
+			record.UastAfter = path.Join(saver.OutputPath, fmt.Sprintf(
+				"%d_%d_after_%s.pb", i, j, change.Change.To.TreeEntry.Hash.String()))
 			goioutil.WriteFile(record.UastAfter, bs, 0666)
 			blob, _ = saver.repository.BlobObject(change.Change.To.TreeEntry.Hash)
 			s, _ = (&object.File{Blob: *blob}).Contents()
-			record.SrcAfter = fmt.Sprintf(
-				"%d_%d_after_%s.src", i, j, change.Change.To.TreeEntry.Hash.String())
+			record.SrcAfter = path.Join(saver.OutputPath, fmt.Sprintf(
+				"%d_%d_after_%s.src", i, j, change.Change.To.TreeEntry.Hash.String()))
 			goioutil.WriteFile(record.SrcAfter, []byte(s), 0666)
 			fileNames = append(fileNames, record)
 		}
