@@ -1,12 +1,19 @@
 package hercules
 
 import (
+	"bytes"
+	"io/ioutil"
+	"os"
 	"testing"
 
+	"fmt"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/hercules.v3/pb"
+	"path"
 )
 
 func fixtureUASTExtractor() *UASTExtractor {
@@ -267,28 +274,28 @@ func fixtureUASTChangesSaver() *UASTChangesSaver {
 }
 
 func TestUASTChangesSaverMeta(t *testing.T) {
-	ch := fixtureUASTChangesSaver()
-	assert.Equal(t, ch.Name(), "UASTChangesSaver")
-	assert.Equal(t, len(ch.Provides()), 0)
-	assert.Equal(t, len(ch.Requires()), 1)
-	assert.Equal(t, ch.Requires()[0], "changed_uasts")
-	opts := ch.ListConfigurationOptions()
+	chs := fixtureUASTChangesSaver()
+	assert.Equal(t, chs.Name(), "UASTChangesSaver")
+	assert.Equal(t, len(chs.Provides()), 0)
+	assert.Equal(t, len(chs.Requires()), 1)
+	assert.Equal(t, chs.Requires()[0], "changed_uasts")
+	opts := chs.ListConfigurationOptions()
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigUASTChangesSaverOutputPath)
-	feats := ch.Features()
+	feats := chs.Features()
 	assert.Len(t, feats, 1)
 	assert.Equal(t, feats[0], "uast")
-	assert.Equal(t, ch.Flag(), "dump-uast-changes")
+	assert.Equal(t, chs.Flag(), "dump-uast-changes")
 }
 
 func TestUASTChangesSaverConfiguration(t *testing.T) {
 	facts := map[string]interface{}{}
-	ch := fixtureUASTChangesSaver()
-	ch.Configure(facts)
-	assert.Empty(t, ch.OutputPath)
+	chs := fixtureUASTChangesSaver()
+	chs.Configure(facts)
+	assert.Empty(t, chs.OutputPath)
 	facts[ConfigUASTChangesSaverOutputPath] = "libre"
-	ch.Configure(facts)
-	assert.Equal(t, ch.OutputPath, "libre")
+	chs.Configure(facts)
+	assert.Equal(t, chs.OutputPath, "libre")
 }
 
 func TestUASTChangesSaverRegistration(t *testing.T) {
@@ -298,4 +305,76 @@ func TestUASTChangesSaverRegistration(t *testing.T) {
 	tp, exists = Registry.flags[(&UASTChangesSaver{}).Flag()]
 	assert.True(t, exists)
 	assert.Equal(t, tp.Elem().Name(), "UASTChangesSaver")
+}
+
+func TestUASTChangesSaverPayload(t *testing.T) {
+	chs := fixtureUASTChangesSaver()
+	deps := map[string]interface{}{}
+	changes := make([]UASTChange, 1)
+	deps["changed_uasts"] = changes
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"994eac1cd07235bb9815e547a75c84265dea00f5"))
+	changes[0] = UASTChange{Before: &uast.Node{}, After: &uast.Node{},
+		Change: &object.Change{From: object.ChangeEntry{
+			Name: "analyser.go",
+			Tree: treeFrom,
+			TreeEntry: object.TreeEntry{
+				Name: "analyser.go",
+				Mode: 0100644,
+				Hash: plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"),
+			},
+		}, To: object.ChangeEntry{
+			Name: "analyser.go",
+			Tree: treeTo,
+			TreeEntry: object.TreeEntry{
+				Name: "analyser.go",
+				Mode: 0100644,
+				Hash: plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"),
+			},
+		}}}
+	chs.Consume(deps)
+	res := chs.Finalize()
+	tmpdir, err := ioutil.TempDir("", "hercules-test-")
+	assert.Nil(t, err)
+	defer os.RemoveAll(tmpdir)
+	chs.OutputPath = tmpdir
+	buffer := &bytes.Buffer{}
+	chs.Serialize(res, true, buffer)
+	pbResults := &pb.UASTChangesSaverResults{}
+	proto.Unmarshal(buffer.Bytes(), pbResults)
+	assert.Len(t, pbResults.Changes, 1)
+	assert.Equal(t, pbResults.Changes[0].FileName, "analyser.go")
+	assert.Equal(t, pbResults.Changes[0].SrcAfter,
+		path.Join(tmpdir, "0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.src"))
+	assert.Equal(t, pbResults.Changes[0].SrcBefore,
+		path.Join(tmpdir, "0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.src"))
+	assert.Equal(t, pbResults.Changes[0].UastAfter,
+		path.Join(tmpdir, "0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.pb"))
+	assert.Equal(t, pbResults.Changes[0].UastBefore,
+		path.Join(tmpdir, "0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.pb"))
+	checkFiles := func() {
+		files, err := ioutil.ReadDir(tmpdir)
+		assert.Nil(t, err)
+		assert.Len(t, files, 4)
+		names := map[string]int{
+			"0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.src":  1,
+			"0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.src": 1,
+			"0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.pb":   1,
+			"0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.pb":  1,
+		}
+		matches := 0
+		for _, fi := range files {
+			matches += names[fi.Name()]
+			os.Remove(fi.Name())
+		}
+		assert.Equal(t, matches, len(names))
+	}
+	checkFiles()
+	buffer.Truncate(0)
+	chs.Serialize(res, false, buffer)
+	assert.Equal(t, buffer.String(), fmt.Sprintf(`  - {file: analyser.go, src0: %s/0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.src, src1: %s/0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.src, uast0: %s/0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.pb, uast1: %s/0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.pb}
+`, tmpdir, tmpdir, tmpdir, tmpdir))
+	checkFiles()
 }
