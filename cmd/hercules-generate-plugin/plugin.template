@@ -15,6 +15,7 @@
 // Usage:
 //
 //    hercules -plugin {{.shlib}} -{{.flag}}
+//    hercules -plugin {{.shlib}} -help
 
 package {{.package}}
 
