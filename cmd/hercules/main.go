@@ -140,7 +140,7 @@ func loadPlugins() {
 	for path := range pluginFlags {
 		_, err := plugin.Open(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to load plugin from %s %s", path, err)
+			fmt.Fprintf(os.Stderr, "Failed to load plugin from %s %s\n", path, err)
 		}
 	}
 }
@@ -156,7 +156,8 @@ func main() {
 		"separate line. The first hash is the root.")
 	flag.BoolVar(&protobuf, "pb", false, "The output format will be Protocol Buffers instead of YAML.")
 	flag.BoolVar(&printVersion, "version", false, "Print version information and exit.")
-	flag.BoolVar(&disableStatus, "quiet", false, "Do not print status updates to stderr.")
+	flag.BoolVar(&disableStatus, "quiet", !terminal.IsTerminal(int(os.Stdin.Fd())),
+		"Do not print status updates to stderr.")
 	facts, deployChoices := hercules.Registry.AddFlags()
 	flag.Parse()
 
@@ -182,9 +183,13 @@ func main() {
 	// core logic
 	pipeline := hercules.NewPipeline(repository)
 	pipeline.SetFeaturesFromFlags()
-	if terminal.IsTerminal(int(os.Stderr.Fd())) && !disableStatus {
-		progress := mpb.New(mpb.Output(os.Stderr))
-		defer progress.Stop()
+	var progress *mpb.Progress
+	var progressRendered bool
+	if !disableStatus {
+		beforeRender := func([]*mpb.Bar) {
+			progressRendered = true
+		}
+		progress = mpb.New(mpb.Output(os.Stderr), mpb.WithBeforeRenderFunc(beforeRender))
 		var bar *mpb.Bar
 		pipeline.OnProgress = func(commit, length int) {
 			if bar == nil {
@@ -232,6 +237,11 @@ func main() {
 		panic(err)
 	}
 	if !disableStatus {
+		progress.Stop()
+		if progressRendered {
+			// this is the only way to reliably clear the progress bar
+			fmt.Fprint(os.Stderr, "\033[F\033[K")
+		}
 		fmt.Fprint(os.Stderr, "writing...\r")
 	}
 	begin := commits[0].Author.When.Unix()
@@ -240,6 +250,9 @@ func main() {
 		printResults(uri, begin, end, len(commits), deployed, results)
 	} else {
 		protobufResults(uri, begin, end, len(commits), deployed, results)
+	}
+	if !disableStatus {
+		fmt.Fprint(os.Stderr, "\033[K")
 	}
 }
 
