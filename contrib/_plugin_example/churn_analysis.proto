@@ -1,0 +1,14 @@
+syntax = "proto3";
+option go_package = "main";
+
+message EditsMessage {
+    // all three are of the same length
+    repeated uint32 days = 1;
+    repeated uint32 additions = 2;
+    repeated uint32 removals = 3;
+}
+
+message ChurnAnalysisResultMessage {
+  EditsMessage global = 1;
+  map<string, EditsMessage> people = 2;
+}
