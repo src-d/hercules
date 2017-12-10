@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-  contents, err := ioutil.ReadFile("plugin.template")
+	contents, err := ioutil.ReadFile("plugin.template")
 	if err != nil {
 		panic(err)
 	}

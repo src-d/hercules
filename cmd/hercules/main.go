@@ -41,6 +41,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gogo/protobuf/proto"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
+	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/src-d/go-billy.v3/osfs"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -49,10 +53,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v3"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"github.com/vbauerster/mpb"
-	"github.com/vbauerster/mpb/decor"
-	"github.com/gogo/protobuf/proto"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type OneLineWriter struct {
@@ -60,9 +60,9 @@ type OneLineWriter struct {
 }
 
 func (writer OneLineWriter) Write(p []byte) (n int, err error) {
-	if p[len(p) - 1] == '\n' {
-		p = p[:len(p) - 1]
-		if len(p) > 5 && bytes.Compare(p[len(p) - 5:], []byte("done.")) == 0 {
+	if p[len(p)-1] == '\n' {
+		p = p[:len(p)-1]
+		if len(p) > 5 && bytes.Compare(p[len(p)-5:], []byte("done.")) == 0 {
 			p = []byte("cloning...")
 		}
 		p = append(p, '\r')
@@ -111,7 +111,6 @@ func loadRepository(uri string, disableStatus bool) *git.Repository {
 	return repository
 }
 
-
 type arrayPluginFlags map[string]bool
 
 func (apf *arrayPluginFlags) String() string {
@@ -133,7 +132,7 @@ func loadPlugins() {
 	fs.SetOutput(ioutil.Discard)
 	pluginFlagName := "plugin"
 	pluginDesc := "Load the specified plugin by the full or relative path. " +
-			"Can be specified multiple times."
+		"Can be specified multiple times."
 	fs.Var(&pluginFlags, pluginFlagName, pluginDesc)
 	flag.Var(&pluginFlags, pluginFlagName, pluginDesc)
 	fs.Parse(os.Args[1:])
@@ -281,17 +280,17 @@ func protobufResults(
 	uri string, begin, end int64, commitsCount int, deployed []hercules.PipelineItem,
 	results map[hercules.PipelineItem]interface{}) {
 
-  header := pb.Metadata{
-	  Version: 1,
-	  Hash: hercules.GIT_HASH,
-	  Repository: uri,
-    BeginUnixTime: begin,
-	  EndUnixTime: end,
-	  Commits: int32(commitsCount),
-  }
+	header := pb.Metadata{
+		Version:       1,
+		Hash:          hercules.GIT_HASH,
+		Repository:    uri,
+		BeginUnixTime: begin,
+		EndUnixTime:   end,
+		Commits:       int32(commitsCount),
+	}
 
 	message := pb.AnalysisResults{
-		Header: &header,
+		Header:   &header,
 		Contents: map[string][]byte{},
 	}
 
@@ -309,5 +308,5 @@ func protobufResults(
 	if err != nil {
 		panic(err)
 	}
-  os.Stdout.Write(serialized)
+	os.Stdout.Write(serialized)
 }

@@ -13,7 +13,7 @@ type Graph struct {
 	// Outgoing connections for every node.
 	outputs map[string]map[string]int
 	// How many parents each node has.
-	inputs  map[string]int
+	inputs map[string]int
 }
 
 // NewGraph initializes a new Graph.
@@ -178,7 +178,7 @@ func (g *Graph) BreadthSort() []string {
 // FindCycle returns the cycle in the graph which contains "seed" node.
 func (g *Graph) FindCycle(seed string) []string {
 	type edge struct {
-		node string
+		node   string
 		parent string
 	}
 	S := make([]edge, 0, len(g.outputs))
@@ -245,17 +245,17 @@ func (g *Graph) Serialize(sorted []string) string {
 		nodesFrom = append(nodesFrom, nodeFrom)
 	}
 	sort.Strings(nodesFrom)
-  for _, nodeFrom := range nodesFrom {
-	  links := []string{}
-	  for nodeTo := range g.outputs[nodeFrom] {
-		  links = append(links, nodeTo)
-	  }
-	  sort.Strings(links)
-	  for _, nodeTo := range links {
-		  buffer.WriteString(fmt.Sprintf("  \"%d %s\" -> \"%d %s\"\n",
-			  node2index[nodeFrom], nodeFrom, node2index[nodeTo], nodeTo))
-	  }
-  }
+	for _, nodeFrom := range nodesFrom {
+		links := []string{}
+		for nodeTo := range g.outputs[nodeFrom] {
+			links = append(links, nodeTo)
+		}
+		sort.Strings(links)
+		for _, nodeTo := range links {
+			buffer.WriteString(fmt.Sprintf("  \"%d %s\" -> \"%d %s\"\n",
+				node2index[nodeFrom], nodeFrom, node2index[nodeTo], nodeTo))
+		}
+	}
 	buffer.WriteString("}")
 	return buffer.String()
 }
@@ -275,7 +275,7 @@ func (g *Graph) DebugDump() string {
 	for key, val1 := range g.outputs {
 		val2 := make([]string, len(val1))
 		for name, idx := range val1 {
-			val2[idx - 1] = name
+			val2[idx-1] = name
 		}
 		keys = append(keys, key)
 		vals[key] = val2

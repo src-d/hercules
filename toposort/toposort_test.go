@@ -1,8 +1,8 @@
 package toposort
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func index(s []string, v string) int {
@@ -205,9 +205,8 @@ func TestToposortFindChildren(t *testing.T) {
 	assert.Equal(t, [2]bool{true, true}, checks)
 }
 
-
 func TestToposortSerialize(t *testing.T) {
-  graph := NewGraph()
+	graph := NewGraph()
 	graph.AddNodes("1", "2", "3", "4", "5")
 
 	graph.AddEdge("1", "2")
