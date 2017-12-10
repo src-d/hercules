@@ -44,6 +44,9 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, res["day"].(int), 0)
 	assert.Equal(t, dss.previousDay, 0)
+	assert.Equal(t, dss.day0.Hour(), 1)   // 18 UTC+1
+	assert.Equal(t, dss.day0.Minute(), 0) // 30
+	assert.Equal(t, dss.day0.Second(), 0) // 29
 
 	commit, _ = testRepository.CommitObject(plumbing.NewHash(
 		"fc9ceecb6dabcb2aab60e8619d972e8d8208a7df"))

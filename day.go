@@ -42,6 +42,8 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 	if index == 0 {
 		// first iteration - initialize the file objects from the tree
 		days.day0 = commit.Author.When
+		// our precision is 1 day
+		days.day0 = days.day0.Truncate(24 * time.Hour)
 	}
 	day := int(commit.Author.When.Sub(days.day0).Hours() / 24)
 	if day < days.previousDay {
