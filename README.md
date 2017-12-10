@@ -9,7 +9,7 @@ written in Go which takes a Git repository and runs a Directed Acyclic Graph (DA
 The second is the Python script which draws some predefined plots. These two tools are normally used together through
 a pipe. It is possible to write custom analyses using the plugin system.
 
-![git/git image](doc/dag.png)
+[![git/git image](doc/dag.png)](doc/dag_original.png)
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules -burndown -burndown-people -couples -feature=uast -dry-run -dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
 
 ![git/git image](doc/linux.png)

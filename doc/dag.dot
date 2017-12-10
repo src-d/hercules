@@ -1,4 +1,7 @@
 digraph Hercules {
+  rankdir="LR"
+  node [fontname="Roboto", shape=box, style=rounded]
+
   "6 BlobCache" -> "7 [blob_cache]"
   "0 DaysSinceStart" -> "3 [day]"
   "10 FileDiff" -> "12 [file_diff]"
