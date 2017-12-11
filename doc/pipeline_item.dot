@@ -1,0 +1,19 @@
+digraph PipelineItem {
+  Name -> Registration
+  Provides -> Registration
+  Registration -> Resolution
+  Requires -> Resolution
+  Resolution -> Configure
+  ListConfigurationOptions -> "Command Line"
+  "Command Line" -> Configure
+  Configure -> Initialize
+  Repository -> Initialize
+  Initialize -> Consume
+  Commits -> Consume
+  Consume -> Consume
+  Registration [style=filled, fillcolor=dimgray, fontcolor=white]
+  Resolution [style=filled, fillcolor=dimgray, fontcolor=white]
+  "Command Line" [style=filled, fillcolor=dimgray, fontcolor=white]
+  Repository [style=filled, fillcolor=gray]
+  Commits [style=filled, fillcolor=gray]
+}

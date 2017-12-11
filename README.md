@@ -5,7 +5,7 @@ Amazingly fast and highly customizable Git repository analysis engine written in
 Powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
 
 There are two tools: `hercules` and `labours.py`. The first is the program
-written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of analysis tasks.
+written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md).
 The second is the Python script which draws some predefined plots. These two tools are normally used together through
 a pipe. It is possible to write custom analyses using the plugin system.
 
