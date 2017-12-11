@@ -7,6 +7,7 @@ import yaml
 
 from matplotlib import pyplot
 import matplotlib.dates as mdates
+import numpy
 import pandas
 
 
@@ -48,6 +49,11 @@ def plot_churn(name, data, url, beginTime, endTime, output, fmt, tick_interval):
                           columns=("additions", "removals"))
     df["removals"] = -df["removals"]
     df = df.reindex(pandas.date_range(beginTime, endTime, freq="D"))
+    effective = df["additions"] + df["removals"]
+    effective = effective.cumsum()
+    effective.fillna(method="ffill", inplace=True)
+    scale = numpy.maximum(df.max(), -df.min()).max()
+    effective = effective / effective.max() * scale
     pyplot.figure(figsize=(16, 9))
     for spine in pyplot.gca().spines.values():
         spine.set_visible(False)
@@ -56,8 +62,9 @@ def plot_churn(name, data, url, beginTime, endTime, output, fmt, tick_interval):
     pyplot.tick_params(top="off", bottom="off", left="off", right="off", labelleft="off", labelbottom="on")
     pyplot.bar(df.index, df["additions"], label="additions")
     pyplot.bar(df.index, df["removals"], label="removals")
+    pyplot.plot(df.index, effective, "black", label="effective")
     pyplot.xticks(rotation="vertical")
-    pyplot.legend(loc=1)
+    pyplot.legend(loc=2, fontsize=18)
     pyplot.title("%s churn plot, %s" % (name, url), fontsize=24)
     if not output:
         pyplot.show()
