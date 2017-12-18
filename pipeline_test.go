@@ -217,7 +217,7 @@ func TestPipelineRun(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(result))
 	assert.Equal(t, item, result[item].(*testPipelineItem))
-	common := result[nil].(CommonAnalysisResult)
+	common := result[nil].(*CommonAnalysisResult)
 	assert.Equal(t, common.BeginTime, int64(1481719092))
 	assert.Equal(t, common.EndTime, int64(1481719092))
 	assert.Equal(t, common.CommitsNumber, 1)

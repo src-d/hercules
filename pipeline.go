@@ -19,6 +19,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v3/toposort"
+	"gopkg.in/src-d/hercules.v3/pb"
 )
 
 type ConfigurationOptionType int
@@ -99,8 +100,8 @@ type MergeablePipelineItem interface {
 	LeafPipelineItem
 	// Deserialize loads the result from Protocol Buffers blob.
 	Deserialize(pbmessage []byte) (interface{}, error)
-	// MergeResults joins two results together.
-	MergeResults(r1, r2 interface{}, c1, c2 CommonAnalysisResult) interface{}
+	// MergeResults joins two results together. Common-s are specified as the global state.
+	MergeResults(r1, r2 interface{}, c1, c2 *CommonAnalysisResult) (interface{}, CommonAnalysisResult)
 }
 
 // CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
@@ -113,6 +114,22 @@ type CommonAnalysisResult struct {
 	CommitsNumber int
 	// The duration of Pipeline.Run().
 	RunTime time.Duration
+}
+
+func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) {
+	meta.BeginUnixTime = car.BeginTime
+	meta.EndUnixTime = car.EndTime
+	meta.Commits = int32(car.CommitsNumber)
+	meta.RunTime = car.RunTime.Nanoseconds() / 1e6
+}
+
+func MetadataToCommonAnalysisResult(meta *pb.Metadata) *CommonAnalysisResult {
+  return &CommonAnalysisResult{
+	  BeginTime:     meta.BeginUnixTime,
+	  EndTime:       meta.EndUnixTime,
+	  CommitsNumber: int(meta.Commits),
+	  RunTime:       time.Duration(meta.RunTime * 1e6),
+  }
 }
 
 // PipelineItemRegistry contains all the known PipelineItem-s.
@@ -582,7 +599,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			result[casted] = casted.Finalize()
 		}
 	}
-	result[nil] = CommonAnalysisResult{
+	result[nil] = &CommonAnalysisResult{
 		BeginTime:     commits[0].Author.When.Unix(),
 		EndTime:       commits[len(commits)-1].Author.When.Unix(),
 		CommitsNumber: len(commits),

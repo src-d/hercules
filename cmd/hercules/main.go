@@ -257,7 +257,7 @@ func main() {
 func printResults(
 	uri string, deployed []hercules.LeafPipelineItem,
 	results map[hercules.LeafPipelineItem]interface{}) {
-	commonResult := results[nil].(hercules.CommonAnalysisResult)
+	commonResult := results[nil].(*hercules.CommonAnalysisResult)
 
 	fmt.Println("hercules:")
 	fmt.Println("  version: 3")
@@ -280,17 +280,13 @@ func printResults(
 func protobufResults(
 	uri string, deployed []hercules.LeafPipelineItem,
 	results map[hercules.LeafPipelineItem]interface{}) {
-	commonResult := results[nil].(hercules.CommonAnalysisResult)
 
 	header := pb.Metadata{
-		Version:       1,
-		Hash:          hercules.GIT_HASH,
-		Repository:    uri,
-		BeginUnixTime: commonResult.BeginTime,
-		EndUnixTime:   commonResult.EndTime,
-		Commits:       int32(commonResult.CommitsNumber),
-		RunTime:       commonResult.RunTime.Nanoseconds() / 1e6,
+		Version:    2,
+		Hash:       hercules.GIT_HASH,
+		Repository: uri,
 	}
+	results[nil].(*hercules.CommonAnalysisResult).FillMetadata(&header)
 
 	message := pb.AnalysisResults{
 		Header:   &header,
