@@ -215,14 +215,20 @@ func TestPipelineRun(t *testing.T) {
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
+	assert.Equal(t, 2, len(result))
 	assert.Equal(t, item, result[item].(*testPipelineItem))
+	common := result[nil].(CommonAnalysisResult)
+	assert.Equal(t, common.BeginTime, int64(1481719092))
+	assert.Equal(t, common.EndTime, int64(1481719092))
+	assert.Equal(t, common.CommitsNumber, 1)
+	assert.True(t, common.RunTime.Nanoseconds() / 1e6 < 100)
 	assert.True(t, item.DepsConsumed)
 	assert.True(t, item.CommitMatches)
 	assert.True(t, item.IndexMatches)
 	pipeline.RemoveItem(item)
 	result, err = pipeline.Run(commits)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(result))
+	assert.Equal(t, 1, len(result))
 }
 
 func TestPipelineOnProgress(t *testing.T) {
@@ -244,7 +250,7 @@ func TestPipelineOnProgress(t *testing.T) {
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(result))
+	assert.Equal(t, 1, len(result))
 	assert.True(t, progressOk1)
 	assert.True(t, progressOk2)
 }

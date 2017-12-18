@@ -33,6 +33,7 @@ before_install:
 
 install:
   - make dependencies
+  - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - go get -t -v -ldflags "-X gopkg.in/src-d/hercules.v3.GIT_HASH=$(git rev-parse HEAD)" ./...
   - pip3 install --user -r requirements.txt tensorflow
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd

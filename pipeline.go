@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 	"unsafe"
 
 	"gopkg.in/src-d/go-git.v4"
@@ -89,8 +90,29 @@ type LeafPipelineItem interface {
 	Flag() string
 	// Finalize returns the result of the analysis.
 	Finalize() interface{}
-	// Serialize encodes the object returned by Finalize() to Text or Protocol Buffers.
+	// Serialize encodes the object returned by Finalize() to YAML or Protocol Buffers.
 	Serialize(result interface{}, binary bool, writer io.Writer) error
+}
+
+// MergeablePipelineItem specifies the methods to combine several analysis results together.
+type MergeablePipelineItem interface {
+	LeafPipelineItem
+	// Deserialize loads the result from Protocol Buffers blob.
+	Deserialize(pbmessage []byte) (interface{}, error)
+	// MergeResults joins two results together.
+	MergeResults(r1, r2 interface{}, c1, c2 CommonAnalysisResult) interface{}
+}
+
+// CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
+type CommonAnalysisResult struct {
+	// Time of the first commit in the analysed sequence.
+	BeginTime int64
+	// Time of the last commit in the analysed sequence.
+	EndTime int64
+	// The number of commits in the analysed sequence.
+	CommitsNumber int
+	// The duration of Pipeline.Run().
+	RunTime time.Duration
 }
 
 // PipelineItemRegistry contains all the known PipelineItem-s.
@@ -104,7 +126,7 @@ type PipelineItemRegistry struct {
 func (registry *PipelineItemRegistry) Register(example PipelineItem) {
 	t := reflect.TypeOf(example)
 	registry.registered[example.Name()] = t
-	if fpi, ok := interface{}(example).(LeafPipelineItem); ok {
+	if fpi, ok := example.(LeafPipelineItem); ok {
 		registry.flags[fpi.Flag()] = t
 	}
 	for _, dep := range example.Provides() {
@@ -224,11 +246,6 @@ var Registry = &PipelineItemRegistry{
 	flags:      map[string]reflect.Type{},
 }
 
-type wrappedPipelineItem struct {
-	Item     PipelineItem
-	Children []wrappedPipelineItem
-}
-
 type Pipeline struct {
 	// OnProgress is the callback which is invoked in Analyse() to output it's
 	// progress. The first argument is the number of processed commits and the
@@ -300,7 +317,7 @@ func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
 				if _, exists := added[sibling.Name()]; !exists {
 					disabled := false
 					// If this item supports features, check them against the activated in pipeline.features
-					if fpi, matches := interface{}(sibling).(FeaturedPipelineItem); matches {
+					if fpi, matches := sibling.(FeaturedPipelineItem); matches {
 						for _, feature := range fpi.Features() {
 							if !pipeline.features[feature] {
 								disabled = true
@@ -525,11 +542,15 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 	}
 }
 
-// Run executes the pipeline.
+// Run method executes the pipeline.
 //
 // commits is a slice with the sequential commit history. It shall start from
 // the root (ascending order).
-func (pipeline *Pipeline) Run(commits []*object.Commit) (map[PipelineItem]interface{}, error) {
+//
+// Returns the mapping from each LeafPipelineItem to the corresponding analysis result.
+// There is always a "nil" record with CommonAnalysisResult.
+func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]interface{}, error) {
+	startRunTime := time.Now()
 	onProgress := pipeline.OnProgress
 	if onProgress == nil {
 		onProgress = func(int, int) {}
@@ -555,11 +576,17 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[PipelineItem]interf
 		}
 	}
 	onProgress(len(commits), len(commits))
-	result := map[PipelineItem]interface{}{}
+	result := map[LeafPipelineItem]interface{}{}
 	for _, item := range pipeline.items {
-		if fpi, ok := interface{}(item).(LeafPipelineItem); ok {
-			result[item] = fpi.Finalize()
+		if casted, ok := item.(LeafPipelineItem); ok {
+			result[casted] = casted.Finalize()
 		}
+	}
+	result[nil] = CommonAnalysisResult{
+		BeginTime:     commits[0].Author.When.Unix(),
+		EndTime:       commits[len(commits)-1].Author.When.Unix(),
+		CommitsNumber: len(commits),
+		RunTime:       time.Since(startRunTime),
 	}
 	return result, nil
 }
