@@ -221,7 +221,7 @@ func TestPipelineRun(t *testing.T) {
 	assert.Equal(t, common.BeginTime, int64(1481719092))
 	assert.Equal(t, common.EndTime, int64(1481719092))
 	assert.Equal(t, common.CommitsNumber, 1)
-	assert.True(t, common.RunTime.Nanoseconds() / 1e6 < 100)
+	assert.True(t, common.RunTime.Nanoseconds()/1e6 < 100)
 	assert.True(t, item.DepsConsumed)
 	assert.True(t, item.CommitMatches)
 	assert.True(t, item.IndexMatches)

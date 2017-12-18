@@ -68,10 +68,13 @@ type BurndownAnalysis struct {
 }
 
 type BurndownResult struct {
-	GlobalHistory   [][]int64
-	FileHistories   map[string][][]int64
-	PeopleHistories [][][]int64
-	PeopleMatrix    [][]int64
+	GlobalHistory      [][]int64
+	FileHistories      map[string][][]int64
+	PeopleHistories    [][][]int64
+	PeopleMatrix       [][]int64
+	reversedPeopleDict []string
+	sampling           int
+	granularity        int
 }
 
 const (
@@ -243,10 +246,11 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		}
 	}
 	return BurndownResult{
-		GlobalHistory:   analyser.globalHistory,
-		FileHistories:   analyser.fileHistories,
-		PeopleHistories: analyser.peopleHistories,
-		PeopleMatrix:    peopleMatrix,
+		GlobalHistory:      analyser.globalHistory,
+		FileHistories:      analyser.fileHistories,
+		PeopleHistories:    analyser.peopleHistories,
+		PeopleMatrix:       peopleMatrix,
+		reversedPeopleDict: analyser.reversedPeopleDict,
 	}
 }
 
@@ -257,6 +261,75 @@ func (analyser *BurndownAnalysis) Serialize(result interface{}, binary bool, wri
 	}
 	analyser.serializeText(&burndownResult, writer)
 	return nil
+}
+
+func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
+	msg := pb.BurndownAnalysisResults{}
+	err := proto.Unmarshal(pbmessage, &msg)
+	if err != nil {
+		return nil, err
+	}
+	result := BurndownResult{}
+	convertCSR := func(mat *pb.BurndownSparseMatrix) [][]int64 {
+		res := make([][]int64, mat.NumberOfRows)
+		for i := 0; i < int(mat.NumberOfRows); i++ {
+			res[i] = make([]int64, mat.NumberOfColumns)
+			for j := 0; j < int(mat.NumberOfColumns); j++ {
+				res[i][j] = int64(mat.Rows[i].Columns[j])
+			}
+		}
+		return res
+	}
+	result.GlobalHistory = convertCSR(msg.Project)
+	result.FileHistories = map[string][][]int64{}
+	for _, mat := range msg.Files {
+		result.FileHistories[mat.Name] = convertCSR(mat)
+	}
+	result.reversedPeopleDict = make([]string, len(msg.People))
+	result.PeopleHistories = make([][][]int64, len(msg.People))
+	for i, mat := range msg.People {
+		result.PeopleHistories[i] = convertCSR(mat)
+		result.reversedPeopleDict[i] = mat.Name
+	}
+	result.PeopleMatrix = make([][]int64, msg.PeopleInteraction.NumberOfRows)
+	for i := 0; i < len(result.PeopleMatrix); i++ {
+		result.PeopleMatrix[i] = make([]int64, msg.PeopleInteraction.NumberOfColumns)
+		for j := int(msg.PeopleInteraction.Indptr[i]); j < int(msg.PeopleInteraction.Indptr[i+1]); j++ {
+			result.PeopleMatrix[i][msg.PeopleInteraction.Indices[j]] = msg.PeopleInteraction.Data[j]
+		}
+	}
+	result.sampling = int(msg.Sampling)
+	result.granularity = int(msg.Granularity)
+	return result, nil
+}
+
+func (analyser *BurndownAnalysis) MergeResults(
+	r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
+	bar1 := r1.(BurndownResult)
+	bar2 := r2.(BurndownResult)
+  merged := BurndownResult{}
+	if bar1.sampling < bar2.sampling {
+		merged.sampling = bar1.sampling
+	} else {
+		merged.sampling = bar2.sampling
+	}
+	if bar1.granularity < bar2.granularity {
+		merged.granularity = bar1.granularity
+	} else {
+		merged.granularity = bar2.granularity
+	}
+	people := make([]string, len(bar1.reversedPeopleDict))
+	copy(people, bar1.reversedPeopleDict)
+	merged.reversedPeopleDict = append(people, bar2.reversedPeopleDict...)
+	// interpolate to daily and sum
+	_ = bar1
+	_ = bar2
+	panic("not implemented")
+	// return merged
+}
+
+func interpolateMatrix(matrix [][]int64, granularity, sampling int, daily [][]int64, offset int) {
+
 }
 
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
@@ -274,11 +347,11 @@ func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer i
 	if len(result.PeopleHistories) > 0 {
 		fmt.Fprintln(writer, "  people_sequence:")
 		for key := range result.PeopleHistories {
-			fmt.Fprintln(writer, "    - "+yaml.SafeString(analyser.reversedPeopleDict[key]))
+			fmt.Fprintln(writer, "    - "+yaml.SafeString(result.reversedPeopleDict[key]))
 		}
 		fmt.Fprintln(writer, "  people:")
 		for key, val := range result.PeopleHistories {
-			yaml.PrintMatrix(writer, val, 4, analyser.reversedPeopleDict[key], true)
+			yaml.PrintMatrix(writer, val, 4, result.reversedPeopleDict[key], true)
 		}
 		fmt.Fprintln(writer, "  people_interaction: |-")
 		yaml.PrintMatrix(writer, result.PeopleMatrix, 4, "", false)
@@ -306,7 +379,7 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 		message.People = make(
 			[]*pb.BurndownSparseMatrix, len(result.PeopleHistories))
 		for key, val := range result.PeopleHistories {
-			message.People[key] = pb.ToBurndownSparseMatrix(val, analyser.reversedPeopleDict[key])
+			message.People[key] = pb.ToBurndownSparseMatrix(val, result.reversedPeopleDict[key])
 		}
 		message.PeopleInteraction = pb.DenseToCompressedSparseRowMatrix(result.PeopleMatrix)
 	}
