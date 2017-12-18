@@ -15,21 +15,21 @@ The typical API usage is to initialize the Pipeline class:
 
   import "gopkg.in/src-d/go-git.v4"
 
-	var repository *git.Repository
-	// ...initialize repository...
-	pipeline := hercules.NewPipeline(repository)
+  var repository *git.Repository
+  // ...initialize repository...
+  pipeline := hercules.NewPipeline(repository)
 
 Then add the required analysis:
 
   ba := pipeline.DeployItem(&hercules.BurndownAnalysis{
     Granularity:  30,
-		Sampling:     30,
-  })
+    Sampling:     30,
+  }).(hercules.LeafPipelineItem)
 
 This call will add all the needed intermediate pipeline items. Then link and execute the analysis tree:
 
   pipeline.Initialize(nil)
-	result, err := pipeline.Run(pipeline.Commits())
+  result, err := pipeline.Run(pipeline.Commits())
 
 Finally extract the result:
 

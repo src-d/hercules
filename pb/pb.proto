@@ -7,12 +7,14 @@ message Metadata {
     string hash = 2;
     // repository's name
     string repository = 3;
-    // timestamp of the first analysed commit
+    // UNIX timestamp of the first analysed commit
     int64 begin_unix_time = 4;
-    // timestamp of the last analysed commit
+    // UNIX timestamp of the last analysed commit
     int64 end_unix_time = 5;
     // number of processed commits
     int32 commits = 6;
+    // duration of the analysis in milliseconds
+    int64 run_time = 7;
 }
 
 message BurndownSparseMatrixRow {

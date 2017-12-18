@@ -306,6 +306,10 @@ func (strr fakeEncodedObjectStorer) NewEncodedObject() plumbing.EncodedObject {
 	return nil
 }
 
+func (strr fakeEncodedObjectStorer) HasEncodedObject(plumbing.Hash) error {
+	return nil
+}
+
 func (strr fakeEncodedObjectStorer) SetEncodedObject(plumbing.EncodedObject) (plumbing.Hash, error) {
 	return plumbing.NewHash("0000000000000000000000000000000000000000"), nil
 }

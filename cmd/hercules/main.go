@@ -221,10 +221,11 @@ func main() {
 		}
 	}
 	facts["commits"] = commits
-	deployed := []hercules.PipelineItem{}
+	deployed := []hercules.LeafPipelineItem{}
 	for name, valPtr := range deployChoices {
 		if *valPtr {
-			deployed = append(deployed, pipeline.DeployItem(hercules.Registry.Summon(name)[0]))
+			item := pipeline.DeployItem(hercules.Registry.Summon(name)[0])
+			deployed = append(deployed, item.(hercules.LeafPipelineItem))
 		}
 	}
 	pipeline.Initialize(facts)
@@ -243,12 +244,10 @@ func main() {
 		}
 		fmt.Fprint(os.Stderr, "writing...\r")
 	}
-	begin := commits[0].Author.When.Unix()
-	end := commits[len(commits)-1].Author.When.Unix()
 	if !protobuf {
-		printResults(uri, begin, end, len(commits), deployed, results)
+		printResults(uri, deployed, results)
 	} else {
-		protobufResults(uri, begin, end, len(commits), deployed, results)
+		protobufResults(uri, deployed, results)
 	}
 	if !disableStatus {
 		fmt.Fprint(os.Stderr, "\033[K")
@@ -256,37 +255,41 @@ func main() {
 }
 
 func printResults(
-	uri string, begin, end int64, commitsCount int, deployed []hercules.PipelineItem,
-	results map[hercules.PipelineItem]interface{}) {
+	uri string, deployed []hercules.LeafPipelineItem,
+	results map[hercules.LeafPipelineItem]interface{}) {
+	commonResult := results[nil].(hercules.CommonAnalysisResult)
+
 	fmt.Println("hercules:")
 	fmt.Println("  version: 3")
 	fmt.Println("  hash:", hercules.GIT_HASH)
 	fmt.Println("  repository:", uri)
-	fmt.Println("  begin_unix_time:", begin)
-	fmt.Println("  end_unix_time:", end)
-	fmt.Println("  commits:", commitsCount)
+	fmt.Println("  begin_unix_time:", commonResult.BeginTime)
+	fmt.Println("  end_unix_time:", commonResult.EndTime)
+	fmt.Println("  commits:", commonResult.CommitsNumber)
+	fmt.Println("  run_time:", commonResult.RunTime.Nanoseconds()/1e6)
 
 	for _, item := range deployed {
 		result := results[item]
 		fmt.Printf("%s:\n", item.Name())
-		err := interface{}(item).(hercules.LeafPipelineItem).Serialize(result, false, os.Stdout)
-		if err != nil {
+		if err := item.Serialize(result, false, os.Stdout); err != nil {
 			panic(err)
 		}
 	}
 }
 
 func protobufResults(
-	uri string, begin, end int64, commitsCount int, deployed []hercules.PipelineItem,
-	results map[hercules.PipelineItem]interface{}) {
+	uri string, deployed []hercules.LeafPipelineItem,
+	results map[hercules.LeafPipelineItem]interface{}) {
+	commonResult := results[nil].(hercules.CommonAnalysisResult)
 
 	header := pb.Metadata{
 		Version:       1,
 		Hash:          hercules.GIT_HASH,
 		Repository:    uri,
-		BeginUnixTime: begin,
-		EndUnixTime:   end,
-		Commits:       int32(commitsCount),
+		BeginUnixTime: commonResult.BeginTime,
+		EndUnixTime:   commonResult.EndTime,
+		Commits:       int32(commonResult.CommitsNumber),
+		RunTime:       commonResult.RunTime.Nanoseconds() / 1e6,
 	}
 
 	message := pb.AnalysisResults{
@@ -297,8 +300,7 @@ func protobufResults(
 	for _, item := range deployed {
 		result := results[item]
 		buffer := &bytes.Buffer{}
-		err := interface{}(item).(hercules.LeafPipelineItem).Serialize(result, true, buffer)
-		if err != nil {
+		if err := item.Serialize(result, true, buffer); err != nil {
 			panic(err)
 		}
 		message.Contents[item.Name()] = buffer.Bytes()
