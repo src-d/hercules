@@ -435,11 +435,11 @@ func TestBurndownAnalysisSerialize(t *testing.T) {
 	fd = fixtureFileDiff()
 	result, _ = fd.Consume(deps)
 	deps["file_diff"] = result["file_diff"]
+	people := [...]string{"one@srcd", "two@srcd"}
+	burndown.reversedPeopleDict = people[:]
 	burndown.Consume(deps)
 	out := burndown.Finalize().(BurndownResult)
 
-	people := [...]string{"one@srcd", "two@srcd"}
-	burndown.reversedPeopleDict = people[:]
 	buffer := &bytes.Buffer{}
 	burndown.Serialize(out, false, buffer)
 	assert.Equal(t, buffer.String(), `  granularity: 30
