@@ -116,11 +116,12 @@ type CommonAnalysisResult struct {
 	RunTime time.Duration
 }
 
-func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) {
-	meta.BeginUnixTime = car.BeginTime
-	meta.EndUnixTime = car.EndTime
-	meta.Commits = int32(car.CommitsNumber)
-	meta.RunTime = car.RunTime.Nanoseconds() / 1e6
+func (car *CommonAnalysisResult) BeginTimeAsTime() time.Time {
+	return time.Unix(car.BeginTime, 0)
+}
+
+func (car *CommonAnalysisResult) EndTimeAsTime() time.Time {
+	return time.Unix(car.EndTime, 0)
 }
 
 func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
@@ -132,6 +133,14 @@ func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
 	}
 	car.CommitsNumber += other.CommitsNumber
 	car.RunTime += other.RunTime
+}
+
+func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) *pb.Metadata {
+	meta.BeginUnixTime = car.BeginTime
+	meta.EndUnixTime = car.EndTime
+	meta.Commits = int32(car.CommitsNumber)
+	meta.RunTime = car.RunTime.Nanoseconds() / 1e6
+	return meta
 }
 
 func MetadataToCommonAnalysisResult(meta *pb.Metadata) *CommonAnalysisResult {

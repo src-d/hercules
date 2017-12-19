@@ -15,6 +15,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
+	"gopkg.in/src-d/hercules.v3/pb"
 )
 
 type testPipelineItem struct {
@@ -403,6 +404,31 @@ func TestPipelineSerializeNoUast(t *testing.T) {
   "3 [day]" -> "11 Burndown"
   "10 [file_diff]" -> "11 Burndown"
 }`, dot)
+}
+
+func TestCommonAnalysisResultMerge(t *testing.T) {
+	c1 := CommonAnalysisResult{
+		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100}
+	assert.Equal(t, c1.BeginTimeAsTime().Unix(), int64(1513620635))
+	assert.Equal(t, c1.EndTimeAsTime().Unix(), int64(1513720635))
+	c2 := CommonAnalysisResult{
+		BeginTime: 1513620535, EndTime: 1513730635, CommitsNumber: 2, RunTime: 200}
+	c1.Merge(&c2)
+	assert.Equal(t, c1.BeginTime, int64(1513620535))
+	assert.Equal(t, c1.EndTime, int64(1513730635))
+	assert.Equal(t, c1.CommitsNumber, 3)
+	assert.Equal(t, c1.RunTime.Nanoseconds(), int64(300))
+}
+
+func TestCommonAnalysisResultMetadata(t *testing.T) {
+	c1 := &CommonAnalysisResult{
+		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100 * 1e6}
+	meta := &pb.Metadata{}
+	c1 = MetadataToCommonAnalysisResult(c1.FillMetadata(meta))
+	assert.Equal(t, c1.BeginTimeAsTime().Unix(), int64(1513620635))
+	assert.Equal(t, c1.EndTimeAsTime().Unix(), int64(1513720635))
+	assert.Equal(t, c1.CommitsNumber, 1)
+	assert.Equal(t, c1.RunTime.Nanoseconds(), int64(100*1e6))
 }
 
 func init() {

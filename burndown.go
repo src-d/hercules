@@ -307,7 +307,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)
 	bar2 := r2.(BurndownResult)
-  merged := BurndownResult{}
+	merged := BurndownResult{}
 	if bar1.sampling < bar2.sampling {
 		merged.sampling = bar1.sampling
 	} else {
@@ -318,9 +318,20 @@ func (analyser *BurndownAnalysis) MergeResults(
 	} else {
 		merged.granularity = bar2.granularity
 	}
-	people := make([]string, len(bar1.reversedPeopleDict))
-	copy(people, bar1.reversedPeopleDict)
-	merged.reversedPeopleDict = append(people, bar2.reversedPeopleDict...)
+	people := map[string]int{}
+	for _, id := range bar1.reversedPeopleDict {
+		people[id] = len(people)
+	}
+	for _, id := range bar2.reversedPeopleDict {
+		if _, exists := people[id]; !exists {
+			people[id] = len(people)
+		}
+	}
+	merged.reversedPeopleDict = make([]string, len(people))
+	for name, index := range people {
+		merged.reversedPeopleDict[index] = name
+	}
+
 	// interpolate to daily and sum
 	_ = bar1
 	_ = bar2
@@ -328,8 +339,68 @@ func (analyser *BurndownAnalysis) MergeResults(
 	// return merged
 }
 
-func interpolateMatrix(matrix [][]int64, granularity, sampling int, daily [][]int64, offset int) {
+func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, sampling2 int,
+	c1, c2 *CommonAnalysisResult) {
+	commonMerged := CommonAnalysisResult{}
+	commonMerged.Merge(c1)
+	commonMerged.Merge(c2)
+	size := (commonMerged.EndTime - commonMerged.BeginTime) / (3600 * 24)
+	daily := make([][]float32, size)
+	for i := range daily {
+		daily[i] = make([]float32, size)
+	}
+	addMatrix(m1, granularity1, sampling1, daily,
+		int(c1.BeginTime-commonMerged.BeginTime)/(3600*24))
+	addMatrix(m2, granularity2, sampling2, daily,
+		int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
+	// convert daily to [][]int64
+}
 
+func addMatrix(matrix [][]int64, granularity, sampling int, daily [][]float32, offset int) {
+	/*
+	 daily_matrix = numpy.zeros(
+	            (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
+	            dtype=numpy.float32)
+	*/
+	// Determine the maximum number of bands; the actual one may be larger but we do not care
+	maxCols := 0
+	for _, row := range matrix {
+		if maxCols < len(row) {
+			maxCols = len(row)
+		}
+	}
+	// Ported from labours.py load_burndown()
+	for y := 0; y < maxCols; y++ {
+		for x := 0; x < len(matrix); x++ {
+			if (y+1)*granularity <= x*sampling {
+				// interpolate
+				var previous int64
+				if x > 0 && y < len(matrix[x-1]) {
+					previous = matrix[x-1][y]
+				}
+				for i := 0; i < sampling; i++ {
+					var value float32
+					if y < len(matrix[x]) {
+						value = (float32(previous) +
+							float32((matrix[x][y]-previous)*int64(i))/float32(sampling)) / float32(granularity)
+					} else {
+						value = float32(previous) *
+							(float32(1) - float32(i)/float32(sampling)) / float32(granularity)
+					}
+					for j := y * granularity; j < (y+1)*granularity; j++ {
+						daily[j+offset][x*sampling+i+offset] += value
+					}
+				}
+			} else if y*granularity <= (x+1)*sampling && y < len(matrix[x]) {
+				// fill constant
+				for suby := y*granularity + offset; suby < (y+1)*granularity+offset; suby++ {
+					for subx := suby; subx < (x+1)*sampling+offset; subx++ {
+						daily[suby][subx] += float32(matrix[x][y]) / float32(granularity)
+					}
+				}
+			}
+		}
+	}
 }
 
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
