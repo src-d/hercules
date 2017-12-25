@@ -78,11 +78,12 @@ type BurndownResult struct {
 }
 
 const (
-	ConfigBurndownGranularity = "Burndown.Granularity"
-	ConfigBurndownSampling    = "Burndown.Sampling"
-	ConfigBurndownTrackFiles  = "Burndown.TrackFiles"
-	ConfigBurndownTrackPeople = "Burndown.TrackPeople"
-	ConfigBurndownDebug       = "Burndown.Debug"
+	ConfigBurndownGranularity  = "Burndown.Granularity"
+	ConfigBurndownSampling     = "Burndown.Sampling"
+	ConfigBurndownTrackFiles   = "Burndown.TrackFiles"
+	ConfigBurndownTrackPeople  = "Burndown.TrackPeople"
+	ConfigBurndownDebug        = "Burndown.Debug"
+	DefaultBurndownGranularity = 30
 )
 
 func (analyser *BurndownAnalysis) Name() string {
@@ -104,12 +105,12 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []ConfigurationOpti
 		Description: "How many days there are in a single band.",
 		Flag:        "granularity",
 		Type:        IntConfigurationOption,
-		Default:     30}, {
+		Default:     DefaultBurndownGranularity}, {
 		Name:        ConfigBurndownSampling,
 		Description: "How frequently to record the state in days.",
 		Flag:        "sampling",
 		Type:        IntConfigurationOption,
-		Default:     30}, {
+		Default:     DefaultBurndownGranularity}, {
 		Name:        ConfigBurndownTrackFiles,
 		Description: "Record detailed statistics per each file.",
 		Flag:        "burndown-files",
@@ -158,12 +159,19 @@ func (analyser *BurndownAnalysis) Flag() string {
 
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	if analyser.Granularity <= 0 {
-		fmt.Fprintln(os.Stderr, "Warning: adjusted the granularity to 30 days")
-		analyser.Granularity = 30
+		fmt.Fprintf(os.Stderr, "Warning: adjusted the granularity to %d days\n",
+			DefaultBurndownGranularity)
+		analyser.Granularity = DefaultBurndownGranularity
 	}
 	if analyser.Sampling <= 0 {
-		fmt.Fprintln(os.Stderr, "Warning: adjusted the sampling to 30 days")
-		analyser.Sampling = 30
+		fmt.Fprintf(os.Stderr, "Warning: adjusted the sampling to %d days\n",
+			DefaultBurndownGranularity)
+		analyser.Sampling = DefaultBurndownGranularity
+	}
+	if analyser.Sampling > analyser.Granularity {
+		fmt.Fprintf(os.Stderr, "Warning: granularity may not be less than sampling, adjusted to %d\n",
+			analyser.Granularity)
+		analyser.Sampling = analyser.Granularity
 	}
 	analyser.repository = repository
 	analyser.globalStatus = map[int]int64{}
@@ -331,37 +339,67 @@ func (analyser *BurndownAnalysis) MergeResults(
 	for name, index := range people {
 		merged.reversedPeopleDict[index] = name
 	}
-
-	// interpolate to daily and sum
-	_ = bar1
-	_ = bar2
-	panic("not implemented")
-	// return merged
+	merged.GlobalHistory = mergeMatrices(
+		bar1.GlobalHistory, bar2.GlobalHistory,
+		bar1.granularity, bar1.sampling,
+		bar2.granularity, bar2.sampling,
+		c1, c2)
+	return merged
 }
 
 func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, sampling2 int,
-	c1, c2 *CommonAnalysisResult) {
+	c1, c2 *CommonAnalysisResult) [][]int64 {
 	commonMerged := CommonAnalysisResult{}
 	commonMerged.Merge(c1)
 	commonMerged.Merge(c2)
-	size := (commonMerged.EndTime - commonMerged.BeginTime) / (3600 * 24)
-	daily := make([][]float32, size)
-	for i := range daily {
-		daily[i] = make([]float32, size)
+
+	var granularity, sampling int
+	if sampling1 < sampling2 {
+		sampling = sampling1
+	} else {
+		sampling = sampling2
 	}
-	addMatrix(m1, granularity1, sampling1, daily,
+	if granularity1 < granularity2 {
+		granularity = granularity1
+	} else {
+		granularity = granularity2
+	}
+
+	size := int((commonMerged.EndTime - commonMerged.BeginTime) / (3600 * 24))
+	daily := make([][]float32, size+granularity)
+	for i := range daily {
+		daily[i] = make([]float32, size+sampling)
+	}
+	addBurndownMatrix(m1, granularity1, sampling1, daily,
 		int(c1.BeginTime-commonMerged.BeginTime)/(3600*24))
-	addMatrix(m2, granularity2, sampling2, daily,
+	addBurndownMatrix(m2, granularity2, sampling2, daily,
 		int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
+
 	// convert daily to [][]int64
+	result := make([][]int64, (size+granularity-1)/granularity)
+	for i := range result {
+		result[i] = make([]int64, (size+sampling-1)/sampling)
+		for j := 0; j < len(result[i])*sampling; j += sampling {
+			if j >= size {
+				j = size - 1
+			}
+			accum := float32(0)
+			for k := i * granularity; k < (i+1)*granularity && k < len(result[i]); k++ {
+				accum += daily[k][j]
+			}
+			result[i][j] = int64(accum)
+		}
+	}
+	return result
 }
 
-func addMatrix(matrix [][]int64, granularity, sampling int, daily [][]float32, offset int) {
-	/*
-	 daily_matrix = numpy.zeros(
-	            (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
-	            dtype=numpy.float32)
-	*/
+// Explode `matrix` so that it is daily sampled and has daily bands, shift by `offset` days
+// and add to the accumulator. `daily` size is square and is guaranteed to fit `matrix` by
+// the caller.
+// Rows: *at least* len(matrix) * sampling + offset
+// Columns: *at least* len(matrix[...]) * granularity + offset
+// `matrix` can be sparse, so that the last columns which are equal to 0 are truncated.
+func addBurndownMatrix(matrix [][]int64, granularity, sampling int, daily [][]float32, offset int) {
 	// Determine the maximum number of bands; the actual one may be larger but we do not care
 	maxCols := 0
 	for _, row := range matrix {
@@ -369,35 +407,142 @@ func addMatrix(matrix [][]int64, granularity, sampling int, daily [][]float32, o
 			maxCols = len(row)
 		}
 	}
-	// Ported from labours.py load_burndown()
-	for y := 0; y < maxCols; y++ {
-		for x := 0; x < len(matrix); x++ {
-			if (y+1)*granularity <= x*sampling {
-				// interpolate
-				var previous int64
-				if x > 0 && y < len(matrix[x-1]) {
-					previous = matrix[x-1][y]
+	neededRows := len(matrix)*sampling + offset
+	if len(daily) < neededRows {
+		panic(fmt.Sprintf("merge bug: too few daily rows: required %d, have %d",
+			neededRows, len(daily)))
+	}
+	if len(daily[0]) < maxCols {
+		panic(fmt.Sprintf("merge bug: too few daily cols: required %d, have %d",
+			maxCols, len(daily[0])))
+	}
+	for x := 0; x < maxCols; x++ {
+		for y := 0; y < len(matrix); y++ {
+			if x*granularity > (y+1)*sampling {
+				// the future is zeros
+				continue
+			}
+			decay := func(startIndex int, startVal float32) {
+				k := float32(matrix[y][x]) / startVal // <= 1
+				scale := float32((y+1)*sampling - startIndex)
+				for i := x * granularity; i < (x+1)*granularity; i++ {
+					initial := daily[startIndex-1+offset][i+offset]
+					for j := startIndex; j < (y+1)*sampling; j++ {
+						daily[j+offset][i+offset] = initial * (1 + (k-1)*float32(j-startIndex+1)/scale)
+					}
 				}
-				for i := 0; i < sampling; i++ {
-					var value float32
-					if y < len(matrix[x]) {
-						value = (float32(previous) +
-							float32((matrix[x][y]-previous)*int64(i))/float32(sampling)) / float32(granularity)
+			}
+			raise := func(finishIndex int, finishVal float32) {
+				var initial float32
+				if y > 0 {
+					initial = float32(matrix[y-1][x])
+				}
+				startIndex := y * sampling
+				if startIndex < x*granularity {
+					startIndex = x * granularity
+				}
+				avg := (finishVal - initial) / float32(finishIndex-startIndex)
+				for j := y * sampling; j < finishIndex; j++ {
+					for i := startIndex; i <= j; i++ {
+						daily[j+offset][i+offset] = avg
+					}
+				}
+				// copy [x*g..y*s)
+				for j := y * sampling; j < finishIndex; j++ {
+					for i := x * granularity; i < y*sampling; i++ {
+						daily[j+offset][i+offset] = daily[j-1+offset][i+offset]
+					}
+				}
+			}
+			if (x+1)*granularity >= (y+1)*sampling {
+				// x*granularity <= (y+1)*sampling
+				// 1. x*granularity <= y*sampling
+				//    y*sampling..(y+1)sampling
+				//
+				//       x+1
+				//        /
+				//       /
+				//      / y+1  -|
+				//     /        |
+				//    / y      -|
+				//   /
+				//  / x
+				//
+				// 2. x*granularity > y*sampling
+				//    x*granularity..(y+1)sampling
+				//
+				//       x+1
+				//        /
+				//       /
+				//      / y+1  -|
+				//     /        |
+				//    / x      -|
+				//   /
+				//  / y
+				if x*granularity <= y*sampling {
+					raise((y+1)*sampling, float32(matrix[y][x]))
+				} else {
+					raise((y+1)*sampling, float32(matrix[y][x]))
+					avg := float32(matrix[y][x]) / float32((y+1)*sampling-x*granularity)
+					for j := x * granularity; j < (y+1)*sampling; j++ {
+						for i := x * granularity; i <= j; i++ {
+							daily[j+offset][i+offset] = avg
+						}
+					}
+				}
+			} else if (x+1)*granularity >= y*sampling {
+				// y*sampling <= (x+1)*granularity < (y+1)sampling
+				// y*sampling..(x+1)*granularity
+				// (x+1)*granularity..(y+1)sampling
+				//        x+1
+				//         /\
+				//        /  \
+				//       /    \
+				//      /    y+1
+				//     /
+				//    y
+				v1 := float32(matrix[y-1][x])
+				v2 := float32(matrix[y][x])
+				var peak float32
+				delta := float32((x+1)*granularity - y*sampling)
+				var scale float32
+				var previous float32
+				if y > 0 && (y-1)*sampling >= x*granularity {
+					// x*g <= (y-1)*s <= y*s <= (x+1)*g <= (y+1)*s
+					//           |________|.......^
+					if y > 1 {
+						previous = float32(matrix[y-2][x])
+					}
+					scale = float32(sampling)
+				} else {
+					// (y-1)*s < x*g <= y*s <= (x+1)*g <= (y+1)*s
+					//            |______|.......^
+					if y == 0 {
+						scale = float32(sampling)
 					} else {
-						value = float32(previous) *
-							(float32(1) - float32(i)/float32(sampling)) / float32(granularity)
-					}
-					for j := y * granularity; j < (y+1)*granularity; j++ {
-						daily[j+offset][x*sampling+i+offset] += value
+						scale = float32(y*sampling - x*granularity)
 					}
 				}
-			} else if y*granularity <= (x+1)*sampling && y < len(matrix[x]) {
-				// fill constant
-				for suby := y*granularity + offset; suby < (y+1)*granularity+offset; suby++ {
-					for subx := suby; subx < (x+1)*sampling+offset; subx++ {
-						daily[suby][subx] += float32(matrix[x][y]) / float32(granularity)
+				peak = v1 + (v1-previous)/scale*delta
+				if v2 > peak {
+					// we need to adjust the peak, it may not be less than the decayed value
+					if y < len(matrix)-1 {
+						// y*s <= (x+1)*g <= (y+1)*s < (y+2)*s
+						//           ^.........|_________|
+						k := (v2 - float32(matrix[y+1][x])) / float32(sampling) // > 0
+						peak = float32(matrix[y][x]) + k*float32((y+1)*sampling-(x+1)*granularity)
+						// peak > v2 > v1
+					} else {
+						peak = v2
+						// not enough data to interpolate; this is at least not restricted
 					}
 				}
+				raise((x+1)*granularity, peak)
+				decay((x+1)*granularity, peak)
+			} else {
+				// (x+1)*granularity < y*sampling
+				// y*sampling..(y+1)sampling
+				decay(y*sampling, float32(matrix[y-1][x]))
 			}
 		}
 	}

@@ -300,7 +300,7 @@ def load_burndown(header, name, matrix, resample):
                     value = ((previous + (matrix[y, x] - previous) * epsrange)
                              / granularity)[numpy.newaxis, :]
                     daily_matrix[y * granularity:(y + 1) * granularity,
-                    x * sampling:(x + 1) * sampling] = value
+                                 x * sampling:(x + 1) * sampling] = value
                 elif y * granularity <= (x + 1) * sampling:
                     for suby in range(y * granularity, (y + 1) * granularity):
                         for subx in range(suby, (x + 1) * sampling):

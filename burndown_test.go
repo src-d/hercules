@@ -73,6 +73,25 @@ func TestBurndownRegistration(t *testing.T) {
 	assert.Equal(t, tp.Elem().Name(), "BurndownAnalysis")
 }
 
+func TestBurndownInitialize(t *testing.T) {
+	burndown := BurndownAnalysis{}
+	burndown.Sampling = -10
+	burndown.Granularity = DefaultBurndownGranularity
+	burndown.Initialize(testRepository)
+	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity)
+	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity)
+	burndown.Sampling = 0
+	burndown.Granularity = DefaultBurndownGranularity - 1
+	burndown.Initialize(testRepository)
+	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity-1)
+	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity-1)
+	burndown.Sampling = DefaultBurndownGranularity - 1
+	burndown.Granularity = -10
+	burndown.Initialize(testRepository)
+	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity-1)
+	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity)
+}
+
 func TestBurndownConsumeFinalize(t *testing.T) {
 	burndown := BurndownAnalysis{
 		Granularity:  30,
@@ -524,4 +543,248 @@ func (c panickingCloser) Close() error {
 func TestCheckClose(t *testing.T) {
 	closer := panickingCloser{}
 	assert.Panics(t, func() { checkClose(closer) })
+}
+
+func TestBurndownAddMatrix(t *testing.T) {
+	size := 5*3 + 1
+	daily := make([][]float32, size)
+	for i := range daily {
+		daily[i] = make([]float32, size)
+	}
+	added := make([][]int64, 5)
+	for i := range added {
+		added[i] = make([]int64, 3)
+		switch i {
+		case 0:
+			added[i][0] = 10
+		case 1:
+			added[i][0] = 18
+			added[i][1] = 2
+		case 2:
+			added[i][0] = 12
+			added[i][1] = 14
+		case 3:
+			added[i][0] = 10
+			added[i][1] = 12
+			added[i][2] = 6
+		case 4:
+			added[i][0] = 8
+			added[i][1] = 9
+			added[i][2] = 13
+		}
+	}
+	assert.Panics(t, func() {
+		daily2 := make([][]float32, 16)
+		for i := range daily2 {
+			daily2[i] = make([]float32, 15)
+		}
+		addBurndownMatrix(added, 5, 3, daily2, 1)
+	})
+	assert.Panics(t, func() {
+		daily2 := make([][]float32, 15)
+		for i := range daily2 {
+			daily2[i] = make([]float32, 16)
+		}
+		addBurndownMatrix(added, 5, 3, daily2, 1)
+	})
+	// yaml.PrintMatrix(os.Stdout, added, 0, "test", true)
+	/*
+		"test": |-
+	  10  0  0
+	  18  2  0
+	  12 14  0
+	  10 12  6
+	   8  9 13
+	*/
+	addBurndownMatrix(added, 5, 3, daily, 1)
+	for i := range daily[0] {
+		assert.Equal(t, daily[0][i], float32(0))
+	}
+	for i := range daily {
+		assert.Equal(t, daily[i][0], float32(0))
+	}
+	/*for _, row := range daily {
+		fmt.Println(row)
+	}*/
+	// check pinned points
+	for y := 0; y < 5; y++ {
+		for x := 0; x < 3; x++ {
+			var sum float32
+			for i := x * 5; i < (x+1)*5; i++ {
+				sum += daily[(y+1)*3][i+1]
+			}
+			assert.InDelta(t, sum, added[y][x], 0.00001)
+		}
+	}
+	// check overall trend: 0 -> const -> peak -> decay
+	for x := 0; x < 15; x++ {
+		for y := 0; y < x; y++ {
+			assert.Zero(t, daily[y+1][x+1])
+		}
+		var prev float32
+		for y := x; y < ((x+3)/5)*5; y++ {
+			if prev == 0 {
+				prev = daily[y+1][x+1]
+			}
+			assert.Equal(t, daily[y+1][x+1], prev)
+		}
+		for y := ((x + 3) / 5) * 5; y < 15; y++ {
+			if prev == 0 {
+				prev = daily[y+1][x+1]
+			}
+			assert.True(t, daily[y+1][x+1] <= prev)
+			prev = daily[y+1][x+1]
+		}
+	}
+}
+
+func TestBurndownAddMatrixCrazy(t *testing.T) {
+	size := 5 * 3
+	daily := make([][]float32, size)
+	for i := range daily {
+		daily[i] = make([]float32, size)
+	}
+	added := make([][]int64, 5)
+	for i := range added {
+		added[i] = make([]int64, 3)
+		switch i {
+		case 0:
+			added[i][0] = 10
+		case 1:
+			added[i][0] = 9
+			added[i][1] = 2
+		case 2:
+			added[i][0] = 8
+			added[i][1] = 16
+		case 3:
+			added[i][0] = 7
+			added[i][1] = 12
+			added[i][2] = 6
+		case 4:
+			added[i][0] = 6
+			added[i][1] = 9
+			added[i][2] = 13
+		}
+	}
+	// yaml.PrintMatrix(os.Stdout, added, 0, "test", true)
+	/*
+		"test": |-
+	  10  0  0
+	  9  2  0
+	  8 16  0
+	  7 12  6
+	  6  9 13
+	*/
+	addBurndownMatrix(added, 5, 3, daily, 0)
+	/*for _, row := range daily {
+		fmt.Println(row)
+	}*/
+	// check pinned points
+	for y := 0; y < 5; y++ {
+		for x := 0; x < 3; x++ {
+			var sum float32
+			for i := x * 5; i < (x+1)*5; i++ {
+				sum += daily[(y+1)*3-1][i]
+			}
+			assert.InDelta(t, sum, added[y][x], 0.00001)
+		}
+	}
+	// check overall trend: 0 -> const -> peak -> decay
+	for x := 0; x < 15; x++ {
+		for y := 0; y < x; y++ {
+			assert.Zero(t, daily[y][x])
+		}
+		var prev float32
+		for y := x; y < ((x+3)/5)*5; y++ {
+			if prev == 0 {
+				prev = daily[y][x]
+			}
+			assert.Equal(t, daily[y][x], prev)
+		}
+		for y := ((x + 3) / 5) * 5; y < 15; y++ {
+			if prev == 0 {
+				prev = daily[y][x]
+			}
+			assert.True(t, daily[y][x] <= prev)
+			prev = daily[y][x]
+		}
+	}
+}
+
+func TestBurndownMergeGlobalHistory(t *testing.T) {
+	people1 := [...]string{"one", "two"}
+	res1 := BurndownResult{
+		GlobalHistory:      [][]int64{},
+		FileHistories:      map[string][][]int64{},
+		PeopleHistories:    [][][]int64{},
+		PeopleMatrix:       [][]int64{},
+		reversedPeopleDict: people1[:],
+		sampling:           15,
+		granularity:        20,
+	}
+	c1 := CommonAnalysisResult{
+		BeginTime:     600566400, // 1989 Jan 12
+		EndTime:       604713600, // 1989 March 1
+		CommitsNumber: 10,
+		RunTime:       100000,
+	}
+	// 48 days
+	res1.GlobalHistory = make([][]int64, 48/15+1 /* 4 samples */)
+	for i := range res1.GlobalHistory {
+		res1.GlobalHistory[i] = make([]int64, 48/20+1 /* 3 bands */)
+		switch i {
+		case 0:
+			res1.GlobalHistory[i][0] = 1000
+		case 1:
+			res1.GlobalHistory[i][0] = 1100
+			res1.GlobalHistory[i][1] = 400
+		case 2:
+			res1.GlobalHistory[i][0] = 900
+			res1.GlobalHistory[i][1] = 750
+			res1.GlobalHistory[i][2] = 100
+		case 3:
+			res1.GlobalHistory[i][0] = 850
+			res1.GlobalHistory[i][1] = 700
+			res1.GlobalHistory[i][2] = 150
+		}
+	}
+	people2 := [...]string{"two", "three"}
+	res2 := BurndownResult{
+		GlobalHistory:      [][]int64{},
+		FileHistories:      map[string][][]int64{},
+		PeopleHistories:    [][][]int64{},
+		PeopleMatrix:       [][]int64{},
+		reversedPeopleDict: people2[:],
+		sampling:           14,
+		granularity:        19,
+	}
+	c2 := CommonAnalysisResult{
+		BeginTime:     601084800, // 1989 Jan 18
+		EndTime:       605923200, // 1989 March 15
+		CommitsNumber: 10,
+		RunTime:       100000,
+	}
+	// 56 days
+	res2.GlobalHistory = make([][]int64, 56/14 /* 4 samples */)
+	for i := range res2.GlobalHistory {
+		res2.GlobalHistory[i] = make([]int64, 56/19+1 /* 3 bands */)
+		switch i {
+		case 0:
+			res2.GlobalHistory[i][0] = 900
+		case 1:
+			res2.GlobalHistory[i][0] = 1100
+			res2.GlobalHistory[i][1] = 400
+		case 2:
+			res2.GlobalHistory[i][0] = 900
+			res2.GlobalHistory[i][1] = 750
+			res2.GlobalHistory[i][2] = 100
+		case 3:
+			res2.GlobalHistory[i][0] = 800
+			res2.GlobalHistory[i][1] = 600
+			res2.GlobalHistory[i][2] = 600
+		}
+	}
+	burndown := BurndownAnalysis{}
+	merged := burndown.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
+	//fmt.Println(merged.granularity, merged.sampling, merged.GlobalHistory)
 }
