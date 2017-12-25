@@ -125,6 +125,9 @@ func (car *CommonAnalysisResult) EndTimeAsTime() time.Time {
 }
 
 func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
+	if car.EndTime == 0 || other.BeginTime == 0 {
+		panic("Merging with an uninitialized CommonAnalysisResult")
+	}
 	if other.BeginTime < car.BeginTime {
 		car.BeginTime = other.BeginTime
 	}

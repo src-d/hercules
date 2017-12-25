@@ -786,5 +786,10 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	}
 	burndown := BurndownAnalysis{}
 	merged := burndown.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
-	//fmt.Println(merged.granularity, merged.sampling, merged.GlobalHistory)
+	assert.Equal(t, merged.granularity, 19)
+	assert.Equal(t, merged.sampling, 14)
+	assert.Len(t, merged.GlobalHistory, 5)
+	for _, row := range merged.GlobalHistory {
+		assert.Len(t, row, 4)
+	}
 }

@@ -349,8 +349,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 
 func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, sampling2 int,
 	c1, c2 *CommonAnalysisResult) [][]int64 {
-	commonMerged := CommonAnalysisResult{}
-	commonMerged.Merge(c1)
+	commonMerged := *c1
 	commonMerged.Merge(c2)
 
 	var granularity, sampling int
@@ -375,17 +374,18 @@ func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, samp
 	addBurndownMatrix(m2, granularity2, sampling2, daily,
 		int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
 
-	// convert daily to [][]int64
-	result := make([][]int64, (size+granularity-1)/granularity)
+	// convert daily to [][]in(t64
+	result := make([][]int64, (size+sampling-1)/sampling)
 	for i := range result {
-		result[i] = make([]int64, (size+sampling-1)/sampling)
-		for j := 0; j < len(result[i])*sampling; j += sampling {
-			if j >= size {
-				j = size - 1
-			}
+		result[i] = make([]int64, (size+granularity-1)/granularity)
+		sampledIndex := i*sampling
+		if i == len(result) - 1 {
+			sampledIndex = size - 1
+		}
+		for j := 0; j < len(result[i]); j++ {
 			accum := float32(0)
-			for k := i * granularity; k < (i+1)*granularity && k < len(result[i]); k++ {
-				accum += daily[k][j]
+			for k := j * granularity; k < (j+1)*granularity && k < size; k++ {
+				accum += daily[sampledIndex][k]
 			}
 			result[i][j] = int64(accum)
 		}
