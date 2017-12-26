@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/gogo/protobuf/proto"
@@ -315,7 +316,9 @@ func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)
 	bar2 := r2.(BurndownResult)
-	merged := BurndownResult{}
+	merged := BurndownResult{
+		FileHistories: map[string][][]int64{},
+	}
 	if bar1.sampling < bar2.sampling {
 		merged.sampling = bar1.sampling
 	} else {
@@ -326,24 +329,71 @@ func (analyser *BurndownAnalysis) MergeResults(
 	} else {
 		merged.granularity = bar2.granularity
 	}
-	people := map[string]int{}
-	for _, id := range bar1.reversedPeopleDict {
-		people[id] = len(people)
+	people := map[string][3]int{}
+	for i, pid := range bar1.reversedPeopleDict {
+		ptrs := people[pid]
+		ptrs[0] = len(people)
+		ptrs[1] = i
+		ptrs[2] = -1
+		people[pid] = ptrs
 	}
-	for _, id := range bar2.reversedPeopleDict {
-		if _, exists := people[id]; !exists {
-			people[id] = len(people)
+	for i, pid := range bar2.reversedPeopleDict {
+		ptrs, exists := people[pid]
+		if !exists {
+			ptrs[0] = len(people)
+			ptrs[1] = -1
 		}
+		ptrs[2] = i
+		people[pid] = ptrs
 	}
 	merged.reversedPeopleDict = make([]string, len(people))
-	for name, index := range people {
-		merged.reversedPeopleDict[index] = name
+	for name, ptrs := range people {
+		merged.reversedPeopleDict[ptrs[0]] = name
 	}
 	merged.GlobalHistory = mergeMatrices(
 		bar1.GlobalHistory, bar2.GlobalHistory,
 		bar1.granularity, bar1.sampling,
 		bar2.granularity, bar2.sampling,
 		c1, c2)
+	var wg sync.WaitGroup
+	for key, fh1 := range bar1.FileHistories {
+		if fh2, exists := bar2.FileHistories[key]; exists {
+			wg.Add(1)
+			go func(fh1, fh2 [][]int64) {
+				defer wg.Done()
+				merged.FileHistories[key] = mergeMatrices(
+					fh1, fh2, bar1.granularity, bar1.sampling, bar2.granularity, bar2.sampling, c1, c2)
+			}(fh1, fh2)
+		} else {
+			merged.FileHistories[key] = fh1
+		}
+	}
+	for key, fh2 := range bar2.FileHistories {
+		if _, exists := bar1.FileHistories[key]; !exists {
+			merged.FileHistories[key] = fh2
+		}
+	}
+	merged.PeopleHistories = make([][][]int64, len(merged.reversedPeopleDict))
+	for i, key := range merged.reversedPeopleDict {
+		ptrs := people[key]
+		if ptrs[1] < 0 {
+			merged.PeopleHistories[i] = bar2.PeopleHistories[ptrs[2]]
+		} else if ptrs[2] < 0 {
+			merged.PeopleHistories[i] = bar1.PeopleHistories[ptrs[1]]
+		} else {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				merged.PeopleHistories[i] = mergeMatrices(
+					bar1.PeopleHistories[ptrs[1]], bar2.PeopleHistories[ptrs[2]],
+					bar1.granularity, bar1.sampling,
+					bar2.granularity, bar2.sampling,
+					c1, c2,
+				)
+			}(i)
+		}
+	}
+	wg.Wait()
 	return merged
 }
 

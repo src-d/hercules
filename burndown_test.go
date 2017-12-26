@@ -748,6 +748,10 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 			res1.GlobalHistory[i][2] = 150
 		}
 	}
+	res1.FileHistories["file1"] = res1.GlobalHistory
+	res1.FileHistories["file2"] = res1.GlobalHistory
+	res1.PeopleHistories = append(res1.PeopleHistories, res1.GlobalHistory)
+	res1.PeopleHistories = append(res1.PeopleHistories, res1.GlobalHistory)
 	people2 := [...]string{"two", "three"}
 	res2 := BurndownResult{
 		GlobalHistory:      [][]int64{},
@@ -784,6 +788,10 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 			res2.GlobalHistory[i][2] = 600
 		}
 	}
+	res2.FileHistories["file2"] = res2.GlobalHistory
+	res2.FileHistories["file3"] = res2.GlobalHistory
+	res2.PeopleHistories = append(res2.PeopleHistories, res2.GlobalHistory)
+	res2.PeopleHistories = append(res2.PeopleHistories, res2.GlobalHistory)
 	burndown := BurndownAnalysis{}
 	merged := burndown.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
@@ -792,4 +800,11 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	for _, row := range merged.GlobalHistory {
 		assert.Len(t, row, 4)
 	}
+	assert.Equal(t, merged.FileHistories["file1"], res1.GlobalHistory)
+	assert.Equal(t, merged.FileHistories["file2"], merged.GlobalHistory)
+	assert.Equal(t, merged.FileHistories["file3"], res2.GlobalHistory)
+	assert.Len(t, merged.reversedPeopleDict, 3)
+	assert.Equal(t, merged.PeopleHistories[0], res1.GlobalHistory)
+	assert.Equal(t, merged.PeopleHistories[1], merged.GlobalHistory)
+	assert.Equal(t, merged.PeopleHistories[2], res2.GlobalHistory)
 }
