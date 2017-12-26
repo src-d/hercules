@@ -3,6 +3,9 @@ package pb
 import "sort"
 
 func ToBurndownSparseMatrix(matrix [][]int64, name string) *BurndownSparseMatrix {
+	if len(matrix) == 0 {
+		panic("matrix may not be nil or empty")
+	}
 	r := BurndownSparseMatrix{
 		Name:            name,
 		NumberOfRows:    int32(len(matrix)),

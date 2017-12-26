@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/gogo/protobuf/proto"
@@ -68,18 +69,22 @@ type BurndownAnalysis struct {
 }
 
 type BurndownResult struct {
-	GlobalHistory   [][]int64
-	FileHistories   map[string][][]int64
-	PeopleHistories [][][]int64
-	PeopleMatrix    [][]int64
+	GlobalHistory      [][]int64
+	FileHistories      map[string][][]int64
+	PeopleHistories    [][][]int64
+	PeopleMatrix       [][]int64
+	reversedPeopleDict []string
+	sampling           int
+	granularity        int
 }
 
 const (
-	ConfigBurndownGranularity = "Burndown.Granularity"
-	ConfigBurndownSampling    = "Burndown.Sampling"
-	ConfigBurndownTrackFiles  = "Burndown.TrackFiles"
-	ConfigBurndownTrackPeople = "Burndown.TrackPeople"
-	ConfigBurndownDebug       = "Burndown.Debug"
+	ConfigBurndownGranularity  = "Burndown.Granularity"
+	ConfigBurndownSampling     = "Burndown.Sampling"
+	ConfigBurndownTrackFiles   = "Burndown.TrackFiles"
+	ConfigBurndownTrackPeople  = "Burndown.TrackPeople"
+	ConfigBurndownDebug        = "Burndown.Debug"
+	DefaultBurndownGranularity = 30
 )
 
 func (analyser *BurndownAnalysis) Name() string {
@@ -101,12 +106,12 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []ConfigurationOpti
 		Description: "How many days there are in a single band.",
 		Flag:        "granularity",
 		Type:        IntConfigurationOption,
-		Default:     30}, {
+		Default:     DefaultBurndownGranularity}, {
 		Name:        ConfigBurndownSampling,
 		Description: "How frequently to record the state in days.",
 		Flag:        "sampling",
 		Type:        IntConfigurationOption,
-		Default:     30}, {
+		Default:     DefaultBurndownGranularity}, {
 		Name:        ConfigBurndownTrackFiles,
 		Description: "Record detailed statistics per each file.",
 		Flag:        "burndown-files",
@@ -155,12 +160,19 @@ func (analyser *BurndownAnalysis) Flag() string {
 
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	if analyser.Granularity <= 0 {
-		fmt.Fprintln(os.Stderr, "Warning: adjusted the granularity to 30 days")
-		analyser.Granularity = 30
+		fmt.Fprintf(os.Stderr, "Warning: adjusted the granularity to %d days\n",
+			DefaultBurndownGranularity)
+		analyser.Granularity = DefaultBurndownGranularity
 	}
 	if analyser.Sampling <= 0 {
-		fmt.Fprintln(os.Stderr, "Warning: adjusted the sampling to 30 days")
-		analyser.Sampling = 30
+		fmt.Fprintf(os.Stderr, "Warning: adjusted the sampling to %d days\n",
+			DefaultBurndownGranularity)
+		analyser.Sampling = DefaultBurndownGranularity
+	}
+	if analyser.Sampling > analyser.Granularity {
+		fmt.Fprintf(os.Stderr, "Warning: granularity may not be less than sampling, adjusted to %d\n",
+			analyser.Granularity)
+		analyser.Sampling = analyser.Granularity
 	}
 	analyser.repository = repository
 	analyser.globalStatus = map[int]int64{}
@@ -243,10 +255,11 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		}
 	}
 	return BurndownResult{
-		GlobalHistory:   analyser.globalHistory,
-		FileHistories:   analyser.fileHistories,
-		PeopleHistories: analyser.peopleHistories,
-		PeopleMatrix:    peopleMatrix,
+		GlobalHistory:      analyser.globalHistory,
+		FileHistories:      analyser.fileHistories,
+		PeopleHistories:    analyser.peopleHistories,
+		PeopleMatrix:       peopleMatrix,
+		reversedPeopleDict: analyser.reversedPeopleDict,
 	}
 }
 
@@ -257,6 +270,402 @@ func (analyser *BurndownAnalysis) Serialize(result interface{}, binary bool, wri
 	}
 	analyser.serializeText(&burndownResult, writer)
 	return nil
+}
+
+func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
+	msg := pb.BurndownAnalysisResults{}
+	err := proto.Unmarshal(pbmessage, &msg)
+	if err != nil {
+		return nil, err
+	}
+	result := BurndownResult{}
+	convertCSR := func(mat *pb.BurndownSparseMatrix) [][]int64 {
+		res := make([][]int64, mat.NumberOfRows)
+		for i := 0; i < int(mat.NumberOfRows); i++ {
+			res[i] = make([]int64, mat.NumberOfColumns)
+			for j := 0; j < len(mat.Rows[i].Columns); j++ {
+				res[i][j] = int64(mat.Rows[i].Columns[j])
+			}
+		}
+		return res
+	}
+	result.GlobalHistory = convertCSR(msg.Project)
+	result.FileHistories = map[string][][]int64{}
+	for _, mat := range msg.Files {
+		result.FileHistories[mat.Name] = convertCSR(mat)
+	}
+	result.reversedPeopleDict = make([]string, len(msg.People))
+	result.PeopleHistories = make([][][]int64, len(msg.People))
+	for i, mat := range msg.People {
+		result.PeopleHistories[i] = convertCSR(mat)
+		result.reversedPeopleDict[i] = mat.Name
+	}
+	if msg.PeopleInteraction != nil {
+		result.PeopleMatrix = make([][]int64, msg.PeopleInteraction.NumberOfRows)
+	}
+	for i := 0; i < len(result.PeopleMatrix); i++ {
+		result.PeopleMatrix[i] = make([]int64, msg.PeopleInteraction.NumberOfColumns)
+		for j := int(msg.PeopleInteraction.Indptr[i]); j < int(msg.PeopleInteraction.Indptr[i+1]); j++ {
+			result.PeopleMatrix[i][msg.PeopleInteraction.Indices[j]] = msg.PeopleInteraction.Data[j]
+		}
+	}
+	result.sampling = int(msg.Sampling)
+	result.granularity = int(msg.Granularity)
+	return result, nil
+}
+
+func (analyser *BurndownAnalysis) MergeResults(
+	r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
+	bar1 := r1.(BurndownResult)
+	bar2 := r2.(BurndownResult)
+	merged := BurndownResult{}
+	if bar1.sampling < bar2.sampling {
+		merged.sampling = bar1.sampling
+	} else {
+		merged.sampling = bar2.sampling
+	}
+	if bar1.granularity < bar2.granularity {
+		merged.granularity = bar1.granularity
+	} else {
+		merged.granularity = bar2.granularity
+	}
+	people := map[string][3]int{}
+	for i, pid := range bar1.reversedPeopleDict {
+		ptrs := people[pid]
+		ptrs[0] = len(people)
+		ptrs[1] = i
+		ptrs[2] = -1
+		people[pid] = ptrs
+	}
+	for i, pid := range bar2.reversedPeopleDict {
+		ptrs, exists := people[pid]
+		if !exists {
+			ptrs[0] = len(people)
+			ptrs[1] = -1
+		}
+		ptrs[2] = i
+		people[pid] = ptrs
+	}
+	merged.reversedPeopleDict = make([]string, len(people))
+	for name, ptrs := range people {
+		merged.reversedPeopleDict[ptrs[0]] = name
+	}
+	var wg sync.WaitGroup
+	if len(bar1.GlobalHistory) > 0 || len(bar2.GlobalHistory) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			merged.GlobalHistory = mergeMatrices(
+				bar1.GlobalHistory, bar2.GlobalHistory,
+				bar1.granularity, bar1.sampling,
+				bar2.granularity, bar2.sampling,
+				c1, c2)
+		}()
+	}
+	if len(bar1.FileHistories) > 0 || len(bar2.FileHistories) > 0 {
+		merged.FileHistories = map[string][][]int64{}
+		historyMutex := sync.Mutex{}
+		for key, fh1 := range bar1.FileHistories {
+			if fh2, exists := bar2.FileHistories[key]; exists {
+				wg.Add(1)
+				go func(fh1, fh2 [][]int64, key string) {
+					defer wg.Done()
+					historyMutex.Lock()
+					defer historyMutex.Unlock()
+					merged.FileHistories[key] = mergeMatrices(
+						fh1, fh2, bar1.granularity, bar1.sampling, bar2.granularity, bar2.sampling, c1, c2)
+				}(fh1, fh2, key)
+			} else {
+				historyMutex.Lock()
+				merged.FileHistories[key] = fh1
+				historyMutex.Unlock()
+			}
+		}
+		for key, fh2 := range bar2.FileHistories {
+			if _, exists := bar1.FileHistories[key]; !exists {
+				historyMutex.Lock()
+				merged.FileHistories[key] = fh2
+				historyMutex.Unlock()
+			}
+		}
+	}
+	if len(merged.reversedPeopleDict) > 0 {
+		merged.PeopleHistories = make([][][]int64, len(merged.reversedPeopleDict))
+		for i, key := range merged.reversedPeopleDict {
+			ptrs := people[key]
+			if ptrs[1] < 0 {
+				if len(bar2.PeopleHistories) > 0 {
+					merged.PeopleHistories[i] = bar2.PeopleHistories[ptrs[2]]
+				}
+			} else if ptrs[2] < 0 {
+				if len(bar1.PeopleHistories) > 0 {
+					merged.PeopleHistories[i] = bar1.PeopleHistories[ptrs[1]]
+				}
+			} else {
+				wg.Add(1)
+				go func(i int) {
+					defer wg.Done()
+					var m1, m2 [][]int64
+					if len(bar1.PeopleHistories) > 0 {
+						m1 = bar1.PeopleHistories[ptrs[1]]
+					}
+					if len(bar2.PeopleHistories) > 0 {
+						m2 = bar2.PeopleHistories[ptrs[2]]
+					}
+					merged.PeopleHistories[i] = mergeMatrices(
+						m1, m2,
+						bar1.granularity, bar1.sampling,
+						bar2.granularity, bar2.sampling,
+						c1, c2,
+					)
+				}(i)
+			}
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if len(bar2.PeopleMatrix) == 0 {
+				merged.PeopleMatrix = bar1.PeopleMatrix
+				// extend the matrix in both directions
+				for i := 0; i < len(merged.PeopleMatrix); i++ {
+					for j := len(bar1.reversedPeopleDict); j < len(merged.reversedPeopleDict); j++ {
+						merged.PeopleMatrix[i] = append(merged.PeopleMatrix[i], 0)
+					}
+				}
+				for i := len(bar1.reversedPeopleDict); i < len(merged.reversedPeopleDict); i++ {
+					merged.PeopleMatrix = append(
+						merged.PeopleMatrix, make([]int64, len(merged.reversedPeopleDict)+2))
+				}
+			} else {
+				merged.PeopleMatrix = make([][]int64, len(merged.reversedPeopleDict))
+				for i := range merged.PeopleMatrix {
+					merged.PeopleMatrix[i] = make([]int64, len(merged.reversedPeopleDict)+2)
+				}
+				for i, key := range bar1.reversedPeopleDict {
+					mi := people[key][0] // index in merged.reversedPeopleDict
+					copy(merged.PeopleMatrix[mi][:2], bar1.PeopleMatrix[i][:2])
+					for j, val := range bar1.PeopleMatrix[i][2:] {
+						merged.PeopleMatrix[mi][2+people[bar1.reversedPeopleDict[j]][0]] = val
+					}
+				}
+				for i, key := range bar2.reversedPeopleDict {
+					mi := people[key][0] // index in merged.reversedPeopleDict
+					merged.PeopleMatrix[mi][0] += bar2.PeopleMatrix[i][0]
+					merged.PeopleMatrix[mi][1] += bar2.PeopleMatrix[i][1]
+					for j, val := range bar2.PeopleMatrix[i][2:] {
+						merged.PeopleMatrix[mi][2+people[bar2.reversedPeopleDict[j]][0]] += val
+					}
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	return merged
+}
+
+func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, sampling2 int,
+	c1, c2 *CommonAnalysisResult) [][]int64 {
+	commonMerged := *c1
+	commonMerged.Merge(c2)
+
+	var granularity, sampling int
+	if sampling1 < sampling2 {
+		sampling = sampling1
+	} else {
+		sampling = sampling2
+	}
+	if granularity1 < granularity2 {
+		granularity = granularity1
+	} else {
+		granularity = granularity2
+	}
+
+	size := int((commonMerged.EndTime - commonMerged.BeginTime) / (3600 * 24))
+	daily := make([][]float32, size+granularity)
+	for i := range daily {
+		daily[i] = make([]float32, size+sampling)
+	}
+	if len(m1) > 0 {
+		addBurndownMatrix(m1, granularity1, sampling1, daily,
+			int(c1.BeginTime-commonMerged.BeginTime)/(3600*24))
+	}
+	if len(m2) > 0 {
+		addBurndownMatrix(m2, granularity2, sampling2, daily,
+			int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
+	}
+
+	// convert daily to [][]in(t64
+	result := make([][]int64, (size+sampling-1)/sampling)
+	for i := range result {
+		result[i] = make([]int64, (size+granularity-1)/granularity)
+		sampledIndex := i * sampling
+		if i == len(result)-1 {
+			sampledIndex = size - 1
+		}
+		for j := 0; j < len(result[i]); j++ {
+			accum := float32(0)
+			for k := j * granularity; k < (j+1)*granularity && k < size; k++ {
+				accum += daily[sampledIndex][k]
+			}
+			result[i][j] = int64(accum)
+		}
+	}
+	return result
+}
+
+// Explode `matrix` so that it is daily sampled and has daily bands, shift by `offset` days
+// and add to the accumulator. `daily` size is square and is guaranteed to fit `matrix` by
+// the caller.
+// Rows: *at least* len(matrix) * sampling + offset
+// Columns: *at least* len(matrix[...]) * granularity + offset
+// `matrix` can be sparse, so that the last columns which are equal to 0 are truncated.
+func addBurndownMatrix(matrix [][]int64, granularity, sampling int, daily [][]float32, offset int) {
+	// Determine the maximum number of bands; the actual one may be larger but we do not care
+	maxCols := 0
+	for _, row := range matrix {
+		if maxCols < len(row) {
+			maxCols = len(row)
+		}
+	}
+	neededRows := len(matrix)*sampling + offset
+	if len(daily) < neededRows {
+		panic(fmt.Sprintf("merge bug: too few daily rows: required %d, have %d",
+			neededRows, len(daily)))
+	}
+	if len(daily[0]) < maxCols {
+		panic(fmt.Sprintf("merge bug: too few daily cols: required %d, have %d",
+			maxCols, len(daily[0])))
+	}
+	for x := 0; x < maxCols; x++ {
+		for y := 0; y < len(matrix); y++ {
+			if x*granularity > (y+1)*sampling {
+				// the future is zeros
+				continue
+			}
+			decay := func(startIndex int, startVal float32) {
+				k := float32(matrix[y][x]) / startVal // <= 1
+				scale := float32((y+1)*sampling - startIndex)
+				for i := x * granularity; i < (x+1)*granularity; i++ {
+					initial := daily[startIndex-1+offset][i+offset]
+					for j := startIndex; j < (y+1)*sampling; j++ {
+						daily[j+offset][i+offset] = initial * (1 + (k-1)*float32(j-startIndex+1)/scale)
+					}
+				}
+			}
+			raise := func(finishIndex int, finishVal float32) {
+				var initial float32
+				if y > 0 {
+					initial = float32(matrix[y-1][x])
+				}
+				startIndex := y * sampling
+				if startIndex < x*granularity {
+					startIndex = x * granularity
+				}
+				avg := (finishVal - initial) / float32(finishIndex-startIndex)
+				for j := y * sampling; j < finishIndex; j++ {
+					for i := startIndex; i <= j; i++ {
+						daily[j+offset][i+offset] = avg
+					}
+				}
+				// copy [x*g..y*s)
+				for j := y * sampling; j < finishIndex; j++ {
+					for i := x * granularity; i < y*sampling; i++ {
+						daily[j+offset][i+offset] = daily[j-1+offset][i+offset]
+					}
+				}
+			}
+			if (x+1)*granularity >= (y+1)*sampling {
+				// x*granularity <= (y+1)*sampling
+				// 1. x*granularity <= y*sampling
+				//    y*sampling..(y+1)sampling
+				//
+				//       x+1
+				//        /
+				//       /
+				//      / y+1  -|
+				//     /        |
+				//    / y      -|
+				//   /
+				//  / x
+				//
+				// 2. x*granularity > y*sampling
+				//    x*granularity..(y+1)sampling
+				//
+				//       x+1
+				//        /
+				//       /
+				//      / y+1  -|
+				//     /        |
+				//    / x      -|
+				//   /
+				//  / y
+				if x*granularity <= y*sampling {
+					raise((y+1)*sampling, float32(matrix[y][x]))
+				} else {
+					raise((y+1)*sampling, float32(matrix[y][x]))
+					avg := float32(matrix[y][x]) / float32((y+1)*sampling-x*granularity)
+					for j := x * granularity; j < (y+1)*sampling; j++ {
+						for i := x * granularity; i <= j; i++ {
+							daily[j+offset][i+offset] = avg
+						}
+					}
+				}
+			} else if (x+1)*granularity >= y*sampling {
+				// y*sampling <= (x+1)*granularity < (y+1)sampling
+				// y*sampling..(x+1)*granularity
+				// (x+1)*granularity..(y+1)sampling
+				//        x+1
+				//         /\
+				//        /  \
+				//       /    \
+				//      /    y+1
+				//     /
+				//    y
+				v1 := float32(matrix[y-1][x])
+				v2 := float32(matrix[y][x])
+				var peak float32
+				delta := float32((x+1)*granularity - y*sampling)
+				var scale float32
+				var previous float32
+				if y > 0 && (y-1)*sampling >= x*granularity {
+					// x*g <= (y-1)*s <= y*s <= (x+1)*g <= (y+1)*s
+					//           |________|.......^
+					if y > 1 {
+						previous = float32(matrix[y-2][x])
+					}
+					scale = float32(sampling)
+				} else {
+					// (y-1)*s < x*g <= y*s <= (x+1)*g <= (y+1)*s
+					//            |______|.......^
+					if y == 0 {
+						scale = float32(sampling)
+					} else {
+						scale = float32(y*sampling - x*granularity)
+					}
+				}
+				peak = v1 + (v1-previous)/scale*delta
+				if v2 > peak {
+					// we need to adjust the peak, it may not be less than the decayed value
+					if y < len(matrix)-1 {
+						// y*s <= (x+1)*g <= (y+1)*s < (y+2)*s
+						//           ^.........|_________|
+						k := (v2 - float32(matrix[y+1][x])) / float32(sampling) // > 0
+						peak = float32(matrix[y][x]) + k*float32((y+1)*sampling-(x+1)*granularity)
+						// peak > v2 > v1
+					} else {
+						peak = v2
+						// not enough data to interpolate; this is at least not restricted
+					}
+				}
+				raise((x+1)*granularity, peak)
+				decay((x+1)*granularity, peak)
+			} else {
+				// (x+1)*granularity < y*sampling
+				// y*sampling..(y+1)sampling
+				decay(y*sampling, float32(matrix[y-1][x]))
+			}
+		}
+	}
 }
 
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
@@ -274,11 +683,11 @@ func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer i
 	if len(result.PeopleHistories) > 0 {
 		fmt.Fprintln(writer, "  people_sequence:")
 		for key := range result.PeopleHistories {
-			fmt.Fprintln(writer, "    - "+yaml.SafeString(analyser.reversedPeopleDict[key]))
+			fmt.Fprintln(writer, "    - "+yaml.SafeString(result.reversedPeopleDict[key]))
 		}
 		fmt.Fprintln(writer, "  people:")
 		for key, val := range result.PeopleHistories {
-			yaml.PrintMatrix(writer, val, 4, analyser.reversedPeopleDict[key], true)
+			yaml.PrintMatrix(writer, val, 4, result.reversedPeopleDict[key], true)
 		}
 		fmt.Fprintln(writer, "  people_interaction: |-")
 		yaml.PrintMatrix(writer, result.PeopleMatrix, 4, "", false)
@@ -289,7 +698,9 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	message := pb.BurndownAnalysisResults{
 		Granularity: int32(analyser.Granularity),
 		Sampling:    int32(analyser.Sampling),
-		Project:     pb.ToBurndownSparseMatrix(result.GlobalHistory, "project"),
+	}
+	if len(result.GlobalHistory) > 0 {
+		message.Project = pb.ToBurndownSparseMatrix(result.GlobalHistory, "project")
 	}
 	if len(result.FileHistories) > 0 {
 		message.Files = make([]*pb.BurndownSparseMatrix, len(result.FileHistories))
@@ -306,7 +717,9 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 		message.People = make(
 			[]*pb.BurndownSparseMatrix, len(result.PeopleHistories))
 		for key, val := range result.PeopleHistories {
-			message.People[key] = pb.ToBurndownSparseMatrix(val, analyser.reversedPeopleDict[key])
+			if len(val) > 0 {
+				message.People[key] = pb.ToBurndownSparseMatrix(val, result.reversedPeopleDict[key])
+			}
 		}
 		message.PeopleInteraction = pb.DenseToCompressedSparseRowMatrix(result.PeopleMatrix)
 	}

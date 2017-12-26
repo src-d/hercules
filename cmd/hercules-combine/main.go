@@ -47,10 +47,10 @@ func main() {
 		return
 	}
 	mergedMessage := pb.AnalysisResults{
-		Header:   &pb.Metadata{
-			Version:       2,
-			Hash:          hercules.GIT_HASH,
-			Repository:    strings.Join(repos, " & "),
+		Header: &pb.Metadata{
+			Version:    2,
+			Hash:       hercules.GIT_HASH,
+			Repository: strings.Join(repos, " & "),
 		},
 		Contents: map[string][]byte{},
 	}
@@ -69,17 +69,17 @@ func main() {
 }
 
 func loadMessage(fileName string, repos *[]string) (
-		map[string]interface{}, *hercules.CommonAnalysisResult, []string) {
+	map[string]interface{}, *hercules.CommonAnalysisResult, []string) {
 	errs := []string{}
 	buffer, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		errs = append(errs, "Cannot read " + fileName + ": " + err.Error())
+		errs = append(errs, "Cannot read "+fileName+": "+err.Error())
 		return nil, nil, errs
 	}
 	message := pb.AnalysisResults{}
 	err = proto.Unmarshal(buffer, &message)
 	if err != nil {
-		errs = append(errs, "Cannot parse " + fileName + ": " + err.Error())
+		errs = append(errs, "Cannot parse "+fileName+": "+err.Error())
 		return nil, nil, errs
 	}
 	*repos = append(*repos, message.Header.Repository)
@@ -87,17 +87,17 @@ func loadMessage(fileName string, repos *[]string) (
 	for key, val := range message.Contents {
 		summoned := hercules.Registry.Summon(key)
 		if len(summoned) == 0 {
-			errs = append(errs, fileName + ": item not found: " + key)
+			errs = append(errs, fileName+": item not found: "+key)
 			continue
 		}
 		mpi, ok := summoned[0].(hercules.MergeablePipelineItem)
 		if !ok {
-			errs = append(errs, fileName + ": " + key + ": MergeablePipelineItem is not implemented")
+			errs = append(errs, fileName+": "+key+": MergeablePipelineItem is not implemented")
 			continue
 		}
 		msg, err := mpi.Deserialize(val)
 		if err != nil {
-			errs = append(errs, fileName + ": deserialization failed: " + key + ": " + err.Error())
+			errs = append(errs, fileName+": deserialization failed: "+key+": "+err.Error())
 			continue
 		}
 		results[key] = msg
@@ -114,23 +114,23 @@ func printErrors(allErrors map[string][]string) {
 		}
 	}
 	if !needToPrintErrors {
-	 return
+		return
 	}
 	fmt.Fprintln(os.Stderr, "Errors:")
 	for key, errs := range allErrors {
 		if len(errs) > 0 {
-			fmt.Fprintln(os.Stderr, "  " + key)
+			fmt.Fprintln(os.Stderr, "  "+key)
 			for _, err := range errs {
-				fmt.Fprintln(os.Stderr, "    " + err)
+				fmt.Fprintln(os.Stderr, "    "+err)
 			}
 		}
 	}
 }
 
 func mergeResults(mergedResults map[string]interface{},
-		mergedCommons *hercules.CommonAnalysisResult,
-		anotherResults map[string]interface{},
-		anotherCommons *hercules.CommonAnalysisResult) {
+	mergedCommons *hercules.CommonAnalysisResult,
+	anotherResults map[string]interface{},
+	anotherCommons *hercules.CommonAnalysisResult) {
 	for key, val := range anotherResults {
 		mergedResult, exists := mergedResults[key]
 		if !exists {
@@ -138,11 +138,12 @@ func mergeResults(mergedResults map[string]interface{},
 			continue
 		}
 		item := hercules.Registry.Summon(key)[0].(hercules.MergeablePipelineItem)
-		mergedResult, *mergedCommons = item.MergeResults(
-			mergedResult, val, mergedCommons, anotherCommons)
+		mergedResult = item.MergeResults(mergedResult, val, mergedCommons, anotherCommons)
 		mergedResults[key] = mergedResult
 	}
 	if mergedCommons.CommitsNumber == 0 {
 		*mergedCommons = *anotherCommons
+	} else {
+		mergedCommons.Merge(anotherCommons)
 	}
 }

@@ -295,17 +295,16 @@ def load_burndown(header, name, matrix, resample):
         epsrange = numpy.arange(0, 1, 1.0 / sampling)
         for y in range(matrix.shape[0]):
             for x in range(matrix.shape[1]):
-                previous = matrix[y, x - 1] if x > 0 else 0
-                value = ((previous + (matrix[y, x] - previous) * epsrange)
-                         / granularity)[numpy.newaxis, :]
                 if (y + 1) * granularity <= x * sampling:
+                    previous = matrix[y, x - 1] if x > 0 else 0
+                    value = ((previous + (matrix[y, x] - previous) * epsrange)
+                             / granularity)[numpy.newaxis, :]
                     daily_matrix[y * granularity:(y + 1) * granularity,
-                    x * sampling:(x + 1) * sampling] = value
+                                 x * sampling:(x + 1) * sampling] = value
                 elif y * granularity <= (x + 1) * sampling:
                     for suby in range(y * granularity, (y + 1) * granularity):
                         for subx in range(suby, (x + 1) * sampling):
-                            daily_matrix[suby, subx] = matrix[
-                                                           y, x] / granularity
+                            daily_matrix[suby, subx] = matrix[y, x] / granularity
         daily_matrix[(last - start).days:] = 0
         # Resample the bands
         aliases = {
@@ -337,7 +336,7 @@ def load_burndown(header, name, matrix, resample):
                     break
             matrix[i, j:] = \
                 daily_matrix[istart:ifinish, (sdt - start).days:].sum(axis=0)
-        # Hardcode some cases to improve labels" readability
+        # Hardcode some cases to improve labels' readability
         if resample in ("year", "A"):
             labels = [dt.year for dt in date_granularity_sampling]
         elif resample in ("month", "M"):
