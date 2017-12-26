@@ -318,9 +318,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)
 	bar2 := r2.(BurndownResult)
-	merged := BurndownResult{
-		FileHistories: map[string][][]int64{},
-	}
+	merged := BurndownResult{}
 	if bar1.sampling < bar2.sampling {
 		merged.sampling = bar1.sampling
 	} else {
@@ -352,48 +350,114 @@ func (analyser *BurndownAnalysis) MergeResults(
 	for name, ptrs := range people {
 		merged.reversedPeopleDict[ptrs[0]] = name
 	}
-	merged.GlobalHistory = mergeMatrices(
-		bar1.GlobalHistory, bar2.GlobalHistory,
-		bar1.granularity, bar1.sampling,
-		bar2.granularity, bar2.sampling,
-		c1, c2)
 	var wg sync.WaitGroup
-	for key, fh1 := range bar1.FileHistories {
-		if fh2, exists := bar2.FileHistories[key]; exists {
-			wg.Add(1)
-			go func(fh1, fh2 [][]int64) {
-				defer wg.Done()
-				merged.FileHistories[key] = mergeMatrices(
-					fh1, fh2, bar1.granularity, bar1.sampling, bar2.granularity, bar2.sampling, c1, c2)
-			}(fh1, fh2)
-		} else {
-			merged.FileHistories[key] = fh1
+	if len(bar1.GlobalHistory) > 0 || len(bar2.GlobalHistory) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			merged.GlobalHistory = mergeMatrices(
+				bar1.GlobalHistory, bar2.GlobalHistory,
+				bar1.granularity, bar1.sampling,
+				bar2.granularity, bar2.sampling,
+				c1, c2)
+		}()
+	}
+	if len(bar1.FileHistories) > 0 || len(bar2.FileHistories) > 0 {
+		merged.FileHistories = map[string][][]int64{}
+		historyMutex := sync.Mutex{}
+		for key, fh1 := range bar1.FileHistories {
+			if fh2, exists := bar2.FileHistories[key]; exists {
+				wg.Add(1)
+				go func(fh1, fh2 [][]int64, key string) {
+					defer wg.Done()
+					historyMutex.Lock()
+					defer historyMutex.Unlock()
+					merged.FileHistories[key] = mergeMatrices(
+						fh1, fh2, bar1.granularity, bar1.sampling, bar2.granularity, bar2.sampling, c1, c2)
+				}(fh1, fh2, key)
+			} else {
+				historyMutex.Lock()
+				merged.FileHistories[key] = fh1
+				historyMutex.Unlock()
+			}
+		}
+		for key, fh2 := range bar2.FileHistories {
+			if _, exists := bar1.FileHistories[key]; !exists {
+				historyMutex.Lock()
+				merged.FileHistories[key] = fh2
+				historyMutex.Unlock()
+			}
 		}
 	}
-	for key, fh2 := range bar2.FileHistories {
-		if _, exists := bar1.FileHistories[key]; !exists {
-			merged.FileHistories[key] = fh2
+	if len(merged.reversedPeopleDict) > 0 {
+		merged.PeopleHistories = make([][][]int64, len(merged.reversedPeopleDict))
+		for i, key := range merged.reversedPeopleDict {
+			ptrs := people[key]
+			if ptrs[1] < 0 {
+				if len(bar2.PeopleHistories) > 0 {
+					merged.PeopleHistories[i] = bar2.PeopleHistories[ptrs[2]]
+				}
+			} else if ptrs[2] < 0 {
+				if len(bar1.PeopleHistories) > 0 {
+					merged.PeopleHistories[i] = bar1.PeopleHistories[ptrs[1]]
+				}
+			} else {
+				wg.Add(1)
+				go func(i int) {
+					defer wg.Done()
+					var m1, m2 [][]int64
+					if len(bar1.PeopleHistories) > 0 {
+						m1 = bar1.PeopleHistories[ptrs[1]]
+					}
+					if len(bar2.PeopleHistories) > 0 {
+						m2 = bar2.PeopleHistories[ptrs[2]]
+					}
+					merged.PeopleHistories[i] = mergeMatrices(
+						m1, m2,
+						bar1.granularity, bar1.sampling,
+						bar2.granularity, bar2.sampling,
+						c1, c2,
+					)
+				}(i)
+			}
 		}
-	}
-	merged.PeopleHistories = make([][][]int64, len(merged.reversedPeopleDict))
-	for i, key := range merged.reversedPeopleDict {
-		ptrs := people[key]
-		if ptrs[1] < 0 {
-			merged.PeopleHistories[i] = bar2.PeopleHistories[ptrs[2]]
-		} else if ptrs[2] < 0 {
-			merged.PeopleHistories[i] = bar1.PeopleHistories[ptrs[1]]
-		} else {
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				merged.PeopleHistories[i] = mergeMatrices(
-					bar1.PeopleHistories[ptrs[1]], bar2.PeopleHistories[ptrs[2]],
-					bar1.granularity, bar1.sampling,
-					bar2.granularity, bar2.sampling,
-					c1, c2,
-				)
-			}(i)
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if len(bar2.PeopleMatrix) == 0 {
+				merged.PeopleMatrix = bar1.PeopleMatrix
+				// extend the matrix in both directions
+				for i := 0; i < len(merged.PeopleMatrix); i++ {
+					for j := len(bar1.reversedPeopleDict); j < len(merged.reversedPeopleDict); j++ {
+						merged.PeopleMatrix[i] = append(merged.PeopleMatrix[i], 0)
+					}
+				}
+				for i := len(bar1.reversedPeopleDict); i < len(merged.reversedPeopleDict); i++ {
+					merged.PeopleMatrix = append(
+						merged.PeopleMatrix, make([]int64, len(merged.reversedPeopleDict)+2))
+				}
+			} else {
+				merged.PeopleMatrix = make([][]int64, len(merged.reversedPeopleDict))
+				for i := range merged.PeopleMatrix {
+					merged.PeopleMatrix[i] = make([]int64, len(merged.reversedPeopleDict)+2)
+				}
+				for i, key := range bar1.reversedPeopleDict {
+					mi := people[key][0] // index in merged.reversedPeopleDict
+					copy(merged.PeopleMatrix[mi][:2], bar1.PeopleMatrix[i][:2])
+					for j, val := range bar1.PeopleMatrix[i][2:] {
+						merged.PeopleMatrix[mi][2+people[bar1.reversedPeopleDict[j]][0]] = val
+					}
+				}
+				for i, key := range bar2.reversedPeopleDict {
+					mi := people[key][0] // index in merged.reversedPeopleDict
+					merged.PeopleMatrix[mi][0] += bar2.PeopleMatrix[i][0]
+					merged.PeopleMatrix[mi][1] += bar2.PeopleMatrix[i][1]
+					for j, val := range bar2.PeopleMatrix[i][2:] {
+						merged.PeopleMatrix[mi][2+people[bar2.reversedPeopleDict[j]][0]] += val
+					}
+				}
+			}
+		}()
 	}
 	wg.Wait()
 	return merged
@@ -421,17 +485,21 @@ func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, samp
 	for i := range daily {
 		daily[i] = make([]float32, size+sampling)
 	}
-	addBurndownMatrix(m1, granularity1, sampling1, daily,
-		int(c1.BeginTime-commonMerged.BeginTime)/(3600*24))
-	addBurndownMatrix(m2, granularity2, sampling2, daily,
-		int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
+	if len(m1) > 0 {
+		addBurndownMatrix(m1, granularity1, sampling1, daily,
+			int(c1.BeginTime-commonMerged.BeginTime)/(3600*24))
+	}
+	if len(m2) > 0 {
+		addBurndownMatrix(m2, granularity2, sampling2, daily,
+			int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
+	}
 
 	// convert daily to [][]in(t64
 	result := make([][]int64, (size+sampling-1)/sampling)
 	for i := range result {
 		result[i] = make([]int64, (size+granularity-1)/granularity)
-		sampledIndex := i*sampling
-		if i == len(result) - 1 {
+		sampledIndex := i * sampling
+		if i == len(result)-1 {
 			sampledIndex = size - 1
 		}
 		for j := 0; j < len(result[i]); j++ {

@@ -589,12 +589,12 @@ func TestBurndownAddMatrix(t *testing.T) {
 	})
 	// yaml.PrintMatrix(os.Stdout, added, 0, "test", true)
 	/*
-		"test": |-
-	  10  0  0
-	  18  2  0
-	  12 14  0
-	  10 12  6
-	   8  9 13
+			"test": |-
+		  10  0  0
+		  18  2  0
+		  12 14  0
+		  10 12  6
+		   8  9 13
 	*/
 	addBurndownMatrix(added, 5, 3, daily, 1)
 	for i := range daily[0] {
@@ -668,12 +668,12 @@ func TestBurndownAddMatrixCrazy(t *testing.T) {
 	}
 	// yaml.PrintMatrix(os.Stdout, added, 0, "test", true)
 	/*
-		"test": |-
-	  10  0  0
-	  9  2  0
-	  8 16  0
-	  7 12  6
-	  6  9 13
+			"test": |-
+		  10  0  0
+		  9  2  0
+		  8 16  0
+		  7 12  6
+		  6  9 13
 	*/
 	addBurndownMatrix(added, 5, 3, daily, 0)
 	/*for _, row := range daily {
@@ -752,6 +752,16 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	res1.FileHistories["file2"] = res1.GlobalHistory
 	res1.PeopleHistories = append(res1.PeopleHistories, res1.GlobalHistory)
 	res1.PeopleHistories = append(res1.PeopleHistories, res1.GlobalHistory)
+	res1.PeopleMatrix = append(res1.PeopleMatrix, make([]int64, 4))
+	res1.PeopleMatrix = append(res1.PeopleMatrix, make([]int64, 4))
+	res1.PeopleMatrix[0][0] = 10
+	res1.PeopleMatrix[0][1] = 20
+	res1.PeopleMatrix[0][2] = 30
+	res1.PeopleMatrix[0][3] = 40
+	res1.PeopleMatrix[1][0] = 50
+	res1.PeopleMatrix[1][1] = 60
+	res1.PeopleMatrix[1][2] = 70
+	res1.PeopleMatrix[1][3] = 80
 	people2 := [...]string{"two", "three"}
 	res2 := BurndownResult{
 		GlobalHistory:      [][]int64{},
@@ -792,6 +802,16 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	res2.FileHistories["file3"] = res2.GlobalHistory
 	res2.PeopleHistories = append(res2.PeopleHistories, res2.GlobalHistory)
 	res2.PeopleHistories = append(res2.PeopleHistories, res2.GlobalHistory)
+	res2.PeopleMatrix = append(res2.PeopleMatrix, make([]int64, 4))
+	res2.PeopleMatrix = append(res2.PeopleMatrix, make([]int64, 4))
+	res2.PeopleMatrix[0][0] = 100
+	res2.PeopleMatrix[0][1] = 200
+	res2.PeopleMatrix[0][2] = 300
+	res2.PeopleMatrix[0][3] = 400
+	res2.PeopleMatrix[1][0] = 500
+	res2.PeopleMatrix[1][1] = 600
+	res2.PeopleMatrix[1][2] = 700
+	res2.PeopleMatrix[1][3] = 800
 	burndown := BurndownAnalysis{}
 	merged := burndown.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
@@ -807,4 +827,134 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	assert.Equal(t, merged.PeopleHistories[0], res1.GlobalHistory)
 	assert.Equal(t, merged.PeopleHistories[1], merged.GlobalHistory)
 	assert.Equal(t, merged.PeopleHistories[2], res2.GlobalHistory)
+	assert.Len(t, merged.PeopleMatrix, 3)
+	for _, row := range merged.PeopleMatrix {
+		assert.Len(t, row, 5)
+	}
+	assert.Equal(t, merged.PeopleMatrix[0][0], int64(10))
+	assert.Equal(t, merged.PeopleMatrix[0][1], int64(20))
+	assert.Equal(t, merged.PeopleMatrix[0][2], int64(30))
+	assert.Equal(t, merged.PeopleMatrix[0][3], int64(40))
+	assert.Equal(t, merged.PeopleMatrix[0][4], int64(0))
+
+	assert.Equal(t, merged.PeopleMatrix[1][0], int64(150))
+	assert.Equal(t, merged.PeopleMatrix[1][1], int64(260))
+	assert.Equal(t, merged.PeopleMatrix[1][2], int64(70))
+	assert.Equal(t, merged.PeopleMatrix[1][3], int64(380))
+	assert.Equal(t, merged.PeopleMatrix[1][4], int64(400))
+
+	assert.Equal(t, merged.PeopleMatrix[2][0], int64(500))
+	assert.Equal(t, merged.PeopleMatrix[2][1], int64(600))
+	assert.Equal(t, merged.PeopleMatrix[2][2], int64(0))
+	assert.Equal(t, merged.PeopleMatrix[2][3], int64(700))
+	assert.Equal(t, merged.PeopleMatrix[2][4], int64(800))
+}
+
+func TestBurndownMergeNils(t *testing.T) {
+	res1 := BurndownResult{
+		GlobalHistory:      [][]int64{},
+		FileHistories:      map[string][][]int64{},
+		PeopleHistories:    [][][]int64{},
+		PeopleMatrix:       [][]int64{},
+		reversedPeopleDict: []string{},
+		sampling:           15,
+		granularity:        20,
+	}
+	c1 := CommonAnalysisResult{
+		BeginTime:     600566400, // 1989 Jan 12
+		EndTime:       604713600, // 1989 March 1
+		CommitsNumber: 10,
+		RunTime:       100000,
+	}
+	res2 := BurndownResult{
+		GlobalHistory:      nil,
+		FileHistories:      nil,
+		PeopleHistories:    nil,
+		PeopleMatrix:       nil,
+		reversedPeopleDict: nil,
+		sampling:           14,
+		granularity:        19,
+	}
+	c2 := CommonAnalysisResult{
+		BeginTime:     601084800, // 1989 Jan 18
+		EndTime:       605923200, // 1989 March 15
+		CommitsNumber: 10,
+		RunTime:       100000,
+	}
+	burndown := BurndownAnalysis{}
+	merged := burndown.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
+	assert.Equal(t, merged.granularity, 19)
+	assert.Equal(t, merged.sampling, 14)
+	assert.Nil(t, merged.GlobalHistory)
+	assert.Nil(t, merged.FileHistories)
+	assert.Nil(t, merged.PeopleHistories)
+	assert.Nil(t, merged.PeopleMatrix)
+
+	res2.GlobalHistory = make([][]int64, 56/14 /* 4 samples */)
+	for i := range res2.GlobalHistory {
+		res2.GlobalHistory[i] = make([]int64, 56/19+1 /* 3 bands */)
+		switch i {
+		case 0:
+			res2.GlobalHistory[i][0] = 900
+		case 1:
+			res2.GlobalHistory[i][0] = 1100
+			res2.GlobalHistory[i][1] = 400
+		case 2:
+			res2.GlobalHistory[i][0] = 900
+			res2.GlobalHistory[i][1] = 750
+			res2.GlobalHistory[i][2] = 100
+		case 3:
+			res2.GlobalHistory[i][0] = 800
+			res2.GlobalHistory[i][1] = 600
+			res2.GlobalHistory[i][2] = 600
+		}
+	}
+	people1 := [...]string{"one", "two"}
+	res1.reversedPeopleDict = people1[:]
+	res1.PeopleMatrix = append(res1.PeopleMatrix, make([]int64, 4))
+	res1.PeopleMatrix = append(res1.PeopleMatrix, make([]int64, 4))
+	res1.PeopleMatrix[0][0] = 10
+	res1.PeopleMatrix[0][1] = 20
+	res1.PeopleMatrix[0][2] = 30
+	res1.PeopleMatrix[0][3] = 40
+	res1.PeopleMatrix[1][0] = 50
+	res1.PeopleMatrix[1][1] = 60
+	res1.PeopleMatrix[1][2] = 70
+	res1.PeopleMatrix[1][3] = 80
+	people2 := [...]string{"two", "three"}
+	res2.reversedPeopleDict = people2[:]
+	merged = burndown.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
+	mgh := [5][4]int64{
+		{0, 0, 0, 0},
+		{578, 0, 0, 0},
+		{798, 546, 0, 0},
+		{664, 884, 222, 0},
+		{547, 663, 610, 178},
+	}
+	mgh2 := [...][]int64{
+		mgh[0][:], mgh[1][:], mgh[2][:], mgh[3][:], mgh[4][:],
+	}
+	mgh3 := mgh2[:]
+	assert.Equal(t, mgh3, merged.GlobalHistory)
+	assert.Len(t, merged.PeopleMatrix, 3)
+	for _, row := range merged.PeopleMatrix {
+		assert.Len(t, row, 5)
+	}
+	assert.Equal(t, merged.PeopleMatrix[0][0], int64(10))
+	assert.Equal(t, merged.PeopleMatrix[0][1], int64(20))
+	assert.Equal(t, merged.PeopleMatrix[0][2], int64(30))
+	assert.Equal(t, merged.PeopleMatrix[0][3], int64(40))
+	assert.Equal(t, merged.PeopleMatrix[0][4], int64(0))
+
+	assert.Equal(t, merged.PeopleMatrix[1][0], int64(50))
+	assert.Equal(t, merged.PeopleMatrix[1][1], int64(60))
+	assert.Equal(t, merged.PeopleMatrix[1][2], int64(70))
+	assert.Equal(t, merged.PeopleMatrix[1][3], int64(80))
+	assert.Equal(t, merged.PeopleMatrix[1][4], int64(0))
+
+	assert.Equal(t, merged.PeopleMatrix[2][0], int64(0))
+	assert.Equal(t, merged.PeopleMatrix[2][1], int64(0))
+	assert.Equal(t, merged.PeopleMatrix[2][2], int64(0))
+	assert.Equal(t, merged.PeopleMatrix[2][3], int64(0))
+	assert.Equal(t, merged.PeopleMatrix[2][4], int64(0))
 }
