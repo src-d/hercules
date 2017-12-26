@@ -283,7 +283,7 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 		res := make([][]int64, mat.NumberOfRows)
 		for i := 0; i < int(mat.NumberOfRows); i++ {
 			res[i] = make([]int64, mat.NumberOfColumns)
-			for j := 0; j < int(mat.NumberOfColumns); j++ {
+			for j := 0; j < len(mat.Rows[i].Columns); j++ {
 				res[i][j] = int64(mat.Rows[i].Columns[j])
 			}
 		}
@@ -300,7 +300,9 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 		result.PeopleHistories[i] = convertCSR(mat)
 		result.reversedPeopleDict[i] = mat.Name
 	}
-	result.PeopleMatrix = make([][]int64, msg.PeopleInteraction.NumberOfRows)
+	if msg.PeopleInteraction != nil {
+		result.PeopleMatrix = make([][]int64, msg.PeopleInteraction.NumberOfRows)
+	}
 	for i := 0; i < len(result.PeopleMatrix); i++ {
 		result.PeopleMatrix[i] = make([]int64, msg.PeopleInteraction.NumberOfColumns)
 		for j := int(msg.PeopleInteraction.Indptr[i]); j < int(msg.PeopleInteraction.Indptr[i+1]); j++ {
