@@ -698,7 +698,9 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	message := pb.BurndownAnalysisResults{
 		Granularity: int32(analyser.Granularity),
 		Sampling:    int32(analyser.Sampling),
-		Project:     pb.ToBurndownSparseMatrix(result.GlobalHistory, "project"),
+	}
+	if len(result.GlobalHistory) > 0 {
+		message.Project = pb.ToBurndownSparseMatrix(result.GlobalHistory, "project")
 	}
 	if len(result.FileHistories) > 0 {
 		message.Files = make([]*pb.BurndownSparseMatrix, len(result.FileHistories))
@@ -715,7 +717,9 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 		message.People = make(
 			[]*pb.BurndownSparseMatrix, len(result.PeopleHistories))
 		for key, val := range result.PeopleHistories {
-			message.People[key] = pb.ToBurndownSparseMatrix(val, result.reversedPeopleDict[key])
+			if len(val) > 0 {
+				message.People[key] = pb.ToBurndownSparseMatrix(val, result.reversedPeopleDict[key])
+			}
 		}
 		message.PeopleInteraction = pb.DenseToCompressedSparseRowMatrix(result.PeopleMatrix)
 	}

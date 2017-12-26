@@ -3,6 +3,7 @@ package hercules
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -848,6 +849,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	assert.Equal(t, merged.PeopleMatrix[2][2], int64(0))
 	assert.Equal(t, merged.PeopleMatrix[2][3], int64(700))
 	assert.Equal(t, merged.PeopleMatrix[2][4], int64(800))
+	burndown.serializeBinary(&merged, ioutil.Discard)
 }
 
 func TestBurndownMergeNils(t *testing.T) {
@@ -889,6 +891,7 @@ func TestBurndownMergeNils(t *testing.T) {
 	assert.Nil(t, merged.FileHistories)
 	assert.Nil(t, merged.PeopleHistories)
 	assert.Nil(t, merged.PeopleMatrix)
+	burndown.serializeBinary(&merged, ioutil.Discard)
 
 	res2.GlobalHistory = make([][]int64, 56/14 /* 4 samples */)
 	for i := range res2.GlobalHistory {
@@ -957,4 +960,5 @@ func TestBurndownMergeNils(t *testing.T) {
 	assert.Equal(t, merged.PeopleMatrix[2][2], int64(0))
 	assert.Equal(t, merged.PeopleMatrix[2][3], int64(0))
 	assert.Equal(t, merged.PeopleMatrix[2][4], int64(0))
+	burndown.serializeBinary(&merged, ioutil.Discard)
 }
