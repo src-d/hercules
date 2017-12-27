@@ -260,6 +260,8 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		PeopleHistories:    analyser.peopleHistories,
 		PeopleMatrix:       peopleMatrix,
 		reversedPeopleDict: analyser.reversedPeopleDict,
+		sampling:           analyser.Sampling,
+		granularity:        analyser.Granularity,
 	}
 }
 
@@ -651,8 +653,8 @@ func addBurndownMatrix(matrix [][]int64, granularity, sampling int, daily [][]fl
 }
 
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
-	fmt.Fprintln(writer, "  granularity:", analyser.Granularity)
-	fmt.Fprintln(writer, "  sampling:", analyser.Sampling)
+	fmt.Fprintln(writer, "  granularity:", result.granularity)
+	fmt.Fprintln(writer, "  sampling:", result.sampling)
 	yaml.PrintMatrix(writer, result.GlobalHistory, 2, "project", true)
 	if len(result.FileHistories) > 0 {
 		fmt.Fprintln(writer, "  files:")
@@ -678,8 +680,8 @@ func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer i
 
 func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer io.Writer) error {
 	message := pb.BurndownAnalysisResults{
-		Granularity: int32(analyser.Granularity),
-		Sampling:    int32(analyser.Sampling),
+		Granularity: int32(result.granularity),
+		Sampling:    int32(result.sampling),
 	}
 	if len(result.GlobalHistory) > 0 {
 		message.Project = pb.ToBurndownSparseMatrix(result.GlobalHistory, "project")

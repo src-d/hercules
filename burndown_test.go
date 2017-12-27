@@ -315,7 +315,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	}
 }
 
-func TestBurndownAnalysisSerialize(t *testing.T) {
+func TestBurndownSerialize(t *testing.T) {
 	burndown := BurndownAnalysis{
 		Granularity:  30,
 		Sampling:     30,

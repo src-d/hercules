@@ -235,7 +235,7 @@ class ProtobufReader(Reader):
         return list(node.index), self._parse_sparse_matrix(node.matrix)
 
     def get_people_coocc(self):
-        node = self.contents["Couples"].developer_couples
+        node = self.contents["Couples"].people_couples
         return list(node.index), self._parse_sparse_matrix(node.matrix)
 
     def _parse_burndown_matrix(self, matrix):
@@ -281,6 +281,8 @@ def load_burndown(header, name, matrix, resample):
     import pandas
 
     start, last, sampling, granularity = header
+    assert sampling > 0
+    assert granularity >= sampling
     start = datetime.fromtimestamp(start)
     last = datetime.fromtimestamp(last)
     print(name, "lifetime index:", calculate_average_lifetime(matrix))
