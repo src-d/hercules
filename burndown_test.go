@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"path"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -961,4 +962,23 @@ func TestBurndownMergeNils(t *testing.T) {
 	assert.Equal(t, merged.PeopleMatrix[2][3], int64(0))
 	assert.Equal(t, merged.PeopleMatrix[2][4], int64(0))
 	burndown.serializeBinary(&merged, ioutil.Discard)
+}
+
+func TestBurndownDeserialize(t *testing.T) {
+	allBuffer, err := ioutil.ReadFile(path.Join("test_data", "burndown.pb"))
+	assert.Nil(t, err)
+	message := pb.AnalysisResults{}
+	err = proto.Unmarshal(allBuffer, &message)
+	assert.Nil(t, err)
+	burndown := BurndownAnalysis{}
+	iresult, err := burndown.Deserialize(message.Contents[burndown.Name()])
+	assert.Nil(t, err)
+	result := iresult.(BurndownResult)
+	assert.True(t, len(result.GlobalHistory) > 0)
+	assert.True(t, len(result.FileHistories) > 0)
+	assert.True(t, len(result.reversedPeopleDict) > 0)
+	assert.True(t, len(result.PeopleHistories) > 0)
+	assert.True(t, len(result.PeopleMatrix) > 0)
+	assert.Equal(t, result.granularity, 30)
+	assert.Equal(t, result.sampling, 30)
 }
