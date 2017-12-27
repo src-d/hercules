@@ -32,6 +32,9 @@ type CouplesResult struct {
 	PeopleFiles  [][]int
 	FilesMatrix  []map[int]int64
 	Files        []string
+
+	// references IdentityDetector.ReversedPeopleDict
+	reversedPeopleDict []string
 }
 
 func (couples *CouplesAnalysis) Name() string {
@@ -180,8 +183,12 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 		}
 	}
 	return CouplesResult{
-		PeopleMatrix: peopleMatrix, PeopleFiles: peopleFiles,
-		Files: filesSequence, FilesMatrix: filesMatrix}
+		PeopleMatrix:       peopleMatrix,
+		PeopleFiles:        peopleFiles,
+		Files:              filesSequence,
+		FilesMatrix:        filesMatrix,
+		reversedPeopleDict: couples.reversedPeopleDict,
+	}
 }
 
 func (couples *CouplesAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
@@ -191,6 +198,117 @@ func (couples *CouplesAnalysis) Serialize(result interface{}, binary bool, write
 	}
 	couples.serializeText(&couplesResult, writer)
 	return nil
+}
+
+func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
+	message := pb.CouplesAnalysisResults{}
+	err := proto.Unmarshal(pbmessage, &message)
+	if err != nil {
+		return nil, err
+	}
+	result := CouplesResult{
+		Files:              message.FileCouples.Index,
+		FilesMatrix:        make([]map[int]int64, message.FileCouples.Matrix.NumberOfRows),
+		PeopleFiles:        make([][]int, len(message.PeopleCouples.Index)),
+		PeopleMatrix:       make([]map[int]int64, message.PeopleCouples.Matrix.NumberOfRows),
+		reversedPeopleDict: message.PeopleCouples.Index,
+	}
+	for i, files := range message.PeopleFiles {
+		result.PeopleFiles[i] = make([]int, len(files.Files))
+		for j, val := range files.Files {
+			result.PeopleFiles[i][j] = int(val)
+		}
+	}
+	convertCSR := func(dest []map[int]int64, src *pb.CompressedSparseRowMatrix) {
+		for indptr := range src.Indptr {
+			if indptr == 0 {
+				continue
+			}
+			dest[indptr-1] = map[int]int64{}
+			for j := src.Indptr[indptr-1]; j < src.Indptr[indptr]; j++ {
+				dest[indptr-1][int(src.Indices[j])] = src.Data[j]
+			}
+		}
+	}
+	convertCSR(result.FilesMatrix, message.FileCouples.Matrix)
+	convertCSR(result.PeopleMatrix, message.PeopleCouples.Matrix)
+	return result, nil
+}
+
+func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
+	cr1 := r1.(CouplesResult)
+	cr2 := r2.(CouplesResult)
+	merged := CouplesResult{}
+	var people, files map[string][3]int
+	people, merged.reversedPeopleDict = IdentityDetector{}.MergeReversedDicts(
+		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
+	files, merged.Files = IdentityDetector{}.MergeReversedDicts(cr1.Files, cr2.Files)
+	merged.PeopleFiles = make([][]int, len(merged.reversedPeopleDict))
+	peopleFilesDicts := make([]map[int]bool, len(merged.reversedPeopleDict))
+	addPeopleFiles := func(peopleFiles [][]int, reversedPeopleDict []string,
+		reversedFilesDict []string) {
+		for pi, fs := range peopleFiles {
+			idx := people[reversedPeopleDict[pi]][0]
+			m := peopleFilesDicts[idx]
+			if m == nil {
+				m = map[int]bool{}
+				peopleFilesDicts[idx] = m
+			}
+			for _, f := range fs {
+				m[files[reversedFilesDict[f]][0]] = true
+			}
+		}
+	}
+	addPeopleFiles(cr1.PeopleFiles, cr1.reversedPeopleDict, cr1.Files)
+	addPeopleFiles(cr2.PeopleFiles, cr2.reversedPeopleDict, cr2.Files)
+	for i, m := range peopleFilesDicts {
+		merged.PeopleFiles[i] = make([]int, len(m))
+		j := 0
+		for f := range m {
+			merged.PeopleFiles[i][j] = f
+			j++
+		}
+		sort.Ints(merged.PeopleFiles[i])
+	}
+	merged.PeopleMatrix = make([]map[int]int64, len(merged.reversedPeopleDict)+1)
+	addPeople := func(peopleMatrix []map[int]int64, reversedPeopleDict []string,
+		reversedFilesDict []string) {
+		for pi, pc := range peopleMatrix {
+			var idx int
+			if pi < len(reversedPeopleDict) {
+				idx = people[reversedPeopleDict[pi]][0]
+			} else {
+				idx = len(merged.reversedPeopleDict)
+			}
+			m := merged.PeopleMatrix[idx]
+			if m == nil {
+				m = map[int]int64{}
+				merged.PeopleMatrix[idx] = m
+			}
+			for file, val := range pc {
+				m[files[reversedFilesDict[file]][0]] += val
+			}
+		}
+	}
+	addPeople(cr1.PeopleMatrix, cr1.reversedPeopleDict, cr1.Files)
+	addPeople(cr2.PeopleMatrix, cr2.reversedPeopleDict, cr2.Files)
+	merged.FilesMatrix = make([]map[int]int64, len(merged.Files))
+	addFiles := func(filesMatrix []map[int]int64, reversedFilesDict []string) {
+		for fi, fc := range filesMatrix {
+			idx := people[reversedFilesDict[fi]][0]
+			m := merged.FilesMatrix[idx]
+			if m == nil {
+				m = map[int]int64{}
+				merged.FilesMatrix[idx] = m
+			}
+			for file, val := range fc {
+				m[files[reversedFilesDict[file]][0]] += val
+			}
+		}
+	}
+	addFiles(cr1.FilesMatrix, cr1.Files)
+	addFiles(cr2.FilesMatrix, cr2.Files)
+	return merged
 }
 
 func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.Writer) {
@@ -291,20 +409,18 @@ func (couples *CouplesAnalysis) serializeBinary(result *CouplesResult, writer io
 		Index:  result.Files,
 		Matrix: pb.MapToCompressedSparseRowMatrix(result.FilesMatrix),
 	}
-	message.DeveloperCouples = &pb.Couples{
-		Index:  couples.reversedPeopleDict,
+	message.PeopleCouples = &pb.Couples{
+		Index:  result.reversedPeopleDict,
 		Matrix: pb.MapToCompressedSparseRowMatrix(result.PeopleMatrix),
 	}
-	message.TouchedFiles = &pb.DeveloperTouchedFiles{
-		Developers: make([]*pb.TouchedFiles, len(couples.reversedPeopleDict)),
-	}
-	for key := range couples.reversedPeopleDict {
+	message.PeopleFiles = make([]*pb.TouchedFiles, len(result.reversedPeopleDict))
+	for key := range result.reversedPeopleDict {
 		files := result.PeopleFiles[key]
 		int32Files := make([]int32, len(files))
 		for i, f := range files {
 			int32Files[i] = int32(f)
 		}
-		message.TouchedFiles.Developers[key] = &pb.TouchedFiles{
+		message.PeopleFiles[key] = &pb.TouchedFiles{
 			Files: int32Files,
 		}
 	}

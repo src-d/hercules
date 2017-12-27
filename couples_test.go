@@ -2,6 +2,8 @@ package hercules
 
 import (
 	"bytes"
+	"io/ioutil"
+	"path"
 	"strings"
 	"testing"
 
@@ -216,22 +218,22 @@ func TestCouplesSerialize(t *testing.T) {
 	c.Serialize(result, true, buffer)
 	msg := pb.CouplesAnalysisResults{}
 	proto.Unmarshal(buffer.Bytes(), &msg)
-	assert.Len(t, msg.TouchedFiles.Developers, 3)
+	assert.Len(t, msg.PeopleFiles, 3)
 	tmp1 := [...]int32{0, 1, 2}
-	assert.Equal(t, msg.TouchedFiles.Developers[0].Files, tmp1[:])
+	assert.Equal(t, msg.PeopleFiles[0].Files, tmp1[:])
 	tmp2 := [...]int32{1, 2}
-	assert.Equal(t, msg.TouchedFiles.Developers[1].Files, tmp2[:])
+	assert.Equal(t, msg.PeopleFiles[1].Files, tmp2[:])
 	tmp3 := [...]int32{0}
-	assert.Equal(t, msg.TouchedFiles.Developers[2].Files, tmp3[:])
-	assert.Equal(t, msg.DeveloperCouples.Index, people[:])
-	assert.Equal(t, msg.DeveloperCouples.Matrix.NumberOfRows, int32(4))
-	assert.Equal(t, msg.DeveloperCouples.Matrix.NumberOfColumns, int32(4))
+	assert.Equal(t, msg.PeopleFiles[2].Files, tmp3[:])
+	assert.Equal(t, msg.PeopleCouples.Index, people[:])
+	assert.Equal(t, msg.PeopleCouples.Matrix.NumberOfRows, int32(4))
+	assert.Equal(t, msg.PeopleCouples.Matrix.NumberOfColumns, int32(4))
 	data := [...]int64{7, 3, 1, 3, 3, 1, 1}
-	assert.Equal(t, msg.DeveloperCouples.Matrix.Data, data[:])
+	assert.Equal(t, msg.PeopleCouples.Matrix.Data, data[:])
 	indices := [...]int32{0, 1, 2, 0, 1, 0, 2}
-	assert.Equal(t, msg.DeveloperCouples.Matrix.Indices, indices[:])
+	assert.Equal(t, msg.PeopleCouples.Matrix.Indices, indices[:])
 	indptr := [...]int64{0, 3, 5, 7, 7}
-	assert.Equal(t, msg.DeveloperCouples.Matrix.Indptr, indptr[:])
+	assert.Equal(t, msg.PeopleCouples.Matrix.Indptr, indptr[:])
 	files := [...]string{"five", "one", "three"}
 	assert.Equal(t, msg.FileCouples.Index, files[:])
 	assert.Equal(t, msg.FileCouples.Matrix.NumberOfRows, int32(3))
@@ -242,4 +244,99 @@ func TestCouplesSerialize(t *testing.T) {
 	assert.Equal(t, msg.FileCouples.Matrix.Indices, indices2[:])
 	indptr2 := [...]int64{0, 3, 6, 9}
 	assert.Equal(t, msg.FileCouples.Matrix.Indptr, indptr2[:])
+}
+
+func TestCouplesDeserialize(t *testing.T) {
+	allBuffer, err := ioutil.ReadFile(path.Join("test_data", "couples.pb"))
+	assert.Nil(t, err)
+	message := pb.AnalysisResults{}
+	err = proto.Unmarshal(allBuffer, &message)
+	assert.Nil(t, err)
+	couples := CouplesAnalysis{}
+	iresult, err := couples.Deserialize(message.Contents[couples.Name()])
+	assert.Nil(t, err)
+	result := iresult.(CouplesResult)
+	assert.Len(t, result.reversedPeopleDict, 2)
+	assert.Len(t, result.PeopleFiles, 2)
+	assert.Len(t, result.PeopleMatrix, 3)
+	assert.Len(t, result.Files, 74)
+	assert.Len(t, result.FilesMatrix, 74)
+}
+
+func TestCouplesMerge(t *testing.T) {
+	r1, r2 := CouplesResult{}, CouplesResult{}
+	people1 := [...]string{"one", "two"}
+	people2 := [...]string{"two", "three"}
+	r1.reversedPeopleDict = people1[:]
+	r2.reversedPeopleDict = people2[:]
+	r1.Files = people1[:]
+	r2.Files = people2[:]
+	r1.PeopleFiles = make([][]int, 2)
+	r1.PeopleFiles[0] = make([]int, 2)
+	r1.PeopleFiles[0][0] = 0
+	r1.PeopleFiles[0][1] = 1
+	r1.PeopleFiles[1] = make([]int, 1)
+	r1.PeopleFiles[1][0] = 0
+	r2.PeopleFiles = make([][]int, 2)
+	r2.PeopleFiles[0] = make([]int, 1)
+	r2.PeopleFiles[0][0] = 1
+	r2.PeopleFiles[1] = make([]int, 2)
+	r2.PeopleFiles[1][0] = 0
+	r2.PeopleFiles[1][1] = 1
+	r1.FilesMatrix = make([]map[int]int64, 2)
+	r1.FilesMatrix[0] = map[int]int64{}
+	r1.FilesMatrix[1] = map[int]int64{}
+	r1.FilesMatrix[0][1] = 100
+	r1.FilesMatrix[1][0] = 100
+	r2.FilesMatrix = make([]map[int]int64, 2)
+	r2.FilesMatrix[0] = map[int]int64{}
+	r2.FilesMatrix[1] = map[int]int64{}
+	r2.FilesMatrix[0][1] = 200
+	r2.FilesMatrix[1][0] = 200
+	r1.PeopleMatrix = make([]map[int]int64, 3)
+	r1.PeopleMatrix[0] = map[int]int64{}
+	r1.PeopleMatrix[1] = map[int]int64{}
+	r1.PeopleMatrix[2] = map[int]int64{}
+	r1.PeopleMatrix[0][1] = 100
+	r1.PeopleMatrix[1][0] = 100
+	r1.PeopleMatrix[2][0] = 300
+	r1.PeopleMatrix[2][1] = 400
+	r2.PeopleMatrix = make([]map[int]int64, 3)
+	r2.PeopleMatrix[0] = map[int]int64{}
+	r2.PeopleMatrix[1] = map[int]int64{}
+	r2.PeopleMatrix[2] = map[int]int64{}
+	r2.PeopleMatrix[0][1] = 10
+	r2.PeopleMatrix[1][0] = 10
+	r2.PeopleMatrix[2][0] = 30
+	r2.PeopleMatrix[2][1] = 40
+	couples := CouplesAnalysis{}
+	merged := couples.MergeResults(r1, r2, nil, nil).(CouplesResult)
+	mergedPeople := [...]string{"one", "two", "three"}
+	assert.Equal(t, merged.reversedPeopleDict, mergedPeople[:])
+	assert.Equal(t, merged.Files, mergedPeople[:])
+	assert.Len(t, merged.PeopleFiles, 3)
+	assert.Equal(t, merged.PeopleFiles[0], getSlice(0, 1))
+	assert.Equal(t, merged.PeopleFiles[1], getSlice(0, 2))
+	assert.Equal(t, merged.PeopleFiles[2], getSlice(1, 2))
+	assert.Len(t, merged.PeopleMatrix, 4)
+	assert.Equal(t, merged.PeopleMatrix[0], getCouplesMap(1, 100))
+	assert.Equal(t, merged.PeopleMatrix[1], getCouplesMap(0, 100, 2, 10))
+	assert.Equal(t, merged.PeopleMatrix[2], getCouplesMap(1, 10))
+	assert.Equal(t, merged.PeopleMatrix[3], getCouplesMap(0, 300, 1, 430, 2, 40))
+	assert.Len(t, merged.FilesMatrix, 3)
+	assert.Equal(t, merged.FilesMatrix[0], getCouplesMap(1, 100))
+	assert.Equal(t, merged.FilesMatrix[1], getCouplesMap(0, 100, 2, 200))
+	assert.Equal(t, merged.FilesMatrix[2], getCouplesMap(1, 200))
+}
+
+func getSlice(vals ...int) []int {
+	return vals
+}
+
+func getCouplesMap(vals ...int) map[int]int64 {
+	res := map[int]int64{}
+	for i := 0; i < len(vals); i += 2 {
+		res[vals[i]] = int64(vals[i+1])
+	}
+	return res
 }
