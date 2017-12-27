@@ -329,27 +329,9 @@ func (analyser *BurndownAnalysis) MergeResults(
 	} else {
 		merged.granularity = bar2.granularity
 	}
-	people := map[string][3]int{}
-	for i, pid := range bar1.reversedPeopleDict {
-		ptrs := people[pid]
-		ptrs[0] = len(people)
-		ptrs[1] = i
-		ptrs[2] = -1
-		people[pid] = ptrs
-	}
-	for i, pid := range bar2.reversedPeopleDict {
-		ptrs, exists := people[pid]
-		if !exists {
-			ptrs[0] = len(people)
-			ptrs[1] = -1
-		}
-		ptrs[2] = i
-		people[pid] = ptrs
-	}
-	merged.reversedPeopleDict = make([]string, len(people))
-	for name, ptrs := range people {
-		merged.reversedPeopleDict[ptrs[0]] = name
-	}
+	var people map[string][3]int
+	people, merged.reversedPeopleDict = IdentityDetector{}.MergeReversedDicts(
+		bar1.reversedPeopleDict, bar2.reversedPeopleDict)
 	var wg sync.WaitGroup
 	if len(bar1.GlobalHistory) > 0 || len(bar2.GlobalHistory) > 0 {
 		wg.Add(1)

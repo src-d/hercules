@@ -144,7 +144,7 @@ func TestIdentityDetectorConsume(t *testing.T) {
 	assert.Equal(t, res["author"].(int), MISSING_AUTHOR)
 }
 
-func TestLoadPeopleDict(t *testing.T) {
+func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	err := id.LoadPeopleDict(path.Join("test_data", "identities"))
 	assert.Nil(t, err)
@@ -179,7 +179,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 }
 */
 
-func TestGeneratePeopleDict(t *testing.T) {
+func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	commits := make([]*object.Commit, 0)
 	iter, err := testRepository.CommitObjects()
@@ -232,7 +232,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], UNMATCHED_AUTHOR)
 }
 
-func TestLoadPeopleDictInvalidPath(t *testing.T) {
+func TestIdentityDetectorLoadPeopleDictInvalidPath(t *testing.T) {
 	id := fixtureIdentityDetector()
 	ipath := "/xxxyyyzzzInvalidPath!hehe"
 	err := id.LoadPeopleDict(ipath)
@@ -350,7 +350,7 @@ func getFakeCommitWithFile(name string, contents string) *object.Commit {
 	return &c
 }
 
-func TestGeneratePeopleDictMailmap(t *testing.T) {
+func TestIdentityDetectorGeneratePeopleDictMailmap(t *testing.T) {
 	id := fixtureIdentityDetector()
 	commits := make([]*object.Commit, 0)
 	iter, err := testRepository.CommitObjects()
@@ -368,4 +368,26 @@ func TestGeneratePeopleDictMailmap(t *testing.T) {
 	id.GeneratePeopleDict(commits)
 	assert.Contains(t, id.ReversedPeopleDict,
 		"strange guy|vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
+}
+
+func TestIdentityDetectorMergeReversedDicts(t *testing.T) {
+	pa1 := [...]string{"one", "two"}
+	pa2 := [...]string{"two", "three"}
+	people, merged := IdentityDetector{}.MergeReversedDicts(pa1[:], pa2[:])
+	assert.Len(t, people, 3)
+	assert.Len(t, merged, 3)
+	assert.Equal(t, people["one"], [3]int{0, 0, -1})
+	assert.Equal(t, people["two"], [3]int{1, 1, 0})
+	assert.Equal(t, people["three"], [3]int{2, -1, 1})
+	vm := [...]string{"one", "two", "three"}
+	assert.Equal(t, merged, vm[:])
+	pa1 = [...]string{"two", "one"}
+	people, merged = IdentityDetector{}.MergeReversedDicts(pa1[:], pa2[:])
+	assert.Len(t, people, 3)
+	assert.Len(t, merged, 3)
+	assert.Equal(t, people["one"], [3]int{1, 1, -1})
+	assert.Equal(t, people["two"], [3]int{0, 0, 0})
+	assert.Equal(t, people["three"], [3]int{2, -1, 1})
+	vm = [...]string{"two", "one", "three"}
+	assert.Equal(t, merged, vm[:])
 }

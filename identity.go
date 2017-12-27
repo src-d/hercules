@@ -213,6 +213,32 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 	id.ReversedPeopleDict = reverse_dict
 }
 
+// MergeReversedDicts joins two identity lists together, excluding duplicates, in-order.
+func (_ IdentityDetector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
+	people := map[string][3]int{}
+	for i, pid := range rd1 {
+		ptrs := people[pid]
+		ptrs[0] = len(people)
+		ptrs[1] = i
+		ptrs[2] = -1
+		people[pid] = ptrs
+	}
+	for i, pid := range rd2 {
+		ptrs, exists := people[pid]
+		if !exists {
+			ptrs[0] = len(people)
+			ptrs[1] = -1
+		}
+		ptrs[2] = i
+		people[pid] = ptrs
+	}
+	mrd := make([]string, len(people))
+	for name, ptrs := range people {
+		mrd[ptrs[0]] = name
+	}
+  return people, mrd
+}
+
 func init() {
 	Registry.Register(&IdentityDetector{})
 }
