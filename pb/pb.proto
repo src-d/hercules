@@ -66,15 +66,11 @@ message TouchedFiles {
     repeated int32 files = 1;  // values correspond to `file_couples::index`
 }
 
-message DeveloperTouchedFiles {
-    // order corresponds to `developer_couples::index`
-    repeated TouchedFiles developers = 1;
-}
-
 message CouplesAnalysisResults {
     Couples file_couples = 6;
-    Couples developer_couples = 7;
-    DeveloperTouchedFiles touched_files = 8;
+    Couples people_couples = 7;
+    // order corresponds to `people_couples::index`
+    repeated TouchedFiles people_files = 8;
 }
 
 message UASTChange {

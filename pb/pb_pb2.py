@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='pb/pb.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n\x0bpb/pb.proto\"~\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0c\n\x04hash\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x0f\n\x07\x63ommits\x18\x06 \x01(\x05\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"\xed\x01\n\x17\x42urndownAnalysisResults\x12\x13\n\x0bgranularity\x18\x01 \x01(\x05\x12\x10\n\x08sampling\x18\x02 \x01(\x05\x12&\n\x07project\x18\x03 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12$\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12%\n\x06people\x18\x05 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x36\n\x12people_interaction\x18\x06 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\":\n\x15\x44\x65veloperTouchedFiles\x12!\n\ndevelopers\x18\x01 \x03(\x0b\x32\r.TouchedFiles\"\x8c\x01\n\x16\x43ouplesAnalysisResults\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12#\n\x11\x64\x65veloper_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12-\n\rtouched_files\x18\x08 \x01(\x0b\x32\x16.DeveloperTouchedFiles\"o\n\nUASTChange\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x12\n\nsrc_before\x18\x02 \x01(\t\x12\x11\n\tsrc_after\x18\x03 \x01(\t\x12\x13\n\x0buast_before\x18\x04 \x01(\t\x12\x12\n\nuast_after\x18\x05 \x01(\t\"7\n\x17UASTChangesSaverResults\x12\x1c\n\x07\x63hanges\x18\x01 \x03(\x0b\x32\x0b.UASTChange\"\x8f\x01\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12\x30\n\x08\x63ontents\x18\x02 \x03(\x0b\x32\x1e.AnalysisResults.ContentsEntry\x1a/\n\rContentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x0bpb/pb.proto\"\x90\x01\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0c\n\x04hash\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x0f\n\x07\x63ommits\x18\x06 \x01(\x05\x12\x10\n\x08run_time\x18\x07 \x01(\x03\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"\xed\x01\n\x17\x42urndownAnalysisResults\x12\x13\n\x0bgranularity\x18\x01 \x01(\x05\x12\x10\n\x08sampling\x18\x02 \x01(\x05\x12&\n\x07project\x18\x03 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12$\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12%\n\x06people\x18\x05 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x36\n\x12people_interaction\x18\x06 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\"\x7f\n\x16\x43ouplesAnalysisResults\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12 \n\x0epeople_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12#\n\x0cpeople_files\x18\x08 \x03(\x0b\x32\r.TouchedFiles\"o\n\nUASTChange\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x12\n\nsrc_before\x18\x02 \x01(\t\x12\x11\n\tsrc_after\x18\x03 \x01(\t\x12\x13\n\x0buast_before\x18\x04 \x01(\t\x12\x12\n\nuast_after\x18\x05 \x01(\t\"7\n\x17UASTChangesSaverResults\x12\x1c\n\x07\x63hanges\x18\x01 \x03(\x0b\x32\x0b.UASTChange\"\x8f\x01\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12\x30\n\x08\x63ontents\x18\x02 \x03(\x0b\x32\x1e.AnalysisResults.ContentsEntry\x1a/\n\rContentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x62\x06proto3')
 )
 
 
@@ -74,6 +74,13 @@ _METADATA = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='run_time', full_name='Metadata.run_time', index=6,
+      number=7, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -86,8 +93,8 @@ _METADATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=15,
-  serialized_end=141,
+  serialized_start=16,
+  serialized_end=160,
 )
 
 
@@ -117,8 +124,8 @@ _BURNDOWNSPARSEMATRIXROW = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=143,
-  serialized_end=185,
+  serialized_start=162,
+  serialized_end=204,
 )
 
 
@@ -169,8 +176,8 @@ _BURNDOWNSPARSEMATRIX = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=187,
-  serialized_end=314,
+  serialized_start=206,
+  serialized_end=333,
 )
 
 
@@ -235,8 +242,8 @@ _BURNDOWNANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=317,
-  serialized_end=554,
+  serialized_start=336,
+  serialized_end=573,
 )
 
 
@@ -294,8 +301,8 @@ _COMPRESSEDSPARSEROWMATRIX = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=556,
-  serialized_end=681,
+  serialized_start=575,
+  serialized_end=700,
 )
 
 
@@ -332,8 +339,8 @@ _COUPLES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=683,
-  serialized_end=751,
+  serialized_start=702,
+  serialized_end=770,
 )
 
 
@@ -363,39 +370,8 @@ _TOUCHEDFILES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=753,
-  serialized_end=782,
-)
-
-
-_DEVELOPERTOUCHEDFILES = _descriptor.Descriptor(
-  name='DeveloperTouchedFiles',
-  full_name='DeveloperTouchedFiles',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='developers', full_name='DeveloperTouchedFiles.developers', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=784,
-  serialized_end=842,
+  serialized_start=772,
+  serialized_end=801,
 )
 
 
@@ -414,16 +390,16 @@ _COUPLESANALYSISRESULTS = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='developer_couples', full_name='CouplesAnalysisResults.developer_couples', index=1,
+      name='people_couples', full_name='CouplesAnalysisResults.people_couples', index=1,
       number=7, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='touched_files', full_name='CouplesAnalysisResults.touched_files', index=2,
-      number=8, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='people_files', full_name='CouplesAnalysisResults.people_files', index=2,
+      number=8, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -439,8 +415,8 @@ _COUPLESANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=845,
-  serialized_end=985,
+  serialized_start=803,
+  serialized_end=930,
 )
 
 
@@ -498,8 +474,8 @@ _UASTCHANGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=987,
-  serialized_end=1098,
+  serialized_start=932,
+  serialized_end=1043,
 )
 
 
@@ -529,8 +505,8 @@ _UASTCHANGESSAVERRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1100,
-  serialized_end=1155,
+  serialized_start=1045,
+  serialized_end=1100,
 )
 
 
@@ -567,8 +543,8 @@ _ANALYSISRESULTS_CONTENTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1254,
-  serialized_end=1301,
+  serialized_start=1199,
+  serialized_end=1246,
 )
 
 _ANALYSISRESULTS = _descriptor.Descriptor(
@@ -604,8 +580,8 @@ _ANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1158,
-  serialized_end=1301,
+  serialized_start=1103,
+  serialized_end=1246,
 )
 
 _BURNDOWNSPARSEMATRIX.fields_by_name['rows'].message_type = _BURNDOWNSPARSEMATRIXROW
@@ -614,10 +590,9 @@ _BURNDOWNANALYSISRESULTS.fields_by_name['files'].message_type = _BURNDOWNSPARSEM
 _BURNDOWNANALYSISRESULTS.fields_by_name['people'].message_type = _BURNDOWNSPARSEMATRIX
 _BURNDOWNANALYSISRESULTS.fields_by_name['people_interaction'].message_type = _COMPRESSEDSPARSEROWMATRIX
 _COUPLES.fields_by_name['matrix'].message_type = _COMPRESSEDSPARSEROWMATRIX
-_DEVELOPERTOUCHEDFILES.fields_by_name['developers'].message_type = _TOUCHEDFILES
 _COUPLESANALYSISRESULTS.fields_by_name['file_couples'].message_type = _COUPLES
-_COUPLESANALYSISRESULTS.fields_by_name['developer_couples'].message_type = _COUPLES
-_COUPLESANALYSISRESULTS.fields_by_name['touched_files'].message_type = _DEVELOPERTOUCHEDFILES
+_COUPLESANALYSISRESULTS.fields_by_name['people_couples'].message_type = _COUPLES
+_COUPLESANALYSISRESULTS.fields_by_name['people_files'].message_type = _TOUCHEDFILES
 _UASTCHANGESSAVERRESULTS.fields_by_name['changes'].message_type = _UASTCHANGE
 _ANALYSISRESULTS_CONTENTSENTRY.containing_type = _ANALYSISRESULTS
 _ANALYSISRESULTS.fields_by_name['header'].message_type = _METADATA
@@ -629,7 +604,6 @@ DESCRIPTOR.message_types_by_name['BurndownAnalysisResults'] = _BURNDOWNANALYSISR
 DESCRIPTOR.message_types_by_name['CompressedSparseRowMatrix'] = _COMPRESSEDSPARSEROWMATRIX
 DESCRIPTOR.message_types_by_name['Couples'] = _COUPLES
 DESCRIPTOR.message_types_by_name['TouchedFiles'] = _TOUCHEDFILES
-DESCRIPTOR.message_types_by_name['DeveloperTouchedFiles'] = _DEVELOPERTOUCHEDFILES
 DESCRIPTOR.message_types_by_name['CouplesAnalysisResults'] = _COUPLESANALYSISRESULTS
 DESCRIPTOR.message_types_by_name['UASTChange'] = _UASTCHANGE
 DESCRIPTOR.message_types_by_name['UASTChangesSaverResults'] = _UASTCHANGESSAVERRESULTS
@@ -684,13 +658,6 @@ TouchedFiles = _reflection.GeneratedProtocolMessageType('TouchedFiles', (_messag
   # @@protoc_insertion_point(class_scope:TouchedFiles)
   ))
 _sym_db.RegisterMessage(TouchedFiles)
-
-DeveloperTouchedFiles = _reflection.GeneratedProtocolMessageType('DeveloperTouchedFiles', (_message.Message,), dict(
-  DESCRIPTOR = _DEVELOPERTOUCHEDFILES,
-  __module__ = 'pb.pb_pb2'
-  # @@protoc_insertion_point(class_scope:DeveloperTouchedFiles)
-  ))
-_sym_db.RegisterMessage(DeveloperTouchedFiles)
 
 CouplesAnalysisResults = _reflection.GeneratedProtocolMessageType('CouplesAnalysisResults', (_message.Message,), dict(
   DESCRIPTOR = _COUPLESANALYSISRESULTS,

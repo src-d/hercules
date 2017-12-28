@@ -236,7 +236,7 @@ func (_ IdentityDetector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]i
 	for name, ptrs := range people {
 		mrd[ptrs[0]] = name
 	}
-  return people, mrd
+	return people, mrd
 }
 
 func init() {

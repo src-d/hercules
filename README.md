@@ -7,7 +7,8 @@ Powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc
 There are two tools: `hercules` and `labours.py`. The first is the program
 written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md).
 The second is the Python script which draws some predefined plots. These two tools are normally used together through
-a pipe. It is possible to write custom analyses using the plugin system.
+a pipe. It is possible to write custom analyses using the plugin system. It is also possible
+to merge several analysis results together.
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules -burndown -burndown-people -couples -feature=uast -dry-run -dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
@@ -189,6 +190,16 @@ python3 labours.py -m all
 ### Plugins
 
 Hercules has a plugin system and allows to run custom analyses. See [PLUGINS.md](PLUGINS.md).
+
+### Merging
+
+`hercules-combine` is the tool which joins several analysis results in Protocol Buffers format together. 
+
+```
+hercules -burndown -pb https://github.com/src-d/go-git > go-git.pb
+hercules -burndown -pb https://github.com/src-d/hercules > hercules.pb
+hercules-combine go-git.pb hercules.pb | python3 labours.py -f pb -m project --resample M
+```
 
 ### Bad unicode errors
 
