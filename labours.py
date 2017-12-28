@@ -41,7 +41,7 @@ def parse_args():
                              "the real image.")
     parser.add_argument("-i", "--input", default="-",
                         help="Path to the input file (- for stdin).")
-    parser.add_argument("-f", "--input-format", default="yaml", choices=["yaml", "pb"])
+    parser.add_argument("-f", "--input-format", default="auto", choices=["yaml", "pb", "auto"])
     parser.add_argument("--text-size", default=12, type=int,
                         help="Size of the labels and legend.")
     parser.add_argument("--backend", help="Matplotlib backend to use.")
@@ -251,12 +251,17 @@ class ProtobufReader(Reader):
                           shape=(matrix.number_of_rows, matrix.number_of_columns))
 
 
-READERS = {"yaml": YamlReader, "pb": ProtobufReader}
+READERS = {"yaml": YamlReader, "yml": YamlReader, "pb": ProtobufReader}
 
 
 def read_input(args):
     sys.stdout.write("Reading the input... ")
     sys.stdout.flush()
+    if args.input != "-":
+        if args.input_format == "auto":
+            args.input_format = args.input.rsplit(".", 1)[1]
+    elif args.input_format == "auto":
+        args.input_format = "yaml"
     reader = READERS[args.input_format]()
     reader.read(args.input)
     print("done")
@@ -277,6 +282,130 @@ def calculate_average_lifetime(matrix):
             / (lifetimes.sum() * matrix.shape[1]))
 
 
+def interpolate_burndown_matrix(matrix, granularity, sampling):
+    daily = numpy.zeros(
+        (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
+        dtype=numpy.float32)
+    """
+    ----------> samples, x
+    |
+    |
+    |
+    ⌄
+    bands, y
+    """
+    for y in range(matrix.shape[0]):
+        for x in range(matrix.shape[1]):
+            if y * granularity > (x + 1) * sampling:
+                # the future is zeros
+                continue
+
+            def decay(start_index: int, start_val: float):
+                if start_val == 0:
+                    return
+                k = matrix[y][x] / start_val  # <= 1
+                scale = (x + 1) * sampling - start_index
+                for i in range(y * granularity, (y + 1) * granularity):
+                    initial = daily[i][start_index - 1]
+                    for j in range(start_index, (x + 1) * sampling):
+                        daily[i][j] = initial * (
+                            1 + (k - 1) * (j - start_index + 1) / scale)
+
+            def grow(finish_index: int, finish_val: float):
+                initial = matrix[y][x - 1] if x > 0 else 0
+                start_index = x * sampling
+                if start_index < y * granularity:
+                    start_index = y * granularity
+                if finish_index == start_index:
+                    return
+                avg = (finish_val - initial) / (finish_index - start_index)
+                for j in range(x * sampling, finish_index):
+                    for i in range(start_index, j + 1):
+                        daily[i][j] = avg
+                # copy [x*g..y*s)
+                for j in range(x * sampling, finish_index):
+                    for i in range(y * granularity, x * sampling):
+                        daily[i][j] = daily[i][j - 1]
+
+            if (y + 1) * granularity >= (x + 1) * sampling:
+                # x*granularity <= (y+1)*sampling
+                # 1. x*granularity <= y*sampling
+                #    y*sampling..(y+1)sampling
+                #
+                #       x+1
+                #        /
+                #       /
+                #      / y+1  -|
+                #     /        |
+                #    / y      -|
+                #   /
+                #  / x
+                #
+                # 2. x*granularity > y*sampling
+                #    x*granularity..(y+1)sampling
+                #
+                #       x+1
+                #        /
+                #       /
+                #      / y+1  -|
+                #     /        |
+                #    / x      -|
+                #   /
+                #  / y
+                if y * granularity <= x * sampling:
+                    grow((x + 1) * sampling, matrix[y][x])
+                elif (x + 1) * sampling > y * granularity:
+                    grow((x + 1) * sampling, matrix[y][x])
+                    avg = matrix[y][x] / ((x + 1) * sampling - y * granularity)
+                    for j in range(y * granularity, (x + 1) * sampling):
+                        for i in range(y * granularity, j + 1):
+                            daily[i][j] = avg
+            elif (y + 1) * granularity >= x * sampling:
+                # y*sampling <= (x+1)*granularity < (y+1)sampling
+                # y*sampling..(x+1)*granularity
+                # (x+1)*granularity..(y+1)sampling
+                #        x+1
+                #         /\
+                #        /  \
+                #       /    \
+                #      /    y+1
+                #     /
+                #    y
+                v1 = matrix[y][x - 1]
+                v2 = matrix[y][x]
+                delta = (y + 1) * granularity - x * sampling
+                previous = 0
+                if x > 0 and (x - 1) * sampling >= y * granularity:
+                    # x*g <= (y-1)*s <= y*s <= (x+1)*g <= (y+1)*s
+                    #           |________|.......^
+                    if x > 1:
+                        previous = matrix[y][x - 2]
+                    scale = sampling
+                else:
+                    # (y-1)*s < x*g <= y*s <= (x+1)*g <= (y+1)*s
+                    #            |______|.......^
+                    scale = sampling if x == 0 else x * sampling - y * granularity
+                peak = v1 + (v1 - previous) / scale * delta
+                if v2 > peak:
+                    # we need to adjust the peak, it may not be less than the decayed value
+                    if x < matrix.shape[1] - 1:
+                        # y*s <= (x+1)*g <= (y+1)*s < (y+2)*s
+                        #           ^.........|_________|
+                        k = (v2 - matrix[y][x + 1]) / sampling  # > 0
+                        peak = matrix[y][x] + k * ((x + 1) * sampling - (y + 1) * granularity)
+                        # peak > v2 > v1
+                    else:
+                        peak = v2
+                        # not enough data to interpolate; this is at least not restricted
+                grow((y + 1) * granularity, peak)
+                decay((y + 1) * granularity, peak)
+            else:
+                # (x+1)*granularity < y*sampling
+                # y*sampling..(y+1)sampling
+                decay(x * sampling, matrix[y][x - 1])
+    return daily
+
+
 def load_burndown(header, name, matrix, resample):
     import pandas
 
@@ -291,23 +420,8 @@ def load_burndown(header, name, matrix, resample):
         # Interpolate the day x day matrix.
         # Each day brings equal weight in the granularity.
         # Sampling's interpolation is linear.
-        daily_matrix = numpy.zeros(
-            (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
-            dtype=numpy.float32)
-        epsrange = numpy.arange(0, 1, 1.0 / sampling)
-        for y in range(matrix.shape[0]):
-            for x in range(matrix.shape[1]):
-                if (y + 1) * granularity <= x * sampling:
-                    previous = matrix[y, x - 1] if x > 0 else 0
-                    value = ((previous + (matrix[y, x] - previous) * epsrange)
-                             / granularity)[numpy.newaxis, :]
-                    daily_matrix[y * granularity:(y + 1) * granularity,
-                                 x * sampling:(x + 1) * sampling] = value
-                elif y * granularity <= (x + 1) * sampling:
-                    for suby in range(y * granularity, (y + 1) * granularity):
-                        for subx in range(suby, (x + 1) * sampling):
-                            daily_matrix[suby, subx] = matrix[y, x] / granularity
-        daily_matrix[(last - start).days:] = 0
+        daily = interpolate_burndown_matrix(matrix, granularity, sampling)
+        daily[(last - start).days:] = 0
         # Resample the bands
         aliases = {
             "year": "A",
@@ -337,7 +451,7 @@ def load_burndown(header, name, matrix, resample):
                 if (sdt - start).days >= istart:
                     break
             matrix[i, j:] = \
-                daily_matrix[istart:ifinish, (sdt - start).days:].sum(axis=0)
+                daily[istart:ifinish, (sdt - start).days:].sum(axis=0)
         # Hardcode some cases to improve labels' readability
         if resample in ("year", "A"):
             labels = [dt.year for dt in date_granularity_sampling]
