@@ -527,6 +527,9 @@ func addBurndownMatrix(matrix [][]int64, granularity, sampling int, daily [][]fl
 				continue
 			}
 			decay := func(startIndex int, startVal float32) {
+				if startVal == 0 {
+					return
+				}
 				k := float32(matrix[y][x]) / startVal // <= 1
 				scale := float32((y+1)*sampling - startIndex)
 				for i := x * granularity; i < (x+1)*granularity; i++ {
@@ -544,6 +547,9 @@ func addBurndownMatrix(matrix [][]int64, granularity, sampling int, daily [][]fl
 				startIndex := y * sampling
 				if startIndex < x*granularity {
 					startIndex = x * granularity
+				}
+				if startIndex == finishIndex {
+					return
 				}
 				avg := (finishVal - initial) / float32(finishIndex-startIndex)
 				for j := y * sampling; j < finishIndex; j++ {
@@ -585,7 +591,7 @@ func addBurndownMatrix(matrix [][]int64, granularity, sampling int, daily [][]fl
 				//  / y
 				if x*granularity <= y*sampling {
 					raise((y+1)*sampling, float32(matrix[y][x]))
-				} else {
+				} else if (y+1)*sampling > x*granularity {
 					raise((y+1)*sampling, float32(matrix[y][x]))
 					avg := float32(matrix[y][x]) / float32((y+1)*sampling-x*granularity)
 					for j := x * granularity; j < (y+1)*sampling; j++ {

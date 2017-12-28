@@ -678,9 +678,14 @@ func TestBurndownAddMatrixCrazy(t *testing.T) {
 		  6  9 13
 	*/
 	addBurndownMatrix(added, 5, 3, daily, 0)
-	/*for _, row := range daily {
-		fmt.Println(row)
-	}*/
+	/*
+	for _, row := range daily {
+	  for _, v := range row {
+		  fmt.Print(v, " ")
+	  }
+		fmt.Println()
+	}
+	*/
 	// check pinned points
 	for y := 0; y < 5; y++ {
 		for x := 0; x < 3; x++ {
@@ -704,6 +709,84 @@ func TestBurndownAddMatrixCrazy(t *testing.T) {
 			assert.Equal(t, daily[y][x], prev)
 		}
 		for y := ((x + 3) / 5) * 5; y < 15; y++ {
+			if prev == 0 {
+				prev = daily[y][x]
+			}
+			assert.True(t, daily[y][x] <= prev)
+			prev = daily[y][x]
+		}
+	}
+}
+
+func TestBurndownAddMatrixNaNs(t *testing.T) {
+	size := 4 * 4
+	daily := make([][]float32, size)
+	for i := range daily {
+		daily[i] = make([]float32, size)
+	}
+	added := make([][]int64, 4)
+	for i := range added {
+		added[i] = make([]int64, 4)
+		switch i {
+		case 0:
+			added[i][0] = 20
+		case 1:
+			added[i][0] = 18
+			added[i][1] = 30
+		case 2:
+			added[i][0] = 15
+			added[i][1] = 25
+			added[i][2] = 28
+		case 3:
+			added[i][0] = 12
+			added[i][1] = 20
+			added[i][2] = 25
+			added[i][3] = 40
+		}
+	}
+	// yaml.PrintMatrix(os.Stdout, added, 0, "test", true)
+	/*
+			"test": |-
+		  20 0  0  0
+		  18 30 0  0
+		  15 25 28 0
+		  12 20 25 40
+	*/
+	addBurndownMatrix(added, 4, 4, daily, 0)
+  /*
+	for _, row := range daily {
+	  for _, v := range row {
+		  fmt.Print(v, " ")
+	  }
+		fmt.Println()
+	}
+  */
+	// check pinned points
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 4; x++ {
+			var sum float32
+			for i := x * 4; i < (x+1)*4; i++ {
+				sum += daily[(y+1)*4-1][i]
+			}
+			assert.InDelta(t, sum, added[y][x], 0.00001)
+		}
+	}
+	// check overall trend: 0 -> const -> peak -> decay
+	for x := 0; x < 16; x++ {
+		for y := 0; y < x; y++ {
+			assert.Zero(t, daily[y][x])
+		}
+		var prev float32
+		for y := x-4; y < x; y++ {
+			if y < 0 {
+				continue
+			}
+			if prev == 0 {
+				prev = daily[y][x]
+			}
+			assert.Equal(t, daily[y][x], prev)
+		}
+		for y := x; y < 16; y++ {
 			if prev == 0 {
 				prev = daily[y][x]
 			}
