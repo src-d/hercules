@@ -68,7 +68,12 @@ func (churn *ChurnAnalysis) Provides() []string {
 // day - number of days since start for each commit
 // author - author of the commit
 func (churn *ChurnAnalysis) Requires() []string {
-	arr := [...]string{DependencyFileDiff, DependencyTreeChanges, DependencyBlobCache, DependencyDay, DependencyAuthor}
+	arr := [...]string{
+		hercules.DependencyFileDiff,
+		hercules.DependencyTreeChanges,
+		hercules.DependencyBlobCache,
+		hercules.DependencyDay,
+		hercules.DependencyAuthor}
 	return arr[:]
 }
 
@@ -107,11 +112,11 @@ func (churn *ChurnAnalysis) Initialize(repository *git.Repository) {
 }
 
 func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	fileDiffs := deps[DependencyFileDiff].(map[string]hercules.FileDiffData)
-	treeDiffs := deps[DependencyTreeChanges].(object.Changes)
-	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
-	day := deps[DependencyDay].(int)
-	author := deps[DependencyAuthor].(int)
+	fileDiffs := deps[hercules.DependencyFileDiff].(map[string]hercules.FileDiffData)
+	treeDiffs := deps[hercules.DependencyTreeChanges].(object.Changes)
+	cache := deps[hercules.DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	day := deps[hercules.DependencyDay].(int)
+	author := deps[hercules.DependencyAuthor].(int)
 	for _, change := range treeDiffs {
 		action, err := change.Action()
 		if err != nil {
