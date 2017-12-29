@@ -17,10 +17,10 @@ func TestRenameAnalysisMeta(t *testing.T) {
 	ra := fixtureRenameAnalysis()
 	assert.Equal(t, ra.Name(), "RenameAnalysis")
 	assert.Equal(t, len(ra.Provides()), 1)
-	assert.Equal(t, ra.Provides()[0], "changes")
+	assert.Equal(t, ra.Provides()[0], DependencyTreeChanges)
 	assert.Equal(t, len(ra.Requires()), 2)
-	assert.Equal(t, ra.Requires()[0], "blob_cache")
-	assert.Equal(t, ra.Requires()[1], "changes")
+	assert.Equal(t, ra.Requires()[0], DependencyBlobCache)
+	assert.Equal(t, ra.Requires()[1], DependencyTreeChanges)
 	opts := ra.ListConfigurationOptions()
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigRenameAnalysisSimilarityThreshold)
@@ -117,17 +117,17 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
 	cache[hash], _ = testRepository.BlobObject(hash)
 	deps := map[string]interface{}{}
-	deps["blob_cache"] = cache
-	deps["changes"] = changes
+	deps[DependencyBlobCache] = cache
+	deps[DependencyTreeChanges] = changes
 	ra.SimilarityThreshold = 33
 	res, err := ra.Consume(deps)
 	assert.Nil(t, err)
-	renamed := res["changes"].(object.Changes)
+	renamed := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(renamed), 2)
 	ra.SimilarityThreshold = 35
 	res, err = ra.Consume(deps)
 	assert.Nil(t, err)
-	renamed = res["changes"].(object.Changes)
+	renamed = res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(renamed), 3)
 }
 

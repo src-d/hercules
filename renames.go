@@ -33,12 +33,12 @@ func (ra *RenameAnalysis) Name() string {
 }
 
 func (ra *RenameAnalysis) Provides() []string {
-	arr := [...]string{"changes"}
+	arr := [...]string{DependencyTreeChanges}
 	return arr[:]
 }
 
 func (ra *RenameAnalysis) Requires() []string {
-	arr := [...]string{"blob_cache", "changes"}
+	arr := [...]string{DependencyBlobCache, DependencyTreeChanges}
 	return arr[:]
 }
 
@@ -69,8 +69,8 @@ func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 }
 
 func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	changes := deps["changes"].(object.Changes)
-	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
+	changes := deps[DependencyTreeChanges].(object.Changes)
+	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
 
 	reduced_changes := make(object.Changes, 0, changes.Len())
 
@@ -176,7 +176,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	for _, blob := range deleted_blobs {
 		reduced_changes = append(reduced_changes, blob.change)
 	}
-	return map[string]interface{}{"changes": reduced_changes}, nil
+	return map[string]interface{}{DependencyTreeChanges: reduced_changes}, nil
 }
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {

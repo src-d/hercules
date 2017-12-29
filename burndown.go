@@ -96,7 +96,8 @@ func (analyser *BurndownAnalysis) Provides() []string {
 }
 
 func (analyser *BurndownAnalysis) Requires() []string {
-	arr := [...]string{"file_diff", "changes", "blob_cache", "day", "author"}
+	arr := [...]string{
+		DependencyFileDiff, DependencyTreeChanges, DependencyBlobCache, DependencyDay, DependencyAuthor}
 	return arr[:]
 }
 
@@ -191,17 +192,17 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	if sampling == 0 {
 		sampling = 1
 	}
-	author := deps["author"].(int)
-	analyser.day = deps["day"].(int)
+	author := deps[DependencyAuthor].(int)
+	analyser.day = deps[DependencyDay].(int)
 	delta := (analyser.day / sampling) - (analyser.previousDay / sampling)
 	if delta > 0 {
 		analyser.previousDay = analyser.day
 		gs, fss, pss := analyser.groupStatus()
 		analyser.updateHistories(gs, fss, pss, delta)
 	}
-	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
-	treeDiffs := deps["changes"].(object.Changes)
-	fileDiffs := deps["file_diff"].(map[string]FileDiffData)
+	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	treeDiffs := deps[DependencyTreeChanges].(object.Changes)
+	fileDiffs := deps[DependencyFileDiff].(map[string]FileDiffData)
 	for _, change := range treeDiffs {
 		action, err := change.Action()
 		if err != nil {

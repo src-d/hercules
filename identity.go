@@ -26,6 +26,8 @@ const (
 	FactIdentityDetectorReversedPeopleDict = "IdentityDetector.ReversedPeopleDict"
 	ConfigIdentityDetectorPeopleDictPath   = "IdentityDetector.PeopleDictPath"
 	FactIdentityDetectorPeopleCount        = "IdentityDetector.PeopleCount"
+
+	DependencyAuthor = "author"
 )
 
 func (id *IdentityDetector) Name() string {
@@ -33,7 +35,7 @@ func (id *IdentityDetector) Name() string {
 }
 
 func (id *IdentityDetector) Provides() []string {
-	arr := [...]string{"author"}
+	arr := [...]string{DependencyAuthor}
 	return arr[:]
 }
 
@@ -91,7 +93,7 @@ func (self *IdentityDetector) Consume(deps map[string]interface{}) (map[string]i
 			id = MISSING_AUTHOR
 		}
 	}
-	return map[string]interface{}{"author": id}, nil
+	return map[string]interface{}{DependencyAuthor: id}, nil
 }
 
 func (id *IdentityDetector) LoadPeopleDict(path string) error {

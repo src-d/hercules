@@ -20,12 +20,16 @@ func TestFileDiffMeta(t *testing.T) {
 	fd := fixtureFileDiff()
 	assert.Equal(t, fd.Name(), "FileDiff")
 	assert.Equal(t, len(fd.Provides()), 1)
-	assert.Equal(t, fd.Provides()[0], "file_diff")
+	assert.Equal(t, fd.Provides()[0], DependencyFileDiff)
 	assert.Equal(t, len(fd.Requires()), 2)
-	assert.Equal(t, fd.Requires()[0], "changes")
-	assert.Equal(t, fd.Requires()[1], "blob_cache")
-	assert.Len(t, fd.ListConfigurationOptions(), 0)
-	fd.Configure(nil)
+	assert.Equal(t, fd.Requires()[0], DependencyTreeChanges)
+	assert.Equal(t, fd.Requires()[1], DependencyBlobCache)
+	assert.Len(t, fd.ListConfigurationOptions(), 1)
+	assert.Equal(t, fd.ListConfigurationOptions()[0].Name, ConfigFileDiffDisableCleanup)
+	facts := map[string]interface{}{}
+	facts[ConfigFileDiffDisableCleanup] = true
+	fd.Configure(facts)
+	assert.True(t, fd.CleanupDisabled)
 }
 
 func TestFileDiffRegistration(t *testing.T) {
@@ -52,7 +56,7 @@ func TestFileDiffConsume(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
@@ -95,10 +99,10 @@ func TestFileDiffConsume(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, err)
-	diffs := res["file_diff"].(map[string]FileDiffData)
+	diffs := res[DependencyFileDiff].(map[string]FileDiffData)
 	assert.Equal(t, len(diffs), 1)
 	diff := diffs["analyser.go"]
 	assert.Equal(t, diff.OldLinesOfCode, 307)
@@ -129,7 +133,7 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes := make(object.Changes, 1)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
@@ -152,7 +156,7 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 			Hash: plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"),
 		},
 	}}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, res)
 	assert.NotNil(t, err)
@@ -226,4 +230,48 @@ notifications:
 	str, err = BlobToString(blob)
 	assert.Equal(t, str, "")
 	assert.NotNil(t, err)
+}
+
+func TestFileDiffDarkMagic(t *testing.T) {
+	fd := fixtureFileDiff()
+	deps := map[string]interface{}{}
+	cache := map[plumbing.Hash]*object.Blob{}
+	hash := plumbing.NewHash("448eb3f312849b0ca766063d06b09481c987b309")
+	cache[hash], _ = testRepository.BlobObject(hash) // 1.java
+	hash = plumbing.NewHash("3312c92f3e8bdfbbdb30bccb6acd1b85bc338dfc")
+	cache[hash], _ = testRepository.BlobObject(hash) // 2.java
+	deps[DependencyBlobCache] = cache
+	changes := make(object.Changes, 1)
+	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+		"f02289bfe843388a1bb3c7dea210374082dd86b9"))
+	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+		"eca91acf1fd828f20dcb653a061d8c97d965bc6c"))
+	changes[0] = &object.Change{From: object.ChangeEntry{
+		Name: "test.java",
+		Tree: treeFrom,
+		TreeEntry: object.TreeEntry{
+			Name: "test.java",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("448eb3f312849b0ca766063d06b09481c987b309"),
+		},
+	}, To: object.ChangeEntry{
+		Name: "test.java",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "test.java",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("3312c92f3e8bdfbbdb30bccb6acd1b85bc338dfc"),
+		},
+	}}
+	deps[DependencyTreeChanges] = changes
+	res, err := fd.Consume(deps)
+	assert.Nil(t, err)
+	magicDiffs := res[DependencyFileDiff].(map[string]FileDiffData)["test.java"]
+	fd.CleanupDisabled = true
+	res, err = fd.Consume(deps)
+	assert.Nil(t, err)
+	plainDiffs := res[DependencyFileDiff].(map[string]FileDiffData)["test.java"]
+	assert.NotEqual(t, magicDiffs.Diffs, plainDiffs.Diffs)
+	assert.Equal(t, magicDiffs.OldLinesOfCode, plainDiffs.OldLinesOfCode)
+	assert.Equal(t, magicDiffs.NewLinesOfCode, plainDiffs.NewLinesOfCode)
 }

@@ -48,6 +48,9 @@ const (
 	ConfigUASTPoolSize     = "ConfigUASTPoolSize"
 	ConfigUASTFailOnErrors = "ConfigUASTFailOnErrors"
 	ConfigUASTLanguages    = "ConfigUASTLanguages"
+
+	FeatureUast     = "uast"
+	DependencyUasts = "uasts"
 )
 
 type uastTask struct {
@@ -79,17 +82,17 @@ func (exr *UASTExtractor) Name() string {
 }
 
 func (exr *UASTExtractor) Provides() []string {
-	arr := [...]string{"uasts"}
+	arr := [...]string{DependencyUasts}
 	return arr[:]
 }
 
 func (exr *UASTExtractor) Requires() []string {
-	arr := [...]string{"changes", "blob_cache"}
+	arr := [...]string{DependencyTreeChanges, DependencyBlobCache}
 	return arr[:]
 }
 
 func (exr *UASTExtractor) Features() []string {
-	arr := [...]string{"uast"}
+	arr := [...]string{FeatureUast}
 	return arr[:]
 }
 
@@ -185,8 +188,8 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 }
 
 func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
-	treeDiffs := deps["changes"].(object.Changes)
+	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	treeDiffs := deps[DependencyTreeChanges].(object.Changes)
 	uasts := map[plumbing.Hash]*uast.Node{}
 	lock := sync.RWMutex{}
 	errs := make([]error, 0)
@@ -249,7 +252,7 @@ func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]inter
 			fmt.Fprintln(os.Stderr, joined)
 		}
 	}
-	return map[string]interface{}{"uasts": uasts}, nil
+	return map[string]interface{}{DependencyUasts: uasts}, nil
 }
 
 func (exr *UASTExtractor) extractUAST(
@@ -303,6 +306,10 @@ type UASTChange struct {
 	Change *object.Change
 }
 
+const (
+	DependencyUastChanges = "changed_uasts"
+)
+
 type UASTChanges struct {
 	cache map[plumbing.Hash]*uast.Node
 }
@@ -312,17 +319,17 @@ func (uc *UASTChanges) Name() string {
 }
 
 func (uc *UASTChanges) Provides() []string {
-	arr := [...]string{"changed_uasts"}
+	arr := [...]string{DependencyUastChanges}
 	return arr[:]
 }
 
 func (uc *UASTChanges) Requires() []string {
-	arr := [...]string{"uasts", "changes"}
+	arr := [...]string{DependencyUasts, DependencyTreeChanges}
 	return arr[:]
 }
 
 func (uc *UASTChanges) Features() []string {
-	arr := [...]string{"uast"}
+	arr := [...]string{FeatureUast}
 	return arr[:]
 }
 
@@ -337,8 +344,8 @@ func (uc *UASTChanges) Initialize(repository *git.Repository) {
 }
 
 func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	uasts := deps["uasts"].(map[plumbing.Hash]*uast.Node)
-	treeDiffs := deps["changes"].(object.Changes)
+	uasts := deps[DependencyUasts].(map[plumbing.Hash]*uast.Node)
+	treeDiffs := deps[DependencyTreeChanges].(object.Changes)
 	commit := make([]UASTChange, 0, len(treeDiffs))
 	for _, change := range treeDiffs {
 		action, err := change.Action()
@@ -364,7 +371,7 @@ func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interfac
 			uc.cache[hashTo] = uastTo
 		}
 	}
-	return map[string]interface{}{"changed_uasts": commit}, nil
+	return map[string]interface{}{DependencyUastChanges: commit}, nil
 }
 
 type UASTChangesSaver struct {
@@ -388,12 +395,12 @@ func (saver *UASTChangesSaver) Provides() []string {
 }
 
 func (saver *UASTChangesSaver) Requires() []string {
-	arr := [...]string{"changed_uasts"}
+	arr := [...]string{DependencyUastChanges}
 	return arr[:]
 }
 
 func (saver *UASTChangesSaver) Features() []string {
-	arr := [...]string{"uast"}
+	arr := [...]string{FeatureUast}
 	return arr[:]
 }
 
@@ -424,7 +431,7 @@ func (saver *UASTChangesSaver) Initialize(repository *git.Repository) {
 }
 
 func (saver *UASTChangesSaver) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	changes := deps["changed_uasts"].([]UASTChange)
+	changes := deps[DependencyUastChanges].([]UASTChange)
 	saver.result = append(saver.result, changes)
 	return nil, nil
 }
