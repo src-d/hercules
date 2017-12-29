@@ -12,12 +12,16 @@ type DaysSinceStart struct {
 	previousDay int
 }
 
+const (
+	DependencyDay = "day"
+)
+
 func (days *DaysSinceStart) Name() string {
 	return "DaysSinceStart"
 }
 
 func (days *DaysSinceStart) Provides() []string {
-	arr := [...]string{"day"}
+	arr := [...]string{DependencyDay}
 	return arr[:]
 }
 
@@ -51,7 +55,7 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 		day = days.previousDay
 	}
 	days.previousDay = day
-	return map[string]interface{}{"day": day}, nil
+	return map[string]interface{}{DependencyDay: day}, nil
 }
 
 func init() {

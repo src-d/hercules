@@ -46,7 +46,7 @@ func (couples *CouplesAnalysis) Provides() []string {
 }
 
 func (couples *CouplesAnalysis) Requires() []string {
-	arr := [...]string{"author", "changes"}
+	arr := [...]string{DependencyAuthor, DependencyTreeChanges}
 	return arr[:]
 }
 
@@ -75,12 +75,12 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 }
 
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	author := deps["author"].(int)
+	author := deps[DependencyAuthor].(int)
 	if author == MISSING_AUTHOR {
 		author = couples.PeopleNumber
 	}
 	couples.people_commits[author] += 1
-	tree_diff := deps["changes"].(object.Changes)
+	tree_diff := deps[DependencyTreeChanges].(object.Changes)
 	context := make([]string, 0)
 	deleteFile := func(name string) {
 		// we do not remove the file from people - the context does not expire

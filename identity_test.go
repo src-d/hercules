@@ -35,7 +35,7 @@ func TestIdentityDetectorMeta(t *testing.T) {
 	assert.Equal(t, id.Name(), "IdentityDetector")
 	assert.Equal(t, len(id.Requires()), 0)
 	assert.Equal(t, len(id.Provides()), 1)
-	assert.Equal(t, id.Provides()[0], "author")
+	assert.Equal(t, id.Provides()[0], DependencyAuthor)
 	opts := id.ListConfigurationOptions()
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigIdentityDetectorPeopleDictPath)
@@ -135,13 +135,13 @@ func TestIdentityDetectorConsume(t *testing.T) {
 	deps["commit"] = commit
 	res, err := fixtureIdentityDetector().Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res["author"].(int), 0)
+	assert.Equal(t, res[DependencyAuthor].(int), 0)
 	commit, _ = testRepository.CommitObject(plumbing.NewHash(
 		"8a03b5620b1caa72ec9cb847ea88332621e2950a"))
 	deps["commit"] = commit
 	res, err = fixtureIdentityDetector().Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res["author"].(int), MISSING_AUTHOR)
+	assert.Equal(t, res[DependencyAuthor].(int), MISSING_AUTHOR)
 }
 
 func TestIdentityDetectorLoadPeopleDict(t *testing.T) {

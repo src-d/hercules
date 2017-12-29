@@ -21,7 +21,7 @@ func TestTreeDiffMeta(t *testing.T) {
 	assert.Equal(t, td.Name(), "TreeDiff")
 	assert.Equal(t, len(td.Requires()), 0)
 	assert.Equal(t, len(td.Provides()), 1)
-	assert.Equal(t, td.Provides()[0], "changes")
+	assert.Equal(t, td.Provides()[0], DependencyTreeChanges)
 	opts := td.ListConfigurationOptions()
 	assert.Len(t, opts, 0)
 }
@@ -52,7 +52,7 @@ func TestTreeDiffConsume(t *testing.T) {
 	res, err := td.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res), 1)
-	changes := res["changes"].(object.Changes)
+	changes := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(changes), 12)
 	baseline := map[string]merkletrie.Action{
 		"analyser.go":               merkletrie.Delete,
@@ -90,7 +90,7 @@ func TestTreeDiffConsumeFirst(t *testing.T) {
 	res, err := td.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res), 1)
-	changes := res["changes"].(object.Changes)
+	changes := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(changes), 21)
 	for _, change := range changes {
 		action, err := change.Action()

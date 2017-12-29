@@ -27,10 +27,10 @@ func TestUASTExtractorMeta(t *testing.T) {
 	exr := fixtureUASTExtractor()
 	assert.Equal(t, exr.Name(), "UAST")
 	assert.Equal(t, len(exr.Provides()), 1)
-	assert.Equal(t, exr.Provides()[0], "uasts")
+	assert.Equal(t, exr.Provides()[0], DependencyUasts)
 	assert.Equal(t, len(exr.Requires()), 2)
-	assert.Equal(t, exr.Requires()[0], "changes")
-	assert.Equal(t, exr.Requires()[1], "blob_cache")
+	assert.Equal(t, exr.Requires()[0], DependencyTreeChanges)
+	assert.Equal(t, exr.Requires()[1], DependencyBlobCache)
 	opts := exr.ListConfigurationOptions()
 	assert.Len(t, opts, 5)
 	assert.Equal(t, opts[0].Name, ConfigUASTEndpoint)
@@ -40,7 +40,7 @@ func TestUASTExtractorMeta(t *testing.T) {
 	assert.Equal(t, opts[4].Name, ConfigUASTLanguages)
 	feats := exr.Features()
 	assert.Len(t, feats, 1)
-	assert.Equal(t, feats[0], "uast")
+	assert.Equal(t, feats[0], FeatureUast)
 }
 
 func TestUASTExtractorConfiguration(t *testing.T) {
@@ -118,16 +118,16 @@ func TestUASTExtractorConsume(t *testing.T) {
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
 	cache[hash], _ = testRepository.BlobObject(hash)
 	deps := map[string]interface{}{}
-	deps["blob_cache"] = cache
-	deps["changes"] = changes
+	deps[DependencyBlobCache] = cache
+	deps[DependencyTreeChanges] = changes
 	res, err := exr.Consume(deps)
 	// Language not enabled
-	assert.Len(t, res["uasts"], 0)
+	assert.Len(t, res[DependencyUasts], 0)
 	assert.Nil(t, err)
 	exr.Languages["Go"] = true
 	res, err = exr.Consume(deps)
 	// No Go driver
-	assert.Len(t, res["uasts"], 0)
+	assert.Len(t, res[DependencyUasts], 0)
 	assert.Nil(t, err)
 
 	hash = plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619")
@@ -144,7 +144,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 
 	res, err = exr.Consume(deps)
 	assert.Nil(t, err)
-	uasts := res["uasts"].(map[plumbing.Hash]*uast.Node)
+	uasts := res[DependencyUasts].(map[plumbing.Hash]*uast.Node)
 	assert.Equal(t, len(uasts), 1)
 	assert.Equal(t, len(uasts[hash].Children), 24)
 }
@@ -160,15 +160,15 @@ func TestUASTChangesMeta(t *testing.T) {
 	ch := fixtureUASTChanges()
 	assert.Equal(t, ch.Name(), "UASTChanges")
 	assert.Equal(t, len(ch.Provides()), 1)
-	assert.Equal(t, ch.Provides()[0], "changed_uasts")
+	assert.Equal(t, ch.Provides()[0], DependencyUastChanges)
 	assert.Equal(t, len(ch.Requires()), 2)
-	assert.Equal(t, ch.Requires()[0], "uasts")
-	assert.Equal(t, ch.Requires()[1], "changes")
+	assert.Equal(t, ch.Requires()[0], DependencyUasts)
+	assert.Equal(t, ch.Requires()[1], DependencyTreeChanges)
 	opts := ch.ListConfigurationOptions()
 	assert.Len(t, opts, 0)
 	feats := ch.Features()
 	assert.Len(t, feats, 1)
-	assert.Equal(t, feats[0], "uast")
+	assert.Equal(t, feats[0], FeatureUast)
 }
 
 func TestUASTChangesRegistration(t *testing.T) {
@@ -247,14 +247,14 @@ func TestUASTChangesConsume(t *testing.T) {
 	},
 	}
 	deps := map[string]interface{}{}
-	deps["uasts"] = uasts
-	deps["changes"] = changes
+	deps[DependencyUasts] = uasts
+	deps[DependencyTreeChanges] = changes
 	ch := fixtureUASTChanges()
 	ch.cache[changes[0].From.TreeEntry.Hash] = uastsArray[3]
 	ch.cache[changes[2].From.TreeEntry.Hash] = uastsArray[0]
 	resultMap, err := ch.Consume(deps)
 	assert.Nil(t, err)
-	result := resultMap["changed_uasts"].([]UASTChange)
+	result := resultMap[DependencyUastChanges].([]UASTChange)
 	assert.Len(t, result, 3)
 	assert.Equal(t, result[0].Change, changes[0])
 	assert.Equal(t, result[0].Before, uastsArray[3])
@@ -278,13 +278,13 @@ func TestUASTChangesSaverMeta(t *testing.T) {
 	assert.Equal(t, chs.Name(), "UASTChangesSaver")
 	assert.Equal(t, len(chs.Provides()), 0)
 	assert.Equal(t, len(chs.Requires()), 1)
-	assert.Equal(t, chs.Requires()[0], "changed_uasts")
+	assert.Equal(t, chs.Requires()[0], DependencyUastChanges)
 	opts := chs.ListConfigurationOptions()
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigUASTChangesSaverOutputPath)
 	feats := chs.Features()
 	assert.Len(t, feats, 1)
-	assert.Equal(t, feats[0], "uast")
+	assert.Equal(t, feats[0], FeatureUast)
 	assert.Equal(t, chs.Flag(), "dump-uast-changes")
 }
 
@@ -311,7 +311,7 @@ func TestUASTChangesSaverPayload(t *testing.T) {
 	chs := fixtureUASTChangesSaver()
 	deps := map[string]interface{}{}
 	changes := make([]UASTChange, 1)
-	deps["changed_uasts"] = changes
+	deps[DependencyUastChanges] = changes
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
 	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(

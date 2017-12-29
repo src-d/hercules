@@ -18,7 +18,7 @@ func TestBurndownMeta(t *testing.T) {
 	burndown := BurndownAnalysis{}
 	assert.Equal(t, burndown.Name(), "Burndown")
 	assert.Equal(t, len(burndown.Provides()), 0)
-	required := [...]string{"file_diff", "changes", "blob_cache", "day", "author"}
+	required := [...]string{DependencyFileDiff, DependencyTreeChanges, DependencyBlobCache, DependencyDay, DependencyAuthor}
 	for _, name := range required {
 		assert.Contains(t, burndown.Requires(), name)
 	}
@@ -105,8 +105,8 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	deps := map[string]interface{}{}
 
 	// stage 1
-	deps["author"] = 0
-	deps["day"] = 0
+	deps[DependencyAuthor] = 0
+	deps[DependencyDay] = 0
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	cache[hash], _ = testRepository.BlobObject(hash)
@@ -116,7 +116,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
@@ -159,11 +159,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		},
 	},
 	}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	fd := fixtureFileDiff()
 	result, err := fd.Consume(deps)
 	assert.Nil(t, err)
-	deps["file_diff"] = result["file_diff"]
+	deps[DependencyFileDiff] = result[DependencyFileDiff]
 	result, err = burndown.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -191,8 +191,8 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	deps["author"] = 1
-	deps["day"] = 30
+	deps[DependencyAuthor] = 1
+	deps[DependencyDay] = 30
 	cache = map[plumbing.Hash]*object.Blob{}
 	hash = plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	cache[hash], _ = testRepository.BlobObject(hash)
@@ -204,7 +204,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes = make(object.Changes, 3)
 	treeFrom, _ = testRepository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
@@ -256,11 +256,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	fd = fixtureFileDiff()
 	result, err = fd.Consume(deps)
 	assert.Nil(t, err)
-	deps["file_diff"] = result["file_diff"]
+	deps[DependencyFileDiff] = result[DependencyFileDiff]
 	result, err = burndown.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -325,8 +325,8 @@ func TestBurndownSerialize(t *testing.T) {
 	burndown.Initialize(testRepository)
 	deps := map[string]interface{}{}
 	// stage 1
-	deps["author"] = 0
-	deps["day"] = 0
+	deps[DependencyAuthor] = 0
+	deps[DependencyDay] = 0
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	cache[hash], _ = testRepository.BlobObject(hash)
@@ -336,7 +336,7 @@ func TestBurndownSerialize(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
@@ -379,16 +379,16 @@ func TestBurndownSerialize(t *testing.T) {
 		},
 	},
 	}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	fd := fixtureFileDiff()
 	result, _ := fd.Consume(deps)
-	deps["file_diff"] = result["file_diff"]
+	deps[DependencyFileDiff] = result[DependencyFileDiff]
 	burndown.Consume(deps)
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	deps["author"] = 1
-	deps["day"] = 30
+	deps[DependencyAuthor] = 1
+	deps[DependencyDay] = 30
 	cache = map[plumbing.Hash]*object.Blob{}
 	hash = plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	cache[hash], _ = testRepository.BlobObject(hash)
@@ -400,7 +400,7 @@ func TestBurndownSerialize(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes = make(object.Changes, 3)
 	treeFrom, _ = testRepository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
@@ -452,10 +452,10 @@ func TestBurndownSerialize(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	fd = fixtureFileDiff()
 	result, _ = fd.Consume(deps)
-	deps["file_diff"] = result["file_diff"]
+	deps[DependencyFileDiff] = result[DependencyFileDiff]
 	people := [...]string{"one@srcd", "two@srcd"}
 	burndown.reversedPeopleDict = people[:]
 	burndown.Consume(deps)
@@ -679,12 +679,12 @@ func TestBurndownAddMatrixCrazy(t *testing.T) {
 	*/
 	addBurndownMatrix(added, 5, 3, daily, 0)
 	/*
-	for _, row := range daily {
-	  for _, v := range row {
-		  fmt.Print(v, " ")
-	  }
-		fmt.Println()
-	}
+		for _, row := range daily {
+		  for _, v := range row {
+			  fmt.Print(v, " ")
+		  }
+			fmt.Println()
+		}
 	*/
 	// check pinned points
 	for y := 0; y < 5; y++ {
@@ -753,14 +753,14 @@ func TestBurndownAddMatrixNaNs(t *testing.T) {
 		  12 20 25 40
 	*/
 	addBurndownMatrix(added, 4, 4, daily, 0)
-  /*
-	for _, row := range daily {
-	  for _, v := range row {
-		  fmt.Print(v, " ")
-	  }
-		fmt.Println()
-	}
-  */
+	/*
+		for _, row := range daily {
+		  for _, v := range row {
+			  fmt.Print(v, " ")
+		  }
+			fmt.Println()
+		}
+	*/
 	// check pinned points
 	for y := 0; y < 4; y++ {
 		for x := 0; x < 4; x++ {
@@ -777,7 +777,7 @@ func TestBurndownAddMatrixNaNs(t *testing.T) {
 			assert.Zero(t, daily[y][x])
 		}
 		var prev float32
-		for y := x-4; y < x; y++ {
+		for y := x - 4; y < x; y++ {
 			if y < 0 {
 				continue
 			}

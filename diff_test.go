@@ -20,10 +20,10 @@ func TestFileDiffMeta(t *testing.T) {
 	fd := fixtureFileDiff()
 	assert.Equal(t, fd.Name(), "FileDiff")
 	assert.Equal(t, len(fd.Provides()), 1)
-	assert.Equal(t, fd.Provides()[0], "file_diff")
+	assert.Equal(t, fd.Provides()[0], DependencyFileDiff)
 	assert.Equal(t, len(fd.Requires()), 2)
-	assert.Equal(t, fd.Requires()[0], "changes")
-	assert.Equal(t, fd.Requires()[1], "blob_cache")
+	assert.Equal(t, fd.Requires()[0], DependencyTreeChanges)
+	assert.Equal(t, fd.Requires()[1], DependencyBlobCache)
 	assert.Len(t, fd.ListConfigurationOptions(), 0)
 	fd.Configure(nil)
 }
@@ -52,7 +52,7 @@ func TestFileDiffConsume(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
@@ -95,10 +95,10 @@ func TestFileDiffConsume(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, err)
-	diffs := res["file_diff"].(map[string]FileDiffData)
+	diffs := res[DependencyFileDiff].(map[string]FileDiffData)
 	assert.Equal(t, len(diffs), 1)
 	diff := diffs["analyser.go"]
 	assert.Equal(t, diff.OldLinesOfCode, 307)
@@ -129,7 +129,7 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 	cache[hash], _ = testRepository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	cache[hash], _ = testRepository.BlobObject(hash)
-	deps["blob_cache"] = cache
+	deps[DependencyBlobCache] = cache
 	changes := make(object.Changes, 1)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
@@ -152,7 +152,7 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 			Hash: plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"),
 		},
 	}}
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, res)
 	assert.NotNil(t, err)

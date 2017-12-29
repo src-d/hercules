@@ -20,6 +20,7 @@ type BlobCache struct {
 
 const (
 	ConfigBlobCacheIgnoreMissingSubmodules = "BlobCache.IgnoreMissingSubmodules"
+	DependencyBlobCache                    = "blob_cache"
 )
 
 func (cache *BlobCache) Name() string {
@@ -27,12 +28,12 @@ func (cache *BlobCache) Name() string {
 }
 
 func (cache *BlobCache) Provides() []string {
-	arr := [...]string{"blob_cache"}
+	arr := [...]string{DependencyBlobCache}
 	return arr[:]
 }
 
 func (cache *BlobCache) Requires() []string {
-	arr := [...]string{"changes"}
+	arr := [...]string{DependencyTreeChanges}
 	return arr[:]
 }
 
@@ -60,7 +61,7 @@ func (cache *BlobCache) Initialize(repository *git.Repository) {
 
 func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps["commit"].(*object.Commit)
-	changes := deps["changes"].(object.Changes)
+	changes := deps[DependencyTreeChanges].(object.Changes)
 	cache := map[plumbing.Hash]*object.Blob{}
 	newCache := map[plumbing.Hash]*object.Blob{}
 	for _, change := range changes {
@@ -115,7 +116,7 @@ func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interfac
 		}
 	}
 	self.cache = newCache
-	return map[string]interface{}{"blob_cache": cache}, nil
+	return map[string]interface{}{DependencyBlobCache: cache}, nil
 }
 
 type FileGetter func(path string) (*object.File, error)

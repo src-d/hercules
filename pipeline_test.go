@@ -336,7 +336,7 @@ func TestPipelineError(t *testing.T) {
 
 func TestPipelineSerialize(t *testing.T) {
 	pipeline := NewPipeline(testRepository)
-	pipeline.SetFeature("uast")
+	pipeline.SetFeature(FeatureUast)
 	pipeline.DeployItem(&BurndownAnalysis{})
 	facts := map[string]interface{}{}
 	facts["Pipeline.DryRun"] = true
@@ -376,7 +376,7 @@ func TestPipelineSerialize(t *testing.T) {
 
 func TestPipelineSerializeNoUast(t *testing.T) {
 	pipeline := NewPipeline(testRepository)
-	// pipeline.SetFeature("uast")
+	// pipeline.SetFeature(FeatureUast)
 	pipeline.DeployItem(&BurndownAnalysis{})
 	facts := map[string]interface{}{}
 	facts["Pipeline.DryRun"] = true

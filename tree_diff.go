@@ -11,12 +11,16 @@ type TreeDiff struct {
 	previousTree *object.Tree
 }
 
+const (
+	DependencyTreeChanges = "changes"
+)
+
 func (treediff *TreeDiff) Name() string {
 	return "TreeDiff"
 }
 
 func (treediff *TreeDiff) Provides() []string {
-	arr := [...]string{"changes"}
+	arr := [...]string{DependencyTreeChanges}
 	return arr[:]
 }
 
@@ -70,7 +74,7 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 		}
 	}
 	treediff.previousTree = tree
-	return map[string]interface{}{"changes": diff}, nil
+	return map[string]interface{}{DependencyTreeChanges: diff}, nil
 }
 
 func init() {

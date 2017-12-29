@@ -34,7 +34,7 @@ func TestBlobCacheMetadata(t *testing.T) {
 	cache := fixtureBlobCache()
 	assert.Equal(t, cache.Name(), "BlobCache")
 	assert.Equal(t, len(cache.Provides()), 1)
-	assert.Equal(t, cache.Provides()[0], "blob_cache")
+	assert.Equal(t, cache.Provides()[0], DependencyBlobCache)
 	assert.Equal(t, len(cache.Requires()), 1)
 	changes := &TreeDiff{}
 	assert.Equal(t, cache.Requires()[0], changes.Provides()[0])
@@ -80,11 +80,11 @@ func TestBlobCacheConsumeModification(t *testing.T) {
 	}}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(result), 1)
-	cacheIface, exists := result["blob_cache"]
+	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
 	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
 	assert.Equal(t, len(cache), 2)
@@ -126,11 +126,11 @@ func TestBlobCacheConsumeInsertionDeletion(t *testing.T) {
 	}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(result), 1)
-	cacheIface, exists := result["blob_cache"]
+	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
 	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
 	assert.Equal(t, len(cache), 2)
@@ -153,7 +153,7 @@ func TestBlobCacheConsumeNoAction(t *testing.T) {
 	changes[0] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{}}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
@@ -190,7 +190,7 @@ func TestBlobCacheConsumeBadHashes(t *testing.T) {
 	}}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
@@ -237,7 +237,7 @@ func TestBlobCacheConsumeInvalidHash(t *testing.T) {
 	}}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
@@ -296,11 +296,11 @@ func TestBlobCacheDeleteInvalidBlob(t *testing.T) {
 	}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(result), 1)
-	cacheIface, exists := result["blob_cache"]
+	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
 	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
 	assert.Equal(t, len(cache), 1)
@@ -327,7 +327,7 @@ func TestBlobCacheInsertInvalidBlob(t *testing.T) {
 	}
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	deps["changes"] = changes
+	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.NotNil(t, err)
 	assert.Equal(t, len(result), 0)

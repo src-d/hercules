@@ -17,6 +17,10 @@ import (
 type FileDiff struct {
 }
 
+const (
+	DependencyFileDiff = "file_diff"
+)
+
 type FileDiffData struct {
 	OldLinesOfCode int
 	NewLinesOfCode int
@@ -28,12 +32,12 @@ func (diff *FileDiff) Name() string {
 }
 
 func (diff *FileDiff) Provides() []string {
-	arr := [...]string{"file_diff"}
+	arr := [...]string{DependencyFileDiff}
 	return arr[:]
 }
 
 func (diff *FileDiff) Requires() []string {
-	arr := [...]string{"changes", "blob_cache"}
+	arr := [...]string{DependencyTreeChanges, DependencyBlobCache}
 	return arr[:]
 }
 
@@ -47,8 +51,8 @@ func (diff *FileDiff) Initialize(repository *git.Repository) {}
 
 func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	result := map[string]FileDiffData{}
-	cache := deps["blob_cache"].(map[plumbing.Hash]*object.Blob)
-	tree_diff := deps["changes"].(object.Changes)
+	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	tree_diff := deps[DependencyTreeChanges].(object.Changes)
 	for _, change := range tree_diff {
 		action, err := change.Action()
 		if err != nil {
@@ -80,7 +84,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			continue
 		}
 	}
-	return map[string]interface{}{"file_diff": result}, nil
+	return map[string]interface{}{DependencyFileDiff: result}, nil
 }
 
 func CountLines(file *object.Blob) (int, error) {
