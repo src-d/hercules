@@ -15,9 +15,12 @@ import (
 
 // FileDiff calculates the difference of files which were modified.
 type FileDiff struct {
+	CleanupDisabled bool
 }
 
 const (
+	ConfigFileDiffDisableCleanup = "FileDiff.NoCleanup"
+
 	DependencyFileDiff = "file_diff"
 )
 
@@ -42,10 +45,21 @@ func (diff *FileDiff) Requires() []string {
 }
 
 func (diff *FileDiff) ListConfigurationOptions() []ConfigurationOption {
-	return []ConfigurationOption{}
+	options := [...]ConfigurationOption{{
+		Name:        ConfigFileDiffDisableCleanup,
+		Description: "Do not apply additional heuristics to improve diffs.",
+		Flag:        "no-diff-cleanup",
+		Type:        BoolConfigurationOption,
+		Default:     false},
+	}
+	return options[:]
 }
 
-func (diff *FileDiff) Configure(facts map[string]interface{}) {}
+func (diff *FileDiff) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigFileDiffDisableCleanup].(bool); exists {
+		diff.CleanupDisabled = val
+	}
+}
 
 func (diff *FileDiff) Initialize(repository *git.Repository) {}
 
@@ -75,6 +89,9 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			dmp := diffmatchpatch.New()
 			src, dst, _ := dmp.DiffLinesToRunes(str_from, str_to)
 			diffs := dmp.DiffMainRunes(src, dst, false)
+			if !diff.CleanupDisabled {
+				diffs = dmp.DiffCleanupSemanticLossless(diffs)
+			}
 			result[change.To.Name] = FileDiffData{
 				OldLinesOfCode: len(src),
 				NewLinesOfCode: len(dst),
