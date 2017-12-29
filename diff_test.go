@@ -233,13 +233,13 @@ notifications:
 }
 
 func TestFileDiffDarkMagic(t *testing.T) {
-  fd := fixtureFileDiff()
+	fd := fixtureFileDiff()
 	deps := map[string]interface{}{}
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("448eb3f312849b0ca766063d06b09481c987b309")
-	cache[hash], _ = testRepository.BlobObject(hash)  // 1.java
+	cache[hash], _ = testRepository.BlobObject(hash) // 1.java
 	hash = plumbing.NewHash("3312c92f3e8bdfbbdb30bccb6acd1b85bc338dfc")
-	cache[hash], _ = testRepository.BlobObject(hash)  // 2.java
+	cache[hash], _ = testRepository.BlobObject(hash) // 2.java
 	deps[DependencyBlobCache] = cache
 	changes := make(object.Changes, 1)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(

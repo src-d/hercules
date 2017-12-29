@@ -81,7 +81,7 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 		visitEachNode(uastChange.After, func(node *uast.Node) {
 			if node.StartPosition != nil && node.EndPosition != nil {
 				for l := node.StartPosition.Line; l <= node.EndPosition.Line; l++ {
-					nodes := line2node[l-1]  // line starts with 1
+					nodes := line2node[l-1] // line starts with 1
 					if nodes == nil {
 						nodes = []*uast.Node{}
 					}

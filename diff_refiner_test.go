@@ -6,11 +6,11 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/gogo/protobuf/proto"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 func fixtureFileDiffRefiner() *FileDiffRefiner {
@@ -76,7 +76,7 @@ func TestFileDiffRefinerConsume(t *testing.T) {
 	uastChanges[0] = UASTChange{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
-			To: object.ChangeEntry{Name: fileName}},
+			To:   object.ChangeEntry{Name: fileName}},
 		Before: loadUast("uast1.pb"), After: loadUast("uast2.pb"),
 	}
 	fd := fixtureFileDiffRefiner()
