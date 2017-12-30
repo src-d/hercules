@@ -341,6 +341,12 @@ func (pipeline *Pipeline) SetFeaturesFromFlags() {
 }
 
 func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
+	fpi, ok := item.(FeaturedPipelineItem)
+	if ok {
+		for _, f := range fpi.Features() {
+			pipeline.SetFeature(f)
+		}
+	}
 	queue := []PipelineItem{}
 	queue = append(queue, item)
 	added := map[string]PipelineItem{}
