@@ -96,3 +96,58 @@ func TestFileDiffRefinerConsume(t *testing.T) {
 	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[6].Text), 41)
 	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[7].Text), 231)
 }
+
+func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
+	bytes1, err := ioutil.ReadFile(path.Join("test_data", "1.java"))
+	assert.Nil(t, err)
+	bytes2, err := ioutil.ReadFile(path.Join("test_data", "2.java"))
+	assert.Nil(t, err)
+	dmp := diffmatchpatch.New()
+	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
+	state := map[string]interface{}{}
+	fileDiffs := map[string]FileDiffData{}
+	const fileName = "test.java"
+	fileDiffs[fileName] = FileDiffData{
+		OldLinesOfCode: len(src),
+		NewLinesOfCode: len(dst),
+		Diffs:          dmp.DiffMainRunes(src, dst, false),
+	}
+	state[DependencyFileDiff] = fileDiffs
+	uastChanges := make([]UASTChange, 1)
+	loadUast := func(name string) *uast.Node {
+		bytes, err := ioutil.ReadFile(path.Join("test_data", name))
+		assert.Nil(t, err)
+		node := uast.Node{}
+		proto.Unmarshal(bytes, &node)
+		return &node
+	}
+	state[DependencyUastChanges] = uastChanges
+	uastChanges[0] = UASTChange{
+		Change: &object.Change{
+			From: object.ChangeEntry{Name: fileName},
+			To:   object.ChangeEntry{Name: fileName}},
+		Before: loadUast("uast1.pb"), After: nil,
+	}
+	fd := fixtureFileDiffRefiner()
+	iresult, err := fd.Consume(state)
+	assert.Nil(t, err)
+	result := iresult[DependencyFileDiff].(map[string]FileDiffData)
+	assert.Len(t, result, 1)
+	assert.Equal(t, fileDiffs[fileName], result[fileName])
+	fileDiffs[fileName] = FileDiffData{
+		OldLinesOfCode: 100,
+		NewLinesOfCode: 100,
+		Diffs:          []diffmatchpatch.Diff{{}},
+	}
+	uastChanges[0] = UASTChange{
+		Change: &object.Change{
+			From: object.ChangeEntry{Name: fileName},
+			To:   object.ChangeEntry{Name: fileName}},
+		Before: loadUast("uast1.pb"), After: loadUast("uast2.pb"),
+	}
+	iresult, err = fd.Consume(state)
+	assert.Nil(t, err)
+	result = iresult[DependencyFileDiff].(map[string]FileDiffData)
+	assert.Len(t, result, 1)
+	assert.Equal(t, fileDiffs[fileName], result[fileName])
+}

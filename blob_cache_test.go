@@ -365,3 +365,40 @@ func TestBlobCacheGetBlobIgnoreMissing(t *testing.T) {
 	assert.Nil(t, blob)
 	assert.NotNil(t, err)
 }
+
+func TestBlobCacheGetBlobGitModulesErrors(t *testing.T) {
+	cache := fixtureBlobCache()
+	cache.IgnoreMissingSubmodules = false
+	entry := object.ChangeEntry{
+		Name: "labours.py",
+		TreeEntry: object.TreeEntry{
+			Name: "labours.py",
+			Mode: 0160000,
+			Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
+		},
+	}
+	getter := func(path string) (*object.File, error) {
+		return nil, plumbing.ErrInvalidType
+	}
+	blob, err := cache.getBlob(&entry, getter)
+	assert.Nil(t, blob)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), plumbing.ErrInvalidType.Error())
+	getter = func(path string) (*object.File, error) {
+		blob, _ := createDummyBlob(plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"), true)
+		return &object.File{Name: "fake", Blob: *blob}, nil
+	}
+	blob, err = cache.getBlob(&entry, getter)
+	assert.Nil(t, blob)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "dummy failure")
+	getter = func(path string) (*object.File, error) {
+		blob, _ := testRepository.BlobObject(plumbing.NewHash(
+			"4434197c2b0509d990f09d53a3cabb910bfd34b7"))
+		return &object.File{Name: ".gitmodules", Blob: *blob}, nil
+	}
+	blob, err = cache.getBlob(&entry, getter)
+	assert.Nil(t, blob)
+	assert.NotNil(t, err)
+	assert.NotEqual(t, err.Error(), plumbing.ErrObjectNotFound.Error())
+}
