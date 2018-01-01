@@ -78,7 +78,7 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 		}
 		uastChange := changes[fileName]
 		line2node := make([][]*uast.Node, oldDiff.NewLinesOfCode)
-		visitEachNode(uastChange.After, func(node *uast.Node) {
+		VisitEachNode(uastChange.After, func(node *uast.Node) {
 			if node.StartPosition != nil && node.EndPosition != nil {
 				for l := node.StartPosition.Line; l <= node.EndPosition.Line; l++ {
 					nodes := line2node[l-1] // line starts with 1
@@ -135,7 +135,7 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 }
 
 // Depth first tree traversal.
-func visitEachNode(root *uast.Node, payload func(*uast.Node)) {
+func VisitEachNode(root *uast.Node, payload func(*uast.Node)) {
 	queue := []*uast.Node{}
 	queue = append(queue, root)
 	for len(queue) > 0 {

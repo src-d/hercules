@@ -85,6 +85,18 @@ message UASTChangesSaverResults {
     repeated UASTChange changes = 1;
 }
 
+message ShotnessRecord {
+    string internal_role = 1;
+    repeated int32 roles = 2;
+    string name = 3;
+    string file = 4;
+    map<int32, int32> counters = 5;
+}
+
+message ShotnessAnalysisResultMessage {
+    repeated ShotnessRecord records = 1;
+}
+
 message AnalysisResults {
     Metadata header = 1;
     // the mapped values are dynamic messages which require the second parsing pass.

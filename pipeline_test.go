@@ -320,6 +320,13 @@ func TestPipelineDeps(t *testing.T) {
 	assert.Panics(t, func() { pipeline.Run(commits) })
 }
 
+func TestPipelineDeployFeatures(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.DeployItem(&testPipelineItem{})
+	f, _ := pipeline.GetFeature("power")
+	assert.True(t, f)
+}
+
 func TestPipelineError(t *testing.T) {
 	pipeline := NewPipeline(testRepository)
 	item := &testPipelineItem{}
