@@ -50,6 +50,11 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 	diffs := deps[DependencyFileDiff].(map[string]FileDiffData)
 	result := map[string]FileDiffData{}
 	for fileName, oldDiff := range diffs {
+		uastChange, exists := changes[fileName]
+		if !exists {
+			result[fileName] = oldDiff
+			continue
+		}
 		suspicious := map[int][2]int{}
 		line := 0
 		for i, diff := range oldDiff.Diffs {
@@ -76,7 +81,6 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 			result[fileName] = oldDiff
 			continue
 		}
-		uastChange := changes[fileName]
 		line2node := make([][]*uast.Node, oldDiff.NewLinesOfCode)
 		VisitEachNode(uastChange.After, func(node *uast.Node) {
 			if node.StartPosition != nil && node.EndPosition != nil {

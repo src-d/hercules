@@ -137,16 +137,16 @@ func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter
 		}
 		file, err_modules := fileGetter(".gitmodules")
 		if err_modules != nil {
-			return nil, err
+			return nil, err_modules
 		}
 		contents, err_modules := file.Contents()
 		if err_modules != nil {
-			return nil, err
+			return nil, err_modules
 		}
 		modules := config.NewModules()
 		err_modules = modules.Unmarshal([]byte(contents))
 		if err_modules != nil {
-			return nil, err
+			return nil, err_modules
 		}
 		_, exists := modules.Submodules[entry.Name]
 		if exists {

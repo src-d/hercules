@@ -98,3 +98,15 @@ func TestTreeDiffConsumeFirst(t *testing.T) {
 		assert.Equal(t, action, merkletrie.Insert)
 	}
 }
+
+func TestTreeDiffBadCommit(t *testing.T) {
+	td := fixtureTreeDiff()
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
+	commit.TreeHash = plumbing.NewHash("0000000000000000000000000000000000000000")
+	deps := map[string]interface{}{}
+	deps["commit"] = commit
+	res, err := td.Consume(deps)
+	assert.Nil(t, res)
+	assert.NotNil(t, err)
+}
