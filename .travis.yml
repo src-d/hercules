@@ -42,12 +42,14 @@ install:
 script:
   - go vet ./...
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
-  - $GOPATH/bin/hercules -version
-  - $GOPATH/bin/hercules -burndown -burndown-files -burndown-people -couples -quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
-  - $GOPATH/bin/hercules -burndown -burndown-files -burndown-people -couples -quiet -pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
-  - $GOPATH/bin/hercules-generate-plugin -version
-  - $GOPATH/bin/hercules-generate-plugin -n MyPlug -o myplug && cd myplug && make && cd -
-  - cd contrib/_plugin_example && make
+  - $GOPATH/bin/hercules version
+  - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
+  - cp 1.pb 2.pb
+  - $GOPATH/bin/hercules combine 1.pb 2.pb > 12.pb
+  - ($GOPATH/bin/hercules generate-plugin -n MyPlug -o myplug && cd myplug && make)
+  - (cd contrib/_plugin_example && make)
+  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
