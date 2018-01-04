@@ -11,9 +11,10 @@ import (
 
 func getRegistry() *PipelineItemRegistry {
 	return &PipelineItemRegistry{
-		provided:   map[string][]reflect.Type{},
-		registered: map[string]reflect.Type{},
-		flags:      map[string]reflect.Type{},
+		provided:     map[string][]reflect.Type{},
+		registered:   map[string]reflect.Type{},
+		flags:        map[string]reflect.Type{},
+		featureFlags: arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}},
 	}
 }
 
@@ -150,7 +151,7 @@ func TestRegistryFeatures(t *testing.T) {
 	assert.False(t, val)
 	val, _ = pipeline.GetFeature("other")
 	assert.False(t, val)
-	pipeline.SetFeaturesFromFlags()
+	pipeline.SetFeaturesFromFlags(reg)
 	val, _ = pipeline.GetFeature("power")
 	assert.True(t, val)
 	val, _ = pipeline.GetFeature("other")

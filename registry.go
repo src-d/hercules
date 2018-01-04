@@ -13,9 +13,10 @@ import (
 
 // PipelineItemRegistry contains all the known PipelineItem-s.
 type PipelineItemRegistry struct {
-	provided   map[string][]reflect.Type
-	registered map[string]reflect.Type
-	flags      map[string]reflect.Type
+	provided     map[string][]reflect.Type
+	registered   map[string]reflect.Type
+	flags        map[string]reflect.Type
+	featureFlags arrayFeatureFlags
 }
 
 // Register adds another PipelineItem to the registry.
@@ -138,8 +139,6 @@ func (acf *arrayFeatureFlags) Type() string {
 	return "string"
 }
 
-var featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
-
 // AddFlags inserts the cmdline options from PipelineItem.ListConfigurationOptions(),
 // FeaturedPipelineItem().Features() and LeafPipelineItem.Flag() into the global "flag" parser
 // built into the Go runtime.
@@ -175,7 +174,7 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 		}
 		if fpi, ok := itemIface.(FeaturedPipelineItem); ok {
 			for _, f := range fpi.Features() {
-				featureFlags.Choices[f] = true
+				registry.featureFlags.Choices[f] = true
 			}
 		}
 		if fpi, ok := itemIface.(LeafPipelineItem); ok {
@@ -196,10 +195,10 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 		flags[ConfigPipelineDryRun] = iface
 	}
 	features := []string{}
-	for f := range featureFlags.Choices {
+	for f := range registry.featureFlags.Choices {
 		features = append(features, f)
 	}
-	flagSet.Var(&featureFlags, "feature",
+	flagSet.Var(&registry.featureFlags, "feature",
 		fmt.Sprintf("Enables the items which depend on the specified features. Can be specified "+
 			"multiple times. Available features: [%s] (see --feature below).",
 			strings.Join(features, ", ")))
@@ -208,7 +207,8 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 
 // Registry contains all known pipeline item types.
 var Registry = &PipelineItemRegistry{
-	provided:   map[string][]reflect.Type{},
-	registered: map[string]reflect.Type{},
-	flags:      map[string]reflect.Type{},
+	provided:     map[string][]reflect.Type{},
+	registered:   map[string]reflect.Type{},
+	flags:        map[string]reflect.Type{},
+	featureFlags: arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}},
 }

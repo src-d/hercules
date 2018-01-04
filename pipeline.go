@@ -217,8 +217,16 @@ func (pipeline *Pipeline) SetFeature(name string) {
 	pipeline.features[name] = true
 }
 
-func (pipeline *Pipeline) SetFeaturesFromFlags() {
-	for _, feature := range featureFlags.Flags {
+func (pipeline *Pipeline) SetFeaturesFromFlags(registry ...*PipelineItemRegistry) {
+	var ffr *PipelineItemRegistry
+	if len(registry) == 0 {
+		ffr = Registry
+	} else if len(registry) == 1 {
+		ffr = registry[0]
+	} else {
+		panic("Zero or one registry is allowed to be passed.")
+	}
+	for _, feature := range ffr.featureFlags.Flags {
 		pipeline.SetFeature(feature)
 	}
 }
