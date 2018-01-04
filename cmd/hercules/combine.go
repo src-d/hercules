@@ -7,65 +7,68 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/spf13/cobra"
 	"gopkg.in/src-d/hercules.v3"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"sort"
 )
 
-func main() {
-	files := os.Args[1:]
-	if len(files) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: hercules-combine file [file...]")
-		os.Exit(1)
-	}
-	if len(files) == 1 {
-		file, err := os.Open(files[0])
+// combineCmd represents the combine command
+var combineCmd = &cobra.Command{
+	Use:   "combine",
+	Short: "Merge several binary analysis results together.",
+	Long:  ``,
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, files []string) {
+		if len(files) == 1 {
+			file, err := os.Open(files[0])
+			if err != nil {
+				panic(err)
+			}
+			defer file.Close()
+			io.Copy(os.Stdout, bufio.NewReader(file))
+			return
+		}
+		repos := []string{}
+		allErrors := map[string][]string{}
+		mergedResults := map[string]interface{}{}
+		mergedMetadata := &hercules.CommonAnalysisResult{}
+		for _, fileName := range files {
+			anotherResults, anotherMetadata, errs := loadMessage(fileName, &repos)
+			if anotherMetadata != nil {
+				mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata)
+			}
+			allErrors[fileName] = errs
+		}
+		printErrors(allErrors)
+		sort.Strings(repos)
+		if mergedMetadata == nil {
+			return
+		}
+		mergedMessage := pb.AnalysisResults{
+			Header: &pb.Metadata{
+				Version:    2,
+				Hash:       hercules.GIT_HASH,
+				Repository: strings.Join(repos, " & "),
+			},
+			Contents: map[string][]byte{},
+		}
+		mergedMetadata.FillMetadata(mergedMessage.Header)
+		for key, val := range mergedResults {
+			buffer := bytes.Buffer{}
+			hercules.Registry.Summon(key)[0].(hercules.LeafPipelineItem).Serialize(
+				val, true, &buffer)
+			mergedMessage.Contents[key] = buffer.Bytes()
+		}
+		serialized, err := proto.Marshal(&mergedMessage)
 		if err != nil {
 			panic(err)
 		}
-		defer file.Close()
-		io.Copy(os.Stdout, bufio.NewReader(file))
-		return
-	}
-	repos := []string{}
-	allErrors := map[string][]string{}
-	mergedResults := map[string]interface{}{}
-	mergedMetadata := &hercules.CommonAnalysisResult{}
-	for _, fileName := range files {
-		anotherResults, anotherMetadata, errs := loadMessage(fileName, &repos)
-		if anotherMetadata != nil {
-			mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata)
-		}
-		allErrors[fileName] = errs
-	}
-	printErrors(allErrors)
-	sort.Strings(repos)
-	if mergedMetadata == nil {
-		return
-	}
-	mergedMessage := pb.AnalysisResults{
-		Header: &pb.Metadata{
-			Version:    2,
-			Hash:       hercules.GIT_HASH,
-			Repository: strings.Join(repos, " & "),
-		},
-		Contents: map[string][]byte{},
-	}
-	mergedMetadata.FillMetadata(mergedMessage.Header)
-	for key, val := range mergedResults {
-		buffer := bytes.Buffer{}
-		hercules.Registry.Summon(key)[0].(hercules.LeafPipelineItem).Serialize(
-			val, true, &buffer)
-		mergedMessage.Contents[key] = buffer.Bytes()
-	}
-	serialized, err := proto.Marshal(&mergedMessage)
-	if err != nil {
-		panic(err)
-	}
-	os.Stdout.Write(serialized)
+		os.Stdout.Write(serialized)
+	},
 }
 
 func loadMessage(fileName string, repos *[]string) (
@@ -146,4 +149,9 @@ func mergeResults(mergedResults map[string]interface{},
 	} else {
 		mergedCommons.Merge(anotherCommons)
 	}
+}
+
+func init() {
+	rootCmd.AddCommand(combineCmd)
+	combineCmd.SetUsageFunc(combineCmd.UsageFunc())
 }

@@ -8,14 +8,14 @@
 //
 // 2. Build {{.shlib}}
 //
-//     go build -buildmode=plugin {{.output}} {{.protogo}}
+//     go build -buildmode=plugin -linkshared {{.output}} {{.protogo}}
 //
 // Step (1) requires GoGo Protobuf https://github.com/gogo/protobuf
 //
 // Usage:
 //
-//    hercules -plugin {{.shlib}} -{{.flag}}
-//    hercules -plugin {{.shlib}} -help
+//    hercules --plugin {{.shlib}} --{{.flag}}
+//    hercules --plugin {{.shlib}} -help
 
 package {{.package}}
 

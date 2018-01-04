@@ -2,12 +2,10 @@ package hercules
 
 import (
 	"errors"
-	"flag"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -90,39 +88,6 @@ func (item *testPipelineItem) Finalize() interface{} {
 
 func (item *testPipelineItem) Serialize(result interface{}, binary bool, writer io.Writer) error {
 	return nil
-}
-
-func getRegistry() *PipelineItemRegistry {
-	return &PipelineItemRegistry{
-		provided:   map[string][]reflect.Type{},
-		registered: map[string]reflect.Type{},
-		flags:      map[string]reflect.Type{},
-	}
-}
-
-func TestPipelineItemRegistrySummon(t *testing.T) {
-	reg := getRegistry()
-	reg.Register(&testPipelineItem{})
-	summoned := reg.Summon((&testPipelineItem{}).Provides()[0])
-	assert.Len(t, summoned, 1)
-	assert.Equal(t, summoned[0].Name(), (&testPipelineItem{}).Name())
-	summoned = reg.Summon((&testPipelineItem{}).Name())
-	assert.Len(t, summoned, 1)
-	assert.Equal(t, summoned[0].Name(), (&testPipelineItem{}).Name())
-}
-
-func TestPipelineItemRegistryAddFlags(t *testing.T) {
-	reg := getRegistry()
-	reg.Register(&testPipelineItem{})
-	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	facts, deployed := reg.AddFlags()
-	assert.Len(t, facts, 3)
-	assert.IsType(t, 0, facts[(&testPipelineItem{}).ListConfigurationOptions()[0].Name])
-	assert.Contains(t, facts, ConfigPipelineDryRun)
-	assert.Contains(t, facts, ConfigPipelineDumpPath)
-	assert.Len(t, deployed, 1)
-	assert.Contains(t, deployed, (&testPipelineItem{}).Name())
-	assert.NotNil(t, flag.Lookup((&testPipelineItem{}).Flag()))
 }
 
 type dependingTestPipelineItem struct {
@@ -438,6 +403,33 @@ func TestCommonAnalysisResultMetadata(t *testing.T) {
 	assert.Equal(t, c1.RunTime.Nanoseconds(), int64(100*1e6))
 }
 
+func TestPipelineResolveIntegration(t *testing.T) {
+	pipeline := NewPipeline(testRepository)
+	pipeline.DeployItem(&BurndownAnalysis{})
+	pipeline.DeployItem(&CouplesAnalysis{})
+	pipeline.Initialize(nil)
+}
+
+func TestConfigurationOptionTypeString(t *testing.T) {
+	opt := ConfigurationOptionType(0)
+	assert.Equal(t, opt.String(), "")
+	opt = ConfigurationOptionType(1)
+	assert.Equal(t, opt.String(), "int")
+	opt = ConfigurationOptionType(2)
+	assert.Equal(t, opt.String(), "string")
+	opt = ConfigurationOptionType(3)
+	assert.Panics(t, func() { _ = opt.String() })
+}
+
+func TestConfigurationOptionFormatDefault(t *testing.T) {
+	opt := ConfigurationOption{Type: StringConfigurationOption, Default: "ololo"}
+	assert.Equal(t, opt.FormatDefault(), "\"ololo\"")
+	opt = ConfigurationOption{Type: IntConfigurationOption, Default: 7}
+	assert.Equal(t, opt.FormatDefault(), "7")
+	opt = ConfigurationOption{Type: BoolConfigurationOption, Default: false}
+	assert.Equal(t, opt.FormatDefault(), "false")
+}
+
 func init() {
 	cwd, err := os.Getwd()
 	if err == nil {
@@ -461,11 +453,4 @@ func init() {
 	testRepository, _ = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL: "https://github.com/src-d/hercules",
 	})
-}
-
-func TestPipelineResolveIntegration(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
-	pipeline.DeployItem(&BurndownAnalysis{})
-	pipeline.DeployItem(&CouplesAnalysis{})
-	pipeline.Initialize(nil)
 }

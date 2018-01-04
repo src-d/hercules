@@ -11,7 +11,7 @@ a pipe. It is possible to write custom analyses using the plugin system. It is a
 to merge several analysis results together.
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
-<p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules -burndown -burndown-people -couples -feature=uast -dry-run -dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
+<p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
 
 ![git/git image](doc/linux.png)
 <p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year)</p>
@@ -38,18 +38,18 @@ Couples analysis also needs Tensorflow.
 ### Usage
 ```
 # Use "memory" go-git backend and display the burndown plot. "memory" is the fastest but the repository's git data must fit into RAM.
-hercules -burndown https://github.com/src-d/go-git | python3 labours.py -m project --resample month
+hercules --burndown https://github.com/src-d/go-git | python3 labours.py -m project --resample month
 # Use "file system" go-git backend and print some basic information about the repository.
 hercules /path/to/cloned/go-git
 # Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache, use Protocol Buffers and display the burndown plot without resampling.
-hercules -burndown -pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -m project -f pb --resample raw
+hercules --burndown --pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -m project -f pb --resample raw
 
 # Now something fun
 # Get the linear history from git rev-list, reverse it
 # Pipe to hercules, produce burndown snapshots for every 30 days grouped by 30 days
 # Save the raw data to cache.yaml, so that later is possible to python3 labours.py -i cache.yaml
 # Pipe the raw data to labours.py, set text font size to 16pt, use Agg matplotlib backend and save the plot to output.png
-git rev-list HEAD | tac | hercules -commits - -burndown https://github.com/git/git | tee cache.yaml | python3 labours.py -m project --font-size 16 --backend Agg --output git.png
+git rev-list HEAD | tac | hercules --commits - --burndown https://github.com/git/git | tee cache.yaml | python3 labours.py -m project --font-size 16 --backend Agg --output git.png
 ```
 
 `labours.py -i /path/to/yaml` allows to read the output from `hercules` which was saved on disk.
@@ -64,13 +64,13 @@ corresponding directory instead of cloning from scratch:
 hercules https://github.com/git/git /tmp/repo-cache
 
 # Second time - use the cache
-hercules -some-analysis /tmp/repo-cache
+hercules --some-analysis /tmp/repo-cache
 ```
 
 #### Docker image
 
 ```
-docker run --rm srcd/hercules hercules -burndown -pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -m project -o /io/git_git.png
+docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -m project -o /io/git_git.png
 ```
 
 ### Built-in analyses
@@ -78,7 +78,7 @@ docker run --rm srcd/hercules hercules -burndown -pb https://github.com/git/git 
 #### Project burndown
 
 ```
-hercules -burndown
+hercules --burndown
 python3 labours.py -m project
 ```
 
@@ -95,7 +95,7 @@ value, the more smooth is the plot but the more work is done.
 #### Files
 
 ```
-hercules -burndown -burndown-files
+hercules --burndown --burndown-files
 python3 labours.py -m files
 ```
 
@@ -104,7 +104,7 @@ Burndown statistics for every file in the repository which is alive in the lates
 #### People
 
 ```
-hercules -burndown -burndown-people [-people-dict=/path/to/identities]
+hercules --burndown --burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m person
 ```
 
@@ -128,7 +128,7 @@ by `|`. The case is ignored.
 <p align="center">Wireshark top 20 devs - churn matrix</p>
 
 ```
-hercules -burndown -burndown-people [-people-dict=/path/to/identities]
+hercules --burndown --burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m churn_matrix
 ```
 
@@ -150,7 +150,7 @@ The sequence of developers is stored in `people_sequence` YAML node.
 <p align="center">Ember.js top 20 devs - code ownership</p>
 
 ```
-hercules -burndown -burndown-people [-people-dict=/path/to/identities]
+hercules --burndown --burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m ownership
 ```
 
@@ -163,7 +163,7 @@ how many lines are alive at the sampled moments in time for each identified deve
 <p align="center">torvalds/linux files' coupling in Tensorflow Projector</p>
 
 ```
-hercules -couples [-people-dict=/path/to/identities]
+hercules --couples [-people-dict=/path/to/identities]
 python3 labours.py -m couples -o <name> [--couples-tmp-dir=/tmp]
 ```
 
@@ -183,7 +183,7 @@ can be visualized with t-SNE implemented in TF Projector.
 #### Everything in a single pass
 
 ```
-hercules -burndown -burndown-files -burndown-people -couples [-people-dict=/path/to/identities]
+hercules --burndown --burndown-files --burndown-people --couples [-people-dict=/path/to/identities]
 python3 labours.py -m all
 ```
 
@@ -193,12 +193,12 @@ Hercules has a plugin system and allows to run custom analyses. See [PLUGINS.md]
 
 ### Merging
 
-`hercules-combine` is the tool which joins several analysis results in Protocol Buffers format together. 
+`hercules combine` is the command which joins several analysis results in Protocol Buffers format together. 
 
 ```
-hercules -burndown -pb https://github.com/src-d/go-git > go-git.pb
-hercules -burndown -pb https://github.com/src-d/hercules > hercules.pb
-hercules-combine go-git.pb hercules.pb | python3 labours.py -f pb -m project --resample M
+hercules --burndown --pb https://github.com/src-d/go-git > go-git.pb
+hercules --burndown --pb https://github.com/src-d/hercules > hercules.pb
+hercules combine go-git.pb hercules.pb | python3 labours.py -f pb -m project --resample M
 ```
 
 ### Bad unicode errors
@@ -208,7 +208,7 @@ may raise exceptions. Filter the output from `hercules` through `fix_yaml_unicod
 such offending characters.
 
 ```
-hercules -burndown -burndown-people https://github.com/... | python3 fix_yaml_unicode.py | python3 labours.py -m people
+hercules --burndown --burndown-people https://github.com/... | python3 fix_yaml_unicode.py | python3 labours.py -m people
 ```
 
 ### Plotting
@@ -252,7 +252,7 @@ in-memory storage may require much RAM, for example, the Linux kernel takes over
 1. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
 parsed. However, most of the repositories are parsed within a minute. Try using Protocol Buffers
-instead (`hercules -pb` and `labours.py -f pb`).
+instead (`hercules --pb` and `labours.py -f pb`).
 1. To speed-up yaml parsing
    ```
    # Debian, Ubuntu

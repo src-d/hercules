@@ -3,17 +3,13 @@ package hercules
 import (
 	"bufio"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
-	"strings"
 	"time"
-	"unsafe"
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -33,10 +29,17 @@ const (
 	StringConfigurationOption
 )
 
-const (
-	ConfigPipelineDumpPath = "Pipeline.DumpPath"
-	ConfigPipelineDryRun   = "Pipeline.DryRun"
-)
+func (opt ConfigurationOptionType) String() string {
+	switch opt {
+	case BoolConfigurationOption:
+		return ""
+	case IntConfigurationOption:
+		return "int"
+	case StringConfigurationOption:
+		return "string"
+	}
+	panic(fmt.Sprintf("Invalid ConfigurationOptionType value %d", opt))
+}
 
 // ConfigurationOption allows for the unified, retrospective way to setup PipelineItem-s.
 type ConfigurationOption struct {
@@ -50,6 +53,13 @@ type ConfigurationOption struct {
 	Type ConfigurationOptionType
 	// Default is the initial value of the configuration option.
 	Default interface{}
+}
+
+func (opt ConfigurationOption) FormatDefault() string {
+	if opt.Type != StringConfigurationOption {
+		return fmt.Sprint(opt.Default)
+	}
+	return fmt.Sprintf("\"%s\"", opt.Default)
 }
 
 // PipelineItem is the interface for all the units of the Git commit analysis pipeline.
@@ -155,137 +165,6 @@ func MetadataToCommonAnalysisResult(meta *pb.Metadata) *CommonAnalysisResult {
 	}
 }
 
-// PipelineItemRegistry contains all the known PipelineItem-s.
-type PipelineItemRegistry struct {
-	provided   map[string][]reflect.Type
-	registered map[string]reflect.Type
-	flags      map[string]reflect.Type
-}
-
-// Register adds another PipelineItem to the registry.
-func (registry *PipelineItemRegistry) Register(example PipelineItem) {
-	t := reflect.TypeOf(example)
-	registry.registered[example.Name()] = t
-	if fpi, ok := example.(LeafPipelineItem); ok {
-		registry.flags[fpi.Flag()] = t
-	}
-	for _, dep := range example.Provides() {
-		ts := registry.provided[dep]
-		if ts == nil {
-			ts = []reflect.Type{}
-		}
-		ts = append(ts, t)
-		registry.provided[dep] = ts
-	}
-}
-
-func (registry *PipelineItemRegistry) Summon(providesOrName string) []PipelineItem {
-	if registry.provided == nil {
-		return []PipelineItem{}
-	}
-	ts := registry.provided[providesOrName]
-	items := []PipelineItem{}
-	for _, t := range ts {
-		items = append(items, reflect.New(t.Elem()).Interface().(PipelineItem))
-	}
-	if t, exists := registry.registered[providesOrName]; exists {
-		items = append(items, reflect.New(t.Elem()).Interface().(PipelineItem))
-	}
-	return items
-}
-
-type arrayFeatureFlags struct {
-	// Flags containts the features activated through the command line.
-	Flags []string
-	// Choices contains all registered features.
-	Choices map[string]bool
-}
-
-func (acf *arrayFeatureFlags) String() string {
-	return strings.Join([]string(acf.Flags), ", ")
-}
-
-func (acf *arrayFeatureFlags) Set(value string) error {
-	if _, exists := acf.Choices[value]; !exists {
-		return errors.New(fmt.Sprintf("Feature \"%s\" is not registered.", value))
-	}
-	acf.Flags = append(acf.Flags, value)
-	return nil
-}
-
-var featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
-
-// AddFlags inserts the cmdline options from PipelineItem.ListConfigurationOptions(),
-// FeaturedPipelineItem().Features() and LeafPipelineItem.Flag() into the global "flag" parser
-// built into the Go runtime.
-// Returns the "facts" which can be fed into PipelineItem.Configure() and the dictionary of
-// runnable analysis (LeafPipelineItem) choices. E.g. if "BurndownAnalysis" was activated
-// through "-burndown" cmdline argument, this mapping would contain ["BurndownAnalysis"] = *true.
-func (registry *PipelineItemRegistry) AddFlags() (map[string]interface{}, map[string]*bool) {
-	flags := map[string]interface{}{}
-	deployed := map[string]*bool{}
-	for name, it := range registry.registered {
-		formatHelp := func(desc string) string {
-			return fmt.Sprintf("%s [%s]", desc, name)
-		}
-		itemIface := reflect.New(it.Elem()).Interface()
-		for _, opt := range itemIface.(PipelineItem).ListConfigurationOptions() {
-			var iface interface{}
-			switch opt.Type {
-			case BoolConfigurationOption:
-				iface = interface{}(true)
-				ptr := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
-				*ptr = flag.Bool(opt.Flag, opt.Default.(bool), formatHelp(opt.Description))
-			case IntConfigurationOption:
-				iface = interface{}(0)
-				ptr := (**int)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
-				*ptr = flag.Int(opt.Flag, opt.Default.(int), formatHelp(opt.Description))
-			case StringConfigurationOption:
-				iface = interface{}("")
-				ptr := (**string)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
-				*ptr = flag.String(opt.Flag, opt.Default.(string), formatHelp(opt.Description))
-			}
-			flags[opt.Name] = iface
-		}
-		if fpi, ok := itemIface.(FeaturedPipelineItem); ok {
-			for _, f := range fpi.Features() {
-				featureFlags.Choices[f] = true
-			}
-		}
-		if fpi, ok := itemIface.(LeafPipelineItem); ok {
-			deployed[fpi.Name()] = flag.Bool(
-				fpi.Flag(), false, fmt.Sprintf("Runs %s analysis.", fpi.Name()))
-		}
-	}
-	{
-		// Pipeline flags
-		iface := interface{}("")
-		ptr1 := (**string)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
-		*ptr1 = flag.String("dump-dag", "", "Write the pipeline DAG to a Graphviz file.")
-		flags[ConfigPipelineDumpPath] = iface
-		iface = interface{}(true)
-		ptr2 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
-		*ptr2 = flag.Bool("dry-run", false, "Do not run any analyses - only resolve the DAG. "+
-			"Useful for -dump-dag.")
-		flags[ConfigPipelineDryRun] = iface
-	}
-	features := []string{}
-	for f := range featureFlags.Choices {
-		features = append(features, f)
-	}
-	flag.Var(&featureFlags, "feature",
-		fmt.Sprintf("Enables specific analysis features, can be specified "+
-			"multiple times. Available features: [%s].", strings.Join(features, ", ")))
-	return flags, deployed
-}
-
-// Registry contains all known pipeline item types.
-var Registry = &PipelineItemRegistry{
-	provided:   map[string][]reflect.Type{},
-	registered: map[string]reflect.Type{},
-	flags:      map[string]reflect.Type{},
-}
-
 type Pipeline struct {
 	// OnProgress is the callback which is invoked in Analyse() to output it's
 	// progress. The first argument is the number of processed commits and the
@@ -306,7 +185,11 @@ type Pipeline struct {
 	features map[string]bool
 }
 
-const FactPipelineCommits = "commits"
+const (
+	ConfigPipelineDumpPath = "Pipeline.DumpPath"
+	ConfigPipelineDryRun   = "Pipeline.DryRun"
+	FactPipelineCommits    = "commits"
+)
 
 func NewPipeline(repository *git.Repository) *Pipeline {
 	return &Pipeline{
