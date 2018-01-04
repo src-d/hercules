@@ -161,13 +161,17 @@ func TestPipelineFeatures(t *testing.T) {
 	assert.True(t, val)
 	val, exists := pipeline.GetFeature("!")
 	assert.False(t, exists)
-	featureFlags.Set("777")
+	Registry.featureFlags.Set("777")
 	defer func() {
-		featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
+		Registry.featureFlags = arrayFeatureFlags{Flags: []string{}, Choices: map[string]bool{}}
 	}()
 	pipeline.SetFeaturesFromFlags()
 	_, exists = pipeline.GetFeature("777")
 	assert.False(t, exists)
+	assert.Panics(t, func() {
+		pipeline.SetFeaturesFromFlags(
+			&PipelineItemRegistry{}, &PipelineItemRegistry{})
+	})
 }
 
 func TestPipelineRun(t *testing.T) {
