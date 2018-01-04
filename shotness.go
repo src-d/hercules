@@ -47,8 +47,8 @@ type NodeSummary struct {
 	File         string
 }
 
-// ShotnessAnalysisResult is returned by Finalize() and represents the analysis result.
-type ShotnessAnalysisResult struct {
+// ShotnessResult is returned by Finalize() and represents the analysis result.
+type ShotnessResult struct {
 	Nodes    []NodeSummary
 	Counters []map[int]int
 }
@@ -279,7 +279,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 
 // Finalize produces the result of the analysis. No more Consume() calls are expected afterwards.
 func (shotness *ShotnessAnalysis) Finalize() interface{} {
-	result := ShotnessAnalysisResult{
+	result := ShotnessResult{
 		Nodes:    make([]NodeSummary, len(shotness.nodes)),
 		Counters: make([]map[int]int, len(shotness.nodes)),
 	}
@@ -309,7 +309,7 @@ func (shotness *ShotnessAnalysis) Finalize() interface{} {
 
 // Serialize converts the result from Finalize() to either Protocol Buffers or YAML.
 func (shotness *ShotnessAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
-	shotnessResult := result.(ShotnessAnalysisResult)
+	shotnessResult := result.(ShotnessResult)
 	if binary {
 		return shotness.serializeBinary(&shotnessResult, writer)
 	}
@@ -317,9 +317,9 @@ func (shotness *ShotnessAnalysis) Serialize(result interface{}, binary bool, wri
 	return nil
 }
 
-func (shotness *ShotnessAnalysis) serializeText(result *ShotnessAnalysisResult, writer io.Writer) {
+func (shotness *ShotnessAnalysis) serializeText(result *ShotnessResult, writer io.Writer) {
 	for i, summary := range result.Nodes {
-		fmt.Fprintf(writer, "  - name: %s\n    file: %s\n    ir: %s\n    roles: [",
+		fmt.Fprintf(writer, "  - name: %s\n    file: %s\n    internal_role: %s\n    roles: [",
 			summary.Name, summary.File, summary.InternalRole)
 		for j, r := range summary.Roles {
 			if j < len(summary.Roles)-1 {
@@ -339,17 +339,17 @@ func (shotness *ShotnessAnalysis) serializeText(result *ShotnessAnalysisResult, 
 		for _, key := range keys {
 			val := result.Counters[i][key]
 			if j < len(result.Counters[i])-1 {
-				fmt.Fprintf(writer, "%d:%d,", key, val)
+				fmt.Fprintf(writer, "\"%d\":%d,", key, val)
 			} else {
-				fmt.Fprintf(writer, "%d:%d}\n", key, val)
+				fmt.Fprintf(writer, "\"%d\":%d}\n", key, val)
 			}
 			j++
 		}
 	}
 }
 
-func (shotness *ShotnessAnalysis) serializeBinary(result *ShotnessAnalysisResult, writer io.Writer) error {
-	message := pb.ShotnessAnalysisResultMessage{
+func (shotness *ShotnessAnalysis) serializeBinary(result *ShotnessResult, writer io.Writer) error {
+	message := pb.ShotnessAnalysisResults{
 		Records: make([]*pb.ShotnessRecord, len(result.Nodes)),
 	}
 	for i, summary := range result.Nodes {

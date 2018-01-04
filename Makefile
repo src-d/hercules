@@ -7,10 +7,13 @@ all: ${GOPATH}/bin/hercules
 test: all
 	go test gopkg.in/src-d/hercules.v3
 
-dependencies: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 ${GOPATH}/src/gopkg.in/src-d/hercules.v3 ${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb.pb.go ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules/plugin_template_source.go
+dependencies: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 ${GOPATH}/src/gopkg.in/src-d/hercules.v3 ${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb.pb.go ${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb_pb2.py ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules/plugin_template_source.go
 
-${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb.pb.go:
+${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb.pb.go: pb/pb.proto
 	PATH=$$PATH:$$GOPATH/bin protoc --gogo_out=pb --proto_path=pb pb/pb.proto
+
+${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb_pb2.py: pb/pb.proto
+	protoc --python_out pb --proto_path=pb pb/pb.proto
 
 ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules/plugin_template_source.go: ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules/plugin.template
 	cd ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules && go generate

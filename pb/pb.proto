@@ -93,7 +93,7 @@ message ShotnessRecord {
     map<int32, int32> counters = 5;
 }
 
-message ShotnessAnalysisResultMessage {
+message ShotnessAnalysisResults {
     repeated ShotnessRecord records = 1;
 }
 

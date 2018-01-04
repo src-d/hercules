@@ -180,6 +180,32 @@ written to the current working directory with the name depending on `-o`. The ou
 and matches [Tensorflow Projector](http://projector.tensorflow.org/) so that the files and people
 can be visualized with t-SNE implemented in TF Projector.
 
+#### Structural hotness
+
+```
+       8  jinja2/runtime.py:__init__ [FunctionDef]
+       7  jinja2/ext.py:parse [FunctionDef]
+       6  jinja2/optimizer.py:optimize [FunctionDef]
+       6  jinja2/compiler.py:inspect [FunctionDef]
+       6  jinja2/loaders.py:__init__ [FunctionDef]
+       6  jinja2/exceptions.py:__init__ [FunctionDef]
+       6  jinja2/runtime.py:__getitem__ [FunctionDef]
+       5  jinja2/optimizer.py:visit_For [FunctionDef]
+       5  jinja2/parser.py:parse_tuple [FunctionDef]
+       5  jinja2/environment.py:compile [FunctionDef]
+```
+
+Thanks to Babelfish, hercules is able to measure how many times each structural unit has been modified.
+By default, it looks at functions; refer to [UAST XPath](https://doc.bblf.sh/user/uast-querying.html)
+manual to set an other query. **Beta**
+
+```
+hercules --shotness [--shotness-xpath-*]
+python3 labours.py -m shotness
+```
+
+Couples analysis automatically loads "shotness" data if available.
+
 #### Everything in a single pass
 
 ```
