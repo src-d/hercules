@@ -103,7 +103,7 @@ var generatePluginCmd = &cobra.Command{
 			gen = template.Must(template.New("plugin").Parse(`all: {{.shlib}}
 
 {{.shlib}}: {{.output}} {{.protogo}}
-` + "\t" + `go build -buildmode=plugin {{.output}} {{.protogo}}
+` + "\t" + `go build -buildmode=plugin -linkshared {{.output}} {{.protogo}}
 
 {{.protogo}}: {{.proto}}
 ` + "\t" + `PATH=$$PATH:$$GOPATH/bin protoc --gogo_out=. --proto_path=. {{.proto}}
