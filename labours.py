@@ -30,6 +30,7 @@ if sys.version_info[0] < 3:
 PB_MESSAGES = {
     "Burndown": "pb.pb_pb2.BurndownAnalysisResults",
     "Couples": "pb.pb_pb2.CouplesAnalysisResults",
+    "Shotness": "pb.pb_pb2.ShotnessAnalysisResults",
 }
 
 
@@ -53,7 +54,7 @@ def parse_args():
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
                         choices=["project", "file", "person", "churn_matrix", "ownership",
-                                 "couples", "all"],
+                                 "couples", "shotness", "all"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -103,6 +104,9 @@ class Reader(object):
     def get_people_coocc(self):
         raise NotImplementedError
 
+    def get_shotness(self):
+        raise NotImplementedError
+
 
 class YamlReader(Reader):
     def read(self, file):
@@ -125,7 +129,7 @@ class YamlReader(Reader):
         self.data = data
 
     def get_name(self):
-        return next(iter(self.data["Burndown"]["project"]))
+        return self.data["hercules"]["repository"]
 
     def get_header(self):
         header = self.data["hercules"]
@@ -164,6 +168,14 @@ class YamlReader(Reader):
         coocc = self.data["Couples"]["people_coocc"]
         return coocc["index"], self._parse_coocc_matrix(coocc["matrix"])
 
+    def get_shotness(self):
+        from munch import munchify
+        obj = munchify(self.data["Shotness"])
+        # turn strings into ints
+        for item in obj:
+            item.counters = {int(k): v for k, v in item.counters.items()}
+        return obj
+
     def _parse_burndown_matrix(self, matrix):
         return numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
                             for line in matrix.split("\n")])
@@ -183,7 +195,11 @@ class YamlReader(Reader):
 
 class ProtobufReader(Reader):
     def read(self, file):
-        from pb.pb_pb2 import AnalysisResults
+        try:
+            from pb.pb_pb2 import AnalysisResults
+        except ImportError as e:
+            print("\n\n>>> You need to generate pb/pb_pb2.py - run \"make\"\n", file=sys.stderr)
+            raise e from None
         self.data = AnalysisResults()
         if file != "-":
             with open(file, "rb") as fin:
@@ -237,6 +253,9 @@ class ProtobufReader(Reader):
     def get_people_coocc(self):
         node = self.contents["Couples"].people_couples
         return list(node.index), self._parse_sparse_matrix(node.matrix)
+
+    def get_shotness(self):
+        return self.contents["Shotness"].records
 
     def _parse_burndown_matrix(self, matrix):
         dense = numpy.zeros((matrix.number_of_rows, matrix.number_of_columns), dtype=int)
@@ -960,20 +979,29 @@ def write_embeddings(name, output, run_server, index, embeddings):
                 print("\t" + url)
 
 
+def show_shotness_stats(data):
+    top = sorted(((r.counters[i], i) for i, r in enumerate(data)), reverse=True)
+    for count, i in top:
+        r = data[i]
+        print("%8d  %s:%s [%s]" % (count, r.file, r.name, r.internal_role))
+
+
 def main():
     args = parse_args()
     reader = read_input(args)
     header = reader.get_header()
     name = reader.get_name()
 
-    burndown_warning = "Burndown stats were not collected. Re-run hercules with -burndown."
+    burndown_warning = "Burndown stats were not collected. Re-run hercules with --burndown."
     burndown_files_warning = \
         "Burndown stats for files were not collected. Re-run hercules with " \
-        "-burndown -burndown-files."
+        "--burndown --burndown-files."
     burndown_people_warning = \
         "Burndown stats for people were not collected. Re-run hercules with " \
-        "-burndown -burndown-people."
-    couples_warning = "Coupling stats were not collected. Re-run hercules with -couples."
+        "--burndown --burndown-people."
+    couples_warning = "Coupling stats were not collected. Re-run hercules with --couples."
+    shotness_warning = "Structural hotness stats were not collected. Re-run hercules with " \
+                       "--shotness."
 
     def project_burndown():
         try:
@@ -1037,6 +1065,14 @@ def main():
         except KeyError:
             print(couples_warning)
 
+    def shotness():
+        try:
+            data = reader.get_shotness()
+        except KeyError:
+            print(shotness_warning)
+            return
+        show_shotness_stats(data)
+
     if args.mode == "project":
         project_burndown()
     elif args.mode == "file":
@@ -1049,6 +1085,8 @@ def main():
         ownership_burndown()
     elif args.mode == "couples":
         couples()
+    elif args.mode == "shotness":
+        shotness()
     elif args.mode == "all":
         project_burndown()
         files_burndown()
@@ -1056,6 +1094,7 @@ def main():
         churn_matrix()
         ownership_burndown()
         couples()
+        shotness()
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))

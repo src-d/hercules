@@ -57,7 +57,7 @@ func TestShotnessRegistration(t *testing.T) {
 	assert.Equal(t, tp.Elem().Name(), "ShotnessAnalysis")
 }
 
-func bakeShotness(t *testing.T) (*ShotnessAnalysis, ShotnessAnalysisResult) {
+func bakeShotness(t *testing.T) (*ShotnessAnalysis, ShotnessResult) {
 	sh := fixtureShotness()
 	bytes1, err := ioutil.ReadFile(path.Join("test_data", "1.java"))
 	assert.Nil(t, err)
@@ -102,7 +102,7 @@ func bakeShotness(t *testing.T) (*ShotnessAnalysis, ShotnessAnalysisResult) {
 	iresult, err = sh.Consume(state)
 	assert.Nil(t, err)
 	assert.Nil(t, iresult)
-	return sh, sh.Finalize().(ShotnessAnalysisResult)
+	return sh, sh.Finalize().(ShotnessResult)
 }
 
 func TestShotnessConsume(t *testing.T) {
@@ -170,7 +170,7 @@ func TestShotnessConsume(t *testing.T) {
 			assert.Len(t, node.Couples, 17)
 		}
 	}
-	result := sh.Finalize().(ShotnessAnalysisResult)
+	result := sh.Finalize().(ShotnessResult)
 	assert.Len(t, result.Nodes, 18)
 	assert.Len(t, result.Counters, 18)
 	assert.Equal(t, result.Nodes[14].String(),
@@ -199,94 +199,94 @@ func TestShotnessSerializeText(t *testing.T) {
 	sh.Serialize(result, false, buffer)
 	assert.Equal(t, buffer.String(), `  - name: testAddEntry
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testArchiveEquals
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testContainsAnyEntry
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testDuplicateEntryAtAddOrReplace
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testDuplicateEntryAtAdd
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testDuplicateEntryAtReplace
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testPackEntries
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testPackEntry
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testPreserveRoot
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testRemoveDirs
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testRemoveEntry
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testRepackArchive
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testUnexplode
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testUnpackEntryFromFile
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:2,14:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":2,"14":1,"15":1,"16":1,"17":1}
   - name: testUnpackEntryFromStreamToFile
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {13:1,14:1}
+    counters: {"13":1,"14":1}
   - name: testUnpackEntryFromStream
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testZipException
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,59,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: unexplodeWithException
     file: test.java
-    ir: MethodDeclaration
+    internal_role: MethodDeclaration
     roles: [111,100,41,45]
-    counters: {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:1,10:1,11:1,12:1,13:1,15:1,16:1,17:1}
+    counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
 `)
 }
 
@@ -294,7 +294,7 @@ func TestShotnessSerializeBinary(t *testing.T) {
 	sh, result := bakeShotness(t)
 	buffer := &bytes.Buffer{}
 	sh.Serialize(result, true, buffer)
-	message := pb.ShotnessAnalysisResultMessage{}
+	message := pb.ShotnessAnalysisResults{}
 	err := proto.Unmarshal(buffer.Bytes(), &message)
 	assert.Nil(t, err)
 	assert.Len(t, message.Records, 18)
