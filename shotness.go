@@ -221,15 +221,34 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 		genLine2Node := func(nodes map[string]*uast.Node, linesNum int) [][]*uast.Node {
 			res := make([][]*uast.Node, linesNum)
 			for _, node := range nodes {
-				if node.StartPosition != nil && node.EndPosition != nil {
-					for l := node.StartPosition.Line; l <= node.EndPosition.Line; l++ {
-						lineNodes := res[l-1]
-						if lineNodes == nil {
-							lineNodes = []*uast.Node{}
+				if node.StartPosition == nil {
+					continue
+				}
+				startLine := node.StartPosition.Line
+				endLine := node.StartPosition.Line
+				if node.EndPosition != nil {
+					endLine = node.EndPosition.Line
+				} else {
+					// we need to determine node.EndPosition.Line
+					VisitEachNode(node, func(child *uast.Node) {
+						if child.StartPosition != nil {
+							candidate := child.StartPosition.Line
+							if child.EndPosition != nil {
+								candidate = child.EndPosition.Line
+							}
+							if candidate > endLine {
+								endLine = candidate
+							}
 						}
-						lineNodes = append(lineNodes, node)
-						res[l-1] = lineNodes
+					})
+				}
+				for l := startLine; l <= endLine; l++ {
+					lineNodes := res[l-1]
+					if lineNodes == nil {
+						lineNodes = []*uast.Node{}
 					}
+					lineNodes = append(lineNodes, node)
+					res[l-1] = lineNodes
 				}
 			}
 			return res
