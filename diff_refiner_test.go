@@ -92,9 +92,9 @@ func TestFileDiffRefinerConsume(t *testing.T) {
 	assert.Equal(t, len(oldDiff.Diffs)+1, len(newDiff.Diffs))
 	assert.Equal(t, dmp.DiffText2(oldDiff.Diffs), dmp.DiffText2(newDiff.Diffs))
 	// Some hardcoded length checks
-	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[5].Text), 11)
-	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[6].Text), 41)
-	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[7].Text), 231)
+	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[6].Text), 11)
+	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[7].Text), 41)
+	assert.Equal(t, utf8.RuneCountInString(newDiff.Diffs[8].Text), 231)
 }
 
 func TestFileDiffRefinerConsumeNoUast(t *testing.T) {

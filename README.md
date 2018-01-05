@@ -183,16 +183,17 @@ can be visualized with t-SNE implemented in TF Projector.
 #### Structural hotness
 
 ```
+      15  jinja2/environment.py:compile [FunctionDef]
+       9  jinja2/environment.py:parse [FunctionDef]
+       8  jinja2/runtime.py:call [FunctionDef]
        8  jinja2/runtime.py:__init__ [FunctionDef]
+       8  jinja2/runtime.py:__call__ [FunctionDef]
        7  jinja2/ext.py:parse [FunctionDef]
+       7  jinja2/runtime.py:length [FunctionDef]
+       7  jinja2/environment.py:get_template [FunctionDef]
+       7  jinja2/runtime.py:_fail_with_undefined_error [FunctionDef]
        6  jinja2/optimizer.py:optimize [FunctionDef]
-       6  jinja2/compiler.py:inspect [FunctionDef]
-       6  jinja2/loaders.py:__init__ [FunctionDef]
-       6  jinja2/exceptions.py:__init__ [FunctionDef]
-       6  jinja2/runtime.py:__getitem__ [FunctionDef]
-       5  jinja2/optimizer.py:visit_For [FunctionDef]
-       5  jinja2/parser.py:parse_tuple [FunctionDef]
-       5  jinja2/environment.py:compile [FunctionDef]
+
 ```
 
 Thanks to Babelfish, hercules is able to measure how many times each structural unit has been modified.

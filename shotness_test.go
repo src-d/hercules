@@ -57,7 +57,7 @@ func TestShotnessRegistration(t *testing.T) {
 	assert.Equal(t, tp.Elem().Name(), "ShotnessAnalysis")
 }
 
-func bakeShotness(t *testing.T) (*ShotnessAnalysis, ShotnessResult) {
+func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, ShotnessResult) {
 	sh := fixtureShotness()
 	bytes1, err := ioutil.ReadFile(path.Join("test_data", "1.java"))
 	assert.Nil(t, err)
@@ -81,6 +81,11 @@ func bakeShotness(t *testing.T) (*ShotnessAnalysis, ShotnessResult) {
 		assert.Nil(t, err)
 		node := uast.Node{}
 		proto.Unmarshal(bytes, &node)
+		if eraseEndPosition {
+			VisitEachNode(&node, func(child *uast.Node) {
+				child.EndPosition = nil
+			})
+		}
 		return &node
 	}
 	state[DependencyUastChanges] = uastChanges
@@ -193,8 +198,14 @@ func TestShotnessConsume(t *testing.T) {
 	assert.Len(t, sh.files, 0)
 }
 
+func TestShotnessConsumeNoEnd(t *testing.T) {
+	_, result1 := bakeShotness(t, false)
+	_, result2 := bakeShotness(t, true)
+	assert.Equal(t, result1, result2)
+}
+
 func TestShotnessSerializeText(t *testing.T) {
-	sh, result := bakeShotness(t)
+	sh, result := bakeShotness(t, false)
 	buffer := &bytes.Buffer{}
 	sh.Serialize(result, false, buffer)
 	assert.Equal(t, buffer.String(), `  - name: testAddEntry
@@ -291,7 +302,7 @@ func TestShotnessSerializeText(t *testing.T) {
 }
 
 func TestShotnessSerializeBinary(t *testing.T) {
-	sh, result := bakeShotness(t)
+	sh, result := bakeShotness(t, false)
 	buffer := &bytes.Buffer{}
 	sh.Serialize(result, true, buffer)
 	message := pb.ShotnessAnalysisResults{}
