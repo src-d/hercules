@@ -78,6 +78,10 @@ type BurndownResult struct {
 	granularity        int
 }
 
+func (r *BurndownResult) GetPeople() []string {
+	return r.reversedPeopleDict
+}
+
 const (
 	ConfigBurndownGranularity  = "Burndown.Granularity"
 	ConfigBurndownSampling     = "Burndown.Sampling"
