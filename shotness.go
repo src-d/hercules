@@ -226,7 +226,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 				}
 				startLine := node.StartPosition.Line
 				endLine := node.StartPosition.Line
-				if node.EndPosition != nil {
+				if node.EndPosition != nil && node.EndPosition.Line > node.StartPosition.Line {
 					endLine = node.EndPosition.Line
 				} else {
 					// we need to determine node.EndPosition.Line
