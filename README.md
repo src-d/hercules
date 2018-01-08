@@ -197,7 +197,7 @@ can be visualized with t-SNE implemented in TF Projector.
 
 Thanks to Babelfish, hercules is able to measure how many times each structural unit has been modified.
 By default, it looks at functions; refer to [UAST XPath](https://doc.bblf.sh/user/uast-querying.html)
-manual to set an other query. **Beta**
+manual to set an other query.
 
 ```
 hercules --shotness [--shotness-xpath-*]
@@ -206,10 +206,13 @@ python3 labours.py -m shotness
 
 Couples analysis automatically loads "shotness" data if available.
 
+![Jinja2 functions grouped by structural hotness](doc/jinja.png)
+<p align="center"><code>hercules --shotness --pb https://github.com/pallets/jinja | python3 labours.py -m couples -f pb</code></p>
+
 #### Everything in a single pass
 
 ```
-hercules --burndown --burndown-files --burndown-people --couples [-people-dict=/path/to/identities]
+hercules --burndown --burndown-files --burndown-people --couples --shotness [-people-dict=/path/to/identities]
 python3 labours.py -m all
 ```
 
