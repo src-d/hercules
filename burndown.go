@@ -204,10 +204,8 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	treeDiffs := deps[DependencyTreeChanges].(object.Changes)
 	fileDiffs := deps[DependencyFileDiff].(map[string]FileDiffData)
 	for _, change := range treeDiffs {
-		action, err := change.Action()
-		if err != nil {
-			return nil, err
-		}
+		action, _ := change.Action()
+		var err error
 		switch action {
 		case merkletrie.Insert:
 			err = analyser.handleInsertion(change, author, cache)

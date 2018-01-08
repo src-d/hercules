@@ -1,6 +1,7 @@
 cmd/hercules/plugin_template_source.go
 contrib/_plugin_example/churn_analysis.pb.go
 pb/pb.pb.go
+pb/pb_pb2.py
 
 **/.DS_Store
 .idea

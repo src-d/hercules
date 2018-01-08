@@ -97,6 +97,14 @@ message ShotnessAnalysisResults {
     repeated ShotnessRecord records = 1;
 }
 
+message FileHistory {
+    repeated string commits = 1;
+}
+
+message FileHistoryResultMessage {
+    map<string, FileHistory> files = 1;
+}
+
 message AnalysisResults {
     Metadata header = 1;
     // the mapped values are dynamic messages which require the second parsing pass.
