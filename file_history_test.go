@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/gogo/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v3/pb"
@@ -37,7 +37,7 @@ func TestFileHistoryRegistration(t *testing.T) {
 }
 
 func TestFileHistoryConsume(t *testing.T) {
-  fh := fixtureFileHistory()
+	fh := fixtureFileHistory()
 	deps := map[string]interface{}{}
 	changes := make(object.Changes, 3)
 	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
@@ -105,7 +105,7 @@ func TestFileHistoryConsume(t *testing.T) {
 }
 
 func TestFileHistorySerializeText(t *testing.T) {
-  fh := fixtureFileHistory()
+	fh := fixtureFileHistory()
 	deps := map[string]interface{}{}
 	changes := make(object.Changes, 1)
 	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
@@ -132,7 +132,7 @@ func TestFileHistorySerializeText(t *testing.T) {
 }
 
 func TestFileHistorySerializeBinary(t *testing.T) {
-  fh := fixtureFileHistory()
+	fh := fixtureFileHistory()
 	deps := map[string]interface{}{}
 	changes := make(object.Changes, 1)
 	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
@@ -161,4 +161,3 @@ func TestFileHistorySerializeBinary(t *testing.T) {
 	assert.Len(t, msg.Files[".travis.yml"].Commits, 1)
 	assert.Equal(t, msg.Files[".travis.yml"].Commits[0], "2b1ed978194a94edeabbca6de7ff3b5771d4d665")
 }
-
