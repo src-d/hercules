@@ -11,7 +11,13 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
+// This PipelineItem loads the blobs which correspond to the changed files in a commit.
+// It must provide the old and the new objects; "cache" rotates and allows to not load
+// the same blobs twice. Outdated objects are removed so "cache" never grows big.
 type BlobCache struct {
+	// Specifies how to handle the situation when we encounter a git submodule - an object without
+	// the blob. If false, we look inside .gitmodules and if don't find, raise an error.
+	// If true, we do not look inside .gitmodules and always succeed.
 	IgnoreMissingSubmodules bool
 
 	repository *git.Repository
@@ -119,8 +125,12 @@ func (self *BlobCache) Consume(deps map[string]interface{}) (map[string]interfac
 	return map[string]interface{}{DependencyBlobCache: cache}, nil
 }
 
+// The definition of a function which loads a git file by the specified path.
+// The state can be arbitrary though here it always corresponds to the currently processed
+// commit.
 type FileGetter func(path string) (*object.File, error)
 
+// Returns the blob which corresponds to the specified ChangeEntry.
 func (cache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter) (
 	*object.Blob, error) {
 	blob, err := cache.repository.BlobObject(entry.TreeEntry.Hash)

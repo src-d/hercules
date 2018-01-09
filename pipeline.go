@@ -18,6 +18,7 @@ import (
 	"gopkg.in/src-d/hercules.v3/toposort"
 )
 
+// ConfigurationOptionType represents the possible types of a ConfigurationOption's value.
 type ConfigurationOptionType int
 
 const (
@@ -29,6 +30,8 @@ const (
 	StringConfigurationOption
 )
 
+// String() returns an empty string for the boolean type, "int" for integers and "string" for
+// strings. It is used in the command line interface to show the argument's type.
 func (opt ConfigurationOptionType) String() string {
 	switch opt {
 	case BoolConfigurationOption:
@@ -47,7 +50,7 @@ type ConfigurationOption struct {
 	Name string
 	// Description represents the help text about the configuration option.
 	Description string
-	// Flag corresponds to the CLI token with "-" prepended.
+	// Flag corresponds to the CLI token with "--" prepended.
 	Flag string
 	// Type specifies the kind of the configuration option's value.
 	Type ConfigurationOptionType
@@ -55,6 +58,8 @@ type ConfigurationOption struct {
 	Default interface{}
 }
 
+// FormatDefault() converts the default value of ConfigurationOption to string.
+// Used in the command line interface to show the argument's default value.
 func (opt ConfigurationOption) FormatDefault() string {
 	if opt.Type != StringConfigurationOption {
 		return fmt.Sprint(opt.Default)
@@ -62,7 +67,7 @@ func (opt ConfigurationOption) FormatDefault() string {
 	return fmt.Sprintf("\"%s\"", opt.Default)
 }
 
-// PipelineItem is the interface for all the units of the Git commit analysis pipeline.
+// PipelineItem is the interface for all the units in the Git commits analysis pipeline.
 type PipelineItem interface {
 	// Name returns the name of the analysis.
 	Name() string
@@ -126,14 +131,19 @@ type CommonAnalysisResult struct {
 	RunTime time.Duration
 }
 
+// BeginTimeAsTime() converts the UNIX timestamp of the beginning to Go time.
 func (car *CommonAnalysisResult) BeginTimeAsTime() time.Time {
 	return time.Unix(car.BeginTime, 0)
 }
 
+// EndTimeAsTime() converts the UNIX timestamp of the ending to Go time.
 func (car *CommonAnalysisResult) EndTimeAsTime() time.Time {
 	return time.Unix(car.EndTime, 0)
 }
 
+// Merge() combines the CommonAnalysisResult with an other one.
+// We choose the earlier BeginTime, the later EndTime, sum the number of commits and the
+// elapsed run times.
 func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
 	if car.EndTime == 0 || other.BeginTime == 0 {
 		panic("Merging with an uninitialized CommonAnalysisResult")
@@ -148,6 +158,7 @@ func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
 	car.RunTime += other.RunTime
 }
 
+// FillMetadata() copies the data to a Protobuf message.
 func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) *pb.Metadata {
 	meta.BeginUnixTime = car.BeginTime
 	meta.EndUnixTime = car.EndTime
@@ -156,6 +167,7 @@ func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) *pb.Metadata {
 	return meta
 }
 
+// MetadataToCommonAnalysisResult() copies the data from a Protobuf message.
 func MetadataToCommonAnalysisResult(meta *pb.Metadata) *CommonAnalysisResult {
 	return &CommonAnalysisResult{
 		BeginTime:     meta.BeginUnixTime,
@@ -165,6 +177,8 @@ func MetadataToCommonAnalysisResult(meta *pb.Metadata) *CommonAnalysisResult {
 	}
 }
 
+// The core Hercules entity which carries several PipelineItems and executes them.
+// See the extended example of how a Pipeline works in doc.go.
 type Pipeline struct {
 	// OnProgress is the callback which is invoked in Analyse() to output it's
 	// progress. The first argument is the number of processed commits and the
@@ -186,9 +200,13 @@ type Pipeline struct {
 }
 
 const (
+	// Makes Pipeline to save the DAG to the specified file.
 	ConfigPipelineDumpPath = "Pipeline.DumpPath"
-	ConfigPipelineDryRun   = "Pipeline.DryRun"
-	FactPipelineCommits    = "commits"
+	// Disables Configure() and Initialize() invokation on each PipelineItem during the initialization.
+	// Subsequent Run() calls are going to fail. Useful with ConfigPipelineDumpPath=true.
+	ConfigPipelineDryRun = "Pipeline.DryRun"
+	// Allows to specify the custom commit chain. By default, Pipeline.Commits() is used.
+	FactPipelineCommits = "commits"
 )
 
 func NewPipeline(repository *git.Repository) *Pipeline {
