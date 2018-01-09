@@ -1,4 +1,4 @@
-Hercules [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules) [![codecov](https://codecov.io/github/src-d/hercules/coverage.svg)](https://codecov.io/gh/src-d/hercules)
+Hercules [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules) [![codecov](https://codecov.io/github/src-d/hercules/coverage.svg)](https://codecov.io/gh/src-d/hercules) [![GoDoc](https://godoc.org/gopkg.in/src-d/hercules.v3?status.svg)](http://godoc.org/gopkg.in/src-d/hercules.v3)
 --------
 
 Amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries included.
