@@ -20,18 +20,18 @@ import (
 )
 
 // BurndownAnalyser allows to gather the line burndown statistics for a Git repository.
+// Reference: https://erikbern.com/2016/12/05/the-half-life-of-code.html
 type BurndownAnalysis struct {
 	// Granularity sets the size of each band - the number of days it spans.
 	// Smaller values provide better resolution but require more work and eat more
 	// memory. 30 days is usually enough.
 	Granularity int
 	// Sampling sets how detailed is the statistic - the size of the interval in
-	// days between consecutive measurements. It is usually a good idea to set it
-	// <= Granularity. Try 15 or 30.
+	// days between consecutive measurements. It may not be greater than Granularity. Try 15 or 30.
 	Sampling int
 
 	// TrackFiles enables or disables the fine-grained per-file burndown analysis.
-	// It does not change the top level burndown results.
+	// It does not change the project level burndown results.
 	TrackFiles bool
 
 	// The number of developers for which to collect the burndown stats. 0 disables it.
@@ -47,11 +47,11 @@ type BurndownAnalysis struct {
 	// globalStatus is the current daily alive number of lines; key is the number
 	// of days from the beginning of the history.
 	globalStatus map[int]int64
-	// globalHistory is the weekly snapshots of globalStatus.
+	// globalHistory is the periodic snapshots of globalStatus.
 	globalHistory [][]int64
-	// fileHistories is the weekly snapshots of each file's status.
+	// fileHistories is the periodic snapshots of each file's status.
 	fileHistories map[string][][]int64
-	// peopleHistories is the weekly snapshots of each person's status.
+	// peopleHistories is the periodic snapshots of each person's status.
 	peopleHistories [][][]int64
 	// files is the mapping <file path> -> *File.
 	files map[string]*File
@@ -68,21 +68,44 @@ type BurndownAnalysis struct {
 	reversedPeopleDict []string
 }
 
+// Carries the result of running BurndownAnalysis - it is returned by BurndownAnalysis.Finalize().
 type BurndownResult struct {
-	GlobalHistory      [][]int64
-	FileHistories      map[string][][]int64
-	PeopleHistories    [][][]int64
-	PeopleMatrix       [][]int64
+	// [number of samples][number of bands]
+	// The number of samples depends on Sampling: the less Sampling, the bigger the number.
+	// The number of bands depends on Granularity: the less Granularity, the bigger the number.
+	GlobalHistory [][]int64
+	// The key is the path inside the Git repository. The value's dimensions are the same as
+	// in GlobalHistory.
+	FileHistories map[string][][]int64
+	// [number of people][number of samples][number of bands]
+	PeopleHistories [][][]int64
+	// [number of people][number of people + 2]
+	// The first element is the total number of lines added by the author.
+	// The second element is the number of removals by unidentified authors (outside reversedPeopleDict).
+	// The rest of the elements are equal the number of line removals by the corresponding
+	// authors in reversedPeopleDict: 2 -> 0, 3 -> 1, etc.
+	PeopleMatrix [][]int64
+
+	// The following members are private.
+
+	// reversedPeopleDict is borrowed from IdentityDetector and becomes available after
+	// Pipeline.Initialize(facts map[string]interface{}). Thus it can be obtained via
+	// facts[FactIdentityDetectorReversedPeopleDict].
 	reversedPeopleDict []string
-	sampling           int
-	granularity        int
+	// sampling and granularity are copied from BurndownAnalysis and stored for service purposes
+	// such as merging several results together.
+	sampling    int
+	granularity int
 }
 
 const (
-	ConfigBurndownGranularity  = "Burndown.Granularity"
-	ConfigBurndownSampling     = "Burndown.Sampling"
-	ConfigBurndownTrackFiles   = "Burndown.TrackFiles"
-	ConfigBurndownTrackPeople  = "Burndown.TrackPeople"
+	ConfigBurndownGranularity = "Burndown.Granularity"
+	ConfigBurndownSampling    = "Burndown.Sampling"
+	// Measuring individual files is optional and false by default.
+	ConfigBurndownTrackFiles = "Burndown.TrackFiles"
+	// Measuring authors is optional and false by default.
+	ConfigBurndownTrackPeople = "Burndown.TrackPeople"
+	// Enables some extra debug assertions.
 	ConfigBurndownDebug        = "Burndown.Debug"
 	DefaultBurndownGranularity = 30
 )
@@ -221,12 +244,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	return nil, nil
 }
 
-// Finalize() returns the list of snapshots of the cumulative line edit times
-// and the similar lists for every file which is alive in HEAD.
-// The number of snapshots (the first dimension >[]<[]int64) depends on
-// Analyser.Sampling (the more Sampling, the less the value); the length of
-// each snapshot depends on Analyser.Granularity (the more Granularity,
-// the less the value).
+// Finalize() returns BurndownResult.
 func (analyser *BurndownAnalysis) Finalize() interface{} {
 	gs, fss, pss := analyser.groupStatus()
 	analyser.updateHistories(gs, fss, pss, 1)
@@ -446,6 +464,9 @@ func (analyser *BurndownAnalysis) MergeResults(
 	return merged
 }
 
+// mergeMatrices takes two [number of samples][number of bands] matrices,
+// resamples them to days so that they become square, sums and resamples back to the
+// least of (sampling1, sampling2) and (granularity1, granularity2).
 func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, sampling2 int,
 	c1, c2 *CommonAnalysisResult) [][]int64 {
 	commonMerged := *c1
@@ -735,6 +756,10 @@ func checkClose(c io.Closer) {
 	}
 }
 
+// We do a hack and store the day in the first 14 bits and the author index in the last 18.
+// Strictly speaking, int can be 64-bit and then the author index occupies 32+18 bits.
+// This hack is needed to simplify the values storage inside File-s. We can compare
+// different values together and they are compared as days for the same author.
 func (analyser *BurndownAnalysis) packPersonWithDay(person int, day int) int {
 	if analyser.PeopleNumber == 0 {
 		return day
