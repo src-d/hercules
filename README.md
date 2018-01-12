@@ -35,6 +35,13 @@ make
 Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.
 Couples analysis also needs Tensorflow.
 
+### Contributions
+
+...are welcome! See [CONTRIBUTING](CONTRIBUTING.md) and [code of conduct](CODE_OF_CONDUCT.md).
+
+### License
+[Apache 2.0](LICENSE.md)
+
 ### Usage
 ```
 # Use "memory" go-git backend and display the burndown plot. "memory" is the fastest but the repository's git data must fit into RAM.
@@ -293,6 +300,3 @@ instead (`hercules --pb` and `labours.py -f pb`).
    pip uninstall pyyaml
    pip --no-cache-dir install pyyaml
    ```
-
-### License
-Apache 2.0.
