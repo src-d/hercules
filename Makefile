@@ -30,4 +30,4 @@ ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2:
 .ONESHELL:
 ${GOPATH}/bin/hercules: dependencies *.go cmd/hercules/*.go rbtree/*.go yaml/*.go toposort/*.go pb/*.go
 	cd ${GOPATH}/src/gopkg.in/src-d/hercules.v3
-	go get -ldflags "-X gopkg.in/src-d/hercules.v3.GIT_HASH=$$(git rev-parse HEAD)" gopkg.in/src-d/hercules.v3/cmd/hercules
+	go get -ldflags "-X gopkg.in/src-d/hercules.v3.BinaryGitHash=$$(git rev-parse HEAD)" gopkg.in/src-d/hercules.v3/cmd/hercules

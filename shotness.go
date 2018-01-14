@@ -65,7 +65,7 @@ func (shotness *ShotnessAnalysis) Provides() []string {
 	return []string{}
 }
 
-func (ref *ShotnessAnalysis) Features() []string {
+func (shotness *ShotnessAnalysis) Features() []string {
 	arr := [...]string{FeatureUast}
 	return arr[:]
 }

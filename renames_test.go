@@ -51,10 +51,10 @@ func TestRenameAnalysisRegistration(t *testing.T) {
 func TestRenameAnalysisInitializeInvalidThreshold(t *testing.T) {
 	ra := RenameAnalysis{SimilarityThreshold: -10}
 	ra.Initialize(testRepository)
-	assert.Equal(t, ra.SimilarityThreshold, RENAME_ANALYSIS_DEFAULT_THRESHOLD)
+	assert.Equal(t, ra.SimilarityThreshold, RenameAnalysisDefaultThreshold)
 	ra = RenameAnalysis{SimilarityThreshold: 110}
 	ra.Initialize(testRepository)
-	assert.Equal(t, ra.SimilarityThreshold, RENAME_ANALYSIS_DEFAULT_THRESHOLD)
+	assert.Equal(t, ra.SimilarityThreshold, RenameAnalysisDefaultThreshold)
 	ra = RenameAnalysis{SimilarityThreshold: 0}
 	ra.Initialize(testRepository)
 	ra = RenameAnalysis{SimilarityThreshold: 100}

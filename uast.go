@@ -41,7 +41,7 @@ type UASTExtractor struct {
 }
 
 const (
-	UAST_EXTRACTION_SKIPPED = -(1 << 31)
+	uastExtractionSkipped = -(1 << 31)
 
 	ConfigUASTEndpoint     = "ConfigUASTEndpoint"
 	ConfigUASTTimeout      = "ConfigUASTTimeout"
@@ -211,7 +211,7 @@ func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]inter
 			}
 			lang := enry.GetLanguage(change.To.Name, buf.Bytes())
 			if _, exists := exr.Languages[lang]; !exists {
-				exr.ProcessedFiles[change.To.Name] = UAST_EXTRACTION_SKIPPED
+				exr.ProcessedFiles[change.To.Name] = uastExtractionSkipped
 				return
 			}
 			exr.ProcessedFiles[change.To.Name]++
@@ -248,9 +248,8 @@ func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]inter
 		joined := strings.Join(msgs, "\n")
 		if exr.FailOnErrors {
 			return nil, errors.New(joined)
-		} else {
-			fmt.Fprintln(os.Stderr, joined)
 		}
+		fmt.Fprintln(os.Stderr, joined)
 	}
 	return map[string]interface{}{DependencyUasts: uasts}, nil
 }

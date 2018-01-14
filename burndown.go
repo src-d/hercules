@@ -263,9 +263,9 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		mrow := make([]int64, analyser.PeopleNumber+2)
 		peopleMatrix[i] = mrow
 		for key, val := range row {
-			if key == MISSING_AUTHOR {
+			if key == AuthorMissing {
 				key = -1
-			} else if key == SELF_AUTHOR {
+			} else if key == AuthorSelf {
 				key = -2
 			}
 			mrow[key+2] = val
@@ -772,55 +772,56 @@ func (analyser *BurndownAnalysis) packPersonWithDay(person int, day int) int {
 
 func (analyser *BurndownAnalysis) unpackPersonWithDay(value int) (int, int) {
 	if analyser.PeopleNumber == 0 {
-		return MISSING_AUTHOR, value
+		return AuthorMissing, value
 	}
 	return value >> 14, value & 0x3FFF
 }
 
 func (analyser *BurndownAnalysis) updateStatus(
-	status interface{}, _ int, previous_time_ int, delta int) {
+	status interface{}, _ int, previousValue int, delta int) {
 
-	_, previous_time := analyser.unpackPersonWithDay(previous_time_)
-	status.(map[int]int64)[previous_time] += int64(delta)
+	_, previousTime := analyser.unpackPersonWithDay(previousValue)
+	status.(map[int]int64)[previousTime] += int64(delta)
 }
 
-func (analyser *BurndownAnalysis) updatePeople(people interface{}, _ int, previous_time_ int, delta int) {
-	old_author, previous_time := analyser.unpackPersonWithDay(previous_time_)
-	if old_author == MISSING_AUTHOR {
+func (analyser *BurndownAnalysis) updatePeople(
+	peopleUncasted interface{}, _ int, previousValue int, delta int) {
+	previousAuthor, previousTime := analyser.unpackPersonWithDay(previousValue)
+	if previousAuthor == AuthorMissing {
 		return
 	}
-	casted := people.([]map[int]int64)
-	stats := casted[old_author]
+	people := peopleUncasted.([]map[int]int64)
+	stats := people[previousAuthor]
 	if stats == nil {
 		stats = map[int]int64{}
-		casted[old_author] = stats
+		people[previousAuthor] = stats
 	}
-	stats[previous_time] += int64(delta)
+	stats[previousTime] += int64(delta)
 }
 
 func (analyser *BurndownAnalysis) updateMatrix(
-	matrix_ interface{}, current_time int, previous_time int, delta int) {
+	matrixUncasted interface{}, currentTime int, previousTime int, delta int) {
 
-	matrix := matrix_.([]map[int]int64)
-	new_author, _ := analyser.unpackPersonWithDay(current_time)
-	old_author, _ := analyser.unpackPersonWithDay(previous_time)
-	if old_author == MISSING_AUTHOR {
+	matrix := matrixUncasted.([]map[int]int64)
+	newAuthor, _ := analyser.unpackPersonWithDay(currentTime)
+	oldAuthor, _ := analyser.unpackPersonWithDay(previousTime)
+	if oldAuthor == AuthorMissing {
 		return
 	}
-	if new_author == old_author && delta > 0 {
-		new_author = SELF_AUTHOR
+	if newAuthor == oldAuthor && delta > 0 {
+		newAuthor = AuthorSelf
 	}
-	row := matrix[old_author]
+	row := matrix[oldAuthor]
 	if row == nil {
 		row = map[int]int64{}
-		matrix[old_author] = row
+		matrix[oldAuthor] = row
 	}
-	cell, exists := row[new_author]
+	cell, exists := row[newAuthor]
 	if !exists {
-		row[new_author] = 0
+		row[newAuthor] = 0
 		cell = 0
 	}
-	row[new_author] = cell + int64(delta)
+	row[newAuthor] = cell + int64(delta)
 }
 
 func (analyser *BurndownAnalysis) newFile(
@@ -852,7 +853,7 @@ func (analyser *BurndownAnalysis) handleInsertion(
 	name := change.To.Name
 	file, exists := analyser.files[name]
 	if exists {
-		return errors.New(fmt.Sprintf("file %s already exists", name))
+		return fmt.Errorf("file %s already exists", name)
 	}
 	file = analyser.newFile(
 		author, analyser.day, lines, analyser.globalStatus, analyser.people, analyser.matrix)
@@ -899,9 +900,9 @@ func (analyser *BurndownAnalysis) handleModification(
 	thisDiffs := diffs[change.To.Name]
 	if file.Len() != thisDiffs.OldLinesOfCode {
 		fmt.Fprintf(os.Stderr, "====TREE====\n%s", file.Dump())
-		return errors.New(fmt.Sprintf("%s: internal integrity error src %d != %d %s -> %s",
+		return fmt.Errorf("%s: internal integrity error src %d != %d %s -> %s",
 			change.To.Name, thisDiffs.OldLinesOfCode, file.Len(),
-			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String()))
+			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String())
 	}
 
 	// we do not call RunesToDiffLines so the number of lines equals
@@ -923,17 +924,17 @@ func (analyser *BurndownAnalysis) handleModification(
 	}
 
 	for _, edit := range thisDiffs.Diffs {
-		dump_before := ""
+		dumpBefore := ""
 		if analyser.Debug {
-			dump_before = file.Dump()
+			dumpBefore = file.Dump()
 		}
 		length := utf8.RuneCountInString(edit.Text)
-		debug_error := func() {
+		debugError := func() {
 			fmt.Fprintf(os.Stderr, "%s: internal diff error\n", change.To.Name)
 			fmt.Fprintf(os.Stderr, "Update(%d, %d, %d (0), %d (0))\n", analyser.day, position,
 				length, utf8.RuneCountInString(pending.Text))
-			if dump_before != "" {
-				fmt.Fprintf(os.Stderr, "====TREE BEFORE====\n%s====END====\n", dump_before)
+			if dumpBefore != "" {
+				fmt.Fprintf(os.Stderr, "====TREE BEFORE====\n%s====END====\n", dumpBefore)
 			}
 			fmt.Fprintf(os.Stderr, "====TREE AFTER====\n%s====END====\n", file.Dump())
 		}
@@ -947,7 +948,7 @@ func (analyser *BurndownAnalysis) handleModification(
 		case diffmatchpatch.DiffInsert:
 			if pending.Text != "" {
 				if pending.Type == diffmatchpatch.DiffInsert {
-					debug_error()
+					debugError()
 					return errors.New("DiffInsert may not appear after DiffInsert")
 				}
 				file.Update(analyser.packPersonWithDay(author, analyser.day), position, length,
@@ -962,13 +963,13 @@ func (analyser *BurndownAnalysis) handleModification(
 			}
 		case diffmatchpatch.DiffDelete:
 			if pending.Text != "" {
-				debug_error()
+				debugError()
 				return errors.New("DiffDelete may not appear after DiffInsert/DiffDelete")
 			}
 			pending = edit
 		default:
-			debug_error()
-			return errors.New(fmt.Sprintf("diff operation is not supported: %d", edit.Type))
+			debugError()
+			return fmt.Errorf("diff operation is not supported: %d", edit.Type)
 		}
 	}
 	if pending.Text != "" {
@@ -976,8 +977,8 @@ func (analyser *BurndownAnalysis) handleModification(
 		pending.Text = ""
 	}
 	if file.Len() != thisDiffs.NewLinesOfCode {
-		return errors.New(fmt.Sprintf("%s: internal integrity error dst %d != %d",
-			change.To.Name, thisDiffs.NewLinesOfCode, file.Len()))
+		return fmt.Errorf("%s: internal integrity error dst %d != %d",
+			change.To.Name, thisDiffs.NewLinesOfCode, file.Len())
 	}
 	return nil
 }
@@ -985,7 +986,7 @@ func (analyser *BurndownAnalysis) handleModification(
 func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 	file, exists := analyser.files[from]
 	if !exists {
-		return errors.New(fmt.Sprintf("file %s does not exist", from))
+		return fmt.Errorf("file %s does not exist", from)
 	}
 	analyser.files[to] = file
 	delete(analyser.files, from)
@@ -1053,15 +1054,15 @@ func (analyser *BurndownAnalysis) groupStatus() ([]int64, map[string][]int64, []
 }
 
 func (analyser *BurndownAnalysis) updateHistories(
-	globalStatus []int64, file_statuses map[string][]int64, people_statuses [][]int64, delta int) {
+	globalStatus []int64, fileStatuses map[string][]int64, peopleStatuses [][]int64, delta int) {
 	for i := 0; i < delta; i++ {
 		analyser.globalHistory = append(analyser.globalHistory, globalStatus)
 	}
-	to_delete := make([]string, 0)
+	toDelete := make([]string, 0)
 	for key, fh := range analyser.fileHistories {
-		ls, exists := file_statuses[key]
+		ls, exists := fileStatuses[key]
 		if !exists {
-			to_delete = append(to_delete, key)
+			toDelete = append(toDelete, key)
 		} else {
 			for i := 0; i < delta; i++ {
 				fh = append(fh, ls)
@@ -1069,10 +1070,10 @@ func (analyser *BurndownAnalysis) updateHistories(
 			analyser.fileHistories[key] = fh
 		}
 	}
-	for _, key := range to_delete {
+	for _, key := range toDelete {
 		delete(analyser.fileHistories, key)
 	}
-	for key, ls := range file_statuses {
+	for key, ls := range fileStatuses {
 		fh, exists := analyser.fileHistories[key]
 		if exists {
 			continue
@@ -1084,7 +1085,7 @@ func (analyser *BurndownAnalysis) updateHistories(
 	}
 
 	for key, ph := range analyser.peopleHistories {
-		ls := people_statuses[key]
+		ls := peopleStatuses[key]
 		for i := 0; i < delta; i++ {
 			ph = append(ph, ls)
 		}

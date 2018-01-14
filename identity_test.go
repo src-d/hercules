@@ -141,7 +141,7 @@ func TestIdentityDetectorConsume(t *testing.T) {
 	deps["commit"] = commit
 	res, err = fixtureIdentityDetector().Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res[DependencyAuthor].(int), MISSING_AUTHOR)
+	assert.Equal(t, res[DependencyAuthor].(int), AuthorMissing)
 }
 
 func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
@@ -160,7 +160,7 @@ func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "Linus Torvalds")
 	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim Markovtsev")
 	assert.Equal(t, id.ReversedPeopleDict[2], "Máximo Cuadros")
-	assert.Equal(t, id.ReversedPeopleDict[3], UNMATCHED_AUTHOR)
+	assert.Equal(t, id.ReversedPeopleDict[3], AuthorUnmatched)
 }
 
 /*
@@ -229,7 +229,7 @@ func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
-	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], UNMATCHED_AUTHOR)
+	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorUnmatched)
 }
 
 func TestIdentityDetectorLoadPeopleDictInvalidPath(t *testing.T) {

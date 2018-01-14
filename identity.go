@@ -18,9 +18,9 @@ type IdentityDetector struct {
 }
 
 const (
-	MISSING_AUTHOR   = (1 << 18) - 1
-	SELF_AUTHOR      = (1 << 18) - 2
-	UNMATCHED_AUTHOR = "<unmatched>"
+	AuthorMissing   = (1 << 18) - 1
+	AuthorSelf      = (1 << 18) - 2
+	AuthorUnmatched = "<unmatched>"
 
 	FactIdentityDetectorPeopleDict         = "IdentityDetector.PeopleDict"
 	FactIdentityDetectorReversedPeopleDict = "IdentityDetector.ReversedPeopleDict"
@@ -83,17 +83,17 @@ func (id *IdentityDetector) Configure(facts map[string]interface{}) {
 func (id *IdentityDetector) Initialize(repository *git.Repository) {
 }
 
-func (self *IdentityDetector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+func (id *IdentityDetector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps["commit"].(*object.Commit)
 	signature := commit.Author
-	id, exists := self.PeopleDict[strings.ToLower(signature.Email)]
+	authorID, exists := id.PeopleDict[strings.ToLower(signature.Email)]
 	if !exists {
-		id, exists = self.PeopleDict[strings.ToLower(signature.Name)]
+		authorID, exists = id.PeopleDict[strings.ToLower(signature.Name)]
 		if !exists {
-			id = MISSING_AUTHOR
+			authorID = AuthorMissing
 		}
 	}
-	return map[string]interface{}{DependencyAuthor: id}, nil
+	return map[string]interface{}{DependencyAuthor: authorID}, nil
 }
 
 func (id *IdentityDetector) LoadPeopleDict(path string) error {
@@ -104,19 +104,19 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	dict := make(map[string]int)
-	reverse_dict := []string{}
+	reverseDict := []string{}
 	size := 0
 	for scanner.Scan() {
 		ids := strings.Split(scanner.Text(), "|")
 		for _, id := range ids {
 			dict[strings.ToLower(id)] = size
 		}
-		reverse_dict = append(reverse_dict, ids[0])
-		size += 1
+		reverseDict = append(reverseDict, ids[0])
+		size++
 	}
-	reverse_dict = append(reverse_dict, UNMATCHED_AUTHOR)
+	reverseDict = append(reverseDict, AuthorUnmatched)
 	id.PeopleDict = dict
-	id.ReversedPeopleDict = reverse_dict
+	id.ReversedPeopleDict = reverseDict
 	return nil
 }
 
@@ -203,20 +203,20 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 		dict[name] = size
 		emails[size] = append(emails[size], email)
 		names[size] = append(names[size], name)
-		size += 1
+		size++
 	}
-	reverse_dict := make([]string, size)
+	reverseDict := make([]string, size)
 	for _, val := range dict {
 		sort.Strings(names[val])
 		sort.Strings(emails[val])
-		reverse_dict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
+		reverseDict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
 	}
 	id.PeopleDict = dict
-	id.ReversedPeopleDict = reverse_dict
+	id.ReversedPeopleDict = reverseDict
 }
 
 // MergeReversedDicts joins two identity lists together, excluding duplicates, in-order.
-func (_ IdentityDetector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
+func (id IdentityDetector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
 	people := map[string][3]int{}
 	for i, pid := range rd1 {
 		ptrs := people[pid]

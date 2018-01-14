@@ -8,8 +8,8 @@ import (
 )
 
 func updateStatusFile(
-	status interface{}, _ int, previous_time int, delta int) {
-	status.(map[int]int64)[previous_time] += int64(delta)
+	status interface{}, _ int, previousTime int, delta int) {
+	status.(map[int]int64)[previousTime] += int64(delta)
 }
 
 func fixtureFile() (*File, map[int]int64) {

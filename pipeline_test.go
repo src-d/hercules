@@ -135,9 +135,8 @@ func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map
 	item.DependencySatisfied = exists
 	if !item.TestNilConsumeReturn {
 		return map[string]interface{}{"test2": item}, nil
-	} else {
-		return nil, nil
 	}
+	return nil, nil
 }
 
 func (item *dependingTestPipelineItem) Finalize() interface{} {

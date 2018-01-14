@@ -53,10 +53,10 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 	} else {
 		diff = []*object.Change{}
 		err = func() error {
-			file_iter := tree.Files()
-			defer file_iter.Close()
+			fileIter := tree.Files()
+			defer fileIter.Close()
 			for {
-				file, err := file_iter.Next()
+				file, err := fileIter.Next()
 				if err != nil {
 					if err == io.EOF {
 						break

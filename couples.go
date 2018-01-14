@@ -19,8 +19,8 @@ type CouplesAnalysis struct {
 
 	// people store how many times every developer committed to every file.
 	people []map[string]int
-	// people_commits is the number of commits each author made
-	people_commits []int
+	// peopleCommits is the number of commits each author made
+	peopleCommits []int
 	// files store every file occurred in the same commit with every other file.
 	files map[string]map[string]int
 	// references IdentityDetector.ReversedPeopleDict
@@ -70,17 +70,17 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 	for i := range couples.people {
 		couples.people[i] = map[string]int{}
 	}
-	couples.people_commits = make([]int, couples.PeopleNumber+1)
+	couples.peopleCommits = make([]int, couples.PeopleNumber+1)
 	couples.files = map[string]map[string]int{}
 }
 
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	author := deps[DependencyAuthor].(int)
-	if author == MISSING_AUTHOR {
+	if author == AuthorMissing {
 		author = couples.PeopleNumber
 	}
-	couples.people_commits[author] += 1
-	tree_diff := deps[DependencyTreeChanges].(object.Changes)
+	couples.peopleCommits[author]++
+	treeDiff := deps[DependencyTreeChanges].(object.Changes)
 	context := make([]string, 0)
 	deleteFile := func(name string) {
 		// we do not remove the file from people - the context does not expire
@@ -89,7 +89,7 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 			delete(otherFiles, name)
 		}
 	}
-	for _, change := range tree_diff {
+	for _, change := range treeDiff {
 		action, err := change.Action()
 		if err != nil {
 			return nil, err
@@ -99,10 +99,10 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 		switch action {
 		case merkletrie.Insert:
 			context = append(context, toName)
-			couples.people[author][toName] += 1
+			couples.people[author][toName]++
 		case merkletrie.Delete:
 			deleteFile(fromName)
-			couples.people[author][fromName] += 1
+			couples.people[author][fromName]++
 		case merkletrie.Modify:
 			if fromName != toName {
 				// renamed
@@ -123,7 +123,7 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 				}
 			}
 			context = append(context, toName)
-			couples.people[author][toName] += 1
+			couples.people[author][toName]++
 		}
 	}
 	for _, file := range context {
@@ -133,7 +133,7 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 				lane = map[string]int{}
 				couples.files[file] = lane
 			}
-			lane[otherFile] += 1
+			lane[otherFile]++
 		}
 	}
 	return nil, nil

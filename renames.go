@@ -23,7 +23,7 @@ type RenameAnalysis struct {
 }
 
 const (
-	RENAME_ANALYSIS_DEFAULT_THRESHOLD = 90
+	RenameAnalysisDefaultThreshold = 90
 
 	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
 )
@@ -48,7 +48,7 @@ func (ra *RenameAnalysis) ListConfigurationOptions() []ConfigurationOption {
 		Description: "The threshold on the similarity index used to detect renames.",
 		Flag:        "M",
 		Type:        IntConfigurationOption,
-		Default:     RENAME_ANALYSIS_DEFAULT_THRESHOLD},
+		Default:     RenameAnalysisDefaultThreshold},
 	}
 	return options[:]
 }
@@ -62,8 +62,8 @@ func (ra *RenameAnalysis) Configure(facts map[string]interface{}) {
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
 		fmt.Fprintf(os.Stderr, "Warning: adjusted the similarity threshold to %d\n",
-			RENAME_ANALYSIS_DEFAULT_THRESHOLD)
-		ra.SimilarityThreshold = RENAME_ANALYSIS_DEFAULT_THRESHOLD
+			RenameAnalysisDefaultThreshold)
+		ra.SimilarityThreshold = RenameAnalysisDefaultThreshold
 	}
 	ra.repository = repository
 }
@@ -72,7 +72,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	changes := deps[DependencyTreeChanges].(object.Changes)
 	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
 
-	reduced_changes := make(object.Changes, 0, changes.Len())
+	reducedChanges := make(object.Changes, 0, changes.Len())
 
 	// Stage 1 - find renames by matching the hashes
 	// n log(n)
@@ -91,92 +91,92 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 		case merkletrie.Delete:
 			deleted = append(deleted, sortableChange{change, change.From.TreeEntry.Hash})
 		case merkletrie.Modify:
-			reduced_changes = append(reduced_changes, change)
+			reducedChanges = append(reducedChanges, change)
 		}
 	}
 	sort.Sort(deleted)
 	sort.Sort(added)
 	a := 0
 	d := 0
-	still_deleted := make(object.Changes, 0, deleted.Len())
-	still_added := make(object.Changes, 0, added.Len())
+	stillDeleted := make(object.Changes, 0, deleted.Len())
+	stillAdded := make(object.Changes, 0, added.Len())
 	for a < added.Len() && d < deleted.Len() {
 		if added[a].hash == deleted[d].hash {
-			reduced_changes = append(
-				reduced_changes,
+			reducedChanges = append(
+				reducedChanges,
 				&object.Change{From: deleted[d].change.From, To: added[a].change.To})
 			a++
 			d++
 		} else if added[a].Less(&deleted[d]) {
-			still_added = append(still_added, added[a].change)
+			stillAdded = append(stillAdded, added[a].change)
 			a++
 		} else {
-			still_deleted = append(still_deleted, deleted[d].change)
+			stillDeleted = append(stillDeleted, deleted[d].change)
 			d++
 		}
 	}
 	for ; a < added.Len(); a++ {
-		still_added = append(still_added, added[a].change)
+		stillAdded = append(stillAdded, added[a].change)
 	}
 	for ; d < deleted.Len(); d++ {
-		still_deleted = append(still_deleted, deleted[d].change)
+		stillDeleted = append(stillDeleted, deleted[d].change)
 	}
 
 	// Stage 2 - apply the similarity threshold
 	// n^2 but actually linear
 	// We sort the blobs by size and do the single linear scan.
-	added_blobs := make(sortableBlobs, 0, still_added.Len())
-	deleted_blobs := make(sortableBlobs, 0, still_deleted.Len())
-	for _, change := range still_added {
+	addedBlobs := make(sortableBlobs, 0, stillAdded.Len())
+	deletedBlobs := make(sortableBlobs, 0, stillDeleted.Len())
+	for _, change := range stillAdded {
 		blob := cache[change.To.TreeEntry.Hash]
-		added_blobs = append(
-			added_blobs, sortableBlob{change: change, size: blob.Size})
+		addedBlobs = append(
+			addedBlobs, sortableBlob{change: change, size: blob.Size})
 	}
-	for _, change := range still_deleted {
+	for _, change := range stillDeleted {
 		blob := cache[change.From.TreeEntry.Hash]
-		deleted_blobs = append(
-			deleted_blobs, sortableBlob{change: change, size: blob.Size})
+		deletedBlobs = append(
+			deletedBlobs, sortableBlob{change: change, size: blob.Size})
 	}
-	sort.Sort(added_blobs)
-	sort.Sort(deleted_blobs)
-	d_start := 0
-	for a = 0; a < added_blobs.Len(); a++ {
-		my_blob := cache[added_blobs[a].change.To.TreeEntry.Hash]
-		my_size := added_blobs[a].size
-		for d = d_start; d < deleted_blobs.Len() && !ra.sizesAreClose(my_size, deleted_blobs[d].size); d++ {
+	sort.Sort(addedBlobs)
+	sort.Sort(deletedBlobs)
+	dStart := 0
+	for a = 0; a < addedBlobs.Len(); a++ {
+		myBlob := cache[addedBlobs[a].change.To.TreeEntry.Hash]
+		mySize := addedBlobs[a].size
+		for d = dStart; d < deletedBlobs.Len() && !ra.sizesAreClose(mySize, deletedBlobs[d].size); d++ {
 		}
-		d_start = d
-		found_match := false
-		for d = d_start; d < deleted_blobs.Len() && ra.sizesAreClose(my_size, deleted_blobs[d].size); d++ {
+		dStart = d
+		foundMatch := false
+		for d = dStart; d < deletedBlobs.Len() && ra.sizesAreClose(mySize, deletedBlobs[d].size); d++ {
 			blobsAreClose, err := ra.blobsAreClose(
-				my_blob, cache[deleted_blobs[d].change.From.TreeEntry.Hash])
+				myBlob, cache[deletedBlobs[d].change.From.TreeEntry.Hash])
 			if err != nil {
 				return nil, err
 			}
 			if blobsAreClose {
-				found_match = true
-				reduced_changes = append(
-					reduced_changes,
-					&object.Change{From: deleted_blobs[d].change.From,
-						To: added_blobs[a].change.To})
+				foundMatch = true
+				reducedChanges = append(
+					reducedChanges,
+					&object.Change{From: deletedBlobs[d].change.From,
+						To:                addedBlobs[a].change.To})
 				break
 			}
 		}
-		if found_match {
-			added_blobs = append(added_blobs[:a], added_blobs[a+1:]...)
+		if foundMatch {
+			addedBlobs = append(addedBlobs[:a], addedBlobs[a+1:]...)
 			a--
-			deleted_blobs = append(deleted_blobs[:d], deleted_blobs[d+1:]...)
+			deletedBlobs = append(deletedBlobs[:d], deletedBlobs[d+1:]...)
 		}
 	}
 
 	// Stage 3 - we give up, everything left are independent additions and deletions
-	for _, blob := range added_blobs {
-		reduced_changes = append(reduced_changes, blob.change)
+	for _, blob := range addedBlobs {
+		reducedChanges = append(reducedChanges, blob.change)
 	}
-	for _, blob := range deleted_blobs {
-		reduced_changes = append(reduced_changes, blob.change)
+	for _, blob := range deletedBlobs {
+		reducedChanges = append(reducedChanges, blob.change)
 	}
-	return map[string]interface{}{DependencyTreeChanges: reduced_changes}, nil
+	return map[string]interface{}{DependencyTreeChanges: reducedChanges}, nil
 }
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
@@ -186,16 +186,16 @@ func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 
 func (ra *RenameAnalysis) blobsAreClose(
 	blob1 *object.Blob, blob2 *object.Blob) (bool, error) {
-	str_from, err := BlobToString(blob1)
+	strFrom, err := BlobToString(blob1)
 	if err != nil {
 		return false, err
 	}
-	str_to, err := BlobToString(blob2)
+	strTo, err := BlobToString(blob2)
 	if err != nil {
 		return false, err
 	}
 	dmp := diffmatchpatch.New()
-	src, dst, _ := dmp.DiffLinesToRunes(str_from, str_to)
+	src, dst, _ := dmp.DiffLinesToRunes(strFrom, strTo)
 	diffs := dmp.DiffMainRunes(src, dst, false)
 	common := 0
 	for _, edit := range diffs {
