@@ -5,13 +5,13 @@ import (
 	"gopkg.in/src-d/hercules.v3/rbtree"
 )
 
-// A status is the something we would like to update during File.Update().
+// Status is the something we would like to keep track of in File.Update().
 type Status struct {
 	data   interface{}
 	update func(interface{}, int, int, int)
 }
 
-// A file encapsulates a balanced binary tree to store line intervals and
+// File encapsulates a balanced binary tree to store line intervals and
 // a cumulative mapping of values to the corresponding length counters. Users
 // are not supposed to create File-s directly; instead, they should call NewFile().
 // NewFileFromTree() is the special constructor which is useful in the tests.
@@ -27,6 +27,8 @@ type File struct {
 	statuses []Status
 }
 
+// NewStatus initializes a new instance of Status struct. It is needed to set the only two
+// private fields which are not supposed to be replaced during the whole lifetime.
 func NewStatus(data interface{}, update func(interface{}, int, int, int)) Status {
 	return Status{data: data, update: update}
 }

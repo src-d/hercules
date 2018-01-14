@@ -10,23 +10,40 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
+// IdentityDetector determines the author of a commit. Same person can commit under different
+// signatures, and we apply some heuristics to merge those together.
+// It is a PipelineItem.
 type IdentityDetector struct {
-	// Maps email || name  -> developer id.
+	// PeopleDict maps email || name  -> developer id.
 	PeopleDict map[string]int
-	// Maps developer id -> description
+	// ReversedPeopleDict maps developer id -> description
 	ReversedPeopleDict []string
 }
 
 const (
+	// AuthorMissing is the internal author index which denotes any unmatched identities
+	// (IdentityDetector.Consume()).
 	AuthorMissing   = (1 << 18) - 1
-	AuthorSelf      = (1 << 18) - 2
-	AuthorUnmatched = "<unmatched>"
+	// AuthorMissingName is the string name which corresponds to AuthorMissing.
+	AuthorMissingName = "<unmatched>"
 
+	// FactIdentityDetectorPeopleDict is the name of the fact which is inserted in
+	// IdentityDetector.Configure(). It corresponds to IdentityDetector.PeopleDict - the mapping
+	// from the signatures to the author indices.
 	FactIdentityDetectorPeopleDict         = "IdentityDetector.PeopleDict"
+	// FactIdentityDetectorReversedPeopleDict is the name of the fact which is inserted in
+	// IdentityDetector.Configure(). It corresponds to IdentityDetector.ReversedPeopleDict -
+	// the mapping from the author indices to the main signature.
 	FactIdentityDetectorReversedPeopleDict = "IdentityDetector.ReversedPeopleDict"
+	// ConfigIdentityDetectorPeopleDictPath is the name of the configuration option
+	// (IdentityDetector.Configure()) which allows to set the external PeopleDict mapping from a file.
 	ConfigIdentityDetectorPeopleDictPath   = "IdentityDetector.PeopleDictPath"
+	// FactIdentityDetectorPeopleCount is the name of the fact which is inserted in
+	// IdentityDetector.Configure(). It is equal to the overall number of unique authors
+	// (the length of ReversedPeopleDict).
 	FactIdentityDetectorPeopleCount        = "IdentityDetector.PeopleCount"
 
+	// DependencyAuthor is the name of the dependency provided by IdentityDetector.
 	DependencyAuthor = "author"
 )
 
@@ -67,10 +84,10 @@ func (id *IdentityDetector) Configure(facts map[string]interface{}) {
 			id.LoadPeopleDict(peopleDictPath)
 			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict) - 1
 		} else {
-			if _, exists := facts[FactPipelineCommits]; !exists {
+			if _, exists := facts[ConfigPipelineCommits]; !exists {
 				panic("IdentityDetector needs a list of commits to initialize.")
 			}
-			id.GeneratePeopleDict(facts[FactPipelineCommits].([]*object.Commit))
+			id.GeneratePeopleDict(facts[ConfigPipelineCommits].([]*object.Commit))
 			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict)
 		}
 	} else {
@@ -114,7 +131,7 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 		reverseDict = append(reverseDict, ids[0])
 		size++
 	}
-	reverseDict = append(reverseDict, AuthorUnmatched)
+	reverseDict = append(reverseDict, AuthorMissingName)
 	id.PeopleDict = dict
 	id.ReversedPeopleDict = reverseDict
 	return nil

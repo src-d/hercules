@@ -13,6 +13,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
+// RenameAnalysis improves TreeDiff's results by searching for changed blobs under different
+// paths which are likely to be the result of a rename with subsequent edits.
+// RenameAnalysis is a PipelineItem.
 type RenameAnalysis struct {
 	// SimilarityThreshold adjusts the heuristic to determine file renames.
 	// It has the same units as cgit's -X rename-threshold or -M. Better to
@@ -23,8 +26,12 @@ type RenameAnalysis struct {
 }
 
 const (
+	// RenameAnalysisDefaultThreshold specifies the default percentage of common lines in a pair
+	// of files to consider them linked. The exact code of the decision is sizesAreClose().
 	RenameAnalysisDefaultThreshold = 90
 
+	// ConfigRenameAnalysisSimilarityThreshold is the name of the configuration option
+	// (RenameAnalysis.Configure()) which sets the similarity threshold.
 	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
 )
 

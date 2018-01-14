@@ -22,11 +22,11 @@ import (
 type ConfigurationOptionType int
 
 const (
-	// Boolean value type.
+	// BoolConfigurationOption reflects the boolean value type.
 	BoolConfigurationOption ConfigurationOptionType = iota
-	// Integer value type.
+	// IntConfigurationOption reflects the integer value type.
 	IntConfigurationOption
-	// String value type.
+	// StringConfigurationOption reflects the string value type.
 	StringConfigurationOption
 )
 
@@ -167,7 +167,7 @@ func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) *pb.Metadata {
 	return meta
 }
 
-// MetadataToCommonAnalysisResult() copies the data from a Protobuf message.
+// MetadataToCommonAnalysisResult copies the data from a Protobuf message.
 func MetadataToCommonAnalysisResult(meta *pb.Metadata) *CommonAnalysisResult {
 	return &CommonAnalysisResult{
 		BeginTime:     meta.BeginUnixTime,
@@ -177,8 +177,8 @@ func MetadataToCommonAnalysisResult(meta *pb.Metadata) *CommonAnalysisResult {
 	}
 }
 
-// The core Hercules entity which carries several PipelineItems and executes them.
-// See the extended example of how a Pipeline works in doc.go.
+// Pipeline is the core Hercules entity which carries several PipelineItems and executes them.
+// See the extended example of how a Pipeline works in doc.go
 type Pipeline struct {
 	// OnProgress is the callback which is invoked in Analyse() to output it's
 	// progress. The first argument is the number of processed commits and the
@@ -200,15 +200,20 @@ type Pipeline struct {
 }
 
 const (
-	// Makes Pipeline to save the DAG to the specified file.
+	// ConfigPipelineDumpPath is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// which enables saving the items DAG to the specified file.
 	ConfigPipelineDumpPath = "Pipeline.DumpPath"
-	// Disables Configure() and Initialize() invokation on each PipelineItem during the initialization.
+	// ConfigPipelineDryRun is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// which disables Configure() and Initialize() invocation on each PipelineItem during the
+	// Pipeline initialization.
 	// Subsequent Run() calls are going to fail. Useful with ConfigPipelineDumpPath=true.
 	ConfigPipelineDryRun = "Pipeline.DryRun"
-	// Allows to specify the custom commit chain. By default, Pipeline.Commits() is used.
-	FactPipelineCommits = "commits"
+	// ConfigPipelineCommits is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// which allows to specify the custom commit sequence. By default, Pipeline.Commits() is used.
+	ConfigPipelineCommits = "commits"
 )
 
+// NewPipeline initializes a new instance of Pipeline struct.
 func NewPipeline(repository *git.Repository) *Pipeline {
 	return &Pipeline{
 		repository: repository,
@@ -481,8 +486,8 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 	if facts == nil {
 		facts = map[string]interface{}{}
 	}
-	if _, exists := facts[FactPipelineCommits]; !exists {
-		facts[FactPipelineCommits] = pipeline.Commits()
+	if _, exists := facts[ConfigPipelineCommits]; !exists {
+		facts[ConfigPipelineCommits] = pipeline.Commits()
 	}
 	dumpPath, _ := facts[ConfigPipelineDumpPath].(string)
 	pipeline.resolve(dumpPath)
@@ -546,6 +551,8 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	return result, nil
 }
 
+// LoadCommitsFromFile reads the file by the specified FS path and generates the sequence of commits
+// by interpreting each line as a Git commit hash.
 func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Commit, error) {
 	var file io.ReadCloser
 	if path != "-" {

@@ -28,6 +28,8 @@ import (
 	"gopkg.in/src-d/hercules.v3/pb"
 )
 
+// UASTExtractor retrieves UASTs from Babelfish server which correspond to changed files in a commit.
+// It is a PipelineItem.
 type UASTExtractor struct {
 	Endpoint       string
 	Context        func() (context.Context, context.CancelFunc)
@@ -43,13 +45,26 @@ type UASTExtractor struct {
 const (
 	uastExtractionSkipped = -(1 << 31)
 
+	// ConfigUASTEndpoint is the name of the configuration option (UASTExtractor.Configure())
+	// which sets the Babelfish server address.
 	ConfigUASTEndpoint     = "ConfigUASTEndpoint"
+	// ConfigUASTTimeout is the name of the configuration option (UASTExtractor.Configure())
+	// which sets the maximum amount of time to wait for a Babelfish server response.
 	ConfigUASTTimeout      = "ConfigUASTTimeout"
+	// ConfigUASTPoolSize is the name of the configuration option (UASTExtractor.Configure())
+	// which sets the number of goroutines to run for UAST parse queries.
 	ConfigUASTPoolSize     = "ConfigUASTPoolSize"
+	// ConfigUASTFailOnErrors is the name of the configuration option (UASTExtractor.Configure())
+	// which enables early exit in case of any Babelfish UAST parsing errors.
 	ConfigUASTFailOnErrors = "ConfigUASTFailOnErrors"
+	// ConfigUASTLanguages is the name of the configuration option (UASTExtractor.Configure())
+	// which sets the list of languages to parse. Language names are at
+	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
 	ConfigUASTLanguages    = "ConfigUASTLanguages"
 
+	// FeatureUast is the name of the Pipeline feature which activates all the items related to UAST.
 	FeatureUast     = "uast"
+	// DependencyUasts is the name of the dependency provided by UASTExtractor.
 	DependencyUasts = "uasts"
 )
 
@@ -299,6 +314,7 @@ func (exr *UASTExtractor) extractTask(data interface{}) interface{} {
 	return nil
 }
 
+// UASTChange is the type of the items in the list of changes which is provided by UASTChanges.
 type UASTChange struct {
 	Before *uast.Node
 	After  *uast.Node
@@ -306,9 +322,12 @@ type UASTChange struct {
 }
 
 const (
+	// DependencyUastChanges is the name of the dependency provided by UASTChanges.
 	DependencyUastChanges = "changed_uasts"
 )
 
+// UASTChanges is a structured analog of TreeDiff: it provides UASTs for every logical change
+// in a commit. It is a PipelineItem.
 type UASTChanges struct {
 	cache map[plumbing.Hash]*uast.Node
 }
@@ -373,6 +392,8 @@ func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interfac
 	return map[string]interface{}{DependencyUastChanges: commit}, nil
 }
 
+// UASTChangesSaver dumps changed files and corresponding UASTs for every commit.
+// it is a LeafPipelineItem.
 type UASTChangesSaver struct {
 	// OutputPath points to the target directory with UASTs
 	OutputPath string
@@ -382,6 +403,8 @@ type UASTChangesSaver struct {
 }
 
 const (
+	// ConfigUASTChangesSaverOutputPath is the name of the configuration option
+	// (UASTChangesSaver.Configure()) which sets the target directory where to save the files.
 	ConfigUASTChangesSaverOutputPath = "UASTChangesSaver.OutputPath"
 )
 

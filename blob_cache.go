@@ -11,7 +11,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
-// This PipelineItem loads the blobs which correspond to the changed files in a commit.
+// BlobCache loads the blobs which correspond to the changed files in a commit.
+// It is a PipelineItem.
 // It must provide the old and the new objects; "blobCache" rotates and allows to not load
 // the same blobs twice. Outdated objects are removed so "blobCache" never grows big.
 type BlobCache struct {
@@ -25,7 +26,10 @@ type BlobCache struct {
 }
 
 const (
+	// ConfigBlobCacheIgnoreMissingSubmodules is the name of the configuration option for
+	// BlobCache.Configure() to not check if the referenced submodules exist.
 	ConfigBlobCacheIgnoreMissingSubmodules = "BlobCache.IgnoreMissingSubmodules"
+	// DependencyBlobCache identifies the dependency provided by BlobCache.
 	DependencyBlobCache                    = "blob_cache"
 )
 
@@ -46,8 +50,9 @@ func (blobCache *BlobCache) Requires() []string {
 func (blobCache *BlobCache) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name: ConfigBlobCacheIgnoreMissingSubmodules,
-		Description: "Specifies whether to panic if some submodules do not exist and thus " +
-			"the corresponding Git objects cannot be loaded.",
+		Description: "Specifies whether to panic if some referenced submodules do not exist and thus" +
+			" the corresponding Git objects cannot be loaded. Override this if you know that the " +
+				"history is dirty and you want to get things done.",
 		Flag:    "ignore-missing-submodules",
 		Type:    BoolConfigurationOption,
 		Default: false}}
@@ -125,7 +130,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 	return map[string]interface{}{DependencyBlobCache: cache}, nil
 }
 
-// The definition of a function which loads a git file by the specified path.
+// FileGetter defines a function which loads the Git file by the specified path.
 // The state can be arbitrary though here it always corresponds to the currently processed
 // commit.
 type FileGetter func(path string) (*object.File, error)

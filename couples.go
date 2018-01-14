@@ -13,27 +13,32 @@ import (
 	"gopkg.in/src-d/hercules.v3/yaml"
 )
 
+// CouplesAnalysis calculates the number of common commits for files and authors.
+// The results are matrices, where cell at row X and column Y is the number of commits which
+// changed X and Y together. In case with people, the numbers are summed for every common file.
 type CouplesAnalysis struct {
-	// The number of developers for which to build the matrix. 0 disables this analysis.
+	// PeopleNumber is the number of developers for which to build the matrix. 0 disables this analysis.
 	PeopleNumber int
 
 	// people store how many times every developer committed to every file.
 	people []map[string]int
-	// peopleCommits is the number of commits each author made
+	// peopleCommits is the number of commits each author made.
 	peopleCommits []int
 	// files store every file occurred in the same commit with every other file.
 	files map[string]map[string]int
-	// references IdentityDetector.ReversedPeopleDict
+	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 }
 
+// CouplesResult is returned by CouplesAnalysis.Finalize() and carries couples matrices from
+// authors and files.
 type CouplesResult struct {
 	PeopleMatrix []map[int]int64
 	PeopleFiles  [][]int
 	FilesMatrix  []map[int]int64
 	Files        []string
 
-	// references IdentityDetector.ReversedPeopleDict
+	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 }
 

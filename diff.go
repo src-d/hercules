@@ -14,16 +14,22 @@ import (
 )
 
 // FileDiff calculates the difference of files which were modified.
+// It is a PipelineItem.
 type FileDiff struct {
 	CleanupDisabled bool
 }
 
 const (
+	// ConfigFileDiffDisableCleanup is the name of the configuration option (FileDiff.Configure())
+	// to suppress diffmatchpatch.DiffCleanupSemanticLossless() which is supposed to improve
+	// the human interpretability of diffs.
 	ConfigFileDiffDisableCleanup = "FileDiff.NoCleanup"
 
+	// DependencyFileDiff is the name of the dependency provided by FileDiff.
 	DependencyFileDiff = "file_diff"
 )
 
+// FileDiffData is the type of the dependency provided by FileDiff.
 type FileDiffData struct {
 	OldLinesOfCode int
 	NewLinesOfCode int
@@ -104,6 +110,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{DependencyFileDiff: result}, nil
 }
 
+// CountLines returns the number of lines in a *object.Blob.
 func CountLines(file *object.Blob) (int, error) {
 	if file == nil {
 		return -1, errors.New("blob is nil: probably not cached")
@@ -132,6 +139,7 @@ func CountLines(file *object.Blob) (int, error) {
 	return counter, nil
 }
 
+// BlobToString reads *object.Blob and returns its contents as a string.
 func BlobToString(file *object.Blob) (string, error) {
 	if file == nil {
 		return "", errors.New("blob is nil: probably not cached")

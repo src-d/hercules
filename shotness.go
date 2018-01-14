@@ -27,10 +27,19 @@ type ShotnessAnalysis struct {
 }
 
 const (
+	// ConfigShotnessXpathStruct is the name of the configuration option (ShotnessAnalysis.Configure())
+	// which sets the UAST XPath to choose the analysed nodes.
 	ConfigShotnessXpathStruct = "Shotness.XpathStruct"
+	// ConfigShotnessXpathName is the name of the configuration option (ShotnessAnalysis.Configure())
+	// which sets the UAST XPath to find the name of the nodes chosen by ConfigShotnessXpathStruct.
+	// These XPath-s can be different for some languages.
 	ConfigShotnessXpathName   = "Shotness.XpathName"
 
+	// DefaultShotnessXpathStruct is the default UAST XPath to choose the analysed nodes.
+	// It extracts functions.
 	DefaultShotnessXpathStruct = "//*[@roleFunction and @roleDeclaration]"
+	// DefaultShotnessXpathName is the default UAST XPath to choose the names of the analysed nodes.
+	// It looks at the current tree level and at the immediate children.
 	DefaultShotnessXpathName   = "/*[@roleFunction and @roleIdentifier and @roleName] | /*/*[@roleFunction and @roleIdentifier and @roleName]"
 )
 
@@ -40,6 +49,8 @@ type nodeShotness struct {
 	Couples map[string]int
 }
 
+// NodeSummary carries the node attributes which annotate the "shotness" analysis' counters.
+// These attributes are supposed to uniquely identify each node.
 type NodeSummary struct {
 	InternalRole string
 	Roles        []uast.Role
@@ -47,7 +58,7 @@ type NodeSummary struct {
 	File         string
 }
 
-// ShotnessResult is returned by Finalize() and represents the analysis result.
+// ShotnessResult is returned by ShotnessAnalysis.Finalize() and represents the analysis result.
 type ShotnessResult struct {
 	Nodes    []NodeSummary
 	Counters []map[int]int

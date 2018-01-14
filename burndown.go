@@ -19,7 +19,8 @@ import (
 	"gopkg.in/src-d/hercules.v3/yaml"
 )
 
-// BurndownAnalyser allows to gather the line burndown statistics for a Git repository.
+// BurndownAnalysis allows to gather the line burndown statistics for a Git repository.
+// It is a LeafPipelineItem.
 // Reference: https://erikbern.com/2016/12/05/the-half-life-of-code.html
 type BurndownAnalysis struct {
 	// Granularity sets the size of each band - the number of days it spans.
@@ -68,7 +69,8 @@ type BurndownAnalysis struct {
 	reversedPeopleDict []string
 }
 
-// Carries the result of running BurndownAnalysis - it is returned by BurndownAnalysis.Finalize().
+// BurndownResult carries the result of running BurndownAnalysis - it is returned by
+// BurndownAnalysis.Finalize().
 type BurndownResult struct {
 	// [number of samples][number of bands]
 	// The number of samples depends on Sampling: the less Sampling, the bigger the number.
@@ -99,15 +101,22 @@ type BurndownResult struct {
 }
 
 const (
+	// ConfigBurndownGranularity is the name of the option to set BurndownAnalysis.Granularity.
 	ConfigBurndownGranularity = "Burndown.Granularity"
+	// ConfigBurndownSampling is the name of the option to set BurndownAnalysis.Sampling.
 	ConfigBurndownSampling    = "Burndown.Sampling"
-	// Measuring individual files is optional and false by default.
+	// ConfigBurndownTrackFiles enables burndown collection for files.
 	ConfigBurndownTrackFiles = "Burndown.TrackFiles"
-	// Measuring authors is optional and false by default.
+	// ConfigBurndownTrackPeople enables burndown collection for authors.
 	ConfigBurndownTrackPeople = "Burndown.TrackPeople"
-	// Enables some extra debug assertions.
+	// ConfigBurndownDebug enables some extra debug assertions.
 	ConfigBurndownDebug        = "Burndown.Debug"
+	// DefaultBurndownGranularity is the default number of days for BurndownAnalysis.Granularity
+	// and BurndownAnalysis.Sampling.
 	DefaultBurndownGranularity = 30
+	// authorSelf is the internal author index which is used in BurndownAnalysis.Finalize() to
+	// format the author overwrites matrix.
+	authorSelf = (1 << 18) - 2
 )
 
 func (analyser *BurndownAnalysis) Name() string {
@@ -265,7 +274,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		for key, val := range row {
 			if key == AuthorMissing {
 				key = -1
-			} else if key == AuthorSelf {
+			} else if key == authorSelf {
 				key = -2
 			}
 			mrow[key+2] = val
@@ -809,7 +818,7 @@ func (analyser *BurndownAnalysis) updateMatrix(
 		return
 	}
 	if newAuthor == oldAuthor && delta > 0 {
-		newAuthor = AuthorSelf
+		newAuthor = authorSelf
 	}
 	row := matrix[oldAuthor]
 	if row == nil {

@@ -160,7 +160,7 @@ func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "Linus Torvalds")
 	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim Markovtsev")
 	assert.Equal(t, id.ReversedPeopleDict[2], "Máximo Cuadros")
-	assert.Equal(t, id.ReversedPeopleDict[3], AuthorUnmatched)
+	assert.Equal(t, id.ReversedPeopleDict[3], AuthorMissingName)
 }
 
 /*
@@ -229,7 +229,7 @@ func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
-	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorUnmatched)
+	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorMissingName)
 }
 
 func TestIdentityDetectorLoadPeopleDictInvalidPath(t *testing.T) {

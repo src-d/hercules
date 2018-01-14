@@ -7,11 +7,16 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
+// TreeDiff generates the list of changes for a commit. A change can be either one or two blobs
+// under the same path: "before" and "after". If "before" is nil, the change is an addition.
+// If "after" is nil, the change is a removal. Otherwise, it is a modification.
+// TreeDiff is a PipelineItem.
 type TreeDiff struct {
 	previousTree *object.Tree
 }
 
 const (
+	// DependencyTreeChanges is the name of the dependency provided by TreeDiff.
 	DependencyTreeChanges = "changes"
 )
 
