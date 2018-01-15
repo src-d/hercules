@@ -14,16 +14,22 @@ import (
 )
 
 // FileDiff calculates the difference of files which were modified.
+// It is a PipelineItem.
 type FileDiff struct {
 	CleanupDisabled bool
 }
 
 const (
+	// ConfigFileDiffDisableCleanup is the name of the configuration option (FileDiff.Configure())
+	// to suppress diffmatchpatch.DiffCleanupSemanticLossless() which is supposed to improve
+	// the human interpretability of diffs.
 	ConfigFileDiffDisableCleanup = "FileDiff.NoCleanup"
 
+	// DependencyFileDiff is the name of the dependency provided by FileDiff.
 	DependencyFileDiff = "file_diff"
 )
 
+// FileDiffData is the type of the dependency provided by FileDiff.
 type FileDiffData struct {
 	OldLinesOfCode int
 	NewLinesOfCode int
@@ -66,28 +72,28 @@ func (diff *FileDiff) Initialize(repository *git.Repository) {}
 func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	result := map[string]FileDiffData{}
 	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
-	tree_diff := deps[DependencyTreeChanges].(object.Changes)
-	for _, change := range tree_diff {
+	treeDiff := deps[DependencyTreeChanges].(object.Changes)
+	for _, change := range treeDiff {
 		action, err := change.Action()
 		if err != nil {
 			return nil, err
 		}
 		switch action {
 		case merkletrie.Modify:
-			blob_from := cache[change.From.TreeEntry.Hash]
-			blob_to := cache[change.To.TreeEntry.Hash]
+			blobFrom := cache[change.From.TreeEntry.Hash]
+			blobTo := cache[change.To.TreeEntry.Hash]
 			// we are not validating UTF-8 here because for example
 			// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
-			str_from, err := BlobToString(blob_from)
+			strFrom, err := BlobToString(blobFrom)
 			if err != nil {
 				return nil, err
 			}
-			str_to, err := BlobToString(blob_to)
+			strTo, err := BlobToString(blobTo)
 			if err != nil {
 				return nil, err
 			}
 			dmp := diffmatchpatch.New()
-			src, dst, _ := dmp.DiffLinesToRunes(str_from, str_to)
+			src, dst, _ := dmp.DiffLinesToRunes(strFrom, strTo)
 			diffs := dmp.DiffMainRunes(src, dst, false)
 			if !diff.CleanupDisabled {
 				diffs = dmp.DiffCleanupSemanticLossless(diffs)
@@ -104,9 +110,10 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{DependencyFileDiff: result}, nil
 }
 
+// CountLines returns the number of lines in a *object.Blob.
 func CountLines(file *object.Blob) (int, error) {
 	if file == nil {
-		return -1, errors.New("Blob is nil: probably not cached.")
+		return -1, errors.New("blob is nil: probably not cached")
 	}
 	reader, err := file.Reader()
 	if err != nil {
@@ -132,9 +139,10 @@ func CountLines(file *object.Blob) (int, error) {
 	return counter, nil
 }
 
+// BlobToString reads *object.Blob and returns its contents as a string.
 func BlobToString(file *object.Blob) (string, error) {
 	if file == nil {
-		return "", errors.New("Blob is nil: probably not cached.")
+		return "", errors.New("blob is nil: probably not cached")
 	}
 	reader, err := file.Reader()
 	if err != nil {

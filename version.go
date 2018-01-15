@@ -6,13 +6,15 @@ import (
 	"strings"
 )
 
-var GIT_HASH = "<unknown>"
+// BinaryGitHash is the Git hash of the Hercules binary file which is executing.
+var BinaryGitHash = "<unknown>"
 
-var VERSION = 0
+// BinaryVersion is Hercules' API version. It matches the package name.
+var BinaryVersion = 0
 
 type versionProbe struct{}
 
 func init() {
 	parts := strings.Split(reflect.TypeOf(versionProbe{}).PkgPath(), ".")
-	VERSION, _ = strconv.Atoi(parts[len(parts)-1][1:])
+	BinaryVersion, _ = strconv.Atoi(parts[len(parts)-1][1:])
 }

@@ -235,7 +235,7 @@ func printResults(
 
 	fmt.Println("hercules:")
 	fmt.Println("  version: 3")
-	fmt.Println("  hash:", hercules.GIT_HASH)
+	fmt.Println("  hash:", hercules.BinaryGitHash)
 	fmt.Println("  repository:", uri)
 	fmt.Println("  begin_unix_time:", commonResult.BeginTime)
 	fmt.Println("  end_unix_time:", commonResult.EndTime)
@@ -257,7 +257,7 @@ func protobufResults(
 
 	header := pb.Metadata{
 		Version:    2,
-		Hash:       hercules.GIT_HASH,
+		Hash:       hercules.BinaryGitHash,
 		Repository: uri,
 	}
 	results[nil].(*hercules.CommonAnalysisResult).FillMetadata(&header)
@@ -368,7 +368,7 @@ var versionCmd = &cobra.Command{
 	Long:  ``,
 	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Version: %d\nGit:     %s\n", hercules.VERSION, hercules.GIT_HASH)
+		fmt.Printf("Version: %d\nGit:     %s\n", hercules.BinaryVersion, hercules.BinaryGitHash)
 	},
 }
 

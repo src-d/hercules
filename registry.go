@@ -1,7 +1,6 @@
 package hercules
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -129,7 +128,7 @@ func (acf *arrayFeatureFlags) String() string {
 
 func (acf *arrayFeatureFlags) Set(value string) error {
 	if _, exists := acf.Choices[value]; !exists {
-		return errors.New(fmt.Sprintf("Feature \"%s\" is not registered.", value))
+		return fmt.Errorf("feature \"%s\" is not registered", value)
 	}
 	acf.Flags = append(acf.Flags, value)
 	return nil

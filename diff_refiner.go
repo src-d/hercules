@@ -8,6 +8,10 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 )
 
+// FileDiffRefiner uses UASTs to improve the human interpretability of diffs.
+// It is a PipelineItem.
+// The idea behind this algorithm is simple: in case of multiple choices which are equally
+// optimal, choose the one which touches less AST nodes.
 type FileDiffRefiner struct {
 }
 
@@ -138,7 +142,8 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 	return map[string]interface{}{DependencyFileDiff: result}, nil
 }
 
-// Depth first tree traversal.
+// VisitEachNode is a handy routine to execute a callback on every node in the subtree,
+// including the root itself. Depth first tree traversal.
 func VisitEachNode(root *uast.Node, payload func(*uast.Node)) {
 	queue := []*uast.Node{}
 	queue = append(queue, root)

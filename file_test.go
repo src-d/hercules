@@ -8,8 +8,8 @@ import (
 )
 
 func updateStatusFile(
-	status interface{}, _ int, previous_time int, delta int) {
-	status.(map[int]int64)[previous_time] += int64(delta)
+	status interface{}, _ int, previousTime int, delta int) {
+	status.(map[int]int64)[previousTime] += int64(delta)
 }
 
 func fixtureFile() (*File, map[int]int64) {
@@ -44,9 +44,9 @@ func TestBullshitFile(t *testing.T) {
 	testPanicFile(t, func(file *File) { file.Update(1, 110, 10, 0) }, "insert")
 	testPanicFile(t, func(file *File) { file.Update(1, -10, 0, 10) }, "delete")
 	testPanicFile(t, func(file *File) { file.Update(1, 100, 0, 10) }, "delete")
-	testPanicFile(t, func(file *File) { file.Update(1, 0, -10, 0) }, "length")
-	testPanicFile(t, func(file *File) { file.Update(1, 0, 0, -10) }, "length")
-	testPanicFile(t, func(file *File) { file.Update(1, 0, -10, -10) }, "length")
+	testPanicFile(t, func(file *File) { file.Update(1, 0, -10, 0) }, "Length")
+	testPanicFile(t, func(file *File) { file.Update(1, 0, 0, -10) }, "Length")
+	testPanicFile(t, func(file *File) { file.Update(1, 0, -10, -10) }, "Length")
 	testPanicFile(t, func(file *File) { file.Update(-1, 0, 10, 10) }, "time")
 	file, status := fixtureFile()
 	file.Update(1, 10, 0, 0)

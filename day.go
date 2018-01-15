@@ -7,12 +7,16 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
+// DaysSinceStart provides the relative date information for every commit.
+// It is a PipelineItem.
 type DaysSinceStart struct {
 	day0        time.Time
 	previousDay int
 }
 
 const (
+	// DependencyDay is the name of the dependency which DaysSinceStart provides - the number
+	// of days since the first commit in the analysed sequence.
 	DependencyDay = "day"
 )
 
