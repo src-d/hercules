@@ -116,7 +116,7 @@ func (registry *PipelineItemRegistry) GetFeaturedItems() map[string][]FeaturedPi
 }
 
 type arrayFeatureFlags struct {
-	// Flags containts the features activated through the command line.
+	// Flags contains the features activated through the command line.
 	Flags []string
 	// Choices contains all registered features.
 	Choices map[string]bool

@@ -158,7 +158,7 @@ func TestPipelineFeatures(t *testing.T) {
 	pipeline.SetFeature("feat")
 	val, _ := pipeline.GetFeature("feat")
 	assert.True(t, val)
-	val, exists := pipeline.GetFeature("!")
+	_, exists := pipeline.GetFeature("!")
 	assert.False(t, exists)
 	Registry.featureFlags.Set("777")
 	defer func() {
