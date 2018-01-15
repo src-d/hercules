@@ -104,13 +104,13 @@ const (
 	// ConfigBurndownGranularity is the name of the option to set BurndownAnalysis.Granularity.
 	ConfigBurndownGranularity = "Burndown.Granularity"
 	// ConfigBurndownSampling is the name of the option to set BurndownAnalysis.Sampling.
-	ConfigBurndownSampling    = "Burndown.Sampling"
+	ConfigBurndownSampling = "Burndown.Sampling"
 	// ConfigBurndownTrackFiles enables burndown collection for files.
 	ConfigBurndownTrackFiles = "Burndown.TrackFiles"
 	// ConfigBurndownTrackPeople enables burndown collection for authors.
 	ConfigBurndownTrackPeople = "Burndown.TrackPeople"
 	// ConfigBurndownDebug enables some extra debug assertions.
-	ConfigBurndownDebug        = "Burndown.Debug"
+	ConfigBurndownDebug = "Burndown.Debug"
 	// DefaultBurndownGranularity is the default number of days for BurndownAnalysis.Granularity
 	// and BurndownAnalysis.Sampling.
 	DefaultBurndownGranularity = 30

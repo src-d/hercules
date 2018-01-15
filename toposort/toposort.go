@@ -9,6 +9,7 @@ import (
 
 // Reworked from https://github.com/philopon/go-toposort
 
+// Graph represents a directed acyclic graph.
 type Graph struct {
 	// Outgoing connections for every node.
 	outputs map[string]map[string]int

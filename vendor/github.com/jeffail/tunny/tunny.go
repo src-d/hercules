@@ -43,39 +43,39 @@ var (
 )
 
 /*
-TunnyWorker - The basic interface of a tunny worker.
+Worker - The basic interface of a tunny worker.
 */
-type TunnyWorker interface {
+type Worker interface {
 
 	// Called for each job, expects the result to be returned synchronously
-	TunnyJob(interface{}) interface{}
+	Job(interface{}) interface{}
 
 	// Called after each job, this indicates whether the worker is ready for the next job.
 	// The default implementation is to return true always. If false is returned then the
 	// method is called every five milliseconds until either true is returned or the pool
 	// is closed. For efficiency you should have this call block until your worker is ready,
 	// otherwise you introduce a 5ms latency between jobs.
-	TunnyReady() bool
+	Ready() bool
 }
 
 /*
-TunnyExtendedWorker - An optional interface that can be implemented if the worker needs
+ExtendedWorker - An optional interface that can be implemented if the worker needs
 more control over its state.
 */
-type TunnyExtendedWorker interface {
+type ExtendedWorker interface {
 
 	// Called when the pool is opened, this will be called before any jobs are sent.
-	TunnyInitialize()
+	Initialize()
 
 	// Called when the pool is closed, this will be called after all jobs are completed.
-	TunnyTerminate()
+	Terminate()
 }
 
 /*
-TunnyInterruptable - An optional interface that can be implemented in order to allow the
+Interruptable - An optional interface that can be implemented in order to allow the
 worker to drop jobs when they are abandoned.
 */
-type TunnyInterruptable interface {
+type Interruptable interface {
 
 	// Called when the current job has been abandoned by the client.
 	TunnyInterrupt()
@@ -85,15 +85,15 @@ type TunnyInterruptable interface {
 Default and very basic implementation of a tunny worker. This worker holds a closure which
 is assigned at construction, and this closure is called on each job.
 */
-type tunnyDefaultWorker struct {
+type defaultWorker struct {
 	job *func(interface{}) interface{}
 }
 
-func (worker *tunnyDefaultWorker) TunnyJob(data interface{}) interface{} {
+func (worker *defaultWorker) Job(data interface{}) interface{} {
 	return (*worker.job)(data)
 }
 
-func (worker *tunnyDefaultWorker) TunnyReady() bool {
+func (worker *defaultWorker) Ready() bool {
 	return true
 }
 
@@ -181,7 +181,7 @@ func CreatePool(numWorkers int, job func(interface{}) interface{}) *WorkPool {
 	pool.workers = make([]*workerWrapper, numWorkers)
 	for i := range pool.workers {
 		newWorker := workerWrapper{
-			worker: &(tunnyDefaultWorker{&job}),
+			worker: &(defaultWorker{&job}),
 		}
 		pool.workers[i] = &newWorker
 	}
@@ -207,10 +207,10 @@ func CreatePoolGeneric(numWorkers int) *WorkPool {
 
 /*
 CreateCustomPool - Creates a pool for an array of custom workers. The custom workers
-must implement TunnyWorker, and may also optionally implement TunnyExtendedWorker and
-TunnyInterruptable.
+must implement Worker, and may also optionally implement ExtendedWorker and
+Interruptable.
 */
-func CreateCustomPool(customWorkers []TunnyWorker) *WorkPool {
+func CreateCustomPool(customWorkers []Worker) *WorkPool {
 	pool := WorkPool{running: 0}
 
 	pool.workers = make([]*workerWrapper, len(customWorkers))

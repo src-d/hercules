@@ -7,14 +7,14 @@ import (
 	"strings"
 	"unicode/utf8"
 
-  "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v3"
-	"gopkg.in/src-d/hercules.v3/yaml"
 	"github.com/gogo/protobuf/proto"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
+	"gopkg.in/src-d/hercules.v3"
+	"gopkg.in/src-d/hercules.v3/yaml"
 )
 
 // ChurnAnalysis contains the intermediate state which is mutated by Consume(). It should implement
@@ -30,14 +30,14 @@ type ChurnAnalysis struct {
 }
 
 type editInfo struct {
-	Day int
-	Added int
+	Day     int
+	Added   int
 	Removed int
 }
 
 // ChurnAnalysisResult is returned by Finalize() and represents the analysis result.
 type ChurnAnalysisResult struct {
-  Global Edits
+	Global Edits
 	People map[string]Edits
 }
 
@@ -80,7 +80,7 @@ func (churn *ChurnAnalysis) Requires() []string {
 // ListConfigurationOptions tells the engine which parameters can be changed through the command
 // line.
 func (churn *ChurnAnalysis) ListConfigurationOptions() []hercules.ConfigurationOption {
-	opts := [...]hercules.ConfigurationOption {{
+	opts := [...]hercules.ConfigurationOption{{
 		Name:        ConfigChurnTrackPeople,
 		Description: "Record detailed statistics per each developer.",
 		Flag:        "churn-people",
@@ -122,7 +122,8 @@ func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]int
 		if err != nil {
 			return nil, err
 		}
-		added := 0; removed := 0
+		added := 0
+		removed := 0
 		switch action {
 		case merkletrie.Insert:
 			added, err = hercules.CountLines(cache[change.To.TreeEntry.Hash])
@@ -167,16 +168,16 @@ func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]int
 }
 
 func (churn *ChurnAnalysis) Finalize() interface{} {
-  result := ChurnAnalysisResult{
-	  Global: editInfosToEdits(churn.global),
-	  People: map[string]Edits{},
-  }
+	result := ChurnAnalysisResult{
+		Global: editInfosToEdits(churn.global),
+		People: map[string]Edits{},
+	}
 	if churn.TrackPeople {
 		for key, val := range churn.people {
 			result.People[churn.reversedPeopleDict[key]] = editInfosToEdits(val)
 		}
 	}
-  return result
+	return result
 }
 
 func (churn *ChurnAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
@@ -189,7 +190,7 @@ func (churn *ChurnAnalysis) Serialize(result interface{}, binary bool, writer io
 }
 
 func (churn *ChurnAnalysis) serializeText(result *ChurnAnalysisResult, writer io.Writer) {
-  fmt.Fprintln(writer, "  global:")
+	fmt.Fprintln(writer, "  global:")
 	printEdits(result.Global, writer, 4)
 	for key, val := range result.People {
 		fmt.Fprintf(writer, "  %s:\n", yaml.SafeString(key))
@@ -210,7 +211,7 @@ func (churn *ChurnAnalysis) serializeBinary(result *ChurnAnalysisResult, writer 
 		return err
 	}
 	writer.Write(serialized)
-  return nil
+	return nil
 }
 
 func editInfosToEdits(eis []editInfo) Edits {
@@ -245,9 +246,9 @@ func editInfosToEdits(eis []editInfo) Edits {
 func printEdits(edits Edits, writer io.Writer, indent int) {
 	strIndent := strings.Repeat(" ", indent)
 	printArray := func(arr []int, name string) {
-	  fmt.Fprintf(writer, "%s%s: [", strIndent, name)
+		fmt.Fprintf(writer, "%s%s: [", strIndent, name)
 		for i, v := range arr {
-			if i < len(arr) - 1 {
+			if i < len(arr)-1 {
 				fmt.Fprintf(writer, "%d, ", v)
 			} else {
 				fmt.Fprintf(writer, "%d]\n", v)
@@ -261,9 +262,9 @@ func printEdits(edits Edits, writer io.Writer, indent int) {
 
 func editsToEditsMessage(edits Edits) *EditsMessage {
 	message := &EditsMessage{
-		Days: make([]uint32, len(edits.Days)),
+		Days:      make([]uint32, len(edits.Days)),
 		Additions: make([]uint32, len(edits.Additions)),
-		Removals: make([]uint32, len(edits.Removals)),
+		Removals:  make([]uint32, len(edits.Removals)),
 	}
 	copyInts := func(arr []int, where []uint32) {
 		for i, v := range arr {

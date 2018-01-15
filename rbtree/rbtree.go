@@ -103,7 +103,7 @@ func (root *RBTree) Insert(item Item) (bool, Iterator) {
 	if n == nil {
 		return false, Iterator{}
 	}
-	ins_n := n
+	insN := n
 
 	n.color = red
 
@@ -159,7 +159,7 @@ func (root *RBTree) Insert(item Item) (bool, Iterator) {
 		}
 		break
 	}
-	return true, Iterator{root, ins_n}
+	return true, Iterator{root, insN}
 }
 
 // Delete an item with the given Key. Return true iff the item was
@@ -192,8 +192,8 @@ type Iterator struct {
 	node *node
 }
 
-func (iter Iterator) Equal(iter_ Iterator) bool {
-	return iter.node == iter_.node
+func (iter Iterator) Equal(other Iterator) bool {
+	return iter.node == other.node
 }
 
 // Check if the iterator points beyond the max element in the tree
@@ -414,9 +414,8 @@ func (root *RBTree) doInsert(item Item) *node {
 				root.count++
 				root.maybeSetMinNode(n)
 				return n
-			} else {
-				parent = parent.left
 			}
+			parent = parent.left
 		} else {
 			if parent.right == nil {
 				n := &node{item: item, parent: parent}
@@ -424,9 +423,8 @@ func (root *RBTree) doInsert(item Item) *node {
 				root.count++
 				root.maybeSetMaxNode(n)
 				return n
-			} else {
-				parent = parent.right
 			}
+			parent = parent.right
 		}
 	}
 	panic("should not reach here")
@@ -457,9 +455,8 @@ func (root *RBTree) findGE(key int) (*node, bool) {
 				succ := n.doNext()
 				if succ == nil {
 					return nil, false
-				} else {
-					return succ, (key == succ.item.Key)
 				}
+				return succ, key == succ.item.Key
 			}
 		}
 	}

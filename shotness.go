@@ -33,14 +33,14 @@ const (
 	// ConfigShotnessXpathName is the name of the configuration option (ShotnessAnalysis.Configure())
 	// which sets the UAST XPath to find the name of the nodes chosen by ConfigShotnessXpathStruct.
 	// These XPath-s can be different for some languages.
-	ConfigShotnessXpathName   = "Shotness.XpathName"
+	ConfigShotnessXpathName = "Shotness.XpathName"
 
 	// DefaultShotnessXpathStruct is the default UAST XPath to choose the analysed nodes.
 	// It extracts functions.
 	DefaultShotnessXpathStruct = "//*[@roleFunction and @roleDeclaration]"
 	// DefaultShotnessXpathName is the default UAST XPath to choose the names of the analysed nodes.
 	// It looks at the current tree level and at the immediate children.
-	DefaultShotnessXpathName   = "/*[@roleFunction and @roleIdentifier and @roleName] | /*/*[@roleFunction and @roleIdentifier and @roleName]"
+	DefaultShotnessXpathName = "/*[@roleFunction and @roleIdentifier and @roleName] | /*/*[@roleFunction and @roleIdentifier and @roleName]"
 )
 
 type nodeShotness struct {

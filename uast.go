@@ -47,23 +47,23 @@ const (
 
 	// ConfigUASTEndpoint is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the Babelfish server address.
-	ConfigUASTEndpoint     = "ConfigUASTEndpoint"
+	ConfigUASTEndpoint = "ConfigUASTEndpoint"
 	// ConfigUASTTimeout is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the maximum amount of time to wait for a Babelfish server response.
-	ConfigUASTTimeout      = "ConfigUASTTimeout"
+	ConfigUASTTimeout = "ConfigUASTTimeout"
 	// ConfigUASTPoolSize is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the number of goroutines to run for UAST parse queries.
-	ConfigUASTPoolSize     = "ConfigUASTPoolSize"
+	ConfigUASTPoolSize = "ConfigUASTPoolSize"
 	// ConfigUASTFailOnErrors is the name of the configuration option (UASTExtractor.Configure())
 	// which enables early exit in case of any Babelfish UAST parsing errors.
 	ConfigUASTFailOnErrors = "ConfigUASTFailOnErrors"
 	// ConfigUASTLanguages is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the list of languages to parse. Language names are at
 	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
-	ConfigUASTLanguages    = "ConfigUASTLanguages"
+	ConfigUASTLanguages = "ConfigUASTLanguages"
 
 	// FeatureUast is the name of the Pipeline feature which activates all the items related to UAST.
-	FeatureUast     = "uast"
+	FeatureUast = "uast"
 	// DependencyUasts is the name of the dependency provided by UASTExtractor.
 	DependencyUasts = "uasts"
 )
@@ -78,18 +78,18 @@ type uastTask struct {
 }
 
 type worker struct {
-	Client *bblfsh.Client
-	Job    func(interface{}) interface{}
+	Client   *bblfsh.Client
+	Callback func(interface{}) interface{}
 }
 
-func (w worker) TunnyReady() bool {
+func (w worker) Ready() bool {
 	return true
 }
 
-func (w worker) TunnyJob(data interface{}) interface{} {
+func (w worker) Job(data interface{}) interface{} {
 	task := data.(uastTask)
 	task.Client = w.Client
-	return w.Job(task)
+	return w.Callback(task)
 }
 
 func (exr *UASTExtractor) Name() string {
@@ -188,9 +188,9 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 	if exr.pool != nil {
 		exr.pool.Close()
 	}
-	workers := make([]tunny.TunnyWorker, poolSize)
+	workers := make([]tunny.Worker, poolSize)
 	for i := 0; i < poolSize; i++ {
-		workers[i] = worker{Client: exr.clients[i], Job: exr.extractTask}
+		workers[i] = worker{Client: exr.clients[i], Callback: exr.extractTask}
 	}
 	exr.pool, err = tunny.CreateCustomPool(workers).Open()
 	if err != nil {

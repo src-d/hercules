@@ -30,11 +30,13 @@ import (
 	"gopkg.in/src-d/hercules.v3/pb"
 )
 
-type OneLineWriter struct {
+// oneLineWriter splits the output data by lines and outputs one on top of another using '\r'.
+// It also does some dark magic to handle Git statuses.
+type oneLineWriter struct {
 	Writer io.Writer
 }
 
-func (writer OneLineWriter) Write(p []byte) (n int, err error) {
+func (writer oneLineWriter) Write(p []byte) (n int, err error) {
 	if p[len(p)-1] == '\n' {
 		p = p[:len(p)-1]
 		if len(p) > 5 && bytes.Compare(p[len(p)-5:], []byte("done.")) == 0 {
@@ -68,7 +70,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool) *git.Repos
 		cloneOptions := &git.CloneOptions{URL: uri}
 		if !disableStatus {
 			fmt.Fprint(os.Stderr, "connecting...\r")
-			cloneOptions.Progress = OneLineWriter{Writer: os.Stderr}
+			cloneOptions.Progress = oneLineWriter{Writer: os.Stderr}
 		}
 		repository, err = git.Clone(backend, nil, cloneOptions)
 		if !disableStatus {
