@@ -165,7 +165,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				reducedChanges = append(
 					reducedChanges,
 					&object.Change{From: deletedBlobs[d].change.From,
-						To:                addedBlobs[a].change.To})
+						To: addedBlobs[a].change.To})
 				break
 			}
 		}

@@ -47,23 +47,23 @@ const (
 
 	// ConfigUASTEndpoint is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the Babelfish server address.
-	ConfigUASTEndpoint     = "ConfigUASTEndpoint"
+	ConfigUASTEndpoint = "ConfigUASTEndpoint"
 	// ConfigUASTTimeout is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the maximum amount of time to wait for a Babelfish server response.
-	ConfigUASTTimeout      = "ConfigUASTTimeout"
+	ConfigUASTTimeout = "ConfigUASTTimeout"
 	// ConfigUASTPoolSize is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the number of goroutines to run for UAST parse queries.
-	ConfigUASTPoolSize     = "ConfigUASTPoolSize"
+	ConfigUASTPoolSize = "ConfigUASTPoolSize"
 	// ConfigUASTFailOnErrors is the name of the configuration option (UASTExtractor.Configure())
 	// which enables early exit in case of any Babelfish UAST parsing errors.
 	ConfigUASTFailOnErrors = "ConfigUASTFailOnErrors"
 	// ConfigUASTLanguages is the name of the configuration option (UASTExtractor.Configure())
 	// which sets the list of languages to parse. Language names are at
 	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
-	ConfigUASTLanguages    = "ConfigUASTLanguages"
+	ConfigUASTLanguages = "ConfigUASTLanguages"
 
 	// FeatureUast is the name of the Pipeline feature which activates all the items related to UAST.
-	FeatureUast     = "uast"
+	FeatureUast = "uast"
 	// DependencyUasts is the name of the dependency provided by UASTExtractor.
 	DependencyUasts = "uasts"
 )

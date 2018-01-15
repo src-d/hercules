@@ -30,7 +30,7 @@ const (
 	// BlobCache.Configure() to not check if the referenced submodules exist.
 	ConfigBlobCacheIgnoreMissingSubmodules = "BlobCache.IgnoreMissingSubmodules"
 	// DependencyBlobCache identifies the dependency provided by BlobCache.
-	DependencyBlobCache                    = "blob_cache"
+	DependencyBlobCache = "blob_cache"
 )
 
 func (blobCache *BlobCache) Name() string {
@@ -52,7 +52,7 @@ func (blobCache *BlobCache) ListConfigurationOptions() []ConfigurationOption {
 		Name: ConfigBlobCacheIgnoreMissingSubmodules,
 		Description: "Specifies whether to panic if some referenced submodules do not exist and thus" +
 			" the corresponding Git objects cannot be loaded. Override this if you know that the " +
-				"history is dirty and you want to get things done.",
+			"history is dirty and you want to get things done.",
 		Flag:    "ignore-missing-submodules",
 		Type:    BoolConfigurationOption,
 		Default: false}}
