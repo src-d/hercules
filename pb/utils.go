@@ -2,6 +2,8 @@ package pb
 
 import "sort"
 
+// ToBurndownSparseMatrix converts a rectangular integer matrix to the corresponding Protobuf object.
+// It is specific to hercules.BurndownAnalysis.
 func ToBurndownSparseMatrix(matrix [][]int64, name string) *BurndownSparseMatrix {
 	if len(matrix) == 0 {
 		panic("matrix may not be nil or empty")
@@ -37,6 +39,8 @@ func ToBurndownSparseMatrix(matrix [][]int64, name string) *BurndownSparseMatrix
 	return &r
 }
 
+// DenseToCompressedSparseRowMatrix takes an integer matrix and converts it to a Protobuf CSR.
+// CSR format: https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29
 func DenseToCompressedSparseRowMatrix(matrix [][]int64) *CompressedSparseRowMatrix {
 	r := CompressedSparseRowMatrix{
 		NumberOfRows:    int32(len(matrix)),
@@ -52,7 +56,7 @@ func DenseToCompressedSparseRowMatrix(matrix [][]int64) *CompressedSparseRowMatr
 			if col != 0 {
 				r.Data = append(r.Data, col)
 				r.Indices = append(r.Indices, int32(x))
-				nnz += 1
+				nnz++
 			}
 		}
 		r.Indptr = append(r.Indptr, r.Indptr[len(r.Indptr)-1]+int64(nnz))
@@ -60,6 +64,9 @@ func DenseToCompressedSparseRowMatrix(matrix [][]int64) *CompressedSparseRowMatr
 	return &r
 }
 
+// MapToCompressedSparseRowMatrix takes an integer matrix and converts it to a Protobuf CSR.
+// In contrast to DenseToCompressedSparseRowMatrix, a matrix here is already in DOK format.
+// CSR format: https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29
 func MapToCompressedSparseRowMatrix(matrix []map[int]int64) *CompressedSparseRowMatrix {
 	r := CompressedSparseRowMatrix{
 		NumberOfRows:    int32(len(matrix)),

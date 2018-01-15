@@ -7,12 +7,18 @@ import (
 	"strings"
 )
 
+// SafeString returns a string which is sufficiently quoted and escaped for YAML.
 func SafeString(str string) string {
 	str = strings.Replace(str, "\\", "\\\\", -1)
 	str = strings.Replace(str, "\"", "\\\"", -1)
 	return "\"" + str + "\""
 }
 
+// PrintMatrix outputs a rectangular integer matrix in YAML text format.
+//
+// `indent` is the current YAML indentation level - the number of spaces.
+// `name` is the name of the corresponding YAML block. If empty, no separate block is created.
+// `fixNegative` changes all negative values to 0.
 func PrintMatrix(writer io.Writer, matrix [][]int64, indent int, name string, fixNegative bool) {
 	// determine the maximum length of each value
 	var maxnum int64 = -(1 << 32)

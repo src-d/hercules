@@ -78,18 +78,18 @@ type uastTask struct {
 }
 
 type worker struct {
-	Client *bblfsh.Client
-	Job    func(interface{}) interface{}
+	Client   *bblfsh.Client
+	Callback func(interface{}) interface{}
 }
 
-func (w worker) TunnyReady() bool {
+func (w worker) Ready() bool {
 	return true
 }
 
-func (w worker) TunnyJob(data interface{}) interface{} {
+func (w worker) Job(data interface{}) interface{} {
 	task := data.(uastTask)
 	task.Client = w.Client
-	return w.Job(task)
+	return w.Callback(task)
 }
 
 func (exr *UASTExtractor) Name() string {
@@ -188,9 +188,9 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 	if exr.pool != nil {
 		exr.pool.Close()
 	}
-	workers := make([]tunny.TunnyWorker, poolSize)
+	workers := make([]tunny.Worker, poolSize)
 	for i := 0; i < poolSize; i++ {
-		workers[i] = worker{Client: exr.clients[i], Job: exr.extractTask}
+		workers[i] = worker{Client: exr.clients[i], Callback: exr.extractTask}
 	}
 	exr.pool, err = tunny.CreateCustomPool(workers).Open()
 	if err != nil {

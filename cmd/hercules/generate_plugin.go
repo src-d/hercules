@@ -17,7 +17,8 @@ import (
 
 //go:generate go run embed.go
 
-var SHLIB_EXT = map[string]string{
+// ShlibExts is the mapping between platform names and shared library file name extensions.
+var ShlibExts = map[string]string{
 	"window":  "dll",
 	"linux":   "so",
 	"darwin":  "dylib",
@@ -44,7 +45,7 @@ var generatePluginCmd = &cobra.Command{
 			panic(err)
 		}
 		outputPath := path.Join(outputDir, strings.ToLower(strings.Join(splitted, "_"))+".go")
-		gen := template.Must(template.New("plugin").Parse(PLUGIN_TEMPLATE_SOURCE))
+		gen := template.Must(template.New("plugin").Parse(PluginTemplateSource))
 		outFile, err := os.Create(outputPath)
 		if err != nil {
 			panic(err)
@@ -57,7 +58,7 @@ var generatePluginCmd = &cobra.Command{
 			flag = strings.ToLower(strings.Join(splitted, "-"))
 		}
 		outputBase := path.Base(outputPath)
-		shlib := outputBase[:len(outputBase)-2] + SHLIB_EXT[runtime.GOOS]
+		shlib := outputBase[:len(outputBase)-2] + ShlibExts[runtime.GOOS]
 		protoBuf := outputPath[:len(outputPath)-3] + ".proto"
 		pbGo := outputPath[:len(outputPath)-3] + ".pb.go"
 		dict := map[string]string{

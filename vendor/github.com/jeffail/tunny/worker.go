@@ -32,7 +32,7 @@ type workerWrapper struct {
 	jobChan    chan interface{}
 	outputChan chan interface{}
 	poolOpen   uint32
-	worker     TunnyWorker
+	worker     Worker
 }
 
 func (wrapper *workerWrapper) Loop() {
@@ -40,7 +40,7 @@ func (wrapper *workerWrapper) Loop() {
 	// TODO: Configure?
 	tout := time.Duration(5)
 
-	for !wrapper.worker.TunnyReady() {
+	for !wrapper.worker.Ready() {
 		// It's sad that we can't simply check if jobChan is closed here.
 		if atomic.LoadUint32(&wrapper.poolOpen) == 0 {
 			break
@@ -51,8 +51,8 @@ func (wrapper *workerWrapper) Loop() {
 	wrapper.readyChan <- 1
 
 	for data := range wrapper.jobChan {
-		wrapper.outputChan <- wrapper.worker.TunnyJob(data)
-		for !wrapper.worker.TunnyReady() {
+		wrapper.outputChan <- wrapper.worker.Job(data)
+		for !wrapper.worker.Ready() {
 			if atomic.LoadUint32(&wrapper.poolOpen) == 0 {
 				break
 			}
@@ -67,8 +67,8 @@ func (wrapper *workerWrapper) Loop() {
 }
 
 func (wrapper *workerWrapper) Open() {
-	if extWorker, ok := wrapper.worker.(TunnyExtendedWorker); ok {
-		extWorker.TunnyInitialize()
+	if extWorker, ok := wrapper.worker.(ExtendedWorker); ok {
+		extWorker.Initialize()
 	}
 
 	wrapper.readyChan = make(chan int)
@@ -98,13 +98,13 @@ func (wrapper *workerWrapper) Join() {
 		}
 	}
 
-	if extWorker, ok := wrapper.worker.(TunnyExtendedWorker); ok {
-		extWorker.TunnyTerminate()
+	if extWorker, ok := wrapper.worker.(ExtendedWorker); ok {
+		extWorker.Terminate()
 	}
 }
 
 func (wrapper *workerWrapper) Interrupt() {
-	if extWorker, ok := wrapper.worker.(TunnyInterruptable); ok {
+	if extWorker, ok := wrapper.worker.(Interruptable); ok {
 		extWorker.TunnyInterrupt()
 	}
 }

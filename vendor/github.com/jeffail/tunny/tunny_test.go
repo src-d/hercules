@@ -109,7 +109,7 @@ type dummyWorker struct {
 
 func (d *dummyWorker) TunnyJob(in interface{}) interface{} {
 	if !d.ready {
-		d.t.Errorf("TunnyJob called without polling TunnyReady")
+		d.t.Errorf("Job called without polling Ready")
 	}
 	d.ready = false
 	return in
@@ -122,7 +122,7 @@ func (d *dummyWorker) TunnyReady() bool {
 
 // Test the pool with a basic worker implementation
 func TestDummyWorker(t *testing.T) {
-	pool, err := CreateCustomPool([]TunnyWorker{&dummyWorker{t: t}}).Open()
+	pool, err := CreateCustomPool([]Worker{&dummyWorker{t: t}}).Open()
 	if err != nil {
 		t.Errorf("Failed to create pool: %v", err)
 		return
@@ -147,7 +147,7 @@ type dummyExtWorker struct {
 
 func (d *dummyExtWorker) TunnyJob(in interface{}) interface{} {
 	if !d.initialized {
-		d.t.Errorf("TunnyJob called without calling TunnyInitialize")
+		d.t.Errorf("Job called without calling Initialize")
 	}
 	return d.dummyWorker.TunnyJob(in)
 }
@@ -158,7 +158,7 @@ func (d *dummyExtWorker) TunnyInitialize() {
 
 func (d *dummyExtWorker) TunnyTerminate() {
 	if !d.initialized {
-		d.t.Errorf("TunnyTerminate called without calling TunnyInitialize")
+		d.t.Errorf("Terminate called without calling Initialize")
 	}
 	d.initialized = false
 }
@@ -166,7 +166,7 @@ func (d *dummyExtWorker) TunnyTerminate() {
 // Test the pool with an extended worker implementation
 func TestDummyExtWorker(t *testing.T) {
 	pool, err := CreateCustomPool(
-		[]TunnyWorker{
+		[]Worker{
 			&dummyExtWorker{
 				dummyWorker: dummyWorker{t: t},
 			},
@@ -213,7 +213,7 @@ func (d *dummyExtIntWorker) TunnyInterrupt() {
 // Test the pool with an extended and interruptible worker implementation
 func TestDummyExtIntWorker(t *testing.T) {
 	pool, err := CreateCustomPool(
-		[]TunnyWorker{
+		[]Worker{
 			&dummyExtIntWorker{
 				dummyExtWorker: dummyExtWorker{
 					dummyWorker: dummyWorker{t: t},

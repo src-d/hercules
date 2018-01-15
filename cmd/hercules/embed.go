@@ -19,7 +19,9 @@ func main() {
 		panic(err)
 	}
 	defer file.Close()
-	file.WriteString("package main\n\nconst PLUGIN_TEMPLATE_SOURCE = `")
+	file.WriteString("package main\n\n" +
+		"// PluginTemplateSource is the source code template of a Hercules plugin.\n" +
+		"const PluginTemplateSource = `")
 	file.Write(contents)
 	file.WriteString("`\n")
 }
