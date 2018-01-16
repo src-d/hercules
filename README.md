@@ -103,7 +103,7 @@ value, the more smooth is the plot but the more work is done.
 
 ```
 hercules --burndown --burndown-files
-python3 labours.py -m files
+python3 labours.py -m file
 ```
 
 Burndown statistics for every file in the repository which is alive in the latest revision.
