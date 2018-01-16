@@ -27,12 +27,20 @@ There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lig
 You are going to need Go (>= v1.8) and Python 2 or 3.
 ```
 go get -d gopkg.in/src-d/hercules.v3/cmd/hercules
-cd $GOPATH/src/gopkg.in/hercules.v3/cmd/hercules
+cd $GOPATH/src/gopkg.in/src-d/hercules.v3/cmd/hercules
 make
 ```
 
 #### Windows
-Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.
+`hercules`: [bblfsh/client-go](https://github.com/bblfsh/client-go/blob/master/WINDOWS.md) is needed.
+
+```
+go get -d gopkg.in/src-d/hercules.v3/cmd/hercules
+cd %GOPATH%/src/gopkg.in/src-d/hercules.v3/cmd/hercules
+make
+```
+
+`labours.py`: Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.
 Couples analysis also needs Tensorflow.
 
 ### Contributions
