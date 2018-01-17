@@ -179,7 +179,7 @@ python3 labours.py -m couples -o <name> [--couples-tmp-dir=/tmp]
 **Important**: it requires Tensorflow to be installed, please follow [official instructions](https://www.tensorflow.org/install/).
 
 The files are coupled if they are changed in the same commit. The developers are coupled if they
-change the same file. `hercules` records the number of couples throught the whole commti history
+change the same file. `hercules` records the number of couples throught the whole commit history
 and outputs the two corresponding co-occurrence matrices. `labours.py` then trains
 [Swivel embeddings](https://github.com/src-d/tensorflow-swivel) - dense vectors which reflect the
 co-occurrence probability through the Euclidean distance. The training requires a working
