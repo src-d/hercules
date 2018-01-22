@@ -203,7 +203,7 @@ targets can be added using the --plugin system.`,
 		}
 		if !disableStatus {
 			bar.Finish()
-			fmt.Fprint(os.Stderr, "\r" + strings.Repeat(" ", 80) + "\r")
+			fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\r")
 			if !terminal.IsTerminal(int(os.Stdout.Fd())) {
 				fmt.Fprint(os.Stderr, "writing...\r")
 			}

@@ -119,20 +119,28 @@ const (
 	authorSelf = (1 << 18) - 2
 )
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (analyser *BurndownAnalysis) Name() string {
 	return "Burndown"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (analyser *BurndownAnalysis) Provides() []string {
 	return []string{}
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (analyser *BurndownAnalysis) Requires() []string {
 	arr := [...]string{
 		DependencyFileDiff, DependencyTreeChanges, DependencyBlobCache, DependencyDay, DependencyAuthor}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (analyser *BurndownAnalysis) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        ConfigBurndownGranularity,
@@ -164,6 +172,7 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []ConfigurationOpti
 	return options[:]
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigBurndownGranularity].(int); exists {
 		analyser.Granularity = val
@@ -187,10 +196,13 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
 	}
 }
 
+// Flag for the command line switch which enables this analysis.
 func (analyser *BurndownAnalysis) Flag() string {
 	return "burndown"
 }
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	if analyser.Granularity <= 0 {
 		fmt.Fprintf(os.Stderr, "Warning: adjusted the granularity to %d days\n",
@@ -219,6 +231,11 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	analyser.previousDay = 0
 }
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	sampling := analyser.Sampling
 	if sampling == 0 {
@@ -253,7 +270,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	return nil, nil
 }
 
-// Finalize() returns BurndownResult.
+// Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (analyser *BurndownAnalysis) Finalize() interface{} {
 	gs, fss, pss := analyser.groupStatus()
 	analyser.updateHistories(gs, fss, pss, 1)
@@ -291,6 +308,8 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 	}
 }
 
+// Serialize converts the analysis result as returned by Finalize() to text or bytes.
+// The text format is YAML and the bytes format is Protocol Buffers.
 func (analyser *BurndownAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
 	burndownResult := result.(BurndownResult)
 	if binary {
@@ -300,6 +319,7 @@ func (analyser *BurndownAnalysis) Serialize(result interface{}, binary bool, wri
 	return nil
 }
 
+// Deserialize converts the specified protobuf bytes to BurndownResult.
 func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 	msg := pb.BurndownAnalysisResults{}
 	err := proto.Unmarshal(pbmessage, &msg)
@@ -342,6 +362,7 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 	return result, nil
 }
 
+// MergeResults combines two BurndownResult-s together.
 func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)

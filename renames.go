@@ -35,20 +35,28 @@ const (
 	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
 )
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (ra *RenameAnalysis) Name() string {
 	return "RenameAnalysis"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (ra *RenameAnalysis) Provides() []string {
 	arr := [...]string{DependencyTreeChanges}
 	return arr[:]
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (ra *RenameAnalysis) Requires() []string {
 	arr := [...]string{DependencyBlobCache, DependencyTreeChanges}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (ra *RenameAnalysis) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        ConfigRenameAnalysisSimilarityThreshold,
@@ -60,12 +68,15 @@ func (ra *RenameAnalysis) ListConfigurationOptions() []ConfigurationOption {
 	return options[:]
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (ra *RenameAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigRenameAnalysisSimilarityThreshold].(int); exists {
 		ra.SimilarityThreshold = val
 	}
 }
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
 		fmt.Fprintf(os.Stderr, "Warning: adjusted the similarity threshold to %d\n",
@@ -75,6 +86,11 @@ func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 	ra.repository = repository
 }
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	changes := deps[DependencyTreeChanges].(object.Changes)
 	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)

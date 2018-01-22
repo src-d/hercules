@@ -259,6 +259,7 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	}
 }
 
+// Status returns the bound status object by the specified index.
 func (file *File) Status(index int) interface{} {
 	if index < 0 || index >= len(file.statuses) {
 		panic(fmt.Sprintf("status index %d is out of bounds [0, %d)",

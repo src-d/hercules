@@ -25,36 +25,51 @@ type FileHistoryResult struct {
 	Files map[string][]plumbing.Hash
 }
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (history *FileHistory) Name() string {
 	return "FileHistory"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (history *FileHistory) Provides() []string {
 	return []string{}
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (history *FileHistory) Requires() []string {
 	arr := [...]string{DependencyTreeChanges}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (history *FileHistory) ListConfigurationOptions() []ConfigurationOption {
 	return []ConfigurationOption{}
 }
 
+// Flag for the command line switch which enables this analysis.
 func (history *FileHistory) Flag() string {
 	return "file-history"
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (history *FileHistory) Configure(facts map[string]interface{}) {
 }
 
-// Initialize resets the internal temporary data structures and prepares the object for Consume().
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (history *FileHistory) Initialize(repository *git.Repository) {
 	history.files = map[string][]plumbing.Hash{}
 }
 
-// Consume is called for every commit in the sequence.
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (history *FileHistory) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps["commit"].(*object.Commit).Hash
 	changes := deps[DependencyTreeChanges].(object.Changes)
@@ -79,11 +94,13 @@ func (history *FileHistory) Consume(deps map[string]interface{}) (map[string]int
 	return nil, nil
 }
 
+// Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (history *FileHistory) Finalize() interface{} {
 	return FileHistoryResult{Files: history.files}
 }
 
-// Serialize converts the result from Finalize() to either Protocol Buffers or YAML.
+// Serialize converts the analysis result as returned by Finalize() to text or bytes.
+// The text format is YAML and the bytes format is Protocol Buffers.
 func (history *FileHistory) Serialize(result interface{}, binary bool, writer io.Writer) error {
 	historyResult := result.(FileHistoryResult)
 	if binary {

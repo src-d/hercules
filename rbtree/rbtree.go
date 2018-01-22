@@ -29,12 +29,12 @@ type RBTree struct {
 	count int
 }
 
-// Return the number of elements in the tree.
+// Len returns the number of elements in the tree.
 func (root *RBTree) Len() int {
 	return root.count
 }
 
-// A convenience function for finding an element equal to Key. Return
+// Get is a convenience function for finding an element equal to Key. Returns
 // nil if not found.
 func (root *RBTree) Get(key int) *int {
 	n, exact := root.findGE(key)
@@ -44,15 +44,15 @@ func (root *RBTree) Get(key int) *int {
 	return nil
 }
 
-// Create an iterator that points to the minimum item in the tree
-// If the tree is empty, return Limit()
+// Min creates an iterator that points to the minimum item in the tree.
+// If the tree is empty, returns Limit()
 func (root *RBTree) Min() Iterator {
 	return Iterator{root, root.minNode}
 }
 
-// Create an iterator that points at the maximum item in the tree
+// Max creates an iterator that points at the maximum item in the tree.
 //
-// If the tree is empty, return NegativeLimit()
+// If the tree is empty, returns NegativeLimit().
 func (root *RBTree) Max() Iterator {
 	if root.maxNode == nil {
 		return Iterator{root, negativeLimitNode}
@@ -60,27 +60,27 @@ func (root *RBTree) Max() Iterator {
 	return Iterator{root, root.maxNode}
 }
 
-// Create an iterator that points beyond the maximum item in the tree
+// Limit creates an iterator that points beyond the maximum item in the tree.
 func (root *RBTree) Limit() Iterator {
 	return Iterator{root, nil}
 }
 
-// Create an iterator that points before the minimum item in the tree
+// NegativeLimit creates an iterator that points before the minimum item in the tree.
 func (root *RBTree) NegativeLimit() Iterator {
 	return Iterator{root, negativeLimitNode}
 }
 
-// Find the smallest element N such that N >= Key, and return the
+// FindGE finds the smallest element N such that N >= Key, and returns the
 // iterator pointing to the element. If no such element is found,
-// return root.Limit().
+// returns root.Limit().
 func (root *RBTree) FindGE(key int) Iterator {
 	n, _ := root.findGE(key)
 	return Iterator{root, n}
 }
 
-// Find the largest element N such that N <= Key, and return the
+// FindLE finds the largest element N such that N <= Key, and returns the
 // iterator pointing to the element. If no such element is found,
-// return iter.NegativeLimit().
+// returns iter.NegativeLimit().
 func (root *RBTree) FindLE(key int) Iterator {
 	n, exact := root.findGE(key)
 	if exact {
@@ -162,7 +162,7 @@ func (root *RBTree) Insert(item Item) (bool, Iterator) {
 	return true, Iterator{root, insN}
 }
 
-// Delete an item with the given Key. Return true iff the item was
+// DeleteWithKey deletes an item with the given Key. Returns true iff the item was
 // found.
 func (root *RBTree) DeleteWithKey(key int) bool {
 	iter := root.FindGE(key)
@@ -173,7 +173,7 @@ func (root *RBTree) DeleteWithKey(key int) bool {
 	return false
 }
 
-// Delete the current item.
+// DeleteWithIterator deletes the current item.
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (root *RBTree) DeleteWithIterator(iter Iterator) {
@@ -192,39 +192,40 @@ type Iterator struct {
 	node *node
 }
 
+// Equal checks for the underlying nodes equality.
 func (iter Iterator) Equal(other Iterator) bool {
 	return iter.node == other.node
 }
 
-// Check if the iterator points beyond the max element in the tree
+// Limit checks if the iterator points beyond the max element in the tree.
 func (iter Iterator) Limit() bool {
 	return iter.node == nil
 }
 
-// Check if the iterator points to the minimum element in the tree
+// Min checks if the iterator points to the minimum element in the tree.
 func (iter Iterator) Min() bool {
 	return iter.node == iter.root.minNode
 }
 
-// Check if the iterator points to the maximum element in the tree
+// Max checks if the iterator points to the maximum element in the tree.
 func (iter Iterator) Max() bool {
 	return iter.node == iter.root.maxNode
 }
 
-// Check if the iterator points before the minimum element in the tree
+// NegativeLimit checks if the iterator points before the minimum element in the tree.
 func (iter Iterator) NegativeLimit() bool {
 	return iter.node == negativeLimitNode
 }
 
-// Return the current element. Allows mutating the node
-// (Key to be changed with care!).
+// Item returns the current element. Allows mutating the node
+// (key to be changed with care!).
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (iter Iterator) Item() *Item {
 	return &iter.node.item
 }
 
-// Create a new iterator that points to the successor of the current element.
+// Next creates a new iterator that points to the successor of the current element.
 //
 // REQUIRES: !iter.Limit()
 func (iter Iterator) Next() Iterator {
@@ -235,7 +236,7 @@ func (iter Iterator) Next() Iterator {
 	return Iterator{iter.root, iter.node.doNext()}
 }
 
-// Create a new iterator that points to the predecessor of the current
+// Prev creates a new iterator that points to the predecessor of the current
 // node.
 //
 // REQUIRES: !iter.NegativeLimit()

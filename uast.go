@@ -92,25 +92,34 @@ func (w worker) Job(data interface{}) interface{} {
 	return w.Callback(task)
 }
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (exr *UASTExtractor) Name() string {
 	return "UAST"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (exr *UASTExtractor) Provides() []string {
 	arr := [...]string{DependencyUasts}
 	return arr[:]
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (exr *UASTExtractor) Requires() []string {
 	arr := [...]string{DependencyTreeChanges, DependencyBlobCache}
 	return arr[:]
 }
 
+// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
 func (exr *UASTExtractor) Features() []string {
 	arr := [...]string{FeatureUast}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (exr *UASTExtractor) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        ConfigUASTEndpoint,
@@ -142,6 +151,7 @@ func (exr *UASTExtractor) ListConfigurationOptions() []ConfigurationOption {
 	return options[:]
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (exr *UASTExtractor) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigUASTEndpoint].(string); exists {
 		exr.Endpoint = val
@@ -166,6 +176,8 @@ func (exr *UASTExtractor) Configure(facts map[string]interface{}) {
 	}
 }
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 	if exr.Context == nil {
 		exr.Context = func() (context.Context, context.CancelFunc) {
@@ -202,6 +214,11 @@ func (exr *UASTExtractor) Initialize(repository *git.Repository) {
 	}
 }
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (exr *UASTExtractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
 	treeDiffs := deps[DependencyTreeChanges].(object.Changes)
@@ -332,35 +349,52 @@ type UASTChanges struct {
 	cache map[plumbing.Hash]*uast.Node
 }
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (uc *UASTChanges) Name() string {
 	return "UASTChanges"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (uc *UASTChanges) Provides() []string {
 	arr := [...]string{DependencyUastChanges}
 	return arr[:]
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (uc *UASTChanges) Requires() []string {
 	arr := [...]string{DependencyUasts, DependencyTreeChanges}
 	return arr[:]
 }
 
+// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
 func (uc *UASTChanges) Features() []string {
 	arr := [...]string{FeatureUast}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (uc *UASTChanges) ListConfigurationOptions() []ConfigurationOption {
 	return []ConfigurationOption{}
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (uc *UASTChanges) Configure(facts map[string]interface{}) {}
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (uc *UASTChanges) Initialize(repository *git.Repository) {
 	uc.cache = map[plumbing.Hash]*uast.Node{}
 }
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (uc *UASTChanges) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	uasts := deps[DependencyUasts].(map[plumbing.Hash]*uast.Node)
 	treeDiffs := deps[DependencyTreeChanges].(object.Changes)
@@ -408,24 +442,33 @@ const (
 	ConfigUASTChangesSaverOutputPath = "UASTChangesSaver.OutputPath"
 )
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (saver *UASTChangesSaver) Name() string {
 	return "UASTChangesSaver"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (saver *UASTChangesSaver) Provides() []string {
 	return []string{}
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (saver *UASTChangesSaver) Requires() []string {
 	arr := [...]string{DependencyUastChanges}
 	return arr[:]
 }
 
+// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
 func (saver *UASTChangesSaver) Features() []string {
 	arr := [...]string{FeatureUast}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (saver *UASTChangesSaver) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        ConfigUASTChangesSaverOutputPath,
@@ -437,31 +480,43 @@ func (saver *UASTChangesSaver) ListConfigurationOptions() []ConfigurationOption 
 	return options[:]
 }
 
+// Flag for the command line switch which enables this analysis.
 func (saver *UASTChangesSaver) Flag() string {
 	return "dump-uast-changes"
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (saver *UASTChangesSaver) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigUASTChangesSaverOutputPath]; exists {
 		saver.OutputPath = val.(string)
 	}
 }
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (saver *UASTChangesSaver) Initialize(repository *git.Repository) {
 	saver.repository = repository
 	saver.result = [][]UASTChange{}
 }
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (saver *UASTChangesSaver) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	changes := deps[DependencyUastChanges].([]UASTChange)
 	saver.result = append(saver.result, changes)
 	return nil, nil
 }
 
+// Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (saver *UASTChangesSaver) Finalize() interface{} {
 	return saver.result
 }
 
+// Serialize converts the analysis result as returned by Finalize() to text or bytes.
+// The text format is YAML and the bytes format is Protocol Buffers.
 func (saver *UASTChangesSaver) Serialize(result interface{}, binary bool, writer io.Writer) error {
 	saverResult := result.([][]UASTChange)
 	fileNames := saver.dumpFiles(saverResult)
