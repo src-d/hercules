@@ -96,7 +96,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			src, dst, _ := dmp.DiffLinesToRunes(strFrom, strTo)
 			diffs := dmp.DiffMainRunes(src, dst, false)
 			if !diff.CleanupDisabled {
-				diffs = dmp.DiffCleanupSemanticLossless(diffs)
+				diffs = dmp.DiffCleanupMerge(dmp.DiffCleanupSemanticLossless(diffs))
 			}
 			result[change.To.Name] = FileDiffData{
 				OldLinesOfCode: len(src),
