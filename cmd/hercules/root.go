@@ -10,16 +10,14 @@ import (
 	"os"
 	"plugin"
 	"runtime/pprof"
-	"strconv"
 	"strings"
 	_ "unsafe" // for go:linkname
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/vbauerster/mpb"
-	"github.com/vbauerster/mpb/decor"
 	"golang.org/x/crypto/ssh/terminal"
+	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -157,29 +155,21 @@ targets can be added using the --plugin system.`,
 		// core logic
 		pipeline := hercules.NewPipeline(repository)
 		pipeline.SetFeaturesFromFlags()
-		var progress *mpb.Progress
-		var progressRendered bool
+		var bar *progress.ProgressBar
 		if !disableStatus {
-			beforeRender := func([]*mpb.Bar) {
-				progressRendered = true
-			}
-			progress = mpb.New(mpb.Output(os.Stderr), mpb.WithBeforeRenderFunc(beforeRender))
-			var bar *mpb.Bar
 			pipeline.OnProgress = func(commit, length int) {
 				if bar == nil {
-					width := len(strconv.Itoa(length))*2 + 3
-					bar = progress.AddBar(int64(length+1),
-						mpb.PrependDecorators(decor.DynamicName(
-							func(stats *decor.Statistics) string {
-								if stats.Current < stats.Total {
-									return fmt.Sprintf("%d / %d", stats.Current, length)
-								}
-								return "finalizing"
-							}, width, 0)),
-						mpb.AppendDecorators(decor.ETA(4, 0)),
-					)
+					bar = progress.New(length + 1)
+					bar.Callback = func(msg string) {
+						os.Stderr.WriteString("\r" + msg)
+					}
+					bar.NotPrint = true
+					bar.ShowPercent = false
+					bar.ShowSpeed = false
+					bar.SetMaxWidth(80)
+					bar.Start()
 				}
-				bar.Incr(commit - int(bar.Current()))
+				bar.Set(commit)
 			}
 		}
 
@@ -212,20 +202,16 @@ targets can be added using the --plugin system.`,
 			panic(err)
 		}
 		if !disableStatus {
-			progress.Stop()
-			if progressRendered {
-				// this is the only way to reliably clear the progress bar
-				fmt.Fprint(os.Stderr, "\033[F\033[K")
+			bar.Finish()
+			fmt.Fprint(os.Stderr, "\r" + strings.Repeat(" ", 80) + "\r")
+			if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+				fmt.Fprint(os.Stderr, "writing...\r")
 			}
-			fmt.Fprint(os.Stderr, "writing...\r")
 		}
 		if !protobuf {
 			printResults(uri, deployed, results)
 		} else {
 			protobufResults(uri, deployed, results)
-		}
-		if !disableStatus {
-			fmt.Fprint(os.Stderr, "\033[K")
 		}
 	},
 }
