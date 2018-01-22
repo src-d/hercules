@@ -32,15 +32,10 @@ pb/pb_pb2.py: pb/pb.proto
 cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 	cd cmd/hercules && go generate
 
-ifneq ($(OS),Windows_NT)
 ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2:
 	go get -d -v gopkg.in/bblfsh/client-go.v2/... && \
 	cd ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 && \
 	make dependencies
-else
-${GOPATH}/src/gopkg.in/bblfsh/client-go.v2:
-	echo Custom actions are needed, refer to https://github.com/bblfsh/client-go/blob/master/WINDOWS.md
-endif
 
 ${GOPATH}/bin/hercules${EXE}: *.go cmd/hercules/*.go rbtree/*.go yaml/*.go toposort/*.go pb/*.go ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 pb/pb.pb.go pb/pb_pb2.py cmd/hercules/plugin_template_source.go
 	go get -ldflags "-X gopkg.in/src-d/hercules.v3.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v3/cmd/hercules

@@ -10,9 +10,12 @@ services:
 
 addons:
   apt:
+    sources:
+    - ubuntu-toolchain-r-test
     packages:
     - libxml2-dev
-    - libcunit1-dev
+    - gcc-6
+    - g++-6
 
 go:
   - 1.8
@@ -21,6 +24,8 @@ go:
 go_import_path: gopkg.in/src-d/hercules.v3
 
 before_install:
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.0/protoc-3.5.0-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v github.com/gogo/protobuf/protoc-gen-gogo
@@ -32,9 +37,8 @@ before_install:
   - pip3 --version
 
 install:
-  - make dependencies
   - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
-  - go get -t -v -ldflags "-X gopkg.in/src-d/hercules.v3.GIT_HASH=$(git rev-parse HEAD)" ./...
+  - make
   - pip3 install --user -r requirements.txt tensorflow
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
   - docker exec -it bblfshd bblfshctl driver install --all
