@@ -1,33 +1,41 @@
+GOPATH ?= $(shell go env GOPATH)
+ifneq ($(OS),Windows_NT)
+EXE =
+else
+EXE = .exe
 ifneq (oneshell, $(findstring oneshell, $(.FEATURES)))
   $(error GNU make 3.82 or later is required)
 endif
+endif
 
-all: ${GOPATH}/bin/hercules
+all: ${GOPATH}/bin/hercules${EXE}
 
 test: all
 	go test gopkg.in/src-d/hercules.v3
 
-dependencies: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 ${GOPATH}/src/gopkg.in/src-d/hercules.v3 ${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb.pb.go ${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb_pb2.py ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules/plugin_template_source.go
+${GOPATH}/bin/protoc-gen-gogo${EXE}:
+	go get -v github.com/gogo/protobuf/protoc-gen-gogo
 
-${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb.pb.go: pb/pb.proto
-	PATH=$$PATH:$$GOPATH/bin protoc --gogo_out=pb --proto_path=pb pb/pb.proto
+ifneq ($(OS),Windows_NT)
+pb/pb.pb.go: pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo
+	PATH=${PATH}:${GOPATH}/bin protoc --gogo_out=pb --proto_path=pb pb/pb.proto
+else
+.ONESHELL:
+pb/pb.pb.go: pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo.exe
+	SET PATH=${PATH}${GOPATH}\bin
+	protoc --gogo_out=pb --proto_path=pb pb/pb.proto
+endif
 
-${GOPATH}/src/gopkg.in/src-d/hercules.v3/pb/pb_pb2.py: pb/pb.proto
+pb/pb_pb2.py: pb/pb.proto
 	protoc --python_out pb --proto_path=pb pb/pb.proto
 
-${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules/plugin_template_source.go: ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules/plugin.template
-	cd ${GOPATH}/src/gopkg.in/src-d/hercules.v3/cmd/hercules && go generate
+cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
+	cd cmd/hercules && go generate
 
-${GOPATH}/src/gopkg.in/src-d/hercules.v3:
-	go get -d gopkg.in/src-d/hercules.v3/...
-
-.ONESHELL:
 ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2:
-	go get -v gopkg.in/bblfsh/client-go.v2/... || true
-	cd $$GOPATH/src/gopkg.in/bblfsh/client-go.v2
+	go get -d -v gopkg.in/bblfsh/client-go.v2/... && \
+	cd ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 && \
 	make dependencies
 
-.ONESHELL:
-${GOPATH}/bin/hercules: dependencies *.go cmd/hercules/*.go rbtree/*.go yaml/*.go toposort/*.go pb/*.go
-	cd ${GOPATH}/src/gopkg.in/src-d/hercules.v3
-	go get -ldflags "-X gopkg.in/src-d/hercules.v3.BinaryGitHash=$$(git rev-parse HEAD)" gopkg.in/src-d/hercules.v3/cmd/hercules
+${GOPATH}/bin/hercules${EXE}: *.go cmd/hercules/*.go rbtree/*.go yaml/*.go toposort/*.go pb/*.go ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 pb/pb.pb.go pb/pb_pb2.py cmd/hercules/plugin_template_source.go
+	go get -ldflags "-X gopkg.in/src-d/hercules.v3.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v3/cmd/hercules
