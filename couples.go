@@ -42,23 +42,32 @@ type CouplesResult struct {
 	reversedPeopleDict []string
 }
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (couples *CouplesAnalysis) Name() string {
 	return "Couples"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (couples *CouplesAnalysis) Provides() []string {
 	return []string{}
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (couples *CouplesAnalysis) Requires() []string {
 	arr := [...]string{DependencyAuthor, DependencyTreeChanges}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (couples *CouplesAnalysis) ListConfigurationOptions() []ConfigurationOption {
 	return []ConfigurationOption{}
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[FactIdentityDetectorPeopleCount].(int); exists {
 		couples.PeopleNumber = val
@@ -66,10 +75,13 @@ func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) {
 	}
 }
 
+// Flag for the command line switch which enables this analysis.
 func (couples *CouplesAnalysis) Flag() string {
 	return "couples"
 }
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 	couples.people = make([]map[string]int, couples.PeopleNumber+1)
 	for i := range couples.people {
@@ -79,6 +91,11 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 	couples.files = map[string]map[string]int{}
 }
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	author := deps[DependencyAuthor].(int)
 	if author == AuthorMissing {
@@ -144,6 +161,7 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 	return nil, nil
 }
 
+// Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (couples *CouplesAnalysis) Finalize() interface{} {
 	filesSequence := make([]string, len(couples.files))
 	i := 0
@@ -196,6 +214,8 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 	}
 }
 
+// Serialize converts the analysis result as returned by Finalize() to text or bytes.
+// The text format is YAML and the bytes format is Protocol Buffers.
 func (couples *CouplesAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
 	couplesResult := result.(CouplesResult)
 	if binary {
@@ -205,6 +225,7 @@ func (couples *CouplesAnalysis) Serialize(result interface{}, binary bool, write
 	return nil
 }
 
+// Deserialize converts the specified protobuf bytes to CouplesResult.
 func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 	message := pb.CouplesAnalysisResults{}
 	err := proto.Unmarshal(pbmessage, &message)
@@ -240,6 +261,7 @@ func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, erro
 	return result, nil
 }
 
+// MergeResults combines two CouplesAnalysis-s together.
 func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{} {
 	cr1 := r1.(CouplesResult)
 	cr2 := r2.(CouplesResult)

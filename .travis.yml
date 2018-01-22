@@ -28,23 +28,23 @@ before_install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.0/protoc-3.5.0-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
+  - go get -v github.com/golang/lint/golint
   - go get -v github.com/gogo/protobuf/protoc-gen-gogo
-  - wget http://mirrors.kernel.org/ubuntu/pool/main/m/make-dfsg/make_4.1-9.1_amd64.deb
-  - dpkg -x make_4.1-9.1_amd64.deb ~ && rm make_4.1-9.1_amd64.deb
+  - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
+  - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
+  - docker exec -it bblfshd bblfshctl driver install --all
   - export PATH=~/.local/bin:~/usr/bin:$PATH
   - make --version
   - pip3 --version
+  - pip3 install --user -r requirements.txt tensorflow
 
 install:
-  - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - make
-  - pip3 install --user -r requirements.txt tensorflow
-  - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
-  - docker exec -it bblfshd bblfshctl driver install --all
   
 script:
   - go vet ./...
+  - golint ./...
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb

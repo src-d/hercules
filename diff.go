@@ -36,20 +36,28 @@ type FileDiffData struct {
 	Diffs          []diffmatchpatch.Diff
 }
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (diff *FileDiff) Name() string {
 	return "FileDiff"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (diff *FileDiff) Provides() []string {
 	arr := [...]string{DependencyFileDiff}
 	return arr[:]
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (diff *FileDiff) Requires() []string {
 	arr := [...]string{DependencyTreeChanges, DependencyBlobCache}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (diff *FileDiff) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        ConfigFileDiffDisableCleanup,
@@ -61,14 +69,22 @@ func (diff *FileDiff) ListConfigurationOptions() []ConfigurationOption {
 	return options[:]
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (diff *FileDiff) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigFileDiffDisableCleanup].(bool); exists {
 		diff.CleanupDisabled = val
 	}
 }
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (diff *FileDiff) Initialize(repository *git.Repository) {}
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	result := map[string]FileDiffData{}
 	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)

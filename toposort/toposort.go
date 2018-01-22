@@ -261,6 +261,7 @@ func (g *Graph) Serialize(sorted []string) string {
 	return buffer.String()
 }
 
+// DebugDump converts the graph to a string. As the name suggests, useful for debugging.
 func (g *Graph) DebugDump() string {
 	S := make([]string, 0, len(g.outputs))
 	for n := range g.outputs {

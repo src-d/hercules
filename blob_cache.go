@@ -33,20 +33,28 @@ const (
 	DependencyBlobCache = "blob_cache"
 )
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (blobCache *BlobCache) Name() string {
 	return "BlobCache"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (blobCache *BlobCache) Provides() []string {
 	arr := [...]string{DependencyBlobCache}
 	return arr[:]
 }
 
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (blobCache *BlobCache) Requires() []string {
 	arr := [...]string{DependencyTreeChanges}
 	return arr[:]
 }
 
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (blobCache *BlobCache) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name: ConfigBlobCacheIgnoreMissingSubmodules,
@@ -59,17 +67,25 @@ func (blobCache *BlobCache) ListConfigurationOptions() []ConfigurationOption {
 	return options[:]
 }
 
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (blobCache *BlobCache) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigBlobCacheIgnoreMissingSubmodules].(bool); exists {
 		blobCache.IgnoreMissingSubmodules = val
 	}
 }
 
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (blobCache *BlobCache) Initialize(repository *git.Repository) {
 	blobCache.repository = repository
 	blobCache.cache = map[plumbing.Hash]*object.Blob{}
 }
 
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps["commit"].(*object.Commit)
 	changes := deps[DependencyTreeChanges].(object.Changes)

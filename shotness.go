@@ -68,26 +68,33 @@ func (node NodeSummary) String() string {
 	return node.InternalRole + "_" + node.Name + "_" + node.File
 }
 
+// Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (shotness *ShotnessAnalysis) Name() string {
 	return "Shotness"
 }
 
+// Provides returns the list of names of entities which are produced by this PipelineItem.
+// Each produced entity will be inserted into `deps` of dependent Consume()-s according
+// to this list. Also used by hercules.Registry to build the global map of providers.
 func (shotness *ShotnessAnalysis) Provides() []string {
 	return []string{}
 }
 
-func (shotness *ShotnessAnalysis) Features() []string {
-	arr := [...]string{FeatureUast}
-	return arr[:]
-}
-
+// Requires returns the list of names of entities which are needed by this PipelineItem.
+// Each requested entity will be inserted into `deps` of Consume(). In turn, those
+// entities are Provides() upstream.
 func (shotness *ShotnessAnalysis) Requires() []string {
 	arr := [...]string{DependencyFileDiff, DependencyUastChanges}
 	return arr[:]
 }
 
-// ListConfigurationOptions tells the engine which parameters can be changed through the command
-// line.
+// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
+func (shotness *ShotnessAnalysis) Features() []string {
+	arr := [...]string{FeatureUast}
+	return arr[:]
+}
+
+// ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (shotness *ShotnessAnalysis) ListConfigurationOptions() []ConfigurationOption {
 	opts := [...]ConfigurationOption{{
 		Name:        ConfigShotnessXpathStruct,
@@ -109,7 +116,7 @@ func (shotness *ShotnessAnalysis) Flag() string {
 	return "shotness"
 }
 
-// Configure applies the parameters specified in the command line.
+// Configure sets the properties previously published by ListConfigurationOptions().
 func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigShotnessXpathStruct]; exists {
 		shotness.XpathStruct = val.(string)
@@ -123,13 +130,18 @@ func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) {
 	}
 }
 
-// Initialize resets the internal temporary data structures and prepares the object for Consume().
+// Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
+// calls. The repository which is going to be analysed is supplied as an argument.
 func (shotness *ShotnessAnalysis) Initialize(repository *git.Repository) {
 	shotness.nodes = map[string]*nodeShotness{}
 	shotness.files = map[string]map[string]*nodeShotness{}
 }
 
-// Consume is called for every commit in the sequence.
+// Consume runs this PipelineItem on the next commit data.
+// `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
+// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// This function returns the mapping with analysis results. The keys must be the same as
+// in Provides(). If there was an error, nil is returned.
 func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps["commit"].(*object.Commit)
 	changesList := deps[DependencyUastChanges].([]UASTChange)
@@ -307,7 +319,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 	return nil, nil
 }
 
-// Finalize produces the result of the analysis. No more Consume() calls are expected afterwards.
+// Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (shotness *ShotnessAnalysis) Finalize() interface{} {
 	result := ShotnessResult{
 		Nodes:    make([]NodeSummary, len(shotness.nodes)),
@@ -337,7 +349,8 @@ func (shotness *ShotnessAnalysis) Finalize() interface{} {
 	return result
 }
 
-// Serialize converts the result from Finalize() to either Protocol Buffers or YAML.
+// Serialize converts the analysis result as returned by Finalize() to text or bytes.
+// The text format is YAML and the bytes format is Protocol Buffers.
 func (shotness *ShotnessAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
 	shotnessResult := result.(ShotnessResult)
 	if binary {

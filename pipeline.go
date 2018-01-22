@@ -58,7 +58,7 @@ type ConfigurationOption struct {
 	Default interface{}
 }
 
-// FormatDefault() converts the default value of ConfigurationOption to string.
+// FormatDefault converts the default value of ConfigurationOption to string.
 // Used in the command line interface to show the argument's default value.
 func (opt ConfigurationOption) FormatDefault() string {
 	if opt.Type != StringConfigurationOption {
@@ -131,17 +131,17 @@ type CommonAnalysisResult struct {
 	RunTime time.Duration
 }
 
-// BeginTimeAsTime() converts the UNIX timestamp of the beginning to Go time.
+// BeginTimeAsTime converts the UNIX timestamp of the beginning to Go time.
 func (car *CommonAnalysisResult) BeginTimeAsTime() time.Time {
 	return time.Unix(car.BeginTime, 0)
 }
 
-// EndTimeAsTime() converts the UNIX timestamp of the ending to Go time.
+// EndTimeAsTime converts the UNIX timestamp of the ending to Go time.
 func (car *CommonAnalysisResult) EndTimeAsTime() time.Time {
 	return time.Unix(car.EndTime, 0)
 }
 
-// Merge() combines the CommonAnalysisResult with an other one.
+// Merge combines the CommonAnalysisResult with an other one.
 // We choose the earlier BeginTime, the later EndTime, sum the number of commits and the
 // elapsed run times.
 func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
@@ -158,7 +158,7 @@ func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
 	car.RunTime += other.RunTime
 }
 
-// FillMetadata() copies the data to a Protobuf message.
+// FillMetadata copies the data to a Protobuf message.
 func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) *pb.Metadata {
 	meta.BeginUnixTime = car.BeginTime
 	meta.EndUnixTime = car.EndTime
@@ -223,23 +223,32 @@ func NewPipeline(repository *git.Repository) *Pipeline {
 	}
 }
 
+// GetFact returns the value of the fact with the specified name.
 func (pipeline *Pipeline) GetFact(name string) interface{} {
 	return pipeline.facts[name]
 }
 
+// SetFact sets the value of the fact with the specified name.
 func (pipeline *Pipeline) SetFact(name string, value interface{}) {
 	pipeline.facts[name] = value
 }
 
+// GetFeature returns the state of the feature with the specified name (enabled/disabled) and
+// whether it exists. See also: FeaturedPipelineItem.
 func (pipeline *Pipeline) GetFeature(name string) (bool, bool) {
 	val, exists := pipeline.features[name]
 	return val, exists
 }
 
+// SetFeature sets the value of the feature with the specified name.
+// See also: FeaturedPipelineItem.
 func (pipeline *Pipeline) SetFeature(name string) {
 	pipeline.features[name] = true
 }
 
+// SetFeaturesFromFlags enables the features which were specified through the command line flags
+// which belong to the given PipelineItemRegistry instance.
+// See also: AddItem().
 func (pipeline *Pipeline) SetFeaturesFromFlags(registry ...*PipelineItemRegistry) {
 	var ffr *PipelineItemRegistry
 	if len(registry) == 0 {
@@ -254,6 +263,8 @@ func (pipeline *Pipeline) SetFeaturesFromFlags(registry ...*PipelineItemRegistry
 	}
 }
 
+// DeployItem inserts a PipelineItem into the pipeline. It also recursively creates all of it's
+// dependencies (PipelineItem.Requires()). Returns the same item as specified in the arguments.
 func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
 	fpi, ok := item.(FeaturedPipelineItem)
 	if ok {
@@ -298,11 +309,14 @@ func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
 	return item
 }
 
+// AddItem inserts a PipelineItem into the pipeline. It does not check any dependencies.
+// See also: DeployItem().
 func (pipeline *Pipeline) AddItem(item PipelineItem) PipelineItem {
 	pipeline.items = append(pipeline.items, item)
 	return item
 }
 
+// RemoveItem deletes a PipelineItem from the pipeline. It leaves all the rest of the items intact.
 func (pipeline *Pipeline) RemoveItem(item PipelineItem) {
 	for i, reg := range pipeline.items {
 		if reg == item {
@@ -312,6 +326,7 @@ func (pipeline *Pipeline) RemoveItem(item PipelineItem) {
 	}
 }
 
+// Len returns the number of items in the pipeline.
 func (pipeline *Pipeline) Len() int {
 	return len(pipeline.items)
 }
@@ -417,6 +432,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 			}
 		}
 	}
+	// Try to break the cycles in some known scenarios.
 	if len(ambiguousMap) > 0 {
 		ambiguous := []string{}
 		for key := range ambiguousMap {
@@ -482,6 +498,9 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 	}
 }
 
+// Initialize prepares the pipeline for the execution (Run()). This function
+// resolves the execution DAG, Configure()-s and Initialize()-s the items in it in the
+// topological dependency order. `facts` are passed inside Configure(). They are mutable.
 func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 	if facts == nil {
 		facts = map[string]interface{}{}

@@ -35,6 +35,8 @@ func (registry *PipelineItemRegistry) Register(example PipelineItem) {
 	}
 }
 
+// Summon searches for PipelineItem-s which provide the specified entity or named after
+// the specified string. It materializes all the found types and returns them.
 func (registry *PipelineItemRegistry) Summon(providesOrName string) []PipelineItem {
 	if registry.provided == nil {
 		return []PipelineItem{}
@@ -50,6 +52,7 @@ func (registry *PipelineItemRegistry) Summon(providesOrName string) []PipelineIt
 	return items
 }
 
+// GetLeaves returns all LeafPipelineItem-s registered.
 func (registry *PipelineItemRegistry) GetLeaves() []LeafPipelineItem {
 	keys := []string{}
 	for key := range registry.flags {
@@ -63,6 +66,7 @@ func (registry *PipelineItemRegistry) GetLeaves() []LeafPipelineItem {
 	return items
 }
 
+// GetPlumbingItems returns all non-LeafPipelineItem-s registered.
 func (registry *PipelineItemRegistry) GetPlumbingItems() []PipelineItem {
 	keys := []string{}
 	for key := range registry.registered {
@@ -95,6 +99,7 @@ func (ofi orderedFeaturedItems) Swap(i, j int) {
 	cofi[i], cofi[j] = cofi[j], cofi[i]
 }
 
+// GetFeaturedItems returns all FeaturedPipelineItem-s registered.
 func (registry *PipelineItemRegistry) GetFeaturedItems() map[string][]FeaturedPipelineItem {
 	features := map[string][]FeaturedPipelineItem{}
 	for _, t := range registry.registered {
