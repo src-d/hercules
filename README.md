@@ -8,20 +8,13 @@ There are two tools: `hercules` and `labours.py`. The first is the program
 written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md).
 The second is the Python script which draws some predefined plots. These two tools are normally used together through
 a pipe. It is possible to write custom analyses using the plugin system. It is also possible
-to merge several analysis results together.
+to merge several analysis results together. There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lightning/) available.
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
 
 ![git/git image](doc/linux.png)
-<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year)</p>
-
-There is an option to resample the bands inside `labours.py`, so that you can
-define a very precise distribution and visualize it different ways. Besides,
-resampling aligns the bands across periodic boundaries, e.g. months or years.
-Unresampled bands are apparently not aligned and start from the project's birth date.
-
-There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lightning/) available.
+<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m project</code></p>
 
 ### Installation
 You are going to need Go (>= v1.8) and Python 2 or 3.
@@ -106,6 +99,11 @@ All burndown analyses depend on the values of *granularity* and *sampling*.
 Granularity is the number of days each band in the stack consists of. Sampling
 is the frequency with which the burnout state is snapshotted. The smaller the
 value, the more smooth is the plot but the more work is done.
+
+There is an option to resample the bands inside `labours.py`, so that you can
+define a very precise distribution and visualize it different ways. Besides,
+resampling aligns the bands across periodic boundaries, e.g. months or years.
+Unresampled bands are apparently not aligned and start from the project's birth date.
 
 #### Files
 
