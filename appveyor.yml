@@ -1,0 +1,36 @@
+version: "{build}"
+platform: x64
+image: Visual Studio 2017
+
+clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v3
+
+environment:
+  GOPATH: c:\gopath
+
+install:
+  - choco install make
+  - c:\msys64\usr\bin\pacman --noconfirm --needed -S mingw-w64-x86_64-toolchain
+  - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-win32.zip
+  - 7z e protoc.zip
+  - move protoc.exe C:\msys64\mingw64\bin
+
+build_script:
+  - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
+  - set PATH=C:\msys64\mingw64\bin;%PATH%
+  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v3
+  - make
+  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v3\hercules.win64.zip %GOPATH%\bin\hercules.exe
+
+artifacts:
+  - name: hercules.win64.zip
+    path: hercules.win64.zip
+
+deploy:
+  release: $(APPVEYOR_REPO_TAG_NAME)
+  provider: GitHub
+  auth_token:
+    secure: 78zsH4q19DqcpdkwnYHQoe0BakBfv+LGu1W7mXuaBC9mS87+EuAj3+yTzJv4NEfI
+  artifact: hercules.win64.zip
+  on:
+    branch: master
+    appveyor_repo_tag: true

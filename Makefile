@@ -3,10 +3,8 @@ ifneq ($(OS),Windows_NT)
 EXE =
 else
 EXE = .exe
-ifneq (oneshell, $(findstring oneshell, $(.FEATURES)))
-  $(error GNU make 3.82 or later is required)
 endif
-endif
+PKG = $(shell go env GOOS)_$(shell go env GOARCH)
 
 all: ${GOPATH}/bin/hercules${EXE}
 
@@ -20,10 +18,9 @@ ifneq ($(OS),Windows_NT)
 pb/pb.pb.go: pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo
 	PATH=${PATH}:${GOPATH}/bin protoc --gogo_out=pb --proto_path=pb pb/pb.proto
 else
-.ONESHELL:
 pb/pb.pb.go: pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo.exe
-	SET PATH=${PATH}${GOPATH}\bin
-	protoc --gogo_out=pb --proto_path=pb pb/pb.proto
+	set "PATH=${PATH};${GOPATH}\bin" && \
+	call protoc --gogo_out=pb --proto_path=pb pb/pb.proto
 endif
 
 pb/pb_pb2.py: pb/pb.proto
@@ -35,9 +32,9 @@ cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2:
 	go get -d -v gopkg.in/bblfsh/client-go.v2/...
 
-${GOPATH}/pkg/*/gopkg.in/bblfsh/client-go.v2: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2
+${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2
 	cd ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 && \
 	make dependencies
 
-${GOPATH}/bin/hercules${EXE}: *.go cmd/hercules/*.go rbtree/*.go yaml/*.go toposort/*.go pb/*.go ${GOPATH}/pkg/*/gopkg.in/bblfsh/client-go.v2 pb/pb.pb.go pb/pb_pb2.py cmd/hercules/plugin_template_source.go
+${GOPATH}/bin/hercules${EXE}: *.go cmd/hercules/*.go rbtree/*.go yaml/*.go toposort/*.go pb/*.go ${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2 pb/pb.pb.go pb/pb_pb2.py cmd/hercules/plugin_template_source.go
 	go get -ldflags "-X gopkg.in/src-d/hercules.v3.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v3/cmd/hercules
