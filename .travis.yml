@@ -17,19 +17,29 @@ addons:
     - gcc-6
     - g++-6
 
+go_import_path: gopkg.in/src-d/hercules.v3
 go:
   - 1.8
   - 1.9
 
-go_import_path: gopkg.in/src-d/hercules.v3
+stages:
+  - test
+  - deploy
+
+common_before_install: &common_before_install
+  - if [ $TRAVIS_OS_NAME == linux ]; then sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90; fi
+  - if [ $TRAVIS_OS_NAME == linux ]; then sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90; fi
+  - if [ $TRAVIS_OS_NAME == linux ]; then wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-linux-x86_64.zip; fi
+  - if [ $TRAVIS_OS_NAME == osx ]; then wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-osx-x86_64.zip; fi
+  - unzip -d ~/.local protoc.zip && rm protoc.zip
 
 before_install:
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.0/protoc-3.5.0-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
-  - go get -v github.com/golang/lint/golint
   - go get -v github.com/gogo/protobuf/protoc-gen-gogo
+  - go get -v github.com/golang/lint/golint
   - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
@@ -38,10 +48,8 @@ before_install:
   - make --version
   - pip3 --version
   - pip3 install --user -r requirements.txt tensorflow
-
 install:
   - make
-  
 script:
   - go vet ./...
   - golint ./...
@@ -54,9 +62,43 @@ script:
   - (cd contrib/_plugin_example && make)
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
-
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+
+jobs:
+  include:
+    - stage: deploy
+      os: osx
+      go: 1.9
+      before_install: *common_before_install
+      after_success:
+        - gzip -S .darwin_amd64.gz $GOPATH/bin/hercules
+      script: skip
+      install:
+        - make
+      deploy:
+        provider: releases
+        api_key: $(GITHUB_TOKEN)
+        file: "hercules.darwin_amd64.gz"
+        skip_cleanup: true
+        on:
+          tags: true
+    - stage: deploy
+      os: linux
+      go: 1.9
+      before_install: *common_before_install
+      script: skip
+      install:
+        - make
+      after_success:
+        - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
+      deploy:
+        provider: releases
+        api_key: $(GITHUB_TOKEN)
+        file: "hercules.linux_amd64.gz"
+        skip_cleanup: true
+        on:
+          tags: true
 
 notifications:
   email: false
