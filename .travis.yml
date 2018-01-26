@@ -26,28 +26,23 @@ stages:
   - test
   - deploy
 
-common_before_install: &common_before_install
-  - if [ $TRAVIS_OS_NAME == linux ]; then sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90; fi
-  - if [ $TRAVIS_OS_NAME == linux ]; then sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90; fi
-  - if [ $TRAVIS_OS_NAME == linux ]; then wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-linux-x86_64.zip; fi
-  - if [ $TRAVIS_OS_NAME == osx ]; then wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-osx-x86_64.zip; fi
-  - unzip -d ~/.local protoc.zip && rm protoc.zip
+env:
+  - PROTOC_VERSION=3.5.1
 
 before_install:
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
-  - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v3.5.0/protoc-3.5.0-linux-x86_64.zip
+  - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
-  - go get -v github.com/gogo/protobuf/protoc-gen-gogo
   - go get -v github.com/golang/lint/golint
   - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
-  - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
-  - docker exec -it bblfshd bblfshctl driver install --all
-  - export PATH=~/.local/bin:~/usr/bin:$PATH
+  - export PATH=~/usr/bin:$PATH
   - make --version
   - pip3 --version
   - pip3 install --user -r requirements.txt tensorflow
+  - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
+  - docker exec -it bblfshd bblfshctl driver install --all
 install:
   - make
 script:
@@ -70,7 +65,9 @@ jobs:
     - stage: deploy
       os: osx
       go: 1.9
-      before_install: *common_before_install
+      before_install:
+        - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
+        - unzip -d ~/.local protoc.zip && rm protoc.zip
       after_success:
         - gzip -S .darwin_amd64.gz $GOPATH/bin/hercules
       script: skip
@@ -86,7 +83,11 @@ jobs:
     - stage: deploy
       os: linux
       go: 1.9
-      before_install: *common_before_install
+      before_install:
+        - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
+        - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
+        - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
+        - unzip -d ~/.local protoc.zip && rm protoc.zip
       script: skip
       install:
         - make
