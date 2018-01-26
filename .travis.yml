@@ -75,8 +75,9 @@ jobs:
         - make
       deploy:
         provider: releases
-        api_key: $(GITHUB_TOKEN)
-        file: "hercules.darwin_amd64.gz"
+        api_key:
+          secure: $GITHUB_TOKEN
+        file: "$GOPATH/bin/hercules.darwin_amd64.gz"
         skip_cleanup: true
         on:
           tags: true
@@ -95,8 +96,9 @@ jobs:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
       deploy:
         provider: releases
-        api_key: $(GITHUB_TOKEN)
-        file: "hercules.linux_amd64.gz"
+        api_key:
+          secure: $GITHUB_TOKEN
+        file: "$GOPATH/bin/hercules.linux_amd64.gz"
         skip_cleanup: true
         on:
           tags: true
