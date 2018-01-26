@@ -17,6 +17,16 @@ to merge several analysis results together. There is a [presentation](http://vma
 <p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m project</code></p>
 
 ### Installation
+
+Grab `hercules` binary from the [Releases page](https://github.com/src-d/hercules/releases). `labours.py` requires the Python packages listed in [requirements.txt](requirements.txt):
+
+```
+pip3 install -r requirements.txt
+```
+
+Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke/pythonlibs/
+
+### Build from source
 You are going to need Go (>= v1.8) and Python 2 or 3.
 ```
 go get -d gopkg.in/src-d/hercules.v3/cmd/hercules
@@ -24,17 +34,7 @@ cd $GOPATH/src/gopkg.in/src-d/hercules.v3/cmd/hercules
 make
 ```
 
-#### Windows
-`hercules`: [bblfsh/client-go](https://github.com/bblfsh/client-go/blob/master/WINDOWS.md) is needed.
-
-```
-go get -d gopkg.in/src-d/hercules.v3/cmd/hercules
-cd %GOPATH%/src/gopkg.in/src-d/hercules.v3/cmd/hercules
-make
-```
-
-`labours.py`: Numpy and SciPy are requirements. Install the correct version by downloading the wheel from http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy.
-Couples analysis also needs Tensorflow.
+Replace `$GOPATH` with `%GOPATH%` on Windows.
 
 ### Contributions
 
