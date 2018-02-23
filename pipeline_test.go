@@ -423,6 +423,8 @@ func TestConfigurationOptionTypeString(t *testing.T) {
 	opt = ConfigurationOptionType(3)
 	assert.Equal(t, opt.String(), "float")
 	opt = ConfigurationOptionType(4)
+	assert.Equal(t, opt.String(), "string")
+	opt = ConfigurationOptionType(5)
 	assert.Panics(t, func() { _ = opt.String() })
 }
 

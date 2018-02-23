@@ -180,6 +180,10 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 				iface = interface{}(float32(0))
 				ptr := (**float32)(getPtr())
 				*ptr = flagSet.Float32(opt.Flag, opt.Default.(float32), formatHelp(opt.Description))
+			case StringsConfigurationOption:
+				iface = interface{}([]string{})
+				ptr := (**[]string)(getPtr())
+				*ptr = flagSet.StringSlice(opt.Flag, opt.Default.([]string), formatHelp(opt.Description))
 			}
 			flags[opt.Name] = iface
 		}

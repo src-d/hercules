@@ -23,7 +23,7 @@ func TestTreeDiffMeta(t *testing.T) {
 	assert.Equal(t, len(td.Provides()), 1)
 	assert.Equal(t, td.Provides()[0], DependencyTreeChanges)
 	opts := td.ListConfigurationOptions()
-	assert.Len(t, opts, 0)
+	assert.Len(t, opts, 2)
 }
 
 func TestTreeDiffRegistration(t *testing.T) {

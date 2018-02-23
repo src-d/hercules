@@ -2,6 +2,7 @@ package hercules
 
 import (
 	"io"
+	"strings"
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -13,12 +14,21 @@ import (
 // TreeDiff is a PipelineItem.
 type TreeDiff struct {
 	previousTree *object.Tree
+	SkipDirs     []string
 }
 
 const (
 	// DependencyTreeChanges is the name of the dependency provided by TreeDiff.
 	DependencyTreeChanges = "changes"
+	// ConfigTreeDiffSkipBlacklist is the name of the configuration option
+	// (TreeDiff.Configure()) which allows to skip blacklist directories.
+	ConfigTreeDiffSkipBlacklist = "TreeDiff.SkipVendor"
+	// ConfigTreeDiffBlacklistedDirs s the name of the configuration option
+	// (TreeDiff.Configure()) which allows to set blacklist directories.
+	ConfigTreeDiffBlacklistedDirs = "TreeDiff.BlacklistedDirs"
 )
+
+var defaultBlacklistedDirs = []string{"vendor/", "vendors/", "node_modules/"}
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (treediff *TreeDiff) Name() string {
@@ -42,11 +52,27 @@ func (treediff *TreeDiff) Requires() []string {
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (treediff *TreeDiff) ListConfigurationOptions() []ConfigurationOption {
-	return []ConfigurationOption{}
+	options := [...]ConfigurationOption{{
+		Name:        ConfigTreeDiffSkipBlacklist,
+		Description: "Skip blacklist directories.",
+		Flag:        "skip-blacklist",
+		Type:        BoolConfigurationOption,
+		Default:     false}, {
+		Name:        ConfigTreeDiffBlacklistedDirs,
+		Description: "List of blacklist directories. Separated by comma \",\".",
+		Flag:        "blacklisted-dirs",
+		Type:        StringsConfigurationOption,
+		Default:     defaultBlacklistedDirs},
+	}
+	return options[:]
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (treediff *TreeDiff) Configure(facts map[string]interface{}) {}
+func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
+	if val, exists := facts[ConfigTreeDiffSkipBlacklist]; exists && val.(bool) == true {
+		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedDirs].([]string)
+	}
+}
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
@@ -95,6 +121,22 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 		}
 	}
 	treediff.previousTree = tree
+
+	if len(treediff.SkipDirs) > 0 {
+		// filter without allocation
+		filteredDiff := diff[:0]
+	OUTER:
+		for _, change := range diff {
+			for _, dir := range treediff.SkipDirs {
+				if strings.HasPrefix(change.To.Name, dir) || strings.HasPrefix(change.From.Name, dir) {
+					continue OUTER
+				}
+			}
+			filteredDiff = append(filteredDiff, change)
+		}
+
+		diff = filteredDiff
+	}
 	return map[string]interface{}{DependencyTreeChanges: diff}, nil
 }
 
