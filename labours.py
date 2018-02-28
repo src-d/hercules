@@ -195,6 +195,8 @@ class YamlReader(Reader):
         # turn strings into ints
         for item in obj:
             item.counters = {int(k): v for k, v in item.counters.items()}
+        if len(obj) == 0:
+            raise KeyError
         return obj
 
     def _parse_burndown_matrix(self, matrix):
@@ -293,9 +295,11 @@ class ProtobufReader(Reader):
         from scipy.sparse import csr_matrix
         return index, csr_matrix((data, indices, indptr), shape=(len(shotness),) * 2)
 
-
     def get_shotness(self):
-        return self.contents["Shotness"].records
+        records = self.contents["Shotness"].records
+        if len(records) == 0:
+            raise KeyError
+        return records
 
     def _parse_burndown_matrix(self, matrix):
         dense = numpy.zeros((matrix.number_of_rows, matrix.number_of_columns), dtype=int)
@@ -1045,7 +1049,7 @@ def main():
         "--burndown --burndown-people."
     couples_warning = "Coupling stats were not collected. Re-run hercules with --couples."
     shotness_warning = "Structural hotness stats were not collected. Re-run hercules with " \
-                       "--shotness."
+                       "--shotness. Also check --languages - the output may be empty."
 
     def project_burndown():
         try:
