@@ -428,6 +428,9 @@ func (shotness *ShotnessAnalysis) extractNodes(root *uast.Node) (map[string]*uas
 	// otherwise due to UAST quirks there may be false positives
 	internal := map[*uast.Node]bool{}
 	for _, mainNode := range structs {
+		if internal[mainNode] {
+			continue
+		}
 		subs, err := tools.Filter(mainNode, shotness.XpathStruct)
 		if err != nil {
 			return nil, err

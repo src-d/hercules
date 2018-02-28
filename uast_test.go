@@ -124,7 +124,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 	// Language not enabled
 	assert.Len(t, res[DependencyUasts], 0)
 	assert.Nil(t, err)
-	exr.Languages["Go"] = true
+	exr.Languages["Go3000"] = true
 	res, err = exr.Consume(deps)
 	// No Go driver
 	assert.Len(t, res[DependencyUasts], 0)
