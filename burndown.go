@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
+	"log"
 	"sort"
 	"sync"
 	"unicode/utf8"
@@ -205,17 +205,17 @@ func (analyser *BurndownAnalysis) Flag() string {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	if analyser.Granularity <= 0 {
-		fmt.Fprintf(os.Stderr, "Warning: adjusted the granularity to %d days\n",
+		log.Printf("Warning: adjusted the granularity to %d days\n",
 			DefaultBurndownGranularity)
 		analyser.Granularity = DefaultBurndownGranularity
 	}
 	if analyser.Sampling <= 0 {
-		fmt.Fprintf(os.Stderr, "Warning: adjusted the sampling to %d days\n",
+		log.Printf("Warning: adjusted the sampling to %d days\n",
 			DefaultBurndownGranularity)
 		analyser.Sampling = DefaultBurndownGranularity
 	}
 	if analyser.Sampling > analyser.Granularity {
-		fmt.Fprintf(os.Stderr, "Warning: granularity may not be less than sampling, adjusted to %d\n",
+		log.Printf("Warning: granularity may not be less than sampling, adjusted to %d\n",
 			analyser.Granularity)
 		analyser.Sampling = analyser.Granularity
 	}
@@ -929,7 +929,7 @@ func (analyser *BurndownAnalysis) handleModification(
 
 	thisDiffs := diffs[change.To.Name]
 	if file.Len() != thisDiffs.OldLinesOfCode {
-		fmt.Fprintf(os.Stderr, "====TREE====\n%s", file.Dump())
+		log.Printf("====TREE====\n%s", file.Dump())
 		return fmt.Errorf("%s: internal integrity error src %d != %d %s -> %s",
 			change.To.Name, thisDiffs.OldLinesOfCode, file.Len(),
 			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String())
@@ -960,13 +960,13 @@ func (analyser *BurndownAnalysis) handleModification(
 		}
 		length := utf8.RuneCountInString(edit.Text)
 		debugError := func() {
-			fmt.Fprintf(os.Stderr, "%s: internal diff error\n", change.To.Name)
-			fmt.Fprintf(os.Stderr, "Update(%d, %d, %d (0), %d (0))\n", analyser.day, position,
+			log.Printf("%s: internal diff error\n", change.To.Name)
+			log.Printf("Update(%d, %d, %d (0), %d (0))\n", analyser.day, position,
 				length, utf8.RuneCountInString(pending.Text))
 			if dumpBefore != "" {
-				fmt.Fprintf(os.Stderr, "====TREE BEFORE====\n%s====END====\n", dumpBefore)
+				log.Printf("====TREE BEFORE====\n%s====END====\n", dumpBefore)
 			}
-			fmt.Fprintf(os.Stderr, "====TREE AFTER====\n%s====END====\n", file.Dump())
+			log.Printf("====TREE AFTER====\n%s====END====\n", file.Dump())
 		}
 		switch edit.Type {
 		case diffmatchpatch.DiffEqual:

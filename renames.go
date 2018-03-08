@@ -1,8 +1,7 @@
 package hercules
 
 import (
-	"fmt"
-	"os"
+	"log"
 	"sort"
 	"unicode/utf8"
 
@@ -79,7 +78,7 @@ func (ra *RenameAnalysis) Configure(facts map[string]interface{}) {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
-		fmt.Fprintf(os.Stderr, "Warning: adjusted the similarity threshold to %d\n",
+		log.Printf("Warning: adjusted the similarity threshold to %d\n",
 			RenameAnalysisDefaultThreshold)
 		ra.SimilarityThreshold = RenameAnalysisDefaultThreshold
 	}

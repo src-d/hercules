@@ -1,8 +1,7 @@
 package hercules
 
 import (
-	"fmt"
-	"os"
+	"log"
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
@@ -94,7 +93,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 	for _, change := range changes {
 		action, err := change.Action()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "no action in %s\n", change.To.TreeEntry.Hash)
+			log.Printf("no action in %s\n", change.To.TreeEntry.Hash)
 			return nil, err
 		}
 		var exists bool
@@ -103,7 +102,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 		case merkletrie.Insert:
 			blob, err = blobCache.getBlob(&change.To, commit.File)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "file to %s %s\n", change.To.Name, change.To.TreeEntry.Hash)
+				log.Printf("file to %s %s\n", change.To.Name, change.To.TreeEntry.Hash)
 			} else {
 				cache[change.To.TreeEntry.Hash] = blob
 				newCache[change.To.TreeEntry.Hash] = blob
@@ -114,7 +113,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 				cache[change.From.TreeEntry.Hash], err = blobCache.getBlob(&change.From, commit.File)
 				if err != nil {
 					if err.Error() != plumbing.ErrObjectNotFound.Error() {
-						fmt.Fprintf(os.Stderr, "file from %s %s\n", change.From.Name,
+						log.Printf("file from %s %s\n", change.From.Name,
 							change.From.TreeEntry.Hash)
 					} else {
 						cache[change.From.TreeEntry.Hash], err = createDummyBlob(
@@ -125,7 +124,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 		case merkletrie.Modify:
 			blob, err = blobCache.getBlob(&change.To, commit.File)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "file to %s\n", change.To.Name)
+				log.Printf("file to %s\n", change.To.Name)
 			} else {
 				cache[change.To.TreeEntry.Hash] = blob
 				newCache[change.To.TreeEntry.Hash] = blob
@@ -134,7 +133,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 			if !exists {
 				cache[change.From.TreeEntry.Hash], err = blobCache.getBlob(&change.From, commit.File)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "file from %s\n", change.From.Name)
+					log.Printf("file from %s\n", change.From.Name)
 				}
 			}
 		}
@@ -157,7 +156,7 @@ func (blobCache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGe
 	blob, err := blobCache.repository.BlobObject(entry.TreeEntry.Hash)
 	if err != nil {
 		if err.Error() != plumbing.ErrObjectNotFound.Error() {
-			fmt.Fprintf(os.Stderr, "getBlob(%s)\n", entry.TreeEntry.Hash.String())
+			log.Printf("getBlob(%s)\n", entry.TreeEntry.Hash.String())
 			return nil, err
 		}
 		if entry.TreeEntry.Mode != 0160000 {

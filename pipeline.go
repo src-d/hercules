@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -494,7 +495,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 		// fmt.Fprint(os.Stderr, graphCopy.DebugDump())
 		ioutil.WriteFile(dumpPath, []byte(graphCopy.Serialize(strplan)), 0666)
 		absPath, _ := filepath.Abs(dumpPath)
-		fmt.Fprintf(os.Stderr, "Wrote the DAG to %s\n", absPath)
+		log.Printf("Wrote the DAG to %s\n", absPath)
 	}
 }
 
@@ -541,7 +542,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 		for _, item := range pipeline.items {
 			update, err := item.Consume(state)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s failed on commit #%d %s\n",
+				log.Printf("%s failed on commit #%d %s\n",
 					item.Name(), index, commit.Hash.String())
 				return nil, err
 			}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -59,7 +60,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool) *git.Repos
 			}
 			_, err = os.Stat(cachePath)
 			if !os.IsNotExist(err) {
-				fmt.Fprintf(os.Stderr, "warning: deleted %s\n", cachePath)
+				log.Printf("warning: deleted %s\n", cachePath)
 				os.RemoveAll(cachePath)
 			}
 		} else {
@@ -118,7 +119,7 @@ func loadPlugins() {
 	for path := range pluginFlags {
 		_, err := plugin.Open(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to load plugin from %s %s\n", path, err)
+			log.Printf("Failed to load plugin from %s %s\n", path, err)
 		}
 	}
 }

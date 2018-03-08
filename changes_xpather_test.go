@@ -5,11 +5,11 @@ import (
 	"log"
 	"testing"
 
-	"gopkg.in/bblfsh/client-go.v2"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/bblfsh/sdk.v1/uast"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/bblfsh/client-go.v2"
+	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 func TestChangesXPatherExtractChanged(t *testing.T) {

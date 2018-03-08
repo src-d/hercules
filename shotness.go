@@ -3,7 +3,7 @@ package hercules
 import (
 	"fmt"
 	"io"
-	"os"
+	"log"
 	"sort"
 	"unicode/utf8"
 
@@ -193,7 +193,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 		if change.Before == nil {
 			nodes, err := shotness.extractNodes(change.After)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Shotness: commit %s file %s failed to filter UAST: %s\n",
+				log.Printf("Shotness: commit %s file %s failed to filter UAST: %s\n",
 					commit.Hash.String(), toName, err.Error())
 				continue
 			}
@@ -229,14 +229,14 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 		// pass through new UAST
 		nodesBefore, err := shotness.extractNodes(change.Before)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Shotness: commit ^%s file %s failed to filter UAST: %s\n",
+			log.Printf("Shotness: commit ^%s file %s failed to filter UAST: %s\n",
 				commit.Hash.String(), change.Change.From.Name, err.Error())
 			continue
 		}
 		reversedNodesBefore := reverseNodeMap(nodesBefore)
 		nodesAfter, err := shotness.extractNodes(change.After)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Shotness: commit %s file %s failed to filter UAST: %s\n",
+			log.Printf("Shotness: commit %s file %s failed to filter UAST: %s\n",
 				commit.Hash.String(), toName, err.Error())
 			continue
 		}
