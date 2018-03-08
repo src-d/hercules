@@ -46,6 +46,7 @@ before_install:
 install:
   - make
 script:
+  - set -e
   - go vet ./...
   - golint -set_exit_status ./...
   - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
@@ -57,6 +58,7 @@ script:
   - (cd contrib/_plugin_example && make)
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
+  - set +e
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
