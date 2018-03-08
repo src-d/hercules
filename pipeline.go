@@ -29,6 +29,8 @@ const (
 	IntConfigurationOption
 	// StringConfigurationOption reflects the string value type.
 	StringConfigurationOption
+	// FloatConfigurationOption reflects a floating point value type.
+	FloatConfigurationOption
 )
 
 // String() returns an empty string for the boolean type, "int" for integers and "string" for
@@ -41,6 +43,8 @@ func (opt ConfigurationOptionType) String() string {
 		return "int"
 	case StringConfigurationOption:
 		return "string"
+	case FloatConfigurationOption:
+		return "float"
 	}
 	panic(fmt.Sprintf("Invalid ConfigurationOptionType value %d", opt))
 }

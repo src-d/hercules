@@ -160,19 +160,26 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 		itemIface := reflect.New(it.Elem()).Interface()
 		for _, opt := range itemIface.(PipelineItem).ListConfigurationOptions() {
 			var iface interface{}
+			getPtr := func() unsafe.Pointer {
+				return unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface))
+			}
 			switch opt.Type {
 			case BoolConfigurationOption:
 				iface = interface{}(true)
-				ptr := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+				ptr := (**bool)(getPtr())
 				*ptr = flagSet.Bool(opt.Flag, opt.Default.(bool), formatHelp(opt.Description))
 			case IntConfigurationOption:
 				iface = interface{}(0)
-				ptr := (**int)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+				ptr := (**int)(getPtr())
 				*ptr = flagSet.Int(opt.Flag, opt.Default.(int), formatHelp(opt.Description))
 			case StringConfigurationOption:
 				iface = interface{}("")
-				ptr := (**string)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+				ptr := (**string)(getPtr())
 				*ptr = flagSet.String(opt.Flag, opt.Default.(string), formatHelp(opt.Description))
+			case FloatConfigurationOption:
+				iface = interface{}(float32(0))
+				ptr := (**float32)(getPtr())
+				*ptr = flagSet.Float32(opt.Flag, opt.Default.(float32), formatHelp(opt.Description))
 			}
 			flags[opt.Name] = iface
 		}

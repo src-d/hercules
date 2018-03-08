@@ -421,6 +421,8 @@ func TestConfigurationOptionTypeString(t *testing.T) {
 	opt = ConfigurationOptionType(2)
 	assert.Equal(t, opt.String(), "string")
 	opt = ConfigurationOptionType(3)
+	assert.Equal(t, opt.String(), "float")
+	opt = ConfigurationOptionType(4)
 	assert.Panics(t, func() { _ = opt.String() })
 }
 
@@ -431,6 +433,8 @@ func TestConfigurationOptionFormatDefault(t *testing.T) {
 	assert.Equal(t, opt.FormatDefault(), "7")
 	opt = ConfigurationOption{Type: BoolConfigurationOption, Default: false}
 	assert.Equal(t, opt.FormatDefault(), "false")
+	opt = ConfigurationOption{Type: FloatConfigurationOption, Default: 0.5}
+	assert.Equal(t, opt.FormatDefault(), "0.5")
 }
 
 func init() {
