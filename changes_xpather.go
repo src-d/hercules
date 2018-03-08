@@ -7,6 +7,8 @@ import (
 	"gopkg.in/bblfsh/client-go.v2/tools"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"io"
+	"bytes"
 )
 
 // ChangesXPather extracts changed UAST nodes from files changed in the current commit.
@@ -57,11 +59,16 @@ func (xpather ChangesXPather) filter(root *uast.Node, origin plumbing.Hash) []*u
 func (xpather ChangesXPather) hash(nodes []*uast.Node) map[uint64]*uast.Node {
 	result := map[uint64]*uast.Node{}
 	for _, node := range nodes {
-		buffer, err := node.Marshal()
-		if err != nil {
-			panic(err)
-		}
-		result[highwayhash.Sum64(buffer, hashKey)] = node
+		buffer := &bytes.Buffer{}
+		stringifyUASTNode(node, buffer)
+		result[highwayhash.Sum64(buffer.Bytes(), hashKey)] = node
 	}
 	return result
+}
+
+func stringifyUASTNode(node *uast.Node, writer io.Writer) {
+	writer.Write([]byte(node.Token + "|" + node.InternalType + ">"))
+	for _, child := range node.Children {
+		stringifyUASTNode(child, writer)
+	}
 }
