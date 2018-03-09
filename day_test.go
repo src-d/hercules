@@ -9,6 +9,7 @@ import (
 
 func fixtureDaysSinceStart() *DaysSinceStart {
 	dss := DaysSinceStart{}
+	dss.Configure(map[string]interface{}{})
 	dss.Initialize(testRepository)
 	return &dss
 }
@@ -83,4 +84,24 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyDay].(int), 2)
 	assert.Equal(t, dss.previousDay, 2)
+
+	assert.Len(t, dss.commits, 3)
+	assert.Equal(t, dss.commits[0], []plumbing.Hash{plumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1")})
+	assert.Equal(t, dss.commits[1], []plumbing.Hash{
+		plumbing.NewHash("fc9ceecb6dabcb2aab60e8619d972e8d8208a7df"),
+		plumbing.NewHash("a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3")})
+	assert.Equal(t, dss.commits[2], []plumbing.Hash{
+		plumbing.NewHash("a8b665a65d7aced63f5ba2ff6d9b71dac227f8cf"),
+		plumbing.NewHash("186ff0d7e4983637bb3762a24d6d0a658e7f4712")})
+}
+
+func TestDaysCommits(t *testing.T) {
+	dss := fixtureDaysSinceStart()
+	dss.commits[0] = []plumbing.Hash{plumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1")}
+	commits := dss.commits
+	dss.Initialize(testRepository)
+	assert.Len(t, dss.commits, 0)
+	assert.Equal(t, dss.commits, commits)
 }
