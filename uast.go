@@ -146,7 +146,7 @@ func (exr *UASTExtractor) ListConfigurationOptions() []ConfigurationOption {
 		Description: "Programming languages from which to extract UASTs. Separated by comma \",\".",
 		Flag:        "languages",
 		Type:        StringConfigurationOption,
-		Default:     "Python,Java"},
+		Default:     "Python,Java,Go,JavaScript,Ruby,PHP"},
 	}
 	return options[:]
 }
