@@ -136,7 +136,7 @@ func (exr *UASTExtractor) ListConfigurationOptions() []ConfigurationOption {
 		Description: "Number of goroutines to extract UASTs.",
 		Flag:        "bblfsh-pool-size",
 		Type:        IntConfigurationOption,
-		Default:     runtime.NumCPU()}, {
+		Default:     runtime.NumCPU() * 2}, {
 		Name:        ConfigUASTFailOnErrors,
 		Description: "Panic if there is a UAST extraction error.",
 		Flag:        "bblfsh-fail-on-error",
