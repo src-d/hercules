@@ -30,7 +30,7 @@ Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke
 You are going to need Go (>= v1.8) and Python 2 or 3.
 ```
 go get -d gopkg.in/src-d/hercules.v3/cmd/hercules
-cd $GOPATH/src/gopkg.in/src-d/hercules.v3/cmd/hercules
+cd $GOPATH/src/gopkg.in/src-d/hercules.v3
 make
 ```
 
