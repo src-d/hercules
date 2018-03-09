@@ -18,6 +18,7 @@ build_script:
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
   - set PATH=C:\msys64\mingw64\bin;%PATH%
   - cd %GOPATH%\src\gopkg.in\src-d\hercules.v3
+  - set DISABLE_TENSORFLOW=1
   - make
   - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v3\hercules.win64.zip %GOPATH%\bin\hercules.exe
 

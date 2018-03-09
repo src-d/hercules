@@ -105,6 +105,16 @@ message FileHistoryResultMessage {
     map<string, FileHistory> files = 1;
 }
 
+message Sentiment {
+    float value = 1;
+    repeated string comments = 2;
+    repeated string commits = 3;
+}
+
+message CommentSentimentResults {
+    map<int32, Sentiment> sentiment_by_day = 1;
+}
+
 message AnalysisResults {
     Metadata header = 1;
     // the mapped values are dynamic messages which require the second parsing pass.

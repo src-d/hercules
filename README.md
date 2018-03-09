@@ -25,6 +25,7 @@ pip3 install -r requirements.txt
 ```
 
 Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke/pythonlibs/
+Linux releases require [`libtensorflow`](https://www.tensorflow.org/install/install_go).
 
 ### Build from source
 You are going to need Go (>= v1.8) and Python 2 or 3.

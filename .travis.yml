@@ -27,7 +27,7 @@ stages:
   - deploy
 
 env:
-  - PROTOC_VERSION=3.5.1
+  - PROTOC_VERSION=3.5.1 TENSORFLOW_VERSION=1.6.0
 
 before_install:
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
@@ -43,13 +43,15 @@ before_install:
   - pip3 install --user -r requirements.txt tensorflow
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
   - docker exec -it bblfshd bblfshctl driver install --all
+  - curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-$TENSORFLOW_VERSION.tar.gz" | sudo tar -C /usr/local -xz
+  - sudo ldconfig
 install:
   - make
 script:
   - set -e
   - go vet ./...
   - golint -set_exit_status ./...
-  - go test -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
+  - go test -tags tensorflow -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
@@ -58,6 +60,7 @@ script:
   - (cd contrib/_plugin_example && make)
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules
   - set +e
 after_success:
   - bash <(curl -s https://codecov.io/bash)
@@ -74,7 +77,7 @@ jobs:
         - gzip -S .darwin_amd64.gz $GOPATH/bin/hercules
       script: skip
       install:
-        - make
+        - DISABLE_TENSORFLOW=1 make
       deploy:
         provider: releases
         api_key:
@@ -91,6 +94,8 @@ jobs:
         - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
+        - curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-$TENSORFLOW_VERSION.tar.gz" | sudo tar -C /usr/local -xz
+        - sudo ldconfig
       script: skip
       install:
         - make
