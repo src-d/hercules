@@ -322,7 +322,8 @@ func (exr *UASTExtractor) extractTask(data interface{}) interface{} {
 	task.Lock.Lock()
 	defer task.Lock.Unlock()
 	if err != nil {
-		*task.Errors = append(*task.Errors, errors.New(task.File.Name+": "+err.Error()))
+		*task.Errors = append(*task.Errors,
+			fmt.Errorf("\nfile %s, blob %s: %v", task.File.Name, task.File.Hash.String(), err))
 		return nil
 	}
 	if node != nil {
