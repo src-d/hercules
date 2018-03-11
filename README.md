@@ -225,6 +225,19 @@ Couples analysis automatically loads "shotness" data if available.
 ![Jinja2 functions grouped by structural hotness](doc/jinja.png)
 <p align="center"><code>hercules --shotness --pb https://github.com/pallets/jinja | python3 labours.py -m couples -f pb</code></p>
 
+#### Sentiment (positive and negative code)
+
+![Django sentiment](doc/sentiment.png)
+<p align="center"><code>hercules --sentiment --pb https://github.com/django/django | python3 labours.py -m sentiment -f pb</code></p>
+
+We extract new or changed comments from source code on every commit, apply [BiDiSentiment]()
+general purpose sentiment recurrent neural network and plot the results. Requires
+[libtensorflow](https://www.tensorflow.org/install/install_go).
+E.g. [`sadly, we need to hide the rect from the documentation finder for now`](https://github.com/pygame/pygame/commit/b6091d38c8a5639d311858660b38841d96598509#diff-eae59f175858fcef57cb17e733981c73R27) is negative and
+[`Theano has a built-in optimization for logsumexp (...) so we can just write the expression directly`](https://github.com/keras-team/keras/commit/7d52af64c03e71bcd23112a7086dc8aab1b37ed2#diff-ff634bb5c5441d7052449f20018872b8R549)
+is positive. Don't expect too much though - as was written, the sentiment model is
+general purpose and the code comments have different nature, so there is no magic (for now).
+
 #### Everything in a single pass
 
 ```
