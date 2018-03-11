@@ -3,6 +3,7 @@ package hercules
 import (
 	"bytes"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -10,6 +11,7 @@ import (
 	"gopkg.in/bblfsh/client-go.v2"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v3/pb"
+	"gopkg.in/bblfsh/client-go.v2/tools"
 )
 
 func fixtureCommentSentiment() *CommentSentimentAnalysis {
@@ -129,20 +131,27 @@ func TestCommentSentimentConsume(t *testing.T) {
 	hash2 := "2a7392320b332494a08d5113aabe6d056fef7e9d"
 	root1 := parseBlobFromTestRepo(hash1, "labours.py", client)
 	root2 := parseBlobFromTestRepo(hash2, "labours.py", client)
+	comments, _ := tools.Filter(root2, "//*[@roleComment]")
+	for _, c := range comments {
+		t := strings.TrimSpace(c.Token)
+		if t == "we need to adjust the peak, it may not be less than the decayed value" {
+			c.Token = "license copyright boring"
+		} else if t == "Tensorflow 1.5 parses sys.argv unconditionally *applause*" {
+			c.StartPosition = nil
+		}
+	}
 	gitChange := fakeChangeForName("labours.py", hash1, hash2)
 	deps := map[string]interface{}{
 		DependencyDay: 0,
 		DependencyUastChanges: []UASTChange{
 			{Before: root1, After: root2, Change: gitChange},
-			{Before: nil, After: root2, Change: gitChange},
-			{Before: root1, After: nil, Change: gitChange},
 		},
 	}
 	result, err := sent.Consume(deps)
 	assert.Nil(t, err)
 	assert.Nil(t, result)
 	assert.Len(t, sent.commentsByDay, 1)
-	assert.Len(t, sent.commentsByDay[0], 13)
+	assert.Len(t, sent.commentsByDay[0], 4)
 }
 
 var (
