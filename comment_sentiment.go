@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/bblfsh/sdk.v1/uast"
+	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v3/pb"
@@ -111,21 +111,25 @@ func (sent *CommentSentimentAnalysis) Flag() string {
 func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigCommentSentimentGap]; exists {
 		sent.Gap = val.(float32)
-		if sent.Gap < 0 || sent.Gap >= 1 {
-			log.Printf("Sentiment gap is too big: %f => reset to the default %f",
-				sent.Gap, DefaultCommentSentimentGap)
-			sent.Gap = DefaultCommentSentimentGap
-		}
 	}
 	if val, exists := facts[ConfigCommentSentimentMinLength]; exists {
 		sent.MinCommentLength = val.(int)
-		if sent.MinCommentLength < 10 {
-			log.Printf("Comment minimum length is too small: %d => reset to the default %d",
-				sent.MinCommentLength, DefaultCommentSentimentCommentMinLength)
-			sent.MinCommentLength = DefaultCommentSentimentCommentMinLength
-		}
 	}
+	sent.validate()
 	sent.commitsByDay = facts[FactCommitsByDay].(map[int][]plumbing.Hash)
+}
+
+func (sent *CommentSentimentAnalysis) validate() {
+	if sent.Gap < 0 || sent.Gap >= 1 {
+		log.Printf("Sentiment gap is too big: %f => reset to the default %f",
+			sent.Gap, DefaultCommentSentimentGap)
+		sent.Gap = DefaultCommentSentimentGap
+	}
+	if sent.MinCommentLength < 10 {
+		log.Printf("Comment minimum length is too small: %d => reset to the default %d",
+			sent.MinCommentLength, DefaultCommentSentimentCommentMinLength)
+		sent.MinCommentLength = DefaultCommentSentimentCommentMinLength
+	}
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
@@ -133,6 +137,7 @@ func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) {
 func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) {
 	sent.commentsByDay = map[int][]string{}
 	sent.xpather = &ChangesXPather{XPath: "//*[@roleComment]"}
+	sent.validate()
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -161,16 +166,14 @@ func (sent *CommentSentimentAnalysis) Finalize() interface{} {
 		CommentsByDay: map[int][]string{},
 		commitsByDay:  sent.commitsByDay,
 	}
-	texts := []string{}
 	days := make([]int, 0, len(sent.commentsByDay))
 	for day := range sent.commentsByDay {
 		days = append(days, day)
 	}
 	sort.Ints(days)
+	texts := []string{}
 	for _, key := range days {
-		for _, val := range sent.commentsByDay[key] {
-			texts = append(texts, val)
-		}
+		texts = append(texts, sent.commentsByDay[key]...)
 	}
 	session, err := sentiment.OpenSession()
 	if err != nil {
@@ -237,7 +240,7 @@ func (sent *CommentSentimentAnalysis) serializeText(result *CommentSentimentResu
 	}
 	sort.Ints(days)
 	for _, day := range days {
-		commits := sent.commitsByDay[day]
+		commits := result.commitsByDay[day]
 		hashes := make([]string, len(commits))
 		for i, hash := range commits {
 			hashes[i] = hash.String()
@@ -276,6 +279,9 @@ func (sent *CommentSentimentAnalysis) mergeComments(nodes []*uast.Node) []string
 	mergedComments := []string{}
 	lines := map[int][]*uast.Node{}
 	for _, node := range nodes {
+		if node.StartPosition == nil {
+			continue
+		}
 		lineno := int(node.StartPosition.Line)
 		subnodes := lines[lineno]
 		if subnodes == nil {
