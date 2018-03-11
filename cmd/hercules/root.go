@@ -160,7 +160,7 @@ targets can be added using the --plugin system.`,
 		if !disableStatus {
 			pipeline.OnProgress = func(commit, length int) {
 				if bar == nil {
-					bar = progress.New(length + 1)
+					bar = progress.New(length)
 					bar.Callback = func(msg string) {
 						os.Stderr.WriteString("\r" + msg)
 					}
@@ -170,7 +170,12 @@ targets can be added using the --plugin system.`,
 					bar.SetMaxWidth(80)
 					bar.Start()
 				}
-				bar.Set(commit)
+				if commit == length {
+					bar.Finish()
+					fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\rfinalizing...")
+				} else {
+					bar.Set(commit)
+				}
 			}
 		}
 
@@ -203,9 +208,9 @@ targets can be added using the --plugin system.`,
 			panic(err)
 		}
 		if !disableStatus {
-			bar.Finish()
 			fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\r")
-			if terminal.IsTerminal(int(os.Stdout.Fd())) {
+			// if not a terminal, the user will not see the output, so show the status
+			if !terminal.IsTerminal(int(os.Stdout.Fd())) {
 				fmt.Fprint(os.Stderr, "writing...\r")
 			}
 		}
