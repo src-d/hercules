@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
                         choices=["project", "file", "person", "churn_matrix", "ownership",
-                                 "couples", "shotness", "all"],
+                                 "couples", "shotness", "sentiment", "all"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -199,6 +199,14 @@ class YamlReader(Reader):
             raise KeyError
         return obj
 
+    def get_sentiment(self):
+        from munch import munchify
+        return munchify({int(key): {
+            "Comments": vals[2].split("|"),
+            "Commits": vals[1],
+            "Value": float(vals[0])
+        } for key, vals in self.data["Sentiment"].items()})
+
     def _parse_burndown_matrix(self, matrix):
         return numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
                             for line in matrix.split("\n")])
@@ -300,6 +308,12 @@ class ProtobufReader(Reader):
         if len(records) == 0:
             raise KeyError
         return records
+
+    def get_sentiment(self):
+        byday = self.contents["Sentiment"].SentimentByDay
+        if len(byday) == 0:
+            raise KeyError
+        return byday
 
     def _parse_burndown_matrix(self, matrix):
         dense = numpy.zeros((matrix.number_of_rows, matrix.number_of_columns), dtype=int)
@@ -682,13 +696,11 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
     if locs[0] < pyplot.xlim()[0]:
         del locs[0]
     endindex = -1
-    if len(locs) >= 2 and \
-            pyplot.xlim()[1] - locs[-1] > (locs[-1] - locs[-2]) / 2:
+    if len(locs) >= 2 and pyplot.xlim()[1] - locs[-1] > (locs[-1] - locs[-2]) / 2:
         locs.append(pyplot.xlim()[1])
         endindex = len(locs) - 1
     startindex = -1
-    if len(locs) >= 2 and \
-            locs[0] - pyplot.xlim()[0] > (locs[1] - locs[0]) / 2:
+    if len(locs) >= 2 and locs[0] - pyplot.xlim()[0] > (locs[1] - locs[0]) / 2:
         locs.append(pyplot.xlim()[0])
         startindex = len(locs) - 1
     pyplot.gca().set_xticks(locs)
@@ -1034,6 +1046,75 @@ def show_shotness_stats(data):
         print("%8d  %s:%s [%s]" % (count, r.file, r.name, r.internal_role))
 
 
+def show_sentiment_stats(args, name, resample, start, data):
+    import matplotlib
+    if args.backend:
+        matplotlib.use(args.backend)
+    import matplotlib.pyplot as pyplot
+
+    start = datetime.fromtimestamp(start)
+    data = sorted(data.items())
+    xdates = [start + timedelta(days=d[0]) for d in data]
+    xpos = []
+    ypos = []
+    xneg = []
+    yneg = []
+    for x, (_, y) in zip(xdates, data):
+        y = 0.5 - y.Value
+        if y > 0:
+            xpos.append(x)
+            ypos.append(y)
+        else:
+            xneg.append(x)
+            yneg.append(y)
+    pyplot.bar(xpos, ypos, color="g", label="Positive")
+    pyplot.bar(xneg, yneg, color="r", label="Negative")
+    legend = pyplot.legend(loc=1, fontsize=args.text_size)
+    pyplot.ylabel("Lines of code")
+    pyplot.xlabel("Time")
+    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.style, args.text_size, args.size)
+    pyplot.xlim(xdates[0], xdates[-1])
+    locator = pyplot.gca().xaxis.get_major_locator()
+    # set the optimal xticks locator
+    if "M" not in resample:
+        pyplot.gca().xaxis.set_major_locator(matplotlib.dates.YearLocator())
+    locs = pyplot.gca().get_xticks().tolist()
+    if len(locs) >= 16:
+        pyplot.gca().xaxis.set_major_locator(matplotlib.dates.YearLocator())
+        locs = pyplot.gca().get_xticks().tolist()
+        if len(locs) >= 16:
+            pyplot.gca().xaxis.set_major_locator(locator)
+    if locs[0] < pyplot.xlim()[0]:
+        del locs[0]
+    endindex = -1
+    if len(locs) >= 2 and pyplot.xlim()[1] - locs[-1] > (locs[-1] - locs[-2]) / 2:
+        locs.append(pyplot.xlim()[1])
+        endindex = len(locs) - 1
+    startindex = -1
+    if len(locs) >= 2 and locs[0] - pyplot.xlim()[0] > (locs[1] - locs[0]) / 2:
+        locs.append(pyplot.xlim()[0])
+        startindex = len(locs) - 1
+    pyplot.gca().set_xticks(locs)
+    # hacking time!
+    labels = pyplot.gca().get_xticklabels()
+    if startindex >= 0:
+        labels[startindex].set_text(xdates[0].date())
+        labels[startindex].set_text = lambda _: None
+        labels[startindex].set_rotation(30)
+        labels[startindex].set_ha("right")
+    if endindex >= 0:
+        labels[endindex].set_text(xdates[-1].date())
+        labels[endindex].set_text = lambda _: None
+        labels[endindex].set_rotation(30)
+        labels[endindex].set_ha("right")
+    overall_pos = sum(2 * (0.5 - d[1].Value) for d in data if d[1].Value < 0.5)
+    overall_neg = sum(2 * (d[1].Value - 0.5) for d in data if d[1].Value > 0.5)
+    title = "%s sentiment +%.1f -%.1f δ=%.1f" % (
+        name, overall_pos, overall_neg, overall_pos - overall_neg)
+    output = args.output
+    deploy_plot(title, args.output, args.style)
+
+
 def main():
     args = parse_args()
     reader = read_input(args)
@@ -1050,6 +1131,7 @@ def main():
     couples_warning = "Coupling stats were not collected. Re-run hercules with --couples."
     shotness_warning = "Structural hotness stats were not collected. Re-run hercules with " \
                        "--shotness. Also check --languages - the output may be empty."
+    sentiment_warning = "Sentiment stats were not collected. Re-run hercules with --sentiment."
 
     def project_burndown():
         try:
@@ -1127,6 +1209,14 @@ def main():
             return
         show_shotness_stats(data)
 
+    def sentiment():
+        try:
+            data = reader.get_sentiment()
+        except KeyError:
+            print(sentiment_warning)
+            return
+        show_sentiment_stats(args, reader.get_name(), args.resample, reader.get_header()[0], data)
+
     if args.mode == "project":
         project_burndown()
     elif args.mode == "file":
@@ -1141,6 +1231,8 @@ def main():
         couples()
     elif args.mode == "shotness":
         shotness()
+    elif args.mode == "sentiment":
+        sentiment()
     elif args.mode == "all":
         project_burndown()
         files_burndown()
@@ -1149,6 +1241,7 @@ def main():
         ownership_burndown()
         couples()
         shotness()
+        sentiment()
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
