@@ -110,3 +110,33 @@ func TestTreeDiffBadCommit(t *testing.T) {
 	assert.Nil(t, res)
 	assert.NotNil(t, err)
 }
+
+func TestTreeDiffConsumeSkip(t *testing.T) {
+	// consume without skiping
+	td := fixtureTreeDiff()
+	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+		"aefdedf7cafa6ee110bae9a3910bf5088fdeb5a9"))
+	deps := map[string]interface{}{}
+	deps["commit"] = commit
+	prevCommit, _ := testRepository.CommitObject(plumbing.NewHash(
+		"1e076dc56989bc6aa1ef5f55901696e9e01423d4"))
+	td.previousTree, _ = prevCommit.Tree()
+	res, err := td.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res), 1)
+	changes := res[DependencyTreeChanges].(object.Changes)
+	assert.Equal(t, 37, len(changes))
+
+	// consume with skipping
+	td = fixtureTreeDiff()
+	td.previousTree, _ = prevCommit.Tree()
+	td.Configure(map[string]interface{}{
+		ConfigTreeDiffSkipBlacklist:   true,
+		ConfigTreeDiffBlacklistedDirs: []string{"vendor/"},
+	})
+	res, err = td.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res), 1)
+	changes = res[DependencyTreeChanges].(object.Changes)
+	assert.Equal(t, 31, len(changes))
+}
