@@ -13,18 +13,18 @@ import (
 // If "after" is nil, the change is a removal. Otherwise, it is a modification.
 // TreeDiff is a PipelineItem.
 type TreeDiff struct {
-	previousTree *object.Tree
 	SkipDirs     []string
+	previousTree *object.Tree
 }
 
 const (
 	// DependencyTreeChanges is the name of the dependency provided by TreeDiff.
 	DependencyTreeChanges = "changes"
-	// ConfigTreeDiffSkipBlacklist is the name of the configuration option
-	// (TreeDiff.Configure()) which allows to skip blacklist directories.
-	ConfigTreeDiffSkipBlacklist = "TreeDiff.SkipVendor"
+	// ConfigTreeDiffEnableBlacklist is the name of the configuration option
+	// (TreeDiff.Configure()) which allows to skip blacklisted directories.
+	ConfigTreeDiffEnableBlacklist = "TreeDiff.EnableBlacklist"
 	// ConfigTreeDiffBlacklistedDirs s the name of the configuration option
-	// (TreeDiff.Configure()) which allows to set blacklist directories.
+	// (TreeDiff.Configure()) which allows to set blacklisted directories.
 	ConfigTreeDiffBlacklistedDirs = "TreeDiff.BlacklistedDirs"
 )
 
@@ -53,13 +53,13 @@ func (treediff *TreeDiff) Requires() []string {
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (treediff *TreeDiff) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
-		Name:        ConfigTreeDiffSkipBlacklist,
-		Description: "Skip blacklist directories.",
-		Flag:        "skip-blacklist",
+		Name:        ConfigTreeDiffEnableBlacklist,
+		Description: "Enable blacklisted directories.",
+		Flag:        "enable-blacklist",
 		Type:        BoolConfigurationOption,
 		Default:     false}, {
 		Name:        ConfigTreeDiffBlacklistedDirs,
-		Description: "List of blacklist directories. Separated by comma \",\".",
+		Description: "List of blacklisted directories. Separated by comma \",\".",
 		Flag:        "blacklisted-dirs",
 		Type:        StringsConfigurationOption,
 		Default:     defaultBlacklistedDirs},
@@ -69,7 +69,7 @@ func (treediff *TreeDiff) ListConfigurationOptions() []ConfigurationOption {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
-	if val, exists := facts[ConfigTreeDiffSkipBlacklist]; exists && val.(bool) == true {
+	if val, exist := facts[ConfigTreeDiffEnableBlacklist]; exist && val.(bool) {
 		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedDirs].([]string)
 	}
 }

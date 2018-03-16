@@ -131,7 +131,7 @@ func TestTreeDiffConsumeSkip(t *testing.T) {
 	td = fixtureTreeDiff()
 	td.previousTree, _ = prevCommit.Tree()
 	td.Configure(map[string]interface{}{
-		ConfigTreeDiffSkipBlacklist:   true,
+		ConfigTreeDiffEnableBlacklist: true,
 		ConfigTreeDiffBlacklistedDirs: []string{"vendor/"},
 	})
 	res, err = td.Consume(deps)
