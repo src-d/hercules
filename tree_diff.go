@@ -54,8 +54,8 @@ func (treediff *TreeDiff) Requires() []string {
 func (treediff *TreeDiff) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        ConfigTreeDiffEnableBlacklist,
-		Description: "Enable blacklisted directories.",
-		Flag:        "enable-blacklist",
+		Description: "Skip blacklisted directories.",
+		Flag:        "skip-blacklist",
 		Type:        BoolConfigurationOption,
 		Default:     false}, {
 		Name:        ConfigTreeDiffBlacklistedDirs,
