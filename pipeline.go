@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/src-d/go-git.v4"
@@ -31,6 +32,8 @@ const (
 	StringConfigurationOption
 	// FloatConfigurationOption reflects a floating point value type.
 	FloatConfigurationOption
+	// StringsConfigurationOption reflects the array of strings value type.
+	StringsConfigurationOption
 )
 
 // String() returns an empty string for the boolean type, "int" for integers and "string" for
@@ -45,6 +48,8 @@ func (opt ConfigurationOptionType) String() string {
 		return "string"
 	case FloatConfigurationOption:
 		return "float"
+	case StringsConfigurationOption:
+		return "string"
 	}
 	panic(fmt.Sprintf("Invalid ConfigurationOptionType value %d", opt))
 }
@@ -66,6 +71,9 @@ type ConfigurationOption struct {
 // FormatDefault converts the default value of ConfigurationOption to string.
 // Used in the command line interface to show the argument's default value.
 func (opt ConfigurationOption) FormatDefault() string {
+	if opt.Type == StringsConfigurationOption {
+		return fmt.Sprintf("\"%s\"", strings.Join(opt.Default.([]string), ","))
+	}
 	if opt.Type != StringConfigurationOption {
 		return fmt.Sprint(opt.Default)
 	}

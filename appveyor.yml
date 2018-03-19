@@ -8,7 +8,7 @@ environment:
   GOPATH: c:\gopath
 
 install:
-  - choco install make
+  - choco install --allow-empty-checksums make
   - c:\msys64\usr\bin\pacman --noconfirm --needed -S mingw-w64-x86_64-toolchain
   - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-win32.zip
   - 7z e protoc.zip
