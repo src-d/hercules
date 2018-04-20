@@ -19,8 +19,14 @@ addons:
 
 go_import_path: gopkg.in/src-d/hercules.v3
 go:
-  - 1.8
-  - 1.9
+  - 1.9.x
+  - 1.10.x
+  - tip
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - go: tip
 
 stages:
   - test
@@ -69,7 +75,7 @@ jobs:
   include:
     - stage: deploy
       os: osx
-      go: 1.9
+      go: 1.10.x
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
@@ -88,7 +94,7 @@ jobs:
           tags: true
     - stage: deploy
       os: linux
-      go: 1.9
+      go: 1.10.x
       before_install:
         - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
         - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
