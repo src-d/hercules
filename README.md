@@ -28,7 +28,7 @@ Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke
 Linux releases require [`libtensorflow`](https://www.tensorflow.org/install/install_go).
 
 ### Build from source
-You are going to need Go (>= v1.8) and Python 2 or 3.
+You are going to need Go (>= v1.8), [`protoc`](https://github.com/google/protobuf/releases) and Python 2 or 3.
 ```
 go get -d gopkg.in/src-d/hercules.v3/cmd/hercules
 cd $GOPATH/src/gopkg.in/src-d/hercules.v3
