@@ -1,14 +1,14 @@
 package hercules
 
 import (
-	"log"
-
 	"bytes"
+	"log"
+	"io"
+
 	"github.com/minio/highwayhash"
 	"gopkg.in/bblfsh/client-go.v2/tools"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"io"
 )
 
 // ChangesXPather extracts changed UAST nodes from files changed in the current commit.
