@@ -75,6 +75,7 @@ jobs:
   include:
     - stage: deploy
       os: osx
+      osx_image: xcode9.3
       go: 1.10.x
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
