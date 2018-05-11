@@ -33,7 +33,7 @@ stages:
   - deploy
 
 env:
-  - PROTOC_VERSION=3.5.1 TENSORFLOW_VERSION=1.6.0
+  - PROTOC_VERSION=3.5.1 TENSORFLOW_VERSION=1.7.0 GO_TAGS=tensorflow
 
 before_install:
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
