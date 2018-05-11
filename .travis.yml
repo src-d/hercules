@@ -46,7 +46,7 @@ before_install:
   - export PATH=~/usr/bin:$PATH
   - make --version
   - pip3 --version
-  - pip3 install --user -r requirements.txt tensorflow
+  - pip3 install --user --no-build-isolation -r requirements.txt tensorflow
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
   - docker exec -it bblfshd bblfshctl driver install --all
   - curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-$TENSORFLOW_VERSION.tar.gz" | sudo tar -C /usr/local -xz
