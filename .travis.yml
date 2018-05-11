@@ -33,7 +33,7 @@ stages:
   - deploy
 
 env:
-  - PROTOC_VERSION=3.5.1 TENSORFLOW_VERSION=1.7.0 GO_TAGS=tensorflow
+  - PROTOC_VERSION=3.5.1 TENSORFLOW_VERSION=1.7.0
 
 before_install:
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
@@ -55,7 +55,7 @@ install:
   - make
 script:
   - set -e
-  - go vet ./...
+  - go vet -tags tensorflow ./...
   - golint -set_exit_status ./...
   - go test -tags tensorflow -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
   - $GOPATH/bin/hercules version
