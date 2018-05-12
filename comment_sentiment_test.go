@@ -1,3 +1,5 @@
+// +build tensorflow
+
 package hercules
 
 import (

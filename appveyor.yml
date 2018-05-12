@@ -8,7 +8,7 @@ environment:
   GOPATH: c:\gopath
 
 install:
-  - choco install --allow-empty-checksums make
+  - appveyor-retry choco install --allow-empty-checksums make
   - c:\msys64\usr\bin\pacman --noconfirm --needed -S mingw-w64-x86_64-toolchain
   - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-win32.zip
   - 7z e protoc.zip
@@ -21,6 +21,10 @@ build_script:
   - set DISABLE_TENSORFLOW=1
   - make
   - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v3\hercules.win64.zip %GOPATH%\bin\hercules.exe
+
+test_script:
+  - go get -v -t -d gopkg.in/src-d/hercules.v3/...
+  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v3
 
 artifacts:
   - name: hercules.win64.zip
