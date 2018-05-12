@@ -1,3 +1,5 @@
+// +build !disable_babelfish
+
 package hercules
 
 import (
@@ -7,13 +9,14 @@ import (
 	"testing"
 
 	"fmt"
+	"path"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v3/pb"
-	"path"
 )
 
 func fixtureUASTExtractor() *UASTExtractor {

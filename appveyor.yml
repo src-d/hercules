@@ -22,6 +22,10 @@ build_script:
   - make
   - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v3\hercules.win64.zip %GOPATH%\bin\hercules.exe
 
+test_script:
+  - go get -v -t -d gopkg.in/src-d/hercules.v3/...
+  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v3
+
 artifacts:
   - name: hercules.win64.zip
     path: hercules.win64.zip
