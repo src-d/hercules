@@ -28,9 +28,9 @@ if sys.version_info[0] < 3:
 
 
 PB_MESSAGES = {
-    "Burndown": "pb.pb_pb2.BurndownAnalysisResults",
-    "Couples": "pb.pb_pb2.CouplesAnalysisResults",
-    "Shotness": "pb.pb_pb2.ShotnessAnalysisResults",
+    "Burndown": "internal.pb.pb_pb2.BurndownAnalysisResults",
+    "Couples": "internal.pb.pb_pb2.CouplesAnalysisResults",
+    "Shotness": "internal.pb.pb_pb2.ShotnessAnalysisResults",
 }
 
 

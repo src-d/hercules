@@ -17,7 +17,7 @@ addons:
     - gcc-6
     - g++-6
 
-go_import_path: gopkg.in/src-d/hercules.v3
+go_import_path: gopkg.in/src-d/hercules.v4
 go:
   - 1.9.x
   - 1.10.x
@@ -41,6 +41,7 @@ before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v github.com/golang/lint/golint
+  - go get -v github.com/haya14busa/goverage
   - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
   - export PATH=~/usr/bin:$PATH
@@ -57,7 +58,7 @@ script:
   - set -e
   - go vet -tags tensorflow ./...
   - golint -set_exit_status ./...
-  - go test -tags tensorflow -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
+  - goverage -tags tensorflow -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v4/...
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
