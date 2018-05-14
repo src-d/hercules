@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"io/ioutil"
 
 	bblfsh "gopkg.in/bblfsh/client-go.v2"
@@ -30,6 +31,9 @@ func ParseBlobFromTestRepo(hash, name string, client *bblfsh.Client) *uast.Node 
 	response, err := request.Do()
 	if err != nil {
 		panic(err)
+	}
+	if response.UAST == nil {
+		panic(fmt.Sprintf("empty response for %s %s", name, hash))
 	}
 	return response.UAST
 }
