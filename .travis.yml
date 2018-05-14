@@ -41,7 +41,6 @@ before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v github.com/golang/lint/golint
-  - go get -v github.com/haya14busa/goverage
   - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
   - export PATH=~/usr/bin:$PATH
@@ -58,9 +57,8 @@ script:
   - set -e
   - go vet -tags tensorflow ./...
   - golint -set_exit_status ./...
-  - printf '#!/bin/sh\nshift\ngo test -tags tensorflow $@\n' > gotag
-  - chmod +x gotag
-  - goverage -go-binary=$(pwd)/gotag -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v4/...
+  - if [[ $TRAVIS_GO_VERSION != 1.9.* ]]; then go test -coverpkg=all -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v4/...; fi
+  - if [[ $TRAVIS_GO_VERSION = 1.9.* ]]; then go test -v -cpu=1,2 gopkg.in/src-d/hercules.v4/...; fi
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb

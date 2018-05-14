@@ -4,6 +4,9 @@ import (
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v4/internal/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v4/internal/plumbing/uast"
 	"gopkg.in/src-d/hercules.v4/leaves"
 )
 
@@ -80,6 +83,46 @@ type PipelineItemRegistry = core.PipelineItemRegistry
 
 // Registry contains all known pipeline item types.
 var Registry = core.Registry
+
+const (
+	// DependencyAuthor is the name of the dependency provided by identity.Detector.
+	DependencyAuthor = identity.DependencyAuthor
+	// DependencyBlobCache identifies the dependency provided by BlobCache.
+	DependencyBlobCache = plumbing.DependencyBlobCache
+	// DependencyDay is the name of the dependency which DaysSinceStart provides - the number
+	// of days since the first commit in the analysed sequence.
+	DependencyDay = plumbing.DependencyDay
+	// DependencyFileDiff is the name of the dependency provided by FileDiff.
+	DependencyFileDiff = plumbing.DependencyFileDiff
+	// DependencyTreeChanges is the name of the dependency provided by TreeDiff.
+	DependencyTreeChanges = plumbing.DependencyTreeChanges
+	// DependencyUastChanges is the name of the dependency provided by Changes.
+	DependencyUastChanges = uast.DependencyUastChanges
+	// DependencyUasts is the name of the dependency provided by Extractor.
+	DependencyUasts = uast.DependencyUasts
+	// FactCommitsByDay contains the mapping between day indices and the corresponding commits.
+	FactCommitsByDay = plumbing.FactCommitsByDay
+	// FactIdentityDetectorPeopleCount is the name of the fact which is inserted in
+	// identity.Detector.Configure(). It is equal to the overall number of unique authors
+	// (the length of ReversedPeopleDict).
+	FactIdentityDetectorPeopleCount = identity.FactIdentityDetectorPeopleCount
+	// FactIdentityDetectorPeopleDict is the name of the fact which is inserted in
+	// identity.Detector.Configure(). It corresponds to identity.Detector.PeopleDict - the mapping
+	// from the signatures to the author indices.
+	FactIdentityDetectorPeopleDict = identity.FactIdentityDetectorPeopleDict
+	// FactIdentityDetectorReversedPeopleDict is the name of the fact which is inserted in
+	// identity.Detector.Configure(). It corresponds to identity.Detector.ReversedPeopleDict -
+	// the mapping from the author indices to the main signature.
+	FactIdentityDetectorReversedPeopleDict = identity.FactIdentityDetectorReversedPeopleDict
+)
+
+// FileDiffData is the type of the dependency provided by plumbing.FileDiff.
+type FileDiffData = plumbing.FileDiffData
+
+// CountLines returns the number of lines in a *object.Blob.
+func CountLines(file *object.Blob) (int, error) {
+	return plumbing.CountLines(file)
+}
 
 func init() {
 	// hack to link with .leaves

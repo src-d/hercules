@@ -23,28 +23,28 @@ type Detector struct {
 
 const (
 	// AuthorMissing is the internal author index which denotes any unmatched identities
-	// (IdentityDetector.Consume()).
+	// (Detector.Consume()).
 	AuthorMissing = (1 << 18) - 1
 	// AuthorMissingName is the string name which corresponds to AuthorMissing.
 	AuthorMissingName = "<unmatched>"
 
 	// FactIdentityDetectorPeopleDict is the name of the fact which is inserted in
-	// IdentityDetector.Configure(). It corresponds to IdentityDetector.PeopleDict - the mapping
+	// Detector.Configure(). It corresponds to Detector.PeopleDict - the mapping
 	// from the signatures to the author indices.
 	FactIdentityDetectorPeopleDict = "IdentityDetector.PeopleDict"
 	// FactIdentityDetectorReversedPeopleDict is the name of the fact which is inserted in
-	// IdentityDetector.Configure(). It corresponds to IdentityDetector.ReversedPeopleDict -
+	// Detector.Configure(). It corresponds to Detector.ReversedPeopleDict -
 	// the mapping from the author indices to the main signature.
 	FactIdentityDetectorReversedPeopleDict = "IdentityDetector.ReversedPeopleDict"
 	// ConfigIdentityDetectorPeopleDictPath is the name of the configuration option
-	// (IdentityDetector.Configure()) which allows to set the external PeopleDict mapping from a file.
+	// (Detector.Configure()) which allows to set the external PeopleDict mapping from a file.
 	ConfigIdentityDetectorPeopleDictPath = "IdentityDetector.PeopleDictPath"
 	// FactIdentityDetectorPeopleCount is the name of the fact which is inserted in
-	// IdentityDetector.Configure(). It is equal to the overall number of unique authors
+	// Detector.Configure(). It is equal to the overall number of unique authors
 	// (the length of ReversedPeopleDict).
 	FactIdentityDetectorPeopleCount = "IdentityDetector.PeopleCount"
 
-	// DependencyAuthor is the name of the dependency provided by IdentityDetector.
+	// DependencyAuthor is the name of the dependency provided by Detector.
 	DependencyAuthor = "author"
 )
 
