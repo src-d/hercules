@@ -14,19 +14,21 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
+	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
-func fixtureIdentityDetector() *IdentityDetector {
+func fixtureIdentityDetector() *Detector {
 	peopleDict := map[string]int{}
 	peopleDict["vadim@sourced.tech"] = 0
 	peopleDict["gmarkhor@gmail.com"] = 0
 	reversePeopleDict := make([]string, 1)
 	reversePeopleDict[0] = "Vadim"
-	id := IdentityDetector{
+	id := Detector{
 		PeopleDict:         peopleDict,
 		ReversedPeopleDict: reversePeopleDict,
 	}
-	id.Initialize(testRepository)
+	id.Initialize(test.Repository)
 	return &id
 }
 
@@ -94,7 +96,7 @@ Vadim|vadim@sourced.tech`)
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
 	delete(facts, ConfigIdentityDetectorPeopleDictPath)
 	commits := make([]*object.Commit, 0)
-	iter, err := testRepository.CommitObjects()
+	iter, err := test.Repository.CommitObjects()
 	commit, err := iter.Next()
 	for ; err != io.EOF; commit, err = iter.Next() {
 		if err != nil {
@@ -114,29 +116,28 @@ Vadim|vadim@sourced.tech`)
 }
 
 func TestIdentityDetectorRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&IdentityDetector{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "IdentityDetector")
-	tps, exists := Registry.provided[(&IdentityDetector{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.Len(t, tps, 1)
-	assert.Equal(t, tps[0].Elem().Name(), "IdentityDetector")
+	summoned := core.Registry.Summon((&Detector{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "IdentityDetector")
+	summoned = core.Registry.Summon((&Detector{}).Provides()[0])
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "IdentityDetector")
 }
 
 func TestIdentityDetectorConfigureEmpty(t *testing.T) {
-	id := IdentityDetector{}
+	id := Detector{}
 	assert.Panics(t, func() { id.Configure(map[string]interface{}{}) })
 }
 
 func TestIdentityDetectorConsume(t *testing.T) {
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"5c0e755dd85ac74584d9988cc361eccf02ce1a48"))
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
 	res, err := fixtureIdentityDetector().Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyAuthor].(int), 0)
-	commit, _ = testRepository.CommitObject(plumbing.NewHash(
+	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"8a03b5620b1caa72ec9cb847ea88332621e2950a"))
 	deps["commit"] = commit
 	res, err = fixtureIdentityDetector().Consume(deps)
@@ -146,7 +147,7 @@ func TestIdentityDetectorConsume(t *testing.T) {
 
 func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
-	err := id.LoadPeopleDict(path.Join("test_data", "identities"))
+	err := id.LoadPeopleDict(path.Join("..", "..", "test_data", "identities"))
 	assert.Nil(t, err)
 	assert.Equal(t, len(id.PeopleDict), 7)
 	assert.Contains(t, id.PeopleDict, "linus torvalds")
@@ -168,7 +169,7 @@ func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 func TestGeneratePeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	commits := make([]*object.Commit, 0)
-	iter, err := testRepository.CommitObjects()
+	iter, err := test.Repository.CommitObjects()
 	for ; err != io.EOF; commit, err := iter.Next() {
 		if err != nil {
 			panic(err)
@@ -182,7 +183,7 @@ func TestGeneratePeopleDict(t *testing.T) {
 func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	commits := make([]*object.Commit, 0)
-	iter, err := testRepository.CommitObjects()
+	iter, err := test.Repository.CommitObjects()
 	commit, err := iter.Next()
 	for ; err != io.EOF; commit, err = iter.Next() {
 		if err != nil {
@@ -353,7 +354,7 @@ func getFakeCommitWithFile(name string, contents string) *object.Commit {
 func TestIdentityDetectorGeneratePeopleDictMailmap(t *testing.T) {
 	id := fixtureIdentityDetector()
 	commits := make([]*object.Commit, 0)
-	iter, err := testRepository.CommitObjects()
+	iter, err := test.Repository.CommitObjects()
 	commit, err := iter.Next()
 	for ; err != io.EOF; commit, err = iter.Next() {
 		if err != nil {
@@ -373,7 +374,7 @@ func TestIdentityDetectorGeneratePeopleDictMailmap(t *testing.T) {
 func TestIdentityDetectorMergeReversedDicts(t *testing.T) {
 	pa1 := [...]string{"one", "two"}
 	pa2 := [...]string{"two", "three"}
-	people, merged := IdentityDetector{}.MergeReversedDicts(pa1[:], pa2[:])
+	people, merged := Detector{}.MergeReversedDicts(pa1[:], pa2[:])
 	assert.Len(t, people, 3)
 	assert.Len(t, merged, 3)
 	assert.Equal(t, people["one"], [3]int{0, 0, -1})
@@ -382,7 +383,7 @@ func TestIdentityDetectorMergeReversedDicts(t *testing.T) {
 	vm := [...]string{"one", "two", "three"}
 	assert.Equal(t, merged, vm[:])
 	pa1 = [...]string{"two", "one"}
-	people, merged = IdentityDetector{}.MergeReversedDicts(pa1[:], pa2[:])
+	people, merged = Detector{}.MergeReversedDicts(pa1[:], pa2[:])
 	assert.Len(t, people, 3)
 	assert.Len(t, merged, 3)
 	assert.Equal(t, people["one"], [3]int{1, 1, -1})

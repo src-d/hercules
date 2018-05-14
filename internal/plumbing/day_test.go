@@ -5,12 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureDaysSinceStart() *DaysSinceStart {
 	dss := DaysSinceStart{}
 	dss.Configure(map[string]interface{}{})
-	dss.Initialize(testRepository)
+	dss.Initialize(test.Repository)
 	return &dss
 }
 
@@ -25,19 +27,18 @@ func TestDaysSinceStartMeta(t *testing.T) {
 }
 
 func TestDaysSinceStartRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&DaysSinceStart{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "DaysSinceStart")
-	tps, exists := Registry.provided[(&DaysSinceStart{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.Len(t, tps, 1)
-	assert.Equal(t, tps[0].Elem().Name(), "DaysSinceStart")
+	summoned := core.Registry.Summon((&DaysSinceStart{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "DaysSinceStart")
+	summoned = core.Registry.Summon((&DaysSinceStart{}).Provides()[0])
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "DaysSinceStart")
 }
 
 func TestDaysSinceStartConsume(t *testing.T) {
 	dss := fixtureDaysSinceStart()
 	deps := map[string]interface{}{}
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	deps["commit"] = commit
 	deps["index"] = 0
@@ -49,7 +50,7 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	assert.Equal(t, dss.day0.Minute(), 0) // 30
 	assert.Equal(t, dss.day0.Second(), 0) // 29
 
-	commit, _ = testRepository.CommitObject(plumbing.NewHash(
+	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"fc9ceecb6dabcb2aab60e8619d972e8d8208a7df"))
 	deps["commit"] = commit
 	deps["index"] = 10
@@ -58,7 +59,7 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	assert.Equal(t, res[DependencyDay].(int), 1)
 	assert.Equal(t, dss.previousDay, 1)
 
-	commit, _ = testRepository.CommitObject(plumbing.NewHash(
+	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
 	deps["commit"] = commit
 	deps["index"] = 20
@@ -67,7 +68,7 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	assert.Equal(t, res[DependencyDay].(int), 1)
 	assert.Equal(t, dss.previousDay, 1)
 
-	commit, _ = testRepository.CommitObject(plumbing.NewHash(
+	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"a8b665a65d7aced63f5ba2ff6d9b71dac227f8cf"))
 	deps["commit"] = commit
 	deps["index"] = 20
@@ -76,7 +77,7 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	assert.Equal(t, res[DependencyDay].(int), 2)
 	assert.Equal(t, dss.previousDay, 2)
 
-	commit, _ = testRepository.CommitObject(plumbing.NewHash(
+	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"186ff0d7e4983637bb3762a24d6d0a658e7f4712"))
 	deps["commit"] = commit
 	deps["index"] = 30
@@ -101,7 +102,7 @@ func TestDaysCommits(t *testing.T) {
 	dss.commits[0] = []plumbing.Hash{plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1")}
 	commits := dss.commits
-	dss.Initialize(testRepository)
+	dss.Initialize(test.Repository)
 	assert.Len(t, dss.commits, 0)
 	assert.Equal(t, dss.commits, commits)
 }

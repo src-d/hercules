@@ -1,15 +1,18 @@
 package plumbing
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"testing"
+	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureRenameAnalysis() *RenameAnalysis {
 	ra := RenameAnalysis{SimilarityThreshold: 80}
-	ra.Initialize(testRepository)
+	ra.Initialize(test.Repository)
 	return &ra
 }
 
@@ -35,39 +38,38 @@ func TestRenameAnalysisMeta(t *testing.T) {
 }
 
 func TestRenameAnalysisRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&RenameAnalysis{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "RenameAnalysis")
-	tps, exists := Registry.provided[(&RenameAnalysis{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.True(t, len(tps) >= 1)
+	summoned := core.Registry.Summon((&RenameAnalysis{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "RenameAnalysis")
+	summoned = core.Registry.Summon((&RenameAnalysis{}).Provides()[0])
+	assert.True(t, len(summoned) >= 1)
 	matched := false
-	for _, tp := range tps {
-		matched = matched || tp.Elem().Name() == "RenameAnalysis"
+	for _, tp := range summoned {
+		matched = matched || tp.Name() == "RenameAnalysis"
 	}
 	assert.True(t, matched)
 }
 
 func TestRenameAnalysisInitializeInvalidThreshold(t *testing.T) {
 	ra := RenameAnalysis{SimilarityThreshold: -10}
-	ra.Initialize(testRepository)
+	ra.Initialize(test.Repository)
 	assert.Equal(t, ra.SimilarityThreshold, RenameAnalysisDefaultThreshold)
 	ra = RenameAnalysis{SimilarityThreshold: 110}
-	ra.Initialize(testRepository)
+	ra.Initialize(test.Repository)
 	assert.Equal(t, ra.SimilarityThreshold, RenameAnalysisDefaultThreshold)
 	ra = RenameAnalysis{SimilarityThreshold: 0}
-	ra.Initialize(testRepository)
+	ra.Initialize(test.Repository)
 	ra = RenameAnalysis{SimilarityThreshold: 100}
-	ra.Initialize(testRepository)
+	ra.Initialize(test.Repository)
 }
 
 func TestRenameAnalysisConsume(t *testing.T) {
 	ra := fixtureRenameAnalysis()
 	changes := make(object.Changes, 3)
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"251f2094d7b523d5bcc60e663b6cf38151bf8844"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -109,13 +111,13 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	}
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	deps := map[string]interface{}{}
 	deps[DependencyBlobCache] = cache
 	deps[DependencyTreeChanges] = changes

@@ -1,66 +1,64 @@
-package plumbing
+package plumbing_test
 
 import (
 	"testing"
+	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"unicode/utf8"
+	"gopkg.in/src-d/hercules.v4/internal"
+	"gopkg.in/src-d/hercules.v4/internal/core"
+	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v4/internal/test/fixtures"
 )
 
-func fixtureFileDiff() *FileDiff {
-	fd := &FileDiff{}
-	fd.Initialize(testRepository)
-	return fd
-}
-
 func TestFileDiffMeta(t *testing.T) {
-	fd := fixtureFileDiff()
+	fd := fixtures.FileDiff()
 	assert.Equal(t, fd.Name(), "FileDiff")
 	assert.Equal(t, len(fd.Provides()), 1)
-	assert.Equal(t, fd.Provides()[0], DependencyFileDiff)
+	assert.Equal(t, fd.Provides()[0], items.DependencyFileDiff)
 	assert.Equal(t, len(fd.Requires()), 2)
-	assert.Equal(t, fd.Requires()[0], DependencyTreeChanges)
-	assert.Equal(t, fd.Requires()[1], DependencyBlobCache)
+	assert.Equal(t, fd.Requires()[0], items.DependencyTreeChanges)
+	assert.Equal(t, fd.Requires()[1], items.DependencyBlobCache)
 	assert.Len(t, fd.ListConfigurationOptions(), 1)
-	assert.Equal(t, fd.ListConfigurationOptions()[0].Name, ConfigFileDiffDisableCleanup)
+	assert.Equal(t, fd.ListConfigurationOptions()[0].Name, items.ConfigFileDiffDisableCleanup)
 	facts := map[string]interface{}{}
-	facts[ConfigFileDiffDisableCleanup] = true
+	facts[items.ConfigFileDiffDisableCleanup] = true
 	fd.Configure(facts)
 	assert.True(t, fd.CleanupDisabled)
 }
 
 func TestFileDiffRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&FileDiff{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "FileDiff")
-	tps, exists := Registry.provided[(&FileDiff{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.True(t, len(tps) >= 1)
+	summoned := core.Registry.Summon((&items.FileDiff{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "FileDiff")
+	summoned = core.Registry.Summon((&items.FileDiff{}).Provides()[0])
+	assert.True(t, len(summoned) >= 1)
 	matched := false
-	for _, tp := range tps {
-		matched = matched || tp.Elem().Name() == "FileDiff"
+	for _, tp := range summoned {
+		matched = matched || tp.Name() == "FileDiff"
 	}
 	assert.True(t, matched)
 }
 
 func TestFileDiffConsume(t *testing.T) {
-	fd := fixtureFileDiff()
+	fd := fixtures.FileDiff()
 	deps := map[string]interface{}{}
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	cache[hash], _ = testRepository.BlobObject(hash)
-	deps[DependencyBlobCache] = cache
+	cache[hash], _ = test.Repository.BlobObject(hash)
+	deps[items.DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -99,10 +97,10 @@ func TestFileDiffConsume(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps[DependencyTreeChanges] = changes
+	deps[items.DependencyTreeChanges] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, err)
-	diffs := res[DependencyFileDiff].(map[string]FileDiffData)
+	diffs := res[items.DependencyFileDiff].(map[string]items.FileDiffData)
 	assert.Equal(t, len(diffs), 1)
 	diff := diffs["analyser.go"]
 	assert.Equal(t, diff.OldLinesOfCode, 307)
@@ -124,20 +122,20 @@ func TestFileDiffConsume(t *testing.T) {
 }
 
 func TestFileDiffConsumeInvalidBlob(t *testing.T) {
-	fd := fixtureFileDiff()
+	fd := fixtures.FileDiff()
 	deps := map[string]interface{}{}
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	cache[hash], _ = testRepository.BlobObject(hash)
-	deps[DependencyBlobCache] = cache
+	cache[hash], _ = test.Repository.BlobObject(hash)
+	deps[items.DependencyBlobCache] = cache
 	changes := make(object.Changes, 1)
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -156,7 +154,7 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 			Hash: plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"),
 		},
 	}}
-	deps[DependencyTreeChanges] = changes
+	deps[items.DependencyTreeChanges] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, res)
 	assert.NotNil(t, err)
@@ -183,32 +181,32 @@ func TestFileDiffConsumeInvalidBlob(t *testing.T) {
 }
 
 func TestCountLines(t *testing.T) {
-	blob, _ := testRepository.BlobObject(
+	blob, _ := test.Repository.BlobObject(
 		plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"))
-	lines, err := CountLines(blob)
+	lines, err := items.CountLines(blob)
 	assert.Equal(t, lines, 12)
 	assert.Nil(t, err)
-	lines, err = CountLines(nil)
+	lines, err = items.CountLines(nil)
 	assert.Equal(t, lines, -1)
 	assert.NotNil(t, err)
-	blob, _ = createDummyBlob(plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"), true)
-	lines, err = CountLines(blob)
+	blob, _ = internal.CreateDummyBlob(plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"), true)
+	lines, err = items.CountLines(blob)
 	assert.Equal(t, lines, -1)
 	assert.NotNil(t, err)
 	// test_data/blob
-	blob, err = testRepository.BlobObject(
+	blob, err = test.Repository.BlobObject(
 		plumbing.NewHash("c86626638e0bc8cf47ca49bb1525b40e9737ee64"))
 	assert.Nil(t, err)
-	lines, err = CountLines(blob)
+	lines, err = items.CountLines(blob)
 	assert.Equal(t, lines, -1)
 	assert.NotNil(t, err)
 	assert.EqualError(t, err, "binary")
 }
 
 func TestBlobToString(t *testing.T) {
-	blob, _ := testRepository.BlobObject(
+	blob, _ := test.Repository.BlobObject(
 		plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"))
-	str, err := BlobToString(blob)
+	str, err := items.BlobToString(blob)
 	assert.Nil(t, err)
 	assert.Equal(t, str, `language: go
 
@@ -223,28 +221,28 @@ script:
 notifications:
   email: false
 `)
-	str, err = BlobToString(nil)
+	str, err = items.BlobToString(nil)
 	assert.Equal(t, str, "")
 	assert.NotNil(t, err)
-	blob, _ = createDummyBlob(plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"), true)
-	str, err = BlobToString(blob)
+	blob, _ = internal.CreateDummyBlob(plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"), true)
+	str, err = items.BlobToString(blob)
 	assert.Equal(t, str, "")
 	assert.NotNil(t, err)
 }
 
 func TestFileDiffDarkMagic(t *testing.T) {
-	fd := fixtureFileDiff()
+	fd := fixtures.FileDiff()
 	deps := map[string]interface{}{}
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("448eb3f312849b0ca766063d06b09481c987b309")
-	cache[hash], _ = testRepository.BlobObject(hash) // 1.java
+	cache[hash], _ = test.Repository.BlobObject(hash) // 1.java
 	hash = plumbing.NewHash("3312c92f3e8bdfbbdb30bccb6acd1b85bc338dfc")
-	cache[hash], _ = testRepository.BlobObject(hash) // 2.java
-	deps[DependencyBlobCache] = cache
+	cache[hash], _ = test.Repository.BlobObject(hash) // 2.java
+	deps[items.DependencyBlobCache] = cache
 	changes := make(object.Changes, 1)
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"f02289bfe843388a1bb3c7dea210374082dd86b9"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"eca91acf1fd828f20dcb653a061d8c97d965bc6c"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "test.java",
@@ -263,14 +261,14 @@ func TestFileDiffDarkMagic(t *testing.T) {
 			Hash: plumbing.NewHash("3312c92f3e8bdfbbdb30bccb6acd1b85bc338dfc"),
 		},
 	}}
-	deps[DependencyTreeChanges] = changes
+	deps[items.DependencyTreeChanges] = changes
 	res, err := fd.Consume(deps)
 	assert.Nil(t, err)
-	magicDiffs := res[DependencyFileDiff].(map[string]FileDiffData)["test.java"]
+	magicDiffs := res[items.DependencyFileDiff].(map[string]items.FileDiffData)["test.java"]
 	fd.CleanupDisabled = true
 	res, err = fd.Consume(deps)
 	assert.Nil(t, err)
-	plainDiffs := res[DependencyFileDiff].(map[string]FileDiffData)["test.java"]
+	plainDiffs := res[items.DependencyFileDiff].(map[string]items.FileDiffData)["test.java"]
 	assert.NotEqual(t, magicDiffs.Diffs, plainDiffs.Diffs)
 	assert.Equal(t, magicDiffs.OldLinesOfCode, plainDiffs.OldLinesOfCode)
 	assert.Equal(t, magicDiffs.NewLinesOfCode, plainDiffs.NewLinesOfCode)

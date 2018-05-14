@@ -270,9 +270,9 @@ func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.Co
 	cr2 := r2.(CouplesResult)
 	merged := CouplesResult{}
 	var people, files map[string][3]int
-	people, merged.reversedPeopleDict = identity.IdentityDetector{}.MergeReversedDicts(
+	people, merged.reversedPeopleDict = identity.Detector{}.MergeReversedDicts(
 		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
-	files, merged.Files = identity.IdentityDetector{}.MergeReversedDicts(cr1.Files, cr2.Files)
+	files, merged.Files = identity.Detector{}.MergeReversedDicts(cr1.Files, cr2.Files)
 	merged.PeopleFiles = make([][]int, len(merged.reversedPeopleDict))
 	peopleFilesDicts := make([]map[int]bool, len(merged.reversedPeopleDict))
 	addPeopleFiles := func(peopleFiles [][]int, reversedPeopleDict []string,

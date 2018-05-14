@@ -384,7 +384,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 		merged.granularity = bar2.granularity
 	}
 	var people map[string][3]int
-	people, merged.reversedPeopleDict = identity.IdentityDetector{}.MergeReversedDicts(
+	people, merged.reversedPeopleDict = identity.Detector{}.MergeReversedDicts(
 		bar1.reversedPeopleDict, bar2.reversedPeopleDict)
 	var wg sync.WaitGroup
 	if len(bar1.GlobalHistory) > 0 || len(bar2.GlobalHistory) > 0 {

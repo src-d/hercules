@@ -9,7 +9,7 @@ import (
 )
 
 func TestCreateDummyBlob(t *testing.T) {
-	dummy, err := createDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"))
+	dummy, err := CreateDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"))
 	assert.Nil(t, err)
 	assert.Equal(t, dummy.Hash.String(), "334cde09da4afcb74f8d2b3e6fd6cce61228b485")
 	assert.Equal(t, dummy.Size, int64(0))
@@ -25,13 +25,13 @@ func TestCreateDummyBlob(t *testing.T) {
 }
 
 func TestCreateDummyBlobFails(t *testing.T) {
-	dummy, err := createDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"), true)
+	dummy, err := CreateDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"), true)
 	assert.Nil(t, err)
 	reader, err := dummy.Reader()
 	assert.Nil(t, reader)
 	assert.NotNil(t, err)
 	assert.Panics(t, func() {
-		createDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"), true, true)
+		CreateDummyBlob(plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"), true, true)
 	})
 }
 

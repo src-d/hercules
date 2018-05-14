@@ -8,12 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/hercules.v4/internal/core"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
+	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureFileHistory() *FileHistory {
 	fh := FileHistory{}
-	fh.Initialize(testRepository)
+	fh.Initialize(test.Repository)
 	return &fh
 }
 
@@ -22,27 +25,33 @@ func TestFileHistoryMeta(t *testing.T) {
 	assert.Equal(t, fh.Name(), "FileHistory")
 	assert.Equal(t, len(fh.Provides()), 0)
 	assert.Equal(t, len(fh.Requires()), 1)
-	assert.Equal(t, fh.Requires()[0], DependencyTreeChanges)
+	assert.Equal(t, fh.Requires()[0], items.DependencyTreeChanges)
 	assert.Len(t, fh.ListConfigurationOptions(), 0)
 	fh.Configure(nil)
 }
 
 func TestFileHistoryRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&FileHistory{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "FileHistory")
-	tp, exists = Registry.flags[(&FileHistory{}).Flag()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "FileHistory")
+	summoned := core.Registry.Summon((&FileHistory{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "FileHistory")
+	leaves := core.Registry.GetLeaves()
+	matched := false
+	for _, tp := range leaves {
+		if tp.Flag() == (&FileHistory{}).Flag() {
+			matched = true
+			break
+		}
+	}
+	assert.True(t, matched)
 }
 
 func TestFileHistoryConsume(t *testing.T) {
 	fh := fixtureFileHistory()
 	deps := map[string]interface{}{}
 	changes := make(object.Changes, 3)
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -81,8 +90,8 @@ func TestFileHistoryConsume(t *testing.T) {
 		},
 	},
 	}
-	deps[DependencyTreeChanges] = changes
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	deps[items.DependencyTreeChanges] = changes
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps["commit"] = commit
 	fh.files["cmd/hercules/main.go"] = []plumbing.Hash{plumbing.NewHash(
@@ -108,7 +117,7 @@ func TestFileHistorySerializeText(t *testing.T) {
 	fh := fixtureFileHistory()
 	deps := map[string]interface{}{}
 	changes := make(object.Changes, 1)
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
 		Name: ".travis.yml",
@@ -120,8 +129,8 @@ func TestFileHistorySerializeText(t *testing.T) {
 		},
 	},
 	}
-	deps[DependencyTreeChanges] = changes
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	deps[items.DependencyTreeChanges] = changes
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps["commit"] = commit
 	fh.Consume(deps)
@@ -135,7 +144,7 @@ func TestFileHistorySerializeBinary(t *testing.T) {
 	fh := fixtureFileHistory()
 	deps := map[string]interface{}{}
 	changes := make(object.Changes, 1)
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
 		Name: ".travis.yml",
@@ -147,8 +156,8 @@ func TestFileHistorySerializeBinary(t *testing.T) {
 		},
 	},
 	}
-	deps[DependencyTreeChanges] = changes
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	deps[items.DependencyTreeChanges] = changes
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps["commit"] = commit
 	fh.Consume(deps)

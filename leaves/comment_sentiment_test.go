@@ -13,7 +13,12 @@ import (
 	"gopkg.in/bblfsh/client-go.v2"
 	"gopkg.in/bblfsh/client-go.v2/tools"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/core"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
+	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v4/internal/plumbing/uast"
+	uast_test "gopkg.in/src-d/hercules.v4/internal/plumbing/uast/test"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureCommentSentiment() *CommentSentimentAnalysis {
@@ -22,10 +27,10 @@ func fixtureCommentSentiment() *CommentSentimentAnalysis {
 		MinCommentLength: DefaultCommentSentimentCommentMinLength,
 	}
 	facts := map[string]interface{}{
-		FactCommitsByDay: map[int][]plumbing.Hash{},
+		items.FactCommitsByDay: map[int][]plumbing.Hash{},
 	}
 	sent.Configure(facts)
-	sent.Initialize(testRepository)
+	sent.Initialize(test.Repository)
 	return sent
 }
 
@@ -33,7 +38,7 @@ func TestCommentSentimentMeta(t *testing.T) {
 	sent := CommentSentimentAnalysis{}
 	assert.Equal(t, sent.Name(), "Sentiment")
 	assert.Equal(t, len(sent.Provides()), 0)
-	required := [...]string{DependencyUastChanges, DependencyDay}
+	required := [...]string{uast_items.DependencyUastChanges, items.DependencyDay}
 	for _, name := range required {
 		assert.Contains(t, sent.Requires(), name)
 	}
@@ -48,7 +53,7 @@ func TestCommentSentimentMeta(t *testing.T) {
 	assert.Len(t, opts, matches)
 	assert.Equal(t, sent.Flag(), "sentiment")
 	assert.Len(t, sent.Features(), 1)
-	assert.Equal(t, sent.Features()[0], FeatureUast)
+	assert.Equal(t, sent.Features()[0], uast_items.FeatureUast)
 }
 
 func TestCommentSentimentConfigure(t *testing.T) {
@@ -56,7 +61,7 @@ func TestCommentSentimentConfigure(t *testing.T) {
 	facts := map[string]interface{}{}
 	facts[ConfigCommentSentimentMinLength] = 77
 	facts[ConfigCommentSentimentGap] = float32(0.77)
-	facts[FactCommitsByDay] = map[int][]plumbing.Hash{}
+	facts[items.FactCommitsByDay] = map[int][]plumbing.Hash{}
 	sent.Configure(facts)
 	assert.Equal(t, sent.Gap, float32(0.77))
 	assert.Equal(t, sent.MinCommentLength, 77)
@@ -68,12 +73,18 @@ func TestCommentSentimentConfigure(t *testing.T) {
 }
 
 func TestCommentSentimentRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&CommentSentimentAnalysis{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "CommentSentimentAnalysis")
-	tp, exists = Registry.flags[(&CommentSentimentAnalysis{}).Flag()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "CommentSentimentAnalysis")
+	summoned := core.Registry.Summon((&CommentSentimentAnalysis{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "Sentiment")
+	leaves := core.Registry.GetLeaves()
+	matched := false
+	for _, tp := range leaves {
+		if tp.Flag() == (&CommentSentimentAnalysis{}).Flag() {
+			matched = true
+			break
+		}
+	}
+	assert.True(t, matched)
 }
 
 func TestCommentSentimentSerializeText(t *testing.T) {
@@ -131,8 +142,8 @@ func TestCommentSentimentConsume(t *testing.T) {
 	}
 	hash1 := "4f7c7a154638a0f2468276c56188d90c9cef0dfc"
 	hash2 := "2a7392320b332494a08d5113aabe6d056fef7e9d"
-	root1 := parseBlobFromTestRepo(hash1, "labours.py", client)
-	root2 := parseBlobFromTestRepo(hash2, "labours.py", client)
+	root1 := uast_test.ParseBlobFromTestRepo(hash1, "labours.py", client)
+	root2 := uast_test.ParseBlobFromTestRepo(hash2, "labours.py", client)
 	comments, _ := tools.Filter(root2, "//*[@roleComment]")
 	for _, c := range comments {
 		t := strings.TrimSpace(c.Token)
@@ -142,10 +153,10 @@ func TestCommentSentimentConsume(t *testing.T) {
 			c.StartPosition = nil
 		}
 	}
-	gitChange := fakeChangeForName("labours.py", hash1, hash2)
+	gitChange := test.FakeChangeForName("labours.py", hash1, hash2)
 	deps := map[string]interface{}{
-		DependencyDay: 0,
-		DependencyUastChanges: []UASTChange{
+		items.DependencyDay: 0,
+		uast_items.DependencyUastChanges: []uast_items.Change{
 			{Before: root1, After: root2, Change: gitChange},
 		},
 	}

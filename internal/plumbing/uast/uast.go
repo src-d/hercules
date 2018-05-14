@@ -440,9 +440,9 @@ type ChangesSaver struct {
 }
 
 const (
-	// ConfigChangesSaverOutputPath is the name of the configuration option
+	// ConfigUASTChangesSaverOutputPath is the name of the configuration option
 	// (ChangesSaver.Configure()) which sets the target directory where to save the files.
-	ConfigChangesSaverOutputPath = "ChangesSaver.OutputPath"
+	ConfigUASTChangesSaverOutputPath = "ChangesSaver.OutputPath"
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -474,7 +474,7 @@ func (saver *ChangesSaver) Features() []string {
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (saver *ChangesSaver) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
-		Name:        ConfigChangesSaverOutputPath,
+		Name:        ConfigUASTChangesSaverOutputPath,
 		Description: "The target directory where to store the changed UAST files.",
 		Flag:        "changed-uast-dir",
 		Type:        core.StringConfigurationOption,
@@ -490,7 +490,7 @@ func (saver *ChangesSaver) Flag() string {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (saver *ChangesSaver) Configure(facts map[string]interface{}) {
-	if val, exists := facts[ConfigChangesSaverOutputPath]; exists {
+	if val, exists := facts[ConfigUASTChangesSaverOutputPath]; exists {
 		saver.OutputPath = val.(string)
 	}
 }

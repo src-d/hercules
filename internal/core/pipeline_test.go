@@ -5,15 +5,14 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 type testPipelineItem struct {
@@ -148,13 +147,13 @@ func (item *dependingTestPipelineItem) Serialize(result interface{}, binary bool
 }
 
 func TestPipelineFacts(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	pipeline.SetFact("fact", "value")
 	assert.Equal(t, pipeline.GetFact("fact"), "value")
 }
 
 func TestPipelineFeatures(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	pipeline.SetFeature("feat")
 	val, _ := pipeline.GetFeature("feat")
 	assert.True(t, val)
@@ -174,13 +173,13 @@ func TestPipelineFeatures(t *testing.T) {
 }
 
 func TestPipelineRun(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	item := &testPipelineItem{}
 	pipeline.AddItem(item)
 	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
 	commits := make([]*object.Commit, 1)
-	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
+	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
@@ -201,7 +200,7 @@ func TestPipelineRun(t *testing.T) {
 }
 
 func TestPipelineOnProgress(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	var progressOk1, progressOk2 bool
 
 	onProgress := func(step int, total int) {
@@ -215,7 +214,7 @@ func TestPipelineOnProgress(t *testing.T) {
 
 	pipeline.OnProgress = onProgress
 	commits := make([]*object.Commit, 1)
-	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
+	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
@@ -225,7 +224,7 @@ func TestPipelineOnProgress(t *testing.T) {
 }
 
 func TestPipelineCommits(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	commits := pipeline.Commits()
 	assert.True(t, len(commits) >= 90)
 	assert.Equal(t, commits[0].Hash, plumbing.NewHash(
@@ -241,14 +240,14 @@ func TestLoadCommitsFromFile(t *testing.T) {
 	tmp.WriteString("cce947b98a050c6d356bc6ba95030254914027b1\n6db8065cdb9bb0758f36a7e75fc72ab95f9e8145")
 	tmp.Close()
 	defer os.Remove(tmp.Name())
-	commits, err := LoadCommitsFromFile(tmp.Name(), testRepository)
+	commits, err := LoadCommitsFromFile(tmp.Name(), test.Repository)
 	assert.Nil(t, err)
 	assert.Equal(t, len(commits), 2)
 	assert.Equal(t, commits[0].Hash, plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	assert.Equal(t, commits[1].Hash, plumbing.NewHash(
 		"6db8065cdb9bb0758f36a7e75fc72ab95f9e8145"))
-	commits, err = LoadCommitsFromFile("/WAT?xxx!", testRepository)
+	commits, err = LoadCommitsFromFile("/WAT?xxx!", test.Repository)
 	assert.Nil(t, commits)
 	assert.NotNil(t, err)
 	tmp, err = ioutil.TempFile("", "hercules-test-")
@@ -256,7 +255,7 @@ func TestLoadCommitsFromFile(t *testing.T) {
 	tmp.WriteString("WAT")
 	tmp.Close()
 	defer os.Remove(tmp.Name())
-	commits, err = LoadCommitsFromFile(tmp.Name(), testRepository)
+	commits, err = LoadCommitsFromFile(tmp.Name(), test.Repository)
 	assert.Nil(t, commits)
 	assert.NotNil(t, err)
 	tmp, err = ioutil.TempFile("", "hercules-test-")
@@ -264,13 +263,13 @@ func TestLoadCommitsFromFile(t *testing.T) {
 	tmp.WriteString("ffffffffffffffffffffffffffffffffffffffff")
 	tmp.Close()
 	defer os.Remove(tmp.Name())
-	commits, err = LoadCommitsFromFile(tmp.Name(), testRepository)
+	commits, err = LoadCommitsFromFile(tmp.Name(), test.Repository)
 	assert.Nil(t, commits)
 	assert.NotNil(t, err)
 }
 
 func TestPipelineDeps(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	item1 := &dependingTestPipelineItem{}
 	item2 := &testPipelineItem{}
 	pipeline.AddItem(item1)
@@ -278,7 +277,7 @@ func TestPipelineDeps(t *testing.T) {
 	assert.Equal(t, pipeline.Len(), 2)
 	pipeline.Initialize(map[string]interface{}{})
 	commits := make([]*object.Commit, 1)
-	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
+	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
@@ -289,96 +288,24 @@ func TestPipelineDeps(t *testing.T) {
 }
 
 func TestPipelineDeployFeatures(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	pipeline.DeployItem(&testPipelineItem{})
 	f, _ := pipeline.GetFeature("power")
 	assert.True(t, f)
 }
 
 func TestPipelineError(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	item := &testPipelineItem{}
 	item.TestError = true
 	pipeline.AddItem(item)
 	pipeline.Initialize(map[string]interface{}{})
 	commits := make([]*object.Commit, 1)
-	commits[0], _ = testRepository.CommitObject(plumbing.NewHash(
+	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
-}
-
-func TestPipelineSerialize(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
-	pipeline.SetFeature(FeatureUast)
-	pipeline.DeployItem(&BurndownAnalysis{})
-	facts := map[string]interface{}{}
-	facts["Pipeline.DryRun"] = true
-	tmpdir, _ := ioutil.TempDir("", "hercules-")
-	defer os.RemoveAll(tmpdir)
-	dotpath := path.Join(tmpdir, "graph.dot")
-	facts["Pipeline.DumpPath"] = dotpath
-	pipeline.Initialize(facts)
-	bdot, _ := ioutil.ReadFile(dotpath)
-	dot := string(bdot)
-	assert.Equal(t, `digraph Hercules {
-  "6 BlobCache" -> "7 [blob_cache]"
-  "0 DaysSinceStart" -> "3 [day]"
-  "9 FileDiff" -> "11 [file_diff]"
-  "15 FileDiffRefiner" -> "16 Burndown"
-  "1 IdentityDetector" -> "4 [author]"
-  "8 RenameAnalysis" -> "16 Burndown"
-  "8 RenameAnalysis" -> "9 FileDiff"
-  "8 RenameAnalysis" -> "10 UAST"
-  "8 RenameAnalysis" -> "13 UASTChanges"
-  "2 TreeDiff" -> "5 [changes]"
-  "10 UAST" -> "12 [uasts]"
-  "13 UASTChanges" -> "14 [changed_uasts]"
-  "4 [author]" -> "16 Burndown"
-  "7 [blob_cache]" -> "16 Burndown"
-  "7 [blob_cache]" -> "9 FileDiff"
-  "7 [blob_cache]" -> "8 RenameAnalysis"
-  "7 [blob_cache]" -> "10 UAST"
-  "14 [changed_uasts]" -> "15 FileDiffRefiner"
-  "5 [changes]" -> "6 BlobCache"
-  "5 [changes]" -> "8 RenameAnalysis"
-  "3 [day]" -> "16 Burndown"
-  "11 [file_diff]" -> "15 FileDiffRefiner"
-  "12 [uasts]" -> "13 UASTChanges"
-}`, dot)
-}
-
-func TestPipelineSerializeNoUast(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
-	// pipeline.SetFeature(FeatureUast)
-	pipeline.DeployItem(&BurndownAnalysis{})
-	facts := map[string]interface{}{}
-	facts["Pipeline.DryRun"] = true
-	tmpdir, _ := ioutil.TempDir("", "hercules-")
-	defer os.RemoveAll(tmpdir)
-	dotpath := path.Join(tmpdir, "graph.dot")
-	facts["Pipeline.DumpPath"] = dotpath
-	pipeline.Initialize(facts)
-	bdot, _ := ioutil.ReadFile(dotpath)
-	dot := string(bdot)
-	assert.Equal(t, `digraph Hercules {
-  "6 BlobCache" -> "7 [blob_cache]"
-  "0 DaysSinceStart" -> "3 [day]"
-  "9 FileDiff" -> "10 [file_diff]"
-  "1 IdentityDetector" -> "4 [author]"
-  "8 RenameAnalysis" -> "11 Burndown"
-  "8 RenameAnalysis" -> "9 FileDiff"
-  "2 TreeDiff" -> "5 [changes]"
-  "4 [author]" -> "11 Burndown"
-  "7 [blob_cache]" -> "11 Burndown"
-  "7 [blob_cache]" -> "9 FileDiff"
-  "7 [blob_cache]" -> "8 RenameAnalysis"
-  "5 [changes]" -> "6 BlobCache"
-  "5 [changes]" -> "8 RenameAnalysis"
-  "3 [day]" -> "11 Burndown"
-  "10 [file_diff]" -> "11 Burndown"
-}`, dot)
 }
 
 func TestCommonAnalysisResultMerge(t *testing.T) {
@@ -406,13 +333,6 @@ func TestCommonAnalysisResultMetadata(t *testing.T) {
 	assert.Equal(t, c1.RunTime.Nanoseconds(), int64(100*1e6))
 }
 
-func TestPipelineResolveIntegration(t *testing.T) {
-	pipeline := NewPipeline(testRepository)
-	pipeline.DeployItem(&BurndownAnalysis{})
-	pipeline.DeployItem(&CouplesAnalysis{})
-	pipeline.Initialize(nil)
-}
-
 func TestConfigurationOptionTypeString(t *testing.T) {
 	opt := ConfigurationOptionType(0)
 	assert.Equal(t, opt.String(), "")
@@ -437,29 +357,4 @@ func TestConfigurationOptionFormatDefault(t *testing.T) {
 	assert.Equal(t, opt.FormatDefault(), "false")
 	opt = ConfigurationOption{Type: FloatConfigurationOption, Default: 0.5}
 	assert.Equal(t, opt.FormatDefault(), "0.5")
-}
-
-func init() {
-	cwd, err := os.Getwd()
-	if err == nil {
-		testRepository, err = git.PlainOpen(cwd)
-		if err == nil {
-			iter, err := testRepository.CommitObjects()
-			if err == nil {
-				commits := -1
-				for ; err != io.EOF; _, err = iter.Next() {
-					if err != nil {
-						panic(err)
-					}
-					commits++
-					if commits >= 100 {
-						return
-					}
-				}
-			}
-		}
-	}
-	testRepository, _ = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-		URL: "https://github.com/src-d/hercules",
-	})
 }

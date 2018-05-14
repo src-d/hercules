@@ -12,26 +12,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/hercules.v4/internal/core"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
+	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v4/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureShotness() *ShotnessAnalysis {
 	sh := &ShotnessAnalysis{}
-	sh.Initialize(testRepository)
+	sh.Initialize(test.Repository)
 	sh.Configure(nil)
 	return sh
 }
 
 func TestShotnessMeta(t *testing.T) {
 	sh := &ShotnessAnalysis{}
-	sh.Initialize(testRepository)
+	sh.Initialize(test.Repository)
 	assert.NotNil(t, sh.nodes)
 	assert.NotNil(t, sh.files)
 	assert.Equal(t, sh.Name(), "Shotness")
 	assert.Len(t, sh.Provides(), 0)
 	assert.Equal(t, len(sh.Requires()), 2)
-	assert.Equal(t, sh.Requires()[0], DependencyFileDiff)
-	assert.Equal(t, sh.Requires()[1], DependencyUastChanges)
+	assert.Equal(t, sh.Requires()[0], items.DependencyFileDiff)
+	assert.Equal(t, sh.Requires()[1], uast_items.DependencyUastChanges)
 	assert.Len(t, sh.ListConfigurationOptions(), 2)
 	assert.Equal(t, sh.ListConfigurationOptions()[0].Name, ConfigShotnessXpathStruct)
 	assert.Equal(t, sh.ListConfigurationOptions()[1].Name, ConfigShotnessXpathName)
@@ -46,51 +50,57 @@ func TestShotnessMeta(t *testing.T) {
 	assert.Equal(t, sh.XpathName, "another!")
 	features := sh.Features()
 	assert.Len(t, features, 1)
-	assert.Equal(t, features[0], FeatureUast)
+	assert.Equal(t, features[0], uast_items.FeatureUast)
 }
 
 func TestShotnessRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&ShotnessAnalysis{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "ShotnessAnalysis")
-	tp, exists = Registry.flags[(&ShotnessAnalysis{}).Flag()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "ShotnessAnalysis")
+	summoned := core.Registry.Summon((&ShotnessAnalysis{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "Shotness")
+	leaves := core.Registry.GetLeaves()
+	matched := false
+	for _, tp := range leaves {
+		if tp.Flag() == (&ShotnessAnalysis{}).Flag() {
+			matched = true
+			break
+		}
+	}
+	assert.True(t, matched)
 }
 
 func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, ShotnessResult) {
 	sh := fixtureShotness()
-	bytes1, err := ioutil.ReadFile(path.Join("test_data", "1.java"))
+	bytes1, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "1.java"))
 	assert.Nil(t, err)
-	bytes2, err := ioutil.ReadFile(path.Join("test_data", "2.java"))
+	bytes2, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
 	state["commit"] = &object.Commit{}
-	fileDiffs := map[string]FileDiffData{}
+	fileDiffs := map[string]items.FileDiffData{}
 	const fileName = "test.java"
-	fileDiffs[fileName] = FileDiffData{
+	fileDiffs[fileName] = items.FileDiffData{
 		OldLinesOfCode: len(src),
 		NewLinesOfCode: len(dst),
 		Diffs:          dmp.DiffMainRunes(src, dst, false),
 	}
-	state[DependencyFileDiff] = fileDiffs
-	uastChanges := make([]UASTChange, 1)
+	state[items.DependencyFileDiff] = fileDiffs
+	uastChanges := make([]uast_items.Change, 1)
 	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("test_data", name))
+		bytes, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", name))
 		assert.Nil(t, err)
 		node := uast.Node{}
 		proto.Unmarshal(bytes, &node)
 		if eraseEndPosition {
-			VisitEachNode(&node, func(child *uast.Node) {
+			uast_items.VisitEachNode(&node, func(child *uast.Node) {
 				child.EndPosition = nil
 			})
 		}
 		return &node
 	}
-	state[DependencyUastChanges] = uastChanges
-	uastChanges[0] = UASTChange{
+	state[uast_items.DependencyUastChanges] = uastChanges
+	uastChanges[0] = uast_items.Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{},
 			To:   object.ChangeEntry{Name: fileName}},
@@ -99,7 +109,7 @@ func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, Shotn
 	iresult, err := sh.Consume(state)
 	assert.Nil(t, err)
 	assert.Nil(t, iresult)
-	uastChanges[0] = UASTChange{
+	uastChanges[0] = uast_items.Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
@@ -113,33 +123,33 @@ func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, Shotn
 
 func TestShotnessConsume(t *testing.T) {
 	sh := fixtureShotness()
-	bytes1, err := ioutil.ReadFile(path.Join("test_data", "1.java"))
+	bytes1, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "1.java"))
 	assert.Nil(t, err)
-	bytes2, err := ioutil.ReadFile(path.Join("test_data", "2.java"))
+	bytes2, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
 	state["commit"] = &object.Commit{}
-	fileDiffs := map[string]FileDiffData{}
+	fileDiffs := map[string]items.FileDiffData{}
 	const fileName = "test.java"
 	const newfileName = "new.java"
-	fileDiffs[fileName] = FileDiffData{
+	fileDiffs[fileName] = items.FileDiffData{
 		OldLinesOfCode: len(src),
 		NewLinesOfCode: len(dst),
 		Diffs:          dmp.DiffMainRunes(src, dst, false),
 	}
-	state[DependencyFileDiff] = fileDiffs
-	uastChanges := make([]UASTChange, 1)
+	state[items.DependencyFileDiff] = fileDiffs
+	uastChanges := make([]uast_items.Change, 1)
 	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("test_data", name))
+		bytes, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", name))
 		assert.Nil(t, err)
 		node := uast.Node{}
 		proto.Unmarshal(bytes, &node)
 		return &node
 	}
-	state[DependencyUastChanges] = uastChanges
-	uastChanges[0] = UASTChange{
+	state[uast_items.DependencyUastChanges] = uastChanges
+	uastChanges[0] = uast_items.Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{},
 			To:   object.ChangeEntry{Name: fileName}},
@@ -148,7 +158,7 @@ func TestShotnessConsume(t *testing.T) {
 	iresult, err := sh.Consume(state)
 	assert.Nil(t, err)
 	assert.Nil(t, iresult)
-	uastChanges[0] = UASTChange{
+	uastChanges[0] = uast_items.Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: newfileName}},
@@ -186,7 +196,7 @@ func TestShotnessConsume(t *testing.T) {
 		"MethodDeclaration_testUnpackEntryFromStream_"+newfileName)
 	assert.Equal(t, result.Counters[15], map[int]int{
 		8: 1, 0: 1, 5: 1, 6: 1, 11: 1, 1: 1, 13: 1, 17: 1, 3: 1, 15: 1, 9: 1, 4: 1, 7: 1, 16: 1, 2: 1, 12: 1, 10: 1})
-	uastChanges[0] = UASTChange{
+	uastChanges[0] = uast_items.Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: newfileName},
 			To:   object.ChangeEntry{}},

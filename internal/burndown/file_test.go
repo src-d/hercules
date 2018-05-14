@@ -369,17 +369,6 @@ func TestBug5File(t *testing.T) {
 	assert.Equal(t, "0 0\n14 157\n16 -1\n", dump)
 }
 
-func TestMinMaxAbs64Funcs(t *testing.T) {
-	var a int64 = 1
-	var b int64 = -1
-	assert.Equal(t, min64(a, b), b)
-	assert.Equal(t, max64(a, b), a)
-	assert.Equal(t, min64(b, a), b)
-	assert.Equal(t, max64(b, a), a)
-	assert.Equal(t, abs64(a), a)
-	assert.Equal(t, abs64(b), a)
-}
-
 func TestNewFileFromTreeInvalidSize(t *testing.T) {
 	keys := [...]int{1, 2, 3}
 	vals := [...]int{4, 5}

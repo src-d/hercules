@@ -11,11 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v4/internal/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureFileDiffRefiner() *FileDiffRefiner {
 	fd := &FileDiffRefiner{}
-	fd.Initialize(testRepository)
+	fd.Initialize(test.Repository)
 	return fd
 }
 
@@ -23,9 +26,9 @@ func TestFileDiffRefinerMeta(t *testing.T) {
 	fd := fixtureFileDiffRefiner()
 	assert.Equal(t, fd.Name(), "FileDiffRefiner")
 	assert.Equal(t, len(fd.Provides()), 1)
-	assert.Equal(t, fd.Provides()[0], DependencyFileDiff)
+	assert.Equal(t, fd.Provides()[0], plumbing.DependencyFileDiff)
 	assert.Equal(t, len(fd.Requires()), 2)
-	assert.Equal(t, fd.Requires()[0], DependencyFileDiff)
+	assert.Equal(t, fd.Requires()[0], plumbing.DependencyFileDiff)
 	assert.Equal(t, fd.Requires()[1], DependencyUastChanges)
 	assert.Len(t, fd.ListConfigurationOptions(), 0)
 	fd.Configure(nil)
@@ -35,45 +38,44 @@ func TestFileDiffRefinerMeta(t *testing.T) {
 }
 
 func TestFileDiffRefinerRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&FileDiffRefiner{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "FileDiffRefiner")
-	tps, exists := Registry.provided[(&FileDiffRefiner{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.True(t, len(tps) >= 1)
+	summoned := core.Registry.Summon((&FileDiffRefiner{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "FileDiffRefiner")
+	summoned = core.Registry.Summon((&FileDiffRefiner{}).Provides()[0])
+	assert.True(t, len(summoned) >= 1)
 	matched := false
-	for _, tp := range tps {
-		matched = matched || tp.Elem().Name() == "FileDiffRefiner"
+	for _, tp := range summoned {
+		matched = matched || tp.Name() == "FileDiffRefiner"
 	}
 	assert.True(t, matched)
 }
 
 func TestFileDiffRefinerConsume(t *testing.T) {
-	bytes1, err := ioutil.ReadFile(path.Join("test_data", "1.java"))
+	bytes1, err := ioutil.ReadFile(path.Join("..", "..", "test_data", "1.java"))
 	assert.Nil(t, err)
-	bytes2, err := ioutil.ReadFile(path.Join("test_data", "2.java"))
+	bytes2, err := ioutil.ReadFile(path.Join("..", "..", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
-	fileDiffs := map[string]FileDiffData{}
+	fileDiffs := map[string]plumbing.FileDiffData{}
 	const fileName = "test.java"
-	fileDiffs[fileName] = FileDiffData{
+	fileDiffs[fileName] = plumbing.FileDiffData{
 		OldLinesOfCode: len(src),
 		NewLinesOfCode: len(dst),
 		Diffs:          dmp.DiffMainRunes(src, dst, false),
 	}
-	state[DependencyFileDiff] = fileDiffs
-	uastChanges := make([]UASTChange, 1)
+	state[plumbing.DependencyFileDiff] = fileDiffs
+	uastChanges := make([]Change, 1)
 	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("test_data", name))
+		bytes, err := ioutil.ReadFile(path.Join("..", "..", "test_data", name))
 		assert.Nil(t, err)
 		node := uast.Node{}
 		proto.Unmarshal(bytes, &node)
 		return &node
 	}
 	state[DependencyUastChanges] = uastChanges
-	uastChanges[0] = UASTChange{
+	uastChanges[0] = Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
@@ -82,7 +84,7 @@ func TestFileDiffRefinerConsume(t *testing.T) {
 	fd := fixtureFileDiffRefiner()
 	iresult, err := fd.Consume(state)
 	assert.Nil(t, err)
-	result := iresult[DependencyFileDiff].(map[string]FileDiffData)
+	result := iresult[plumbing.DependencyFileDiff].(map[string]plumbing.FileDiffData)
 	assert.Len(t, result, 1)
 
 	oldDiff := fileDiffs[fileName]
@@ -98,31 +100,31 @@ func TestFileDiffRefinerConsume(t *testing.T) {
 }
 
 func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
-	bytes1, err := ioutil.ReadFile(path.Join("test_data", "1.java"))
+	bytes1, err := ioutil.ReadFile(path.Join("..", "..", "test_data", "1.java"))
 	assert.Nil(t, err)
-	bytes2, err := ioutil.ReadFile(path.Join("test_data", "2.java"))
+	bytes2, err := ioutil.ReadFile(path.Join("..", "..", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
-	fileDiffs := map[string]FileDiffData{}
+	fileDiffs := map[string]plumbing.FileDiffData{}
 	const fileName = "test.java"
-	fileDiffs[fileName] = FileDiffData{
+	fileDiffs[fileName] = plumbing.FileDiffData{
 		OldLinesOfCode: len(src),
 		NewLinesOfCode: len(dst),
 		Diffs:          dmp.DiffMainRunes(src, dst, false),
 	}
-	state[DependencyFileDiff] = fileDiffs
-	uastChanges := make([]UASTChange, 1)
+	state[plumbing.DependencyFileDiff] = fileDiffs
+	uastChanges := make([]Change, 1)
 	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("test_data", name))
+		bytes, err := ioutil.ReadFile(path.Join("..", "..", "test_data", name))
 		assert.Nil(t, err)
 		node := uast.Node{}
 		proto.Unmarshal(bytes, &node)
 		return &node
 	}
 	state[DependencyUastChanges] = uastChanges
-	uastChanges[0] = UASTChange{
+	uastChanges[0] = Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
@@ -131,15 +133,15 @@ func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
 	fd := fixtureFileDiffRefiner()
 	iresult, err := fd.Consume(state)
 	assert.Nil(t, err)
-	result := iresult[DependencyFileDiff].(map[string]FileDiffData)
+	result := iresult[plumbing.DependencyFileDiff].(map[string]plumbing.FileDiffData)
 	assert.Len(t, result, 1)
 	assert.Equal(t, fileDiffs[fileName], result[fileName])
-	fileDiffs[fileName] = FileDiffData{
+	fileDiffs[fileName] = plumbing.FileDiffData{
 		OldLinesOfCode: 100,
 		NewLinesOfCode: 100,
 		Diffs:          []diffmatchpatch.Diff{{}},
 	}
-	uastChanges[0] = UASTChange{
+	uastChanges[0] = Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
@@ -147,7 +149,7 @@ func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
 	}
 	iresult, err = fd.Consume(state)
 	assert.Nil(t, err)
-	result = iresult[DependencyFileDiff].(map[string]FileDiffData)
+	result = iresult[plumbing.DependencyFileDiff].(map[string]plumbing.FileDiffData)
 	assert.Len(t, result, 1)
 	assert.Equal(t, fileDiffs[fileName], result[fileName])
 }

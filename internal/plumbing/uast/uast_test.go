@@ -16,12 +16,15 @@ import (
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/hercules.v4/internal/core"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
+	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
-func fixtureUASTExtractor() *UASTExtractor {
-	exr := UASTExtractor{Endpoint: "0.0.0.0:9432"}
-	exr.Initialize(testRepository)
+func fixtureUASTExtractor() *Extractor {
+	exr := Extractor{Endpoint: "0.0.0.0:9432"}
+	exr.Initialize(test.Repository)
 	exr.Languages["Python"] = true
 	return &exr
 }
@@ -32,8 +35,8 @@ func TestUASTExtractorMeta(t *testing.T) {
 	assert.Equal(t, len(exr.Provides()), 1)
 	assert.Equal(t, exr.Provides()[0], DependencyUasts)
 	assert.Equal(t, len(exr.Requires()), 2)
-	assert.Equal(t, exr.Requires()[0], DependencyTreeChanges)
-	assert.Equal(t, exr.Requires()[1], DependencyBlobCache)
+	assert.Equal(t, exr.Requires()[0], items.DependencyTreeChanges)
+	assert.Equal(t, exr.Requires()[1], items.DependencyBlobCache)
 	opts := exr.ListConfigurationOptions()
 	assert.Len(t, opts, 5)
 	assert.Equal(t, opts[0].Name, ConfigUASTEndpoint)
@@ -66,22 +69,21 @@ func TestUASTExtractorConfiguration(t *testing.T) {
 }
 
 func TestUASTExtractorRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&UASTExtractor{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "UASTExtractor")
-	tps, exists := Registry.provided[(&UASTExtractor{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.Len(t, tps, 1)
-	assert.Equal(t, tps[0].Elem().Name(), "UASTExtractor")
+	summoned := core.Registry.Summon((&Extractor{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "UAST")
+	summoned = core.Registry.Summon((&Extractor{}).Provides()[0])
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "UAST")
 }
 
 func TestUASTExtractorConsume(t *testing.T) {
 	exr := fixtureUASTExtractor()
 	changes := make(object.Changes, 2)
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"251f2094d7b523d5bcc60e663b6cf38151bf8844"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -113,16 +115,16 @@ func TestUASTExtractorConsume(t *testing.T) {
 	}
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	deps := map[string]interface{}{}
-	deps[DependencyBlobCache] = cache
-	deps[DependencyTreeChanges] = changes
+	deps[items.DependencyBlobCache] = cache
+	deps[items.DependencyTreeChanges] = changes
 	res, err := exr.Consume(deps)
 	// Language not enabled
 	assert.Len(t, res[DependencyUasts], 0)
@@ -152,10 +154,10 @@ func TestUASTExtractorConsume(t *testing.T) {
 	assert.Equal(t, len(uasts[hash].Children), 24)
 }
 
-func fixtureUASTChanges() *UASTChanges {
-	ch := UASTChanges{}
+func fixtureUASTChanges() *Changes {
+	ch := Changes{}
 	ch.Configure(nil)
-	ch.Initialize(testRepository)
+	ch.Initialize(test.Repository)
 	return &ch
 }
 
@@ -166,7 +168,7 @@ func TestUASTChangesMeta(t *testing.T) {
 	assert.Equal(t, ch.Provides()[0], DependencyUastChanges)
 	assert.Equal(t, len(ch.Requires()), 2)
 	assert.Equal(t, ch.Requires()[0], DependencyUasts)
-	assert.Equal(t, ch.Requires()[1], DependencyTreeChanges)
+	assert.Equal(t, ch.Requires()[1], items.DependencyTreeChanges)
 	opts := ch.ListConfigurationOptions()
 	assert.Len(t, opts, 0)
 	feats := ch.Features()
@@ -175,15 +177,14 @@ func TestUASTChangesMeta(t *testing.T) {
 }
 
 func TestUASTChangesRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&UASTChanges{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "UASTChanges")
-	tps, exists := Registry.provided[(&UASTChanges{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.True(t, len(tps) >= 1)
+	summoned := core.Registry.Summon((&Changes{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "UASTChanges")
+	summoned = core.Registry.Summon((&Changes{}).Provides()[0])
+	assert.True(t, len(summoned) >= 1)
 	matched := false
-	for _, tp := range tps {
-		matched = matched || tp.Elem().Name() == "UASTChanges"
+	for _, tp := range summoned {
+		matched = matched || tp.Name() == "UASTChanges"
 	}
 	assert.True(t, matched)
 }
@@ -208,9 +209,9 @@ func TestUASTChangesConsume(t *testing.T) {
 	uasts[hash].InternalType = "quatro"
 	uastsArray = append(uastsArray, uasts[hash])
 	changes := make(object.Changes, 3)
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -251,13 +252,13 @@ func TestUASTChangesConsume(t *testing.T) {
 	}
 	deps := map[string]interface{}{}
 	deps[DependencyUasts] = uasts
-	deps[DependencyTreeChanges] = changes
+	deps[items.DependencyTreeChanges] = changes
 	ch := fixtureUASTChanges()
 	ch.cache[changes[0].From.TreeEntry.Hash] = uastsArray[3]
 	ch.cache[changes[2].From.TreeEntry.Hash] = uastsArray[0]
 	resultMap, err := ch.Consume(deps)
 	assert.Nil(t, err)
-	result := resultMap[DependencyUastChanges].([]UASTChange)
+	result := resultMap[DependencyUastChanges].([]Change)
 	assert.Len(t, result, 3)
 	assert.Equal(t, result[0].Change, changes[0])
 	assert.Equal(t, result[0].Before, uastsArray[3])
@@ -270,9 +271,9 @@ func TestUASTChangesConsume(t *testing.T) {
 	assert.Nil(t, result[2].After)
 }
 
-func fixtureUASTChangesSaver() *UASTChangesSaver {
-	ch := UASTChangesSaver{}
-	ch.Initialize(testRepository)
+func fixtureUASTChangesSaver() *ChangesSaver {
+	ch := ChangesSaver{}
+	ch.Initialize(test.Repository)
 	return &ch
 }
 
@@ -302,24 +303,30 @@ func TestUASTChangesSaverConfiguration(t *testing.T) {
 }
 
 func TestUASTChangesSaverRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&UASTChangesSaver{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "UASTChangesSaver")
-	tp, exists = Registry.flags[(&UASTChangesSaver{}).Flag()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "UASTChangesSaver")
+	summoned := core.Registry.Summon((&ChangesSaver{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "UASTChangesSaver")
+	leaves := core.Registry.GetLeaves()
+	matched := false
+	for _, tp := range leaves {
+		if tp.Flag() == (&ChangesSaver{}).Flag() {
+			matched = true
+			break
+		}
+	}
+	assert.True(t, matched)
 }
 
 func TestUASTChangesSaverPayload(t *testing.T) {
 	chs := fixtureUASTChangesSaver()
 	deps := map[string]interface{}{}
-	changes := make([]UASTChange, 1)
+	changes := make([]Change, 1)
 	deps[DependencyUastChanges] = changes
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
-	changes[0] = UASTChange{Before: &uast.Node{}, After: &uast.Node{},
+	changes[0] = Change{Before: &uast.Node{}, After: &uast.Node{},
 		Change: &object.Change{From: object.ChangeEntry{
 			Name: "analyser.go",
 			Tree: treeFrom,

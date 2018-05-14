@@ -7,12 +7,14 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
+	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureTreeDiff() *TreeDiff {
 	td := TreeDiff{}
 	td.Configure(nil)
-	td.Initialize(testRepository)
+	td.Initialize(test.Repository)
 	return &td
 }
 
@@ -27,26 +29,25 @@ func TestTreeDiffMeta(t *testing.T) {
 }
 
 func TestTreeDiffRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&TreeDiff{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "TreeDiff")
-	tps, exists := Registry.provided[(&TreeDiff{}).Provides()[0]]
-	assert.True(t, exists)
-	assert.True(t, len(tps) >= 1)
+	summoned := core.Registry.Summon((&TreeDiff{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "TreeDiff")
+	summoned = core.Registry.Summon((&TreeDiff{}).Provides()[0])
+	assert.True(t, len(summoned) >= 1)
 	matched := false
-	for _, tp := range tps {
-		matched = matched || tp.Elem().Name() == "TreeDiff"
+	for _, tp := range summoned {
+		matched = matched || tp.Name() == "TreeDiff"
 	}
 	assert.True(t, matched)
 }
 
 func TestTreeDiffConsume(t *testing.T) {
 	td := fixtureTreeDiff()
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	prevCommit, _ := testRepository.CommitObject(plumbing.NewHash(
+	prevCommit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"fbe766ffdc3f87f6affddc051c6f8b419beea6a2"))
 	td.previousTree, _ = prevCommit.Tree()
 	res, err := td.Consume(deps)
@@ -83,7 +84,7 @@ func TestTreeDiffConsume(t *testing.T) {
 
 func TestTreeDiffConsumeFirst(t *testing.T) {
 	td := fixtureTreeDiff()
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
@@ -101,7 +102,7 @@ func TestTreeDiffConsumeFirst(t *testing.T) {
 
 func TestTreeDiffBadCommit(t *testing.T) {
 	td := fixtureTreeDiff()
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	commit.TreeHash = plumbing.NewHash("0000000000000000000000000000000000000000")
 	deps := map[string]interface{}{}
@@ -114,11 +115,11 @@ func TestTreeDiffBadCommit(t *testing.T) {
 func TestTreeDiffConsumeSkip(t *testing.T) {
 	// consume without skiping
 	td := fixtureTreeDiff()
-	commit, _ := testRepository.CommitObject(plumbing.NewHash(
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"aefdedf7cafa6ee110bae9a3910bf5088fdeb5a9"))
 	deps := map[string]interface{}{}
 	deps["commit"] = commit
-	prevCommit, _ := testRepository.CommitObject(plumbing.NewHash(
+	prevCommit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"1e076dc56989bc6aa1ef5f55901696e9e01423d4"))
 	td.previousTree, _ = prevCommit.Tree()
 	res, err := td.Consume(deps)

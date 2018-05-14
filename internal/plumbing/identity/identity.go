@@ -11,10 +11,10 @@ import (
 	"gopkg.in/src-d/hercules.v4/internal/core"
 )
 
-// IdentityDetector determines the author of a commit. Same person can commit under different
+// Detector determines the author of a commit. Same person can commit under different
 // signatures, and we apply some heuristics to merge those together.
 // It is a PipelineItem.
-type IdentityDetector struct {
+type Detector struct {
 	// PeopleDict maps email || name  -> developer id.
 	PeopleDict map[string]int
 	// ReversedPeopleDict maps developer id -> description
@@ -49,14 +49,14 @@ const (
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
-func (id *IdentityDetector) Name() string {
+func (id *Detector) Name() string {
 	return "IdentityDetector"
 }
 
 // Provides returns the list of names of entities which are produced by this PipelineItem.
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
-func (id *IdentityDetector) Provides() []string {
+func (id *Detector) Provides() []string {
 	arr := [...]string{DependencyAuthor}
 	return arr[:]
 }
@@ -64,12 +64,12 @@ func (id *IdentityDetector) Provides() []string {
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
-func (id *IdentityDetector) Requires() []string {
+func (id *Detector) Requires() []string {
 	return []string{}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
-func (id *IdentityDetector) ListConfigurationOptions() []core.ConfigurationOption {
+func (id *Detector) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
 		Name:        ConfigIdentityDetectorPeopleDictPath,
 		Description: "Path to the developers' email associations.",
@@ -81,7 +81,7 @@ func (id *IdentityDetector) ListConfigurationOptions() []core.ConfigurationOptio
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (id *IdentityDetector) Configure(facts map[string]interface{}) {
+func (id *Detector) Configure(facts map[string]interface{}) {
 	if val, exists := facts[FactIdentityDetectorPeopleDict].(map[string]int); exists {
 		id.PeopleDict = val
 	}
@@ -109,7 +109,7 @@ func (id *IdentityDetector) Configure(facts map[string]interface{}) {
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (id *IdentityDetector) Initialize(repository *git.Repository) {
+func (id *Detector) Initialize(repository *git.Repository) {
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -117,7 +117,7 @@ func (id *IdentityDetector) Initialize(repository *git.Repository) {
 // Additionally, "commit" is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
-func (id *IdentityDetector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+func (id *Detector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps["commit"].(*object.Commit)
 	signature := commit.Author
 	authorID, exists := id.PeopleDict[strings.ToLower(signature.Email)]
@@ -133,7 +133,7 @@ func (id *IdentityDetector) Consume(deps map[string]interface{}) (map[string]int
 // LoadPeopleDict loads author signatures from a text file.
 // The format is one signature per line, and the signature consists of several
 // keys separated by "|". The first key is the main one and used to reference all the rest.
-func (id *IdentityDetector) LoadPeopleDict(path string) error {
+func (id *Detector) LoadPeopleDict(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -158,7 +158,7 @@ func (id *IdentityDetector) LoadPeopleDict(path string) error {
 }
 
 // GeneratePeopleDict loads author signatures from the specified list of Git commits.
-func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
+func (id *Detector) GeneratePeopleDict(commits []*object.Commit) {
 	dict := map[string]int{}
 	emails := map[int][]string{}
 	names := map[int][]string{}
@@ -254,7 +254,7 @@ func (id *IdentityDetector) GeneratePeopleDict(commits []*object.Commit) {
 }
 
 // MergeReversedDicts joins two identity lists together, excluding duplicates, in-order.
-func (id IdentityDetector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
+func (id Detector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
 	people := map[string][3]int{}
 	for i, pid := range rd1 {
 		ptrs := people[pid]
@@ -280,5 +280,5 @@ func (id IdentityDetector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]
 }
 
 func init() {
-	core.Registry.Register(&IdentityDetector{})
+	core.Registry.Register(&Detector{})
 }

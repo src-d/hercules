@@ -7,18 +7,26 @@ import (
 	"path"
 	"testing"
 
+	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v4/internal/test/fixtures"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
+	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func TestBurndownMeta(t *testing.T) {
 	burndown := BurndownAnalysis{}
 	assert.Equal(t, burndown.Name(), "Burndown")
 	assert.Equal(t, len(burndown.Provides()), 0)
-	required := [...]string{DependencyFileDiff, DependencyTreeChanges, DependencyBlobCache, DependencyDay, DependencyAuthor}
+	required := [...]string{
+		items.DependencyFileDiff, items.DependencyTreeChanges, items.DependencyBlobCache,
+		items.DependencyDay, identity.DependencyAuthor}
 	for _, name := range required {
 		assert.Contains(t, burndown.Requires(), name)
 	}
@@ -43,8 +51,8 @@ func TestBurndownConfigure(t *testing.T) {
 	facts[ConfigBurndownTrackFiles] = true
 	facts[ConfigBurndownTrackPeople] = true
 	facts[ConfigBurndownDebug] = true
-	facts[FactIdentityDetectorPeopleCount] = 5
-	facts[FactIdentityDetectorReversedPeopleDict] = burndown.Requires()
+	facts[identity.FactIdentityDetectorPeopleCount] = 5
+	facts[identity.FactIdentityDetectorReversedPeopleDict] = burndown.Requires()
 	burndown.Configure(facts)
 	assert.Equal(t, burndown.Granularity, 100)
 	assert.Equal(t, burndown.Sampling, 200)
@@ -53,7 +61,7 @@ func TestBurndownConfigure(t *testing.T) {
 	assert.Equal(t, burndown.Debug, true)
 	assert.Equal(t, burndown.reversedPeopleDict, burndown.Requires())
 	facts[ConfigBurndownTrackPeople] = false
-	facts[FactIdentityDetectorPeopleCount] = 50
+	facts[identity.FactIdentityDetectorPeopleCount] = 50
 	burndown.Configure(facts)
 	assert.Equal(t, burndown.PeopleNumber, 0)
 	facts = map[string]interface{}{}
@@ -67,29 +75,35 @@ func TestBurndownConfigure(t *testing.T) {
 }
 
 func TestBurndownRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&BurndownAnalysis{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "BurndownAnalysis")
-	tp, exists = Registry.flags[(&BurndownAnalysis{}).Flag()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "BurndownAnalysis")
+	summoned := core.Registry.Summon((&BurndownAnalysis{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "Burndown")
+	leaves := core.Registry.GetLeaves()
+	matched := false
+	for _, tp := range leaves {
+		if tp.Flag() == (&BurndownAnalysis{}).Flag() {
+			matched = true
+			break
+		}
+	}
+	assert.True(t, matched)
 }
 
 func TestBurndownInitialize(t *testing.T) {
 	burndown := BurndownAnalysis{}
 	burndown.Sampling = -10
 	burndown.Granularity = DefaultBurndownGranularity
-	burndown.Initialize(testRepository)
+	burndown.Initialize(test.Repository)
 	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity)
 	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity)
 	burndown.Sampling = 0
 	burndown.Granularity = DefaultBurndownGranularity - 1
-	burndown.Initialize(testRepository)
+	burndown.Initialize(test.Repository)
 	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity-1)
 	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity-1)
 	burndown.Sampling = DefaultBurndownGranularity - 1
 	burndown.Granularity = -10
-	burndown.Initialize(testRepository)
+	burndown.Initialize(test.Repository)
 	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity-1)
 	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity)
 }
@@ -101,26 +115,26 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		PeopleNumber: 2,
 		TrackFiles:   true,
 	}
-	burndown.Initialize(testRepository)
+	burndown.Initialize(test.Repository)
 	deps := map[string]interface{}{}
 
 	// stage 1
-	deps[DependencyAuthor] = 0
-	deps[DependencyDay] = 0
+	deps[identity.DependencyAuthor] = 0
+	deps[items.DependencyDay] = 0
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	cache[hash], _ = testRepository.BlobObject(hash)
-	deps[DependencyBlobCache] = cache
+	cache[hash], _ = test.Repository.BlobObject(hash)
+	deps[items.DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -159,11 +173,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		},
 	},
 	}
-	deps[DependencyTreeChanges] = changes
-	fd := fixtureFileDiff()
+	deps[items.DependencyTreeChanges] = changes
+	fd := fixtures.FileDiff()
 	result, err := fd.Consume(deps)
 	assert.Nil(t, err)
-	deps[DependencyFileDiff] = result[DependencyFileDiff]
+	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	result, err = burndown.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -182,7 +196,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		Granularity: 30,
 		Sampling:    0,
 	}
-	burndown2.Initialize(testRepository)
+	burndown2.Initialize(test.Repository)
 	_, err = burndown2.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(burndown2.people), 0)
@@ -191,24 +205,24 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	deps[DependencyAuthor] = 1
-	deps[DependencyDay] = 30
+	deps[identity.DependencyAuthor] = 1
+	deps[items.DependencyDay] = 30
 	cache = map[plumbing.Hash]*object.Blob{}
 	hash = plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = testRepository.BlobObject(hash)
-	deps[DependencyBlobCache] = cache
+	cache[hash], _ = test.Repository.BlobObject(hash)
+	deps[items.DependencyBlobCache] = cache
 	changes = make(object.Changes, 3)
-	treeFrom, _ = testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ = test.Repository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
-	treeTo, _ = testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ = test.Repository.TreeObject(plumbing.NewHash(
 		"251f2094d7b523d5bcc60e663b6cf38151bf8844"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -256,11 +270,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps[DependencyTreeChanges] = changes
-	fd = fixtureFileDiff()
+	deps[items.DependencyTreeChanges] = changes
+	fd = fixtures.FileDiff()
 	result, err = fd.Consume(deps)
 	assert.Nil(t, err)
-	deps[DependencyFileDiff] = result[DependencyFileDiff]
+	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	result, err = burndown.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -322,25 +336,25 @@ func TestBurndownSerialize(t *testing.T) {
 		PeopleNumber: 2,
 		TrackFiles:   true,
 	}
-	burndown.Initialize(testRepository)
+	burndown.Initialize(test.Repository)
 	deps := map[string]interface{}{}
 	// stage 1
-	deps[DependencyAuthor] = 0
-	deps[DependencyDay] = 0
+	deps[identity.DependencyAuthor] = 0
+	deps[items.DependencyDay] = 0
 	cache := map[plumbing.Hash]*object.Blob{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	cache[hash], _ = testRepository.BlobObject(hash)
-	deps[DependencyBlobCache] = cache
+	cache[hash], _ = test.Repository.BlobObject(hash)
+	deps[items.DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
-	treeFrom, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -379,32 +393,32 @@ func TestBurndownSerialize(t *testing.T) {
 		},
 	},
 	}
-	deps[DependencyTreeChanges] = changes
-	fd := fixtureFileDiff()
+	deps[items.DependencyTreeChanges] = changes
+	fd := fixtures.FileDiff()
 	result, _ := fd.Consume(deps)
-	deps[DependencyFileDiff] = result[DependencyFileDiff]
+	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	burndown.Consume(deps)
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	deps[DependencyAuthor] = 1
-	deps[DependencyDay] = 30
+	deps[identity.DependencyAuthor] = 1
+	deps[items.DependencyDay] = 30
 	cache = map[plumbing.Hash]*object.Blob{}
 	hash = plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = testRepository.BlobObject(hash)
+	cache[hash], _ = test.Repository.BlobObject(hash)
 	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = testRepository.BlobObject(hash)
-	deps[DependencyBlobCache] = cache
+	cache[hash], _ = test.Repository.BlobObject(hash)
+	deps[items.DependencyBlobCache] = cache
 	changes = make(object.Changes, 3)
-	treeFrom, _ = testRepository.TreeObject(plumbing.NewHash(
+	treeFrom, _ = test.Repository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
-	treeTo, _ = testRepository.TreeObject(plumbing.NewHash(
+	treeTo, _ = test.Repository.TreeObject(plumbing.NewHash(
 		"251f2094d7b523d5bcc60e663b6cf38151bf8844"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -452,10 +466,10 @@ func TestBurndownSerialize(t *testing.T) {
 		},
 	}, To: object.ChangeEntry{},
 	}
-	deps[DependencyTreeChanges] = changes
-	fd = fixtureFileDiff()
+	deps[items.DependencyTreeChanges] = changes
+	fd = fixtures.FileDiff()
 	result, _ = fd.Consume(deps)
-	deps[DependencyFileDiff] = result[DependencyFileDiff]
+	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	people := [...]string{"one@srcd", "two@srcd"}
 	burndown.reversedPeopleDict = people[:]
 	burndown.Consume(deps)
@@ -807,7 +821,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 		sampling:           15,
 		granularity:        20,
 	}
-	c1 := CommonAnalysisResult{
+	c1 := core.CommonAnalysisResult{
 		BeginTime:     600566400, // 1989 Jan 12
 		EndTime:       604713600, // 1989 March 1
 		CommitsNumber: 10,
@@ -857,7 +871,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 		sampling:           14,
 		granularity:        19,
 	}
-	c2 := CommonAnalysisResult{
+	c2 := core.CommonAnalysisResult{
 		BeginTime:     601084800, // 1989 Jan 18
 		EndTime:       605923200, // 1989 March 15
 		CommitsNumber: 10,
@@ -946,7 +960,7 @@ func TestBurndownMergeNils(t *testing.T) {
 		sampling:           15,
 		granularity:        20,
 	}
-	c1 := CommonAnalysisResult{
+	c1 := core.CommonAnalysisResult{
 		BeginTime:     600566400, // 1989 Jan 12
 		EndTime:       604713600, // 1989 March 1
 		CommitsNumber: 10,
@@ -961,7 +975,7 @@ func TestBurndownMergeNils(t *testing.T) {
 		sampling:           14,
 		granularity:        19,
 	}
-	c2 := CommonAnalysisResult{
+	c2 := core.CommonAnalysisResult{
 		BeginTime:     601084800, // 1989 Jan 18
 		EndTime:       605923200, // 1989 March 15
 		CommitsNumber: 10,
@@ -1048,7 +1062,7 @@ func TestBurndownMergeNils(t *testing.T) {
 }
 
 func TestBurndownDeserialize(t *testing.T) {
-	allBuffer, err := ioutil.ReadFile(path.Join("test_data", "burndown.pb"))
+	allBuffer, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "burndown.pb"))
 	assert.Nil(t, err)
 	message := pb.AnalysisResults{}
 	err = proto.Unmarshal(allBuffer, &message)

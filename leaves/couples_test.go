@@ -10,12 +10,16 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/hercules.v4/internal/core"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
+	"gopkg.in/src-d/hercules.v4/internal/plumbing"
+	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func fixtureCouples() *CouplesAnalysis {
 	c := CouplesAnalysis{PeopleNumber: 3}
-	c.Initialize(testRepository)
+	c.Initialize(test.Repository)
 	return &c
 }
 
@@ -24,19 +28,25 @@ func TestCouplesMeta(t *testing.T) {
 	assert.Equal(t, c.Name(), "Couples")
 	assert.Equal(t, len(c.Provides()), 0)
 	assert.Equal(t, len(c.Requires()), 2)
-	assert.Equal(t, c.Requires()[0], DependencyAuthor)
-	assert.Equal(t, c.Requires()[1], DependencyTreeChanges)
+	assert.Equal(t, c.Requires()[0], identity.DependencyAuthor)
+	assert.Equal(t, c.Requires()[1], plumbing.DependencyTreeChanges)
 	assert.Equal(t, c.Flag(), "couples")
 	assert.Len(t, c.ListConfigurationOptions(), 0)
 }
 
 func TestCouplesRegistration(t *testing.T) {
-	tp, exists := Registry.registered[(&CouplesAnalysis{}).Name()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "CouplesAnalysis")
-	tp, exists = Registry.flags[(&CouplesAnalysis{}).Flag()]
-	assert.True(t, exists)
-	assert.Equal(t, tp.Elem().Name(), "CouplesAnalysis")
+	summoned := core.Registry.Summon((&CouplesAnalysis{}).Name())
+	assert.Len(t, summoned, 1)
+	assert.Equal(t, summoned[0].Name(), "Couples")
+	leaves := core.Registry.GetLeaves()
+	matched := false
+	for _, tp := range leaves {
+		if tp.Flag() == (&CouplesAnalysis{}).Flag() {
+			matched = true
+			break
+		}
+	}
+	assert.True(t, matched)
 }
 
 func generateChanges(names ...string) object.Changes {
@@ -78,16 +88,16 @@ func generateChanges(names ...string) object.Changes {
 func TestCouplesConsumeFinalize(t *testing.T) {
 	c := fixtureCouples()
 	deps := map[string]interface{}{}
-	deps[DependencyAuthor] = 0
-	deps[DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
+	deps[identity.DependencyAuthor] = 0
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
 	c.Consume(deps)
-	deps[DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
 	c.Consume(deps)
-	deps[DependencyAuthor] = 1
-	deps[DependencyTreeChanges] = generateChanges("=one", "=three", "-six")
+	deps[identity.DependencyAuthor] = 1
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=one", "=three", "-six")
 	c.Consume(deps)
-	deps[DependencyAuthor] = 2
-	deps[DependencyTreeChanges] = generateChanges("=five")
+	deps[identity.DependencyAuthor] = 2
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=five")
 	c.Consume(deps)
 	assert.Equal(t, len(c.people[0]), 5)
 	assert.Equal(t, c.people[0]["one"], 1)
@@ -165,21 +175,21 @@ func TestCouplesSerialize(t *testing.T) {
 	facts := map[string]interface{}{}
 	c.Configure(facts)
 	assert.Equal(t, c.PeopleNumber, 1)
-	facts[FactIdentityDetectorPeopleCount] = 3
-	facts[FactIdentityDetectorReversedPeopleDict] = people[:]
+	facts[identity.FactIdentityDetectorPeopleCount] = 3
+	facts[identity.FactIdentityDetectorReversedPeopleDict] = people[:]
 	c.Configure(facts)
 	assert.Equal(t, c.PeopleNumber, 3)
 	deps := map[string]interface{}{}
-	deps[DependencyAuthor] = 0
-	deps[DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
+	deps[identity.DependencyAuthor] = 0
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
 	c.Consume(deps)
-	deps[DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
 	c.Consume(deps)
-	deps[DependencyAuthor] = 1
-	deps[DependencyTreeChanges] = generateChanges("=one", "=three", "-six")
+	deps[identity.DependencyAuthor] = 1
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=one", "=three", "-six")
 	c.Consume(deps)
-	deps[DependencyAuthor] = 2
-	deps[DependencyTreeChanges] = generateChanges("=five")
+	deps[identity.DependencyAuthor] = 2
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=five")
 	c.Consume(deps)
 	result := c.Finalize().(CouplesResult)
 	buffer := &bytes.Buffer{}
@@ -247,7 +257,7 @@ func TestCouplesSerialize(t *testing.T) {
 }
 
 func TestCouplesDeserialize(t *testing.T) {
-	allBuffer, err := ioutil.ReadFile(path.Join("test_data", "couples.pb"))
+	allBuffer, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "couples.pb"))
 	assert.Nil(t, err)
 	message := pb.AnalysisResults{}
 	err = proto.Unmarshal(allBuffer, &message)

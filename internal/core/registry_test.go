@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/hercules.v4/internal/test"
 )
 
 func getRegistry() *PipelineItemRegistry {
@@ -146,7 +147,7 @@ func TestRegistryFeatures(t *testing.T) {
 	reg.AddFlags(testCmd.Flags())
 	args := [...]string{"--feature", "other", "--feature", "power"}
 	testCmd.ParseFlags(args[:])
-	pipeline := NewPipeline(testRepository)
+	pipeline := NewPipeline(test.Repository)
 	val, _ := pipeline.GetFeature("power")
 	assert.False(t, val)
 	val, _ = pipeline.GetFeature("other")
