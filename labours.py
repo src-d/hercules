@@ -28,9 +28,9 @@ if sys.version_info[0] < 3:
 
 
 PB_MESSAGES = {
-    "Burndown": "pb.pb_pb2.BurndownAnalysisResults",
-    "Couples": "pb.pb_pb2.CouplesAnalysisResults",
-    "Shotness": "pb.pb_pb2.ShotnessAnalysisResults",
+    "Burndown": "internal.pb.pb_pb2.BurndownAnalysisResults",
+    "Couples": "internal.pb.pb_pb2.CouplesAnalysisResults",
+    "Shotness": "internal.pb.pb_pb2.ShotnessAnalysisResults",
 }
 
 
@@ -227,9 +227,10 @@ class YamlReader(Reader):
 class ProtobufReader(Reader):
     def read(self, file):
         try:
-            from pb.pb_pb2 import AnalysisResults
+            from internal.pb.pb_pb2 import AnalysisResults
         except ImportError as e:
-            print("\n\n>>> You need to generate pb/pb_pb2.py - run \"make\"\n", file=sys.stderr)
+            print("\n\n>>> You need to generate internal/pb/pb_pb2.py - run \"make\"\n",
+                  file=sys.stderr)
             raise e from None
         self.data = AnalysisResults()
         if file != "-":
