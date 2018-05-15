@@ -45,6 +45,7 @@ before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v github.com/golang/lint/golint
+  - rm -rf $GOPATH/src/gopkg.in/src-d/go-git.v4
   - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
   - export PATH=~/usr/bin:$PATH
@@ -58,6 +59,7 @@ before_install:
   - curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-$TENSORFLOW_VERSION.tar.gz" | sudo tar -C /usr/local -xz
   - sudo ldconfig
 install:
+  - git clean -xfd
   - make
 script:
   - set -e
