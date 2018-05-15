@@ -17,7 +17,7 @@ addons:
     - gcc-6
     - g++-6
 
-go_import_path: gopkg.in/src-d/hercules.v3
+go_import_path: gopkg.in/src-d/hercules.v4
 go:
   - 1.9.x
   - 1.10.x
@@ -48,7 +48,9 @@ before_install:
   - pip3 --version
   - pip3 install --user --no-build-isolation -r requirements.txt tensorflow
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
-  - docker exec -it bblfshd bblfshctl driver install --all
+  - docker exec -it bblfshd bblfshctl driver install python bblfsh/python-driver:latest
+  - docker exec -it bblfshd bblfshctl driver install go bblfsh/go-driver:latest
+  - docker exec -it bblfshd bblfshctl driver install java bblfsh/java-driver:latest
   - curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-$TENSORFLOW_VERSION.tar.gz" | sudo tar -C /usr/local -xz
   - sudo ldconfig
 install:
@@ -57,7 +59,8 @@ script:
   - set -e
   - go vet -tags tensorflow ./...
   - golint -set_exit_status ./...
-  - go test -tags tensorflow -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
+  - if [[ $TRAVIS_GO_VERSION != 1.9.* ]]; then go test -coverpkg=all -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v4/...; fi
+  - if [[ $TRAVIS_GO_VERSION = 1.9.* ]]; then go test -v -cpu=1,2 gopkg.in/src-d/hercules.v4/...; fi
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
