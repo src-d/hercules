@@ -41,7 +41,7 @@ type Extractor struct {
 	ProcessedFiles map[string]int
 
 	clients []*bblfsh.Client
-	pool    *tunny.WorkPool
+	pool    *tunny.Pool
 }
 
 const (
@@ -71,28 +71,24 @@ const (
 )
 
 type uastTask struct {
-	Client *bblfsh.Client
 	Lock   *sync.RWMutex
 	Dest   map[plumbing.Hash]*uast.Node
 	File   *object.File
 	Errors *[]error
-	Status chan int
 }
 
 type worker struct {
-	Client   *bblfsh.Client
-	Callback func(interface{}) interface{}
+	Client    *bblfsh.Client
+	Extractor *Extractor
 }
 
-func (w worker) Ready() bool {
-	return true
+// Process will synchronously perform a job and return the result.
+func (w worker) Process(data interface{}) interface{} {
+	return w.Extractor.extractTask(w.Client, data)
 }
-
-func (w worker) Job(data interface{}) interface{} {
-	task := data.(uastTask)
-	task.Client = w.Client
-	return w.Callback(task)
-}
+func (w worker) BlockUntilReady() {}
+func (w worker) Interrupt()       {}
+func (w worker) Terminate()       {}
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (exr *Extractor) Name() string {
@@ -190,7 +186,6 @@ func (exr *Extractor) Initialize(repository *git.Repository) {
 	if poolSize == 0 {
 		poolSize = runtime.NumCPU()
 	}
-	var err error
 	exr.clients = make([]*bblfsh.Client, poolSize)
 	for i := 0; i < poolSize; i++ {
 		client, err := bblfsh.NewClient(exr.Endpoint)
@@ -202,13 +197,16 @@ func (exr *Extractor) Initialize(repository *git.Repository) {
 	if exr.pool != nil {
 		exr.pool.Close()
 	}
-	workers := make([]tunny.Worker, poolSize)
-	for i := 0; i < poolSize; i++ {
-		workers[i] = worker{Client: exr.clients[i], Callback: exr.extractTask}
+	{
+		i := 0
+		exr.pool = tunny.New(poolSize, func() tunny.Worker {
+			w := worker{Client: exr.clients[i], Extractor: exr}
+			i++
+			return w
+		})
 	}
-	exr.pool, err = tunny.CreateCustomPool(workers).Open()
-	if err != nil {
-		panic(err)
+	if exr.pool == nil {
+		panic("UAST goroutine pool was not created")
 	}
 	exr.ProcessedFiles = map[string]int{}
 	if exr.Languages == nil {
@@ -227,8 +225,7 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 	uasts := map[plumbing.Hash]*uast.Node{}
 	lock := sync.RWMutex{}
 	errs := make([]error, 0)
-	status := make(chan int)
-	pending := 0
+	wg := sync.WaitGroup{}
 	submit := func(change *object.Change) {
 		{
 			reader, err := cache[change.To.TreeEntry.Hash].Reader()
@@ -250,12 +247,16 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 			}
 			exr.ProcessedFiles[change.To.Name]++
 		}
-		pending++
-		exr.pool.SendWorkAsync(uastTask{
+		wg.Add(1)
+		go func(task interface{}) {
+			exr.pool.Process(task)
+			wg.Done()
+		}(uastTask{
 			Lock:   &lock,
 			Dest:   uasts,
 			File:   &object.File{Name: change.To.Name, Blob: *cache[change.To.TreeEntry.Hash]},
-			Errors: &errs, Status: status}, nil)
+			Errors: &errs,
+		})
 	}
 	for _, change := range treeDiffs {
 		action, err := change.Action()
@@ -271,9 +272,7 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 			submit(change)
 		}
 	}
-	for i := 0; i < pending; i++ {
-		_ = <-status
-	}
+	wg.Wait()
 	if len(errs) > 0 {
 		msgs := make([]string, len(errs))
 		for i, err := range errs {
@@ -317,10 +316,9 @@ func (exr *Extractor) extractUAST(
 	return response.UAST, nil
 }
 
-func (exr *Extractor) extractTask(data interface{}) interface{} {
+func (exr *Extractor) extractTask(client *bblfsh.Client, data interface{}) interface{} {
 	task := data.(uastTask)
-	defer func() { task.Status <- 0 }()
-	node, err := exr.extractUAST(task.Client, task.File)
+	node, err := exr.extractUAST(client, task.File)
 	task.Lock.Lock()
 	defer task.Lock.Unlock()
 	if err != nil {

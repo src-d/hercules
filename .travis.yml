@@ -22,6 +22,10 @@ go:
   - 1.9.x
   - 1.10.x
   - tip
+cache:
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/gopath/src
 
 matrix:
   fast_finish: true
@@ -59,7 +63,7 @@ script:
   - set -e
   - go vet -tags tensorflow ./...
   - golint -set_exit_status ./...
-  - if [[ $TRAVIS_GO_VERSION != 1.9.* ]]; then go test -coverpkg=all -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v4/...; fi
+  - if [[ $TRAVIS_GO_VERSION != 1.9.* ]]; then go test -coverpkg=all -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v4/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt; fi
   - if [[ $TRAVIS_GO_VERSION = 1.9.* ]]; then go test -v -cpu=1,2 gopkg.in/src-d/hercules.v4/...; fi
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
