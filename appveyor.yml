@@ -2,7 +2,7 @@ version: "{build}"
 platform: x64
 image: Visual Studio 2017
 
-clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v3
+clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v4
 
 environment:
   GOPATH: c:\gopath
@@ -17,14 +17,14 @@ install:
 build_script:
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
   - set PATH=C:\msys64\mingw64\bin;%PATH%
-  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v3
+  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v4
   - set DISABLE_TENSORFLOW=1
   - make
-  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v3\hercules.win64.zip %GOPATH%\bin\hercules.exe
+  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v4\hercules.win64.zip %GOPATH%\bin\hercules.exe
 
 test_script:
-  - go get -v -t -d gopkg.in/src-d/hercules.v3/...
-  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v3
+  - go get -v -t -d gopkg.in/src-d/hercules.v4/...
+  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v4/...
 
 artifacts:
   - name: hercules.win64.zip
