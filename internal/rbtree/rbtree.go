@@ -22,7 +22,7 @@ type RBTree struct {
 	// Root of the tree
 	root *node
 
-	// The minimum and maximum nodes under the root.
+	// The minimum and maximum nodes under the tree.
 	minNode, maxNode *node
 
 	// Number of nodes under root, including the root
@@ -30,14 +30,49 @@ type RBTree struct {
 }
 
 // Len returns the number of elements in the tree.
-func (root *RBTree) Len() int {
-	return root.count
+func (tree *RBTree) Len() int {
+	return tree.count
+}
+
+// Clone performs a deep copy of the tree.
+func (tree *RBTree) Clone() *RBTree {
+	clone := &RBTree{}
+	clone.count = tree.count
+	nodeMap := map[*node]*node{}
+	queue := []*node{tree.root}
+	for len(queue) > 0 {
+		head := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		headCopy := *head
+		nodeMap[head] = &headCopy
+		if head.left != nil {
+			queue = append(queue, head.left)
+		}
+		if head.right != nil {
+			queue = append(queue, head.right)
+		}
+	}
+	for _, mapped := range nodeMap {
+		if mapped.parent != nil {
+			mapped.parent = nodeMap[mapped.parent]
+		}
+		if mapped.left != nil {
+			mapped.left = nodeMap[mapped.left]
+		}
+		if mapped.right != nil {
+			mapped.right = nodeMap[mapped.right]
+		}
+	}
+	clone.root = nodeMap[tree.root]
+	clone.minNode = nodeMap[tree.minNode]
+	clone.maxNode = nodeMap[tree.maxNode]
+	return clone
 }
 
 // Get is a convenience function for finding an element equal to Key. Returns
 // nil if not found.
-func (root *RBTree) Get(key int) *int {
-	n, exact := root.findGE(key)
+func (tree *RBTree) Get(key int) *int {
+	n, exact := tree.findGE(key)
 	if exact {
 		return &n.item.Value
 	}
@@ -46,60 +81,60 @@ func (root *RBTree) Get(key int) *int {
 
 // Min creates an iterator that points to the minimum item in the tree.
 // If the tree is empty, returns Limit()
-func (root *RBTree) Min() Iterator {
-	return Iterator{root, root.minNode}
+func (tree *RBTree) Min() Iterator {
+	return Iterator{tree, tree.minNode}
 }
 
 // Max creates an iterator that points at the maximum item in the tree.
 //
 // If the tree is empty, returns NegativeLimit().
-func (root *RBTree) Max() Iterator {
-	if root.maxNode == nil {
-		return Iterator{root, negativeLimitNode}
+func (tree *RBTree) Max() Iterator {
+	if tree.maxNode == nil {
+		return Iterator{tree, negativeLimitNode}
 	}
-	return Iterator{root, root.maxNode}
+	return Iterator{tree, tree.maxNode}
 }
 
 // Limit creates an iterator that points beyond the maximum item in the tree.
-func (root *RBTree) Limit() Iterator {
-	return Iterator{root, nil}
+func (tree *RBTree) Limit() Iterator {
+	return Iterator{tree, nil}
 }
 
 // NegativeLimit creates an iterator that points before the minimum item in the tree.
-func (root *RBTree) NegativeLimit() Iterator {
-	return Iterator{root, negativeLimitNode}
+func (tree *RBTree) NegativeLimit() Iterator {
+	return Iterator{tree, negativeLimitNode}
 }
 
 // FindGE finds the smallest element N such that N >= Key, and returns the
 // iterator pointing to the element. If no such element is found,
-// returns root.Limit().
-func (root *RBTree) FindGE(key int) Iterator {
-	n, _ := root.findGE(key)
-	return Iterator{root, n}
+// returns tree.Limit().
+func (tree *RBTree) FindGE(key int) Iterator {
+	n, _ := tree.findGE(key)
+	return Iterator{tree, n}
 }
 
 // FindLE finds the largest element N such that N <= Key, and returns the
 // iterator pointing to the element. If no such element is found,
 // returns iter.NegativeLimit().
-func (root *RBTree) FindLE(key int) Iterator {
-	n, exact := root.findGE(key)
+func (tree *RBTree) FindLE(key int) Iterator {
+	n, exact := tree.findGE(key)
 	if exact {
-		return Iterator{root, n}
+		return Iterator{tree, n}
 	}
 	if n != nil {
-		return Iterator{root, n.doPrev()}
+		return Iterator{tree, n.doPrev()}
 	}
-	if root.maxNode == nil {
-		return Iterator{root, negativeLimitNode}
+	if tree.maxNode == nil {
+		return Iterator{tree, negativeLimitNode}
 	}
-	return Iterator{root, root.maxNode}
+	return Iterator{tree, tree.maxNode}
 }
 
 // Insert an item. If the item is already in the tree, do nothing and
 // return false. Else return true.
-func (root *RBTree) Insert(item Item) (bool, Iterator) {
+func (tree *RBTree) Insert(item Item) (bool, Iterator) {
 	// TODO: delay creating n until it is found to be inserted
-	n := root.doInsert(item)
+	n := tree.doInsert(item)
 	if n == nil {
 		return false, Iterator{}
 	}
@@ -139,12 +174,12 @@ func (root *RBTree) Insert(item Item) (bool, Iterator) {
 
 		// Case 4: parent is red, uncle is black (1)
 		if n.isRightChild() && n.parent.isLeftChild() {
-			root.rotateLeft(n.parent)
+			tree.rotateLeft(n.parent)
 			n = n.left
 			continue
 		}
 		if n.isLeftChild() && n.parent.isRightChild() {
-			root.rotateRight(n.parent)
+			tree.rotateRight(n.parent)
 			n = n.right
 			continue
 		}
@@ -153,21 +188,21 @@ func (root *RBTree) Insert(item Item) (bool, Iterator) {
 		n.parent.color = black
 		grandparent.color = red
 		if n.isLeftChild() {
-			root.rotateRight(grandparent)
+			tree.rotateRight(grandparent)
 		} else {
-			root.rotateLeft(grandparent)
+			tree.rotateLeft(grandparent)
 		}
 		break
 	}
-	return true, Iterator{root, insN}
+	return true, Iterator{tree, insN}
 }
 
 // DeleteWithKey deletes an item with the given Key. Returns true iff the item was
 // found.
-func (root *RBTree) DeleteWithKey(key int) bool {
-	iter := root.FindGE(key)
+func (tree *RBTree) DeleteWithKey(key int) bool {
+	iter := tree.FindGE(key)
 	if iter.node != nil {
-		root.DeleteWithIterator(iter)
+		tree.DeleteWithIterator(iter)
 		return true
 	}
 	return false
@@ -176,9 +211,9 @@ func (root *RBTree) DeleteWithKey(key int) bool {
 // DeleteWithIterator deletes the current item.
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
-func (root *RBTree) DeleteWithIterator(iter Iterator) {
+func (tree *RBTree) DeleteWithIterator(iter Iterator) {
 	doAssert(!iter.Limit() && !iter.NegativeLimit())
-	root.doDelete(iter.node)
+	tree.doDelete(iter.node)
 }
 
 // Iterator allows scanning tree elements in sort order.
@@ -188,7 +223,7 @@ func (root *RBTree) DeleteWithIterator(iter Iterator) {
 // iterator becomes invalid. For other operation types, the iterator
 // remains valid.
 type Iterator struct {
-	root *RBTree
+	tree *RBTree
 	node *node
 }
 
@@ -204,12 +239,12 @@ func (iter Iterator) Limit() bool {
 
 // Min checks if the iterator points to the minimum element in the tree.
 func (iter Iterator) Min() bool {
-	return iter.node == iter.root.minNode
+	return iter.node == iter.tree.minNode
 }
 
 // Max checks if the iterator points to the maximum element in the tree.
 func (iter Iterator) Max() bool {
-	return iter.node == iter.root.maxNode
+	return iter.node == iter.tree.maxNode
 }
 
 // NegativeLimit checks if the iterator points before the minimum element in the tree.
@@ -231,9 +266,9 @@ func (iter Iterator) Item() *Item {
 func (iter Iterator) Next() Iterator {
 	doAssert(!iter.Limit())
 	if iter.NegativeLimit() {
-		return Iterator{iter.root, iter.root.minNode}
+		return Iterator{iter.tree, iter.tree.minNode}
 	}
-	return Iterator{iter.root, iter.node.doNext()}
+	return Iterator{iter.tree, iter.node.doNext()}
 }
 
 // Prev creates a new iterator that points to the predecessor of the current
@@ -243,12 +278,12 @@ func (iter Iterator) Next() Iterator {
 func (iter Iterator) Prev() Iterator {
 	doAssert(!iter.NegativeLimit())
 	if !iter.Limit() {
-		return Iterator{iter.root, iter.node.doPrev()}
+		return Iterator{iter.tree, iter.node.doPrev()}
 	}
-	if iter.root.maxNode == nil {
-		return Iterator{iter.root, negativeLimitNode}
+	if iter.tree.maxNode == nil {
+		return Iterator{iter.tree, negativeLimitNode}
 	}
-	return Iterator{iter.root, iter.root.maxNode}
+	return Iterator{iter.tree, iter.tree.maxNode}
 }
 
 func doAssert(b bool) {
@@ -356,54 +391,54 @@ func maxPredecessor(n *node) *node {
 // Private methods
 //
 
-func (root *RBTree) recomputeMinNode() {
-	root.minNode = root.root
-	if root.minNode != nil {
-		for root.minNode.left != nil {
-			root.minNode = root.minNode.left
+func (tree *RBTree) recomputeMinNode() {
+	tree.minNode = tree.root
+	if tree.minNode != nil {
+		for tree.minNode.left != nil {
+			tree.minNode = tree.minNode.left
 		}
 	}
 }
 
-func (root *RBTree) recomputeMaxNode() {
-	root.maxNode = root.root
-	if root.maxNode != nil {
-		for root.maxNode.right != nil {
-			root.maxNode = root.maxNode.right
+func (tree *RBTree) recomputeMaxNode() {
+	tree.maxNode = tree.root
+	if tree.maxNode != nil {
+		for tree.maxNode.right != nil {
+			tree.maxNode = tree.maxNode.right
 		}
 	}
 }
 
-func (root *RBTree) maybeSetMinNode(n *node) {
-	if root.minNode == nil {
-		root.minNode = n
-		root.maxNode = n
-	} else if n.item.Key < root.minNode.item.Key {
-		root.minNode = n
+func (tree *RBTree) maybeSetMinNode(n *node) {
+	if tree.minNode == nil {
+		tree.minNode = n
+		tree.maxNode = n
+	} else if n.item.Key < tree.minNode.item.Key {
+		tree.minNode = n
 	}
 }
 
-func (root *RBTree) maybeSetMaxNode(n *node) {
-	if root.maxNode == nil {
-		root.minNode = n
-		root.maxNode = n
-	} else if n.item.Key > root.maxNode.item.Key {
-		root.maxNode = n
+func (tree *RBTree) maybeSetMaxNode(n *node) {
+	if tree.maxNode == nil {
+		tree.minNode = n
+		tree.maxNode = n
+	} else if n.item.Key > tree.maxNode.item.Key {
+		tree.maxNode = n
 	}
 }
 
 // Try inserting "item" into the tree. Return nil if the item is
 // already in the tree. Otherwise return a new (leaf) node.
-func (root *RBTree) doInsert(item Item) *node {
-	if root.root == nil {
+func (tree *RBTree) doInsert(item Item) *node {
+	if tree.root == nil {
 		n := &node{item: item}
-		root.root = n
-		root.minNode = n
-		root.maxNode = n
-		root.count++
+		tree.root = n
+		tree.minNode = n
+		tree.maxNode = n
+		tree.count++
 		return n
 	}
-	parent := root.root
+	parent := tree.root
 	for true {
 		comp := item.Key - parent.item.Key
 		if comp == 0 {
@@ -412,8 +447,8 @@ func (root *RBTree) doInsert(item Item) *node {
 			if parent.left == nil {
 				n := &node{item: item, parent: parent}
 				parent.left = n
-				root.count++
-				root.maybeSetMinNode(n)
+				tree.count++
+				tree.maybeSetMinNode(n)
 				return n
 			}
 			parent = parent.left
@@ -421,8 +456,8 @@ func (root *RBTree) doInsert(item Item) *node {
 			if parent.right == nil {
 				n := &node{item: item, parent: parent}
 				parent.right = n
-				root.count++
-				root.maybeSetMaxNode(n)
+				tree.count++
+				tree.maybeSetMaxNode(n)
 				return n
 			}
 			parent = parent.right
@@ -434,8 +469,8 @@ func (root *RBTree) doInsert(item Item) *node {
 // Find a node whose item >= Key. The 2nd return Value is true iff the
 // node.item==Key. Returns (nil, false) if all nodes in the tree are <
 // Key.
-func (root *RBTree) findGE(key int) (*node, bool) {
-	n := root.root
+func (tree *RBTree) findGE(key int) (*node, bool) {
+	n := tree.root
 	for true {
 		if n == nil {
 			return nil, false
@@ -465,10 +500,10 @@ func (root *RBTree) findGE(key int) (*node, bool) {
 }
 
 // Delete N from the tree.
-func (root *RBTree) doDelete(n *node) {
+func (tree *RBTree) doDelete(n *node) {
 	if n.left != nil && n.right != nil {
 		pred := maxPredecessor(n)
-		root.swapNodes(n, pred)
+		tree.swapNodes(n, pred)
 	}
 
 	doAssert(n.left == nil || n.right == nil)
@@ -478,33 +513,33 @@ func (root *RBTree) doDelete(n *node) {
 	}
 	if n.color == black {
 		n.color = getColor(child)
-		root.deleteCase1(n)
+		tree.deleteCase1(n)
 	}
-	root.replaceNode(n, child)
+	tree.replaceNode(n, child)
 	if n.parent == nil && child != nil {
 		child.color = black
 	}
-	root.count--
-	if root.count == 0 {
-		root.minNode = nil
-		root.maxNode = nil
+	tree.count--
+	if tree.count == 0 {
+		tree.minNode = nil
+		tree.maxNode = nil
 	} else {
-		if root.minNode == n {
-			root.recomputeMinNode()
+		if tree.minNode == n {
+			tree.recomputeMinNode()
 		}
-		if root.maxNode == n {
-			root.recomputeMaxNode()
+		if tree.maxNode == n {
+			tree.recomputeMaxNode()
 		}
 	}
 }
 
 // Move n to the pred's place, and vice versa
 //
-func (root *RBTree) swapNodes(n, pred *node) {
+func (tree *RBTree) swapNodes(n, pred *node) {
 	doAssert(pred != n)
 	isLeft := pred.isLeftChild()
 	tmp := *pred
-	root.replaceNode(n, pred)
+	tree.replaceNode(n, pred)
 	pred.color = n.color
 
 	if tmp.parent == n {
@@ -561,16 +596,16 @@ func (root *RBTree) swapNodes(n, pred *node) {
 	n.color = tmp.color
 }
 
-func (root *RBTree) deleteCase1(n *node) {
+func (tree *RBTree) deleteCase1(n *node) {
 	for true {
 		if n.parent != nil {
 			if getColor(n.sibling()) == red {
 				n.parent.color = red
 				n.sibling().color = black
 				if n == n.parent.left {
-					root.rotateLeft(n.parent)
+					tree.rotateLeft(n.parent)
 				} else {
-					root.rotateRight(n.parent)
+					tree.rotateRight(n.parent)
 				}
 			}
 			if getColor(n.parent) == black &&
@@ -589,7 +624,7 @@ func (root *RBTree) deleteCase1(n *node) {
 					n.sibling().color = red
 					n.parent.color = black
 				} else {
-					root.deleteCase5(n)
+					tree.deleteCase5(n)
 				}
 			}
 		}
@@ -597,21 +632,21 @@ func (root *RBTree) deleteCase1(n *node) {
 	}
 }
 
-func (root *RBTree) deleteCase5(n *node) {
+func (tree *RBTree) deleteCase5(n *node) {
 	if n == n.parent.left &&
 		getColor(n.sibling()) == black &&
 		getColor(n.sibling().left) == red &&
 		getColor(n.sibling().right) == black {
 		n.sibling().color = red
 		n.sibling().left.color = black
-		root.rotateRight(n.sibling())
+		tree.rotateRight(n.sibling())
 	} else if n == n.parent.right &&
 		getColor(n.sibling()) == black &&
 		getColor(n.sibling().right) == red &&
 		getColor(n.sibling().left) == black {
 		n.sibling().color = red
 		n.sibling().right.color = black
-		root.rotateLeft(n.sibling())
+		tree.rotateLeft(n.sibling())
 	}
 
 	// case 6
@@ -620,17 +655,17 @@ func (root *RBTree) deleteCase5(n *node) {
 	if n == n.parent.left {
 		doAssert(getColor(n.sibling().right) == red)
 		n.sibling().right.color = black
-		root.rotateLeft(n.parent)
+		tree.rotateLeft(n.parent)
 	} else {
 		doAssert(getColor(n.sibling().left) == red)
 		n.sibling().left.color = black
-		root.rotateRight(n.parent)
+		tree.rotateRight(n.parent)
 	}
 }
 
-func (root *RBTree) replaceNode(oldn, newn *node) {
+func (tree *RBTree) replaceNode(oldn, newn *node) {
 	if oldn.parent == nil {
-		root.root = newn
+		tree.root = newn
 	} else {
 		if oldn == oldn.parent.left {
 			oldn.parent.left = newn
@@ -648,7 +683,7 @@ func (root *RBTree) replaceNode(oldn, newn *node) {
   A   Y	    =>     X   C
      B C 	  A B
 */
-func (root *RBTree) rotateLeft(x *node) {
+func (tree *RBTree) rotateLeft(x *node) {
 	y := x.right
 	x.right = y.left
 	if y.left != nil {
@@ -656,7 +691,7 @@ func (root *RBTree) rotateLeft(x *node) {
 	}
 	y.parent = x.parent
 	if x.parent == nil {
-		root.root = y
+		tree.root = y
 	} else {
 		if x.isLeftChild() {
 			x.parent.left = y
@@ -673,7 +708,7 @@ func (root *RBTree) rotateLeft(x *node) {
    X   C  =>   A   Y
   A B             B C
 */
-func (root *RBTree) rotateRight(y *node) {
+func (tree *RBTree) rotateRight(y *node) {
 	x := y.left
 
 	// Move "B"
@@ -684,7 +719,7 @@ func (root *RBTree) rotateRight(y *node) {
 
 	x.parent = y.parent
 	if y.parent == nil {
-		root.root = x
+		tree.root = x
 	} else {
 		if y.isLeftChild() {
 			y.parent.left = x
