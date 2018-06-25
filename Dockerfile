@@ -7,7 +7,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-suggests --no-install-recommends software-properties-common && \
     add-apt-repository -y ppa:gophers/archive && \
     apt-get update && \
-    apt-get install -y --no-install-suggests --no-install-recommends locales golang-1.10-go python3 python3-dev libyaml-dev libyaml-0-2 libxml2-dev libxml2 curl git make unzip g++ && \
+    apt-get install -y --no-install-suggests --no-install-recommends locales golang-1.10-go python3 python3-dev python3-distutils libyaml-dev libyaml-0-2 libxml2-dev libxml2 curl git make unzip g++ && \
     curl -SLo protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOBUF_VERSION/protoc-$PROTOBUF_VERSION-linux-x86_64.zip && \
     unzip -d /usr/local protoc.zip && rm protoc.zip && \
     locale-gen en_US.UTF-8 && \
@@ -19,7 +19,7 @@ RUN apt-get update && \
     make && \
     rm /usr/local/bin/protoc && rm /usr/local/readme.txt && rm -rf /usr/local/include/google && \
     cp /root/bin/hercules /usr/local/bin && \
-    cp -r /root/src/gopkg.in/src-d/hercules.v4/*.py /root/src/gopkg.in/src-d/hercules.v4/internal/pb /usr/local/bin && \
+    cp -r /root/src/gopkg.in/src-d/hercules.v4/*.py /root/src/gopkg.in/src-d/hercules.v4/internal /usr/local/bin && \
     sed -i 's/parser.add_argument("--backend",/parser.add_argument("--backend", default="Agg",/' /usr/local/bin/labours.py && \
     echo '#!/bin/bash\n\
 \n\
