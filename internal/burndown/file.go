@@ -36,9 +36,18 @@ func NewStatus(data interface{}, update func(interface{}, int, int, int)) Status
 }
 
 // TreeEnd denotes the value of the last leaf in the tree.
-const TreeEnd int = -1
+const TreeEnd = -1
+// TreeMaxBinPower is the binary power value which corresponds to the maximum day which
+// can be stored in the tree.
+const TreeMaxBinPower = 14
+// TreeMergeMark is the special day which disables the status updates and is used in File.Merge().
+const TreeMergeMark = (1 << TreeMaxBinPower) - 1
 
 func (file *File) updateTime(currentTime int, previousTime int, delta int) {
+	if currentTime & TreeMergeMark == TreeMergeMark {
+		// merge mode
+		return
+	}
 	for _, status := range file.statuses {
 		status.update(status.data, currentTime, previousTime, delta)
 	}
@@ -53,9 +62,7 @@ func (file *File) updateTime(currentTime int, previousTime int, delta int) {
 //
 // statuses are the attached interval length mappings.
 func NewFile(time int, length int, statuses ...Status) *File {
-	file := new(File)
-	file.statuses = statuses
-	file.tree = new(rbtree.RBTree)
+	file := &File{tree: new(rbtree.RBTree), statuses: statuses}
 	if length > 0 {
 		file.updateTime(time, time, length)
 		file.tree.Insert(rbtree.Item{Key: 0, Value: time})
@@ -73,9 +80,7 @@ func NewFile(time int, length int, statuses ...Status) *File {
 //
 // statuses are the attached interval length mappings.
 func NewFileFromTree(keys []int, vals []int, statuses ...Status) *File {
-	file := new(File)
-	file.statuses = statuses
-	file.tree = new(rbtree.RBTree)
+	file := &File{tree: new(rbtree.RBTree), statuses: statuses}
 	if len(keys) != len(vals) {
 		panic("keys and vals must be of equal length")
 	}
@@ -84,6 +89,20 @@ func NewFileFromTree(keys []int, vals []int, statuses ...Status) *File {
 	}
 	file.Validate()
 	return file
+}
+
+// Clone copies the file. It performs a deep copy of the tree;
+// depending on `clearStatuses` the original statuses are removed or not.
+// Any new `statuses` are appended.
+func (file *File) Clone(clearStatuses bool, statuses ...Status) *File {
+	clone := &File{tree: file.tree.Clone(), statuses: file.statuses}
+	if clearStatuses {
+		clone.statuses = []Status{}
+	}
+	for _, status := range statuses {
+		clone.statuses = append(clone.statuses, status)
+	}
+	return clone
 }
 
 // Len returns the File's size - that is, the maximum key in the tree of line
@@ -218,6 +237,51 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	}
 }
 
+func (file *File) Merge(day int, others... *File) {
+	myself := file.flatten()
+	for _, other := range others {
+		lines := other.flatten()
+		if len(myself) != len(lines) {
+			panic("file corruption, lines number mismatch during merge")
+		}
+		for i, l := range myself {
+			ol := lines[i]
+			if ol & TreeMergeMark == TreeMergeMark {
+				continue
+			}
+			if l & TreeMergeMark == TreeMergeMark {
+				myself[i] = ol
+			} else if l != ol {
+				// the same line introduced in different branches
+				// consider the oldest version as the ground truth
+				if l > ol {
+					myself[i] = ol
+					// subtract from the newer day l
+					file.updateTime(ol, l, -1)
+				} else {
+					// subtract from the newer day ol
+					file.updateTime(l, ol, -1)
+				}
+			}
+		}
+	}
+	for i, l := range myself {
+		if l & TreeMergeMark == TreeMergeMark {
+			myself[i] = day
+			file.updateTime(day, day, 1)
+		}
+	}
+	// now we need to reconstruct the tree from the discrete values
+	tree := &rbtree.RBTree{}
+	for i, v := range myself {
+		if i == 0 || v != myself[i - 1] {
+			tree.Insert(rbtree.Item{Key: i, Value: v})
+		}
+	}
+	tree.Insert(rbtree.Item{Key: len(myself), Value: TreeEnd})
+	file.tree = tree
+}
+
 // Status returns the bound status object by the specified index.
 func (file *File) Status(index int) interface{} {
 	if index < 0 || index >= len(file.statuses) {
@@ -262,4 +326,17 @@ func (file *File) Validate() {
 		}
 		prevKey = node.Key
 	}
+}
+
+// flatten represents the file as a slice of lines, each line's value being the corresponding day.
+func (file *File) flatten() []int {
+	lines := make([]int, 0, file.Len())
+	val := -1
+	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
+		for i := len(lines); i < iter.Item().Key; i++ {
+			lines = append(lines, val)
+		}
+		val = iter.Item().Value
+	}
+	return lines
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/hercules.v4/internal/rbtree"
+	"fmt"
 )
 
 func updateStatusFile(
@@ -52,6 +53,97 @@ func TestBullshitFile(t *testing.T) {
 	file.Update(1, 10, 0, 0)
 	assert.Equal(t, int64(100), status[0])
 	assert.Equal(t, int64(0), status[1])
+}
+
+func TestCloneFile(t *testing.T) {
+	file, status := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	clone := file.Clone(false)
+	clone.Update(5, 45, 0, 10)
+	// 0 0 | 20 4 | 30 1 | 45 0 | 120 -1        [0]: 95, [1]: 15, [4]: 10
+	clone.Update(6, 45, 5, 0)
+	// 0 0 | 20 4 | 30 1 | 45 6 | 50 0 | 125 -1 [0]: 95, [1]: 15, [4]: 10, [6]: 5
+	assert.Equal(t, int64(95), status[0])
+	assert.Equal(t, int64(15), status[1])
+	assert.Equal(t, int64(0), status[2])
+	assert.Equal(t, int64(0), status[3])
+	assert.Equal(t, int64(10), status[4])
+	assert.Equal(t, int64(0), status[5])
+	assert.Equal(t, int64(5), status[6])
+	dump := file.Dump()
+	// Output:
+	// 0 0
+	// 20 4
+	// 30 1
+	// 50 0
+	// 130 -1
+	assert.Equal(t, "0 0\n20 4\n30 1\n50 0\n130 -1\n", dump)
+	dump = clone.Dump()
+	// Output:
+	// 0 0
+	// 20 4
+	// 30 1
+	// 45 6
+	// 50 0
+	// 125 -1
+	assert.Equal(t, "0 0\n20 4\n30 1\n45 6\n50 0\n125 -1\n", dump)
+
+}
+
+func TestCloneFileClearStatus(t *testing.T) {
+	file, status := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	newStatus := map[int]int64{}
+	clone := file.Clone(true, NewStatus(newStatus, updateStatusFile))
+	clone.Update(5, 45, 0, 10)
+	// 0 0 | 20 4 | 30 1 | 45 0 | 120 -1        [0]: -5, [1]: -5
+	clone.Update(6, 45, 5, 0)
+	// 0 0 | 20 4 | 30 1 | 45 6 | 50 0 | 125 -1 [0]: -5, [1]: -5, [6]: 5
+	assert.Equal(t, int64(100), status[0])
+	assert.Equal(t, int64(20), status[1])
+	assert.Equal(t, int64(0), status[2])
+	assert.Equal(t, int64(0), status[3])
+	assert.Equal(t, int64(10), status[4])
+	assert.Equal(t, int64(-5), newStatus[0])
+	assert.Equal(t, int64(-5), newStatus[1])
+	assert.Equal(t, int64(0), newStatus[2])
+	assert.Equal(t, int64(0), newStatus[3])
+	assert.Equal(t, int64(0), newStatus[4])
+	assert.Equal(t, int64(0), newStatus[5])
+	assert.Equal(t, int64(5), newStatus[6])
+	dump := file.Dump()
+	// Output:
+	// 0 0
+	// 20 4
+	// 30 1
+	// 50 0
+	// 130 -1
+	assert.Equal(t, "0 0\n20 4\n30 1\n50 0\n130 -1\n", dump)
+	dump = clone.Dump()
+	// Output:
+	// 0 0
+	// 20 4
+	// 30 1
+	// 45 6
+	// 50 0
+	// 125 -1
+	assert.Equal(t, "0 0\n20 4\n30 1\n45 6\n50 0\n125 -1\n", dump)
 }
 
 func TestLenFile(t *testing.T) {
@@ -417,4 +509,96 @@ func TestFileValidate(t *testing.T) {
 	file.Validate()
 	file.tree.FindGE(2).Item().Key = 1
 	assert.Panics(t, func() { file.Validate() })
+}
+
+func TestFileFlatten(t *testing.T) {
+	file, _ := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	lines := file.flatten()
+	for i := 0; i < 20; i++ {
+		assert.Equal(t, 0, lines[i], fmt.Sprintf("line %d", i))
+	}
+	for i := 20; i < 30; i++ {
+		assert.Equal(t, 4, lines[i], fmt.Sprintf("line %d", i))
+	}
+	for i := 30; i < 50; i++ {
+		assert.Equal(t, 1, lines[i], fmt.Sprintf("line %d", i))
+	}
+	for i := 50; i < 130; i++ {
+		assert.Equal(t, 0, lines[i], fmt.Sprintf("line %d", i))
+	}
+	assert.Len(t, lines, 130)
+}
+
+func TestFileMergeMark(t *testing.T) {
+	file, status := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	file.Update(TreeMergeMark, 60, 20, 20)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 80 0 | 130 -1
+	// [0]: 100, [1]: 20, [4]: 10
+	dump := file.Dump()
+	assert.Equal(t, "0 0\n20 4\n30 1\n50 0\n60 16383\n80 0\n130 -1\n", dump)
+	assert.Contains(t, status, 0)
+	assert.Equal(t, int64(100), status[0])
+	assert.Equal(t, int64(20), status[1])
+	assert.Equal(t, int64(0), status[2])
+	assert.Equal(t, int64(0), status[3])
+	assert.Equal(t, int64(10), status[4])
+	assert.NotContains(t, status, TreeMergeMark)
+}
+
+
+func TestFileMerge(t *testing.T) {
+	file1, status := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file1.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file1.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file1.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file1.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	file2 := file1.Clone(false)
+	file1.Update(TreeMergeMark, 60, 30, 30)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 90 0 | 130 -1
+	// [0]: 70, [1]: 20, [4]: 10
+	file2.Update(5, 60, 20, 20)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 0 | 130 -1
+	// [0]: 80, [1]: 20, [4]: 10, [5]: 20
+	file2.Update(TreeMergeMark, 80, 10, 10)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 M | 90 0 | 130 -1
+	// [0]: 70, [1]: 20, [4]: 10, [5]: 20
+	file2.Update(6, 0, 10, 10)
+	// 0 6 | 10 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 M | 90 0 | 130 -1
+	// [0]: 60, [1]: 20, [4]: 10, [5]: 20, [6]: 10
+	file1.Merge(7, file2)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 7 | 90 0 | 130 -1
+	// [0]: 70, [1]: 20, [4]: 10, [5]: 20, [6]: 0, [7]: 10
+	dump := file1.Dump()
+	assert.Equal(t, "0 0\n20 4\n30 1\n50 0\n60 5\n80 7\n90 0\n130 -1\n", dump)
+	assert.Equal(t, int64(70), status[0])
+	assert.Equal(t, int64(20), status[1])
+	assert.Equal(t, int64(0), status[2])
+	assert.Equal(t, int64(0), status[3])
+	assert.Equal(t, int64(10), status[4])
+	assert.Equal(t, int64(20), status[5])
+	assert.Equal(t, int64(0), status[6])
+	assert.Equal(t, int64(10), status[7])
 }
