@@ -368,9 +368,12 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 	}
 	defer cit.Close()
 	var commits []*object.Commit
-	timeCutoff := time.Date(2016, 12, 15, 0, 0, 0, 0, time.Local)
+	timeCutoff := time.Date(2016, 12, 15, 0, 0, 0, 0, time.FixedZone("CET", 7200))
 	cit.ForEach(func(commit *object.Commit) error {
-		if commit.Author.When.Before(timeCutoff) {
+		reliableTime := time.Date(commit.Author.When.Year(), commit.Author.When.Month(),
+			commit.Author.When.Day(), commit.Author.When.Hour(), commit.Author.When.Minute(),
+			commit.Author.When.Second(), 0, time.FixedZone("CET", 7200))
+		if reliableTime.Before(timeCutoff) {
 			commits = append(commits, commit)
 		}
 		return nil
@@ -425,9 +428,12 @@ func TestPrepareRunPlanBig(t *testing.T) {
 		defer cit.Close()
 		var commits []*object.Commit
 		timeCutoff := time.Date(
-			testCase[0], time.Month(testCase[1]), testCase[2], 0, 0, 0, 0, time.Local)
+			testCase[0], time.Month(testCase[1]), testCase[2], 0, 0, 0, 0, time.FixedZone("CET", 7200))
 		cit.ForEach(func(commit *object.Commit) error {
-			if commit.Author.When.Before(timeCutoff) {
+			reliableTime := time.Date(commit.Author.When.Year(), commit.Author.When.Month(),
+				commit.Author.When.Day(), commit.Author.When.Hour(), commit.Author.When.Minute(),
+				commit.Author.When.Second(), 0, time.FixedZone("CET", 7200))
+			if reliableTime.Before(timeCutoff) {
 				commits = append(commits, commit)
 			}
 			return nil
