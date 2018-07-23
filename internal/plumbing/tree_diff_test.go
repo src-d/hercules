@@ -46,7 +46,7 @@ func TestTreeDiffConsume(t *testing.T) {
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	prevCommit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"fbe766ffdc3f87f6affddc051c6f8b419beea6a2"))
 	td.previousTree, _ = prevCommit.Tree()
@@ -87,7 +87,7 @@ func TestTreeDiffConsumeFirst(t *testing.T) {
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	res, err := td.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res), 1)
@@ -106,7 +106,7 @@ func TestTreeDiffBadCommit(t *testing.T) {
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	commit.TreeHash = plumbing.NewHash("0000000000000000000000000000000000000000")
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	res, err := td.Consume(deps)
 	assert.Nil(t, res)
 	assert.NotNil(t, err)
@@ -118,7 +118,7 @@ func TestTreeDiffConsumeSkip(t *testing.T) {
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"aefdedf7cafa6ee110bae9a3910bf5088fdeb5a9"))
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	prevCommit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"1e076dc56989bc6aa1ef5f55901696e9e01423d4"))
 	td.previousTree, _ = prevCommit.Tree()
@@ -140,4 +140,16 @@ func TestTreeDiffConsumeSkip(t *testing.T) {
 	assert.Equal(t, len(res), 1)
 	changes = res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, 31, len(changes))
+}
+
+func TestTreeDiffFork(t *testing.T) {
+	td1 := fixtureTreeDiff()
+	td1.SkipDirs = append(td1.SkipDirs, "skip")
+	clones := td1.Fork(1)
+	assert.Len(t, clones, 1)
+	td2 := clones[0].(*TreeDiff)
+	assert.False(t, td1 == td2)
+	assert.Equal(t, td1.SkipDirs, td2.SkipDirs)
+	assert.Equal(t, td1.previousTree, td2.previousTree)
+	td1.Merge([]core.PipelineItem{td2})
 }

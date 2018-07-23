@@ -120,7 +120,7 @@ const (
 	DefaultBurndownGranularity = 30
 	// authorSelf is the internal author index which is used in BurndownAnalysis.Finalize() to
 	// format the author overwrites matrix.
-	authorSelf = (1 << 18) - 2
+	authorSelf = (1 << (32 - burndown.TreeMaxBinPower)) - 2
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -238,21 +238,20 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	sampling := analyser.Sampling
-	if sampling == 0 {
-		sampling = 1
-	}
+	commit := deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
-	analyser.day = deps[items.DependencyDay].(int)
-	delta := (analyser.day / sampling) - (analyser.previousDay / sampling)
-	if delta > 0 {
-		analyser.previousDay = analyser.day
-		gs, fss, pss := analyser.groupStatus()
-		analyser.updateHistories(gs, fss, pss, delta)
+	day := deps[items.DependencyDay].(int)
+	if len(commit.ParentHashes) == 1 {
+		analyser.day = day
+		analyser.onNewDay()
+	} else {
+		// effectively disables the status updates if the commit is a merge
+		// we will analyse the conflicts resolution in Merge()
+		analyser.day = burndown.TreeMergeMark
 	}
 	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
 	treeDiffs := deps[items.DependencyTreeChanges].(object.Changes)
@@ -272,13 +271,44 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 			return nil, err
 		}
 	}
+	// in case there is a merge analyser.day equals to TreeMergeMark
+	analyser.day = day
 	return nil, nil
+}
+
+func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
+	result := make([]core.PipelineItem, n)
+	for i := range result {
+		clone := *analyser
+		clone.files = map[string]*burndown.File{}
+		for key, file := range analyser.files {
+			clone.files[key] = file.Clone(false)
+		}
+		result[i] = &clone
+	}
+	return result
+}
+
+func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
+	for key, file := range analyser.files {
+		others := make([]*burndown.File, len(branches))
+		for i, branch := range branches {
+			others[i] = branch.(*BurndownAnalysis).files[key]
+		}
+		// don't worry, we compare the hashes first before heavy-lifting
+		if file.Merge(analyser.day, others...) {
+			for _, branch := range branches {
+				branch.(*BurndownAnalysis).files[key] = file.Clone(false)
+			}
+		}
+	}
+	analyser.onNewDay()
 }
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (analyser *BurndownAnalysis) Finalize() interface{} {
 	gs, fss, pss := analyser.groupStatus()
-	analyser.updateHistories(gs, fss, pss, 1)
+	analyser.updateHistories(1, gs, fss, pss)
 	for key, statuses := range analyser.fileHistories {
 		if len(statuses) == len(analyser.globalHistory) {
 			continue
@@ -799,9 +829,10 @@ func (analyser *BurndownAnalysis) packPersonWithDay(person int, day int) int {
 	if analyser.PeopleNumber == 0 {
 		return day
 	}
-	result := day
-	result |= person << 14
-	// This effectively means max 16384 days (>44 years) and (131072 - 2) devs
+	result := day & burndown.TreeMergeMark
+	result |= person << burndown.TreeMaxBinPower
+	// This effectively means max (16383 - 1) days (>44 years) and (131072 - 2) devs.
+	// One day less because burndown.TreeMergeMark = ((1 << 14) - 1) is a special day.
 	return result
 }
 
@@ -809,7 +840,18 @@ func (analyser *BurndownAnalysis) unpackPersonWithDay(value int) (int, int) {
 	if analyser.PeopleNumber == 0 {
 		return identity.AuthorMissing, value
 	}
-	return value >> 14, value & 0x3FFF
+	return value >> burndown.TreeMaxBinPower, value & burndown.TreeMergeMark
+}
+
+func (analyser *BurndownAnalysis) onNewDay() {
+	day := analyser.day
+	sampling := analyser.Sampling
+	delta := (day / sampling) - (analyser.previousDay / sampling)
+	if delta > 0 {
+		analyser.previousDay = day
+		gs, fss, pss := analyser.groupStatus()
+		analyser.updateHistories(delta, gs, fss, pss)
+	}
 }
 
 func (analyser *BurndownAnalysis) updateStatus(
@@ -1092,7 +1134,7 @@ func (analyser *BurndownAnalysis) groupStatus() ([]int64, map[string][]int64, []
 }
 
 func (analyser *BurndownAnalysis) updateHistories(
-	globalStatus []int64, fileStatuses map[string][]int64, peopleStatuses [][]int64, delta int) {
+	delta int, globalStatus []int64, fileStatuses map[string][]int64, peopleStatuses [][]int64) {
 	for i := 0; i < delta; i++ {
 		analyser.globalHistory = append(analyser.globalHistory, globalStatus)
 	}

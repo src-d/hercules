@@ -15,7 +15,7 @@ import (
 // signatures, and we apply some heuristics to merge those together.
 // It is a PipelineItem.
 type Detector struct {
-	// PeopleDict maps email || name  -> developer id.
+	// PeopleDict maps email || name  -> developer id
 	PeopleDict map[string]int
 	// ReversedPeopleDict maps developer id -> description
 	ReversedPeopleDict []string
@@ -49,14 +49,14 @@ const (
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
-func (id *Detector) Name() string {
+func (detector *Detector) Name() string {
 	return "IdentityDetector"
 }
 
 // Provides returns the list of names of entities which are produced by this PipelineItem.
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
-func (id *Detector) Provides() []string {
+func (detector *Detector) Provides() []string {
 	arr := [...]string{DependencyAuthor}
 	return arr[:]
 }
@@ -64,12 +64,12 @@ func (id *Detector) Provides() []string {
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
-func (id *Detector) Requires() []string {
+func (detector *Detector) Requires() []string {
 	return []string{}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
-func (id *Detector) ListConfigurationOptions() []core.ConfigurationOption {
+func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
 		Name:        ConfigIdentityDetectorPeopleDictPath,
 		Description: "Path to the developers' email associations.",
@@ -81,48 +81,48 @@ func (id *Detector) ListConfigurationOptions() []core.ConfigurationOption {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (id *Detector) Configure(facts map[string]interface{}) {
+func (detector *Detector) Configure(facts map[string]interface{}) {
 	if val, exists := facts[FactIdentityDetectorPeopleDict].(map[string]int); exists {
-		id.PeopleDict = val
+		detector.PeopleDict = val
 	}
 	if val, exists := facts[FactIdentityDetectorReversedPeopleDict].([]string); exists {
-		id.ReversedPeopleDict = val
+		detector.ReversedPeopleDict = val
 	}
-	if id.PeopleDict == nil || id.ReversedPeopleDict == nil {
+	if detector.PeopleDict == nil || detector.ReversedPeopleDict == nil {
 		peopleDictPath, _ := facts[ConfigIdentityDetectorPeopleDictPath].(string)
 		if peopleDictPath != "" {
-			id.LoadPeopleDict(peopleDictPath)
-			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict) - 1
+			detector.LoadPeopleDict(peopleDictPath)
+			facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict) - 1
 		} else {
 			if _, exists := facts[core.ConfigPipelineCommits]; !exists {
 				panic("IdentityDetector needs a list of commits to initialize.")
 			}
-			id.GeneratePeopleDict(facts[core.ConfigPipelineCommits].([]*object.Commit))
-			facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict)
+			detector.GeneratePeopleDict(facts[core.ConfigPipelineCommits].([]*object.Commit))
+			facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict)
 		}
 	} else {
-		facts[FactIdentityDetectorPeopleCount] = len(id.ReversedPeopleDict)
+		facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict)
 	}
-	facts[FactIdentityDetectorPeopleDict] = id.PeopleDict
-	facts[FactIdentityDetectorReversedPeopleDict] = id.ReversedPeopleDict
+	facts[FactIdentityDetectorPeopleDict] = detector.PeopleDict
+	facts[FactIdentityDetectorReversedPeopleDict] = detector.ReversedPeopleDict
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (id *Detector) Initialize(repository *git.Repository) {
+func (detector *Detector) Initialize(repository *git.Repository) {
 }
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
-func (id *Detector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps["commit"].(*object.Commit)
+func (detector *Detector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	commit := deps[core.DependencyCommit].(*object.Commit)
 	signature := commit.Author
-	authorID, exists := id.PeopleDict[strings.ToLower(signature.Email)]
+	authorID, exists := detector.PeopleDict[strings.ToLower(signature.Email)]
 	if !exists {
-		authorID, exists = id.PeopleDict[strings.ToLower(signature.Name)]
+		authorID, exists = detector.PeopleDict[strings.ToLower(signature.Name)]
 		if !exists {
 			authorID = AuthorMissing
 		}
@@ -130,10 +130,22 @@ func (id *Detector) Consume(deps map[string]interface{}) (map[string]interface{}
 	return map[string]interface{}{DependencyAuthor: authorID}, nil
 }
 
+func (detector *Detector) Fork(n int) []core.PipelineItem {
+	detectors := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		// we are safe to share the same dictionaries across branches
+		detectors[i] = detector
+	}
+	return detectors
+}
+
+func (detector *Detector) Merge(branches []core.PipelineItem) {
+}
+
 // LoadPeopleDict loads author signatures from a text file.
 // The format is one signature per line, and the signature consists of several
 // keys separated by "|". The first key is the main one and used to reference all the rest.
-func (id *Detector) LoadPeopleDict(path string) error {
+func (detector *Detector) LoadPeopleDict(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -152,13 +164,13 @@ func (id *Detector) LoadPeopleDict(path string) error {
 		size++
 	}
 	reverseDict = append(reverseDict, AuthorMissingName)
-	id.PeopleDict = dict
-	id.ReversedPeopleDict = reverseDict
+	detector.PeopleDict = dict
+	detector.ReversedPeopleDict = reverseDict
 	return nil
 }
 
 // GeneratePeopleDict loads author signatures from the specified list of Git commits.
-func (id *Detector) GeneratePeopleDict(commits []*object.Commit) {
+func (detector *Detector) GeneratePeopleDict(commits []*object.Commit) {
 	dict := map[string]int{}
 	emails := map[int][]string{}
 	names := map[int][]string{}
@@ -249,12 +261,12 @@ func (id *Detector) GeneratePeopleDict(commits []*object.Commit) {
 		sort.Strings(emails[val])
 		reverseDict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
 	}
-	id.PeopleDict = dict
-	id.ReversedPeopleDict = reverseDict
+	detector.PeopleDict = dict
+	detector.ReversedPeopleDict = reverseDict
 }
 
 // MergeReversedDicts joins two identity lists together, excluding duplicates, in-order.
-func (id Detector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
+func (detector Detector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
 	people := map[string][3]int{}
 	for i, pid := range rd1 {
 		ptrs := people[pid]

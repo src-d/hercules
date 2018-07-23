@@ -17,19 +17,19 @@ import (
 // It must provide the old and the new objects; "blobCache" rotates and allows to not load
 // the same blobs twice. Outdated objects are removed so "blobCache" never grows big.
 type BlobCache struct {
-	// Specifies how to handle the situation when we encounter a git submodule - an object without
-	// the blob. If false, we look inside .gitmodules and if don't find, raise an error.
-	// If true, we do not look inside .gitmodules and always succeed.
-	IgnoreMissingSubmodules bool
+	// Specifies how to handle the situation when we encounter a git submodule - an object
+	// without the blob. If true, we look inside .gitmodules and if we don't find it,
+	// raise an error. If false, we do not look inside .gitmodules and always succeed.
+	FailOnMissingSubmodules bool
 
 	repository *git.Repository
 	cache      map[plumbing.Hash]*object.Blob
 }
 
 const (
-	// ConfigBlobCacheIgnoreMissingSubmodules is the name of the configuration option for
-	// BlobCache.Configure() to not check if the referenced submodules exist.
-	ConfigBlobCacheIgnoreMissingSubmodules = "BlobCache.IgnoreMissingSubmodules"
+	// ConfigBlobCacheFailOnMissingSubmodules is the name of the configuration option for
+	// BlobCache.Configure() to check if the referenced submodules are registered in .gitignore.
+	ConfigBlobCacheFailOnMissingSubmodules = "BlobCache.FailOnMissingSubmodules"
 	// DependencyBlobCache identifies the dependency provided by BlobCache.
 	DependencyBlobCache = "blob_cache"
 )
@@ -58,11 +58,11 @@ func (blobCache *BlobCache) Requires() []string {
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (blobCache *BlobCache) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
-		Name: ConfigBlobCacheIgnoreMissingSubmodules,
-		Description: "Specifies whether to panic if some referenced submodules do not exist and thus" +
-			" the corresponding Git objects cannot be loaded. Override this if you know that the " +
-			"history is dirty and you want to get things done.",
-		Flag:    "ignore-missing-submodules",
+		Name: ConfigBlobCacheFailOnMissingSubmodules,
+		Description: "Specifies whether to panic if any referenced submodule does " +
+			"not exist in .gitmodules and thus the corresponding Git object cannot be loaded. " +
+			"Override this if you want to ensure that your repository is integral. ",
+		Flag:    "fail-on-missing-submodules",
 		Type:    core.BoolConfigurationOption,
 		Default: false}}
 	return options[:]
@@ -70,8 +70,8 @@ func (blobCache *BlobCache) ListConfigurationOptions() []core.ConfigurationOptio
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (blobCache *BlobCache) Configure(facts map[string]interface{}) {
-	if val, exists := facts[ConfigBlobCacheIgnoreMissingSubmodules].(bool); exists {
-		blobCache.IgnoreMissingSubmodules = val
+	if val, exists := facts[ConfigBlobCacheFailOnMissingSubmodules].(bool); exists {
+		blobCache.FailOnMissingSubmodules = val
 	}
 }
 
@@ -84,11 +84,12 @@ func (blobCache *BlobCache) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
-// This function returns the mapping with analysis results. The keys must be the same as
-// in Provides(). If there was an error, nil is returned.
+// Additionally, DependencyCommit is always present there and represents
+// the analysed *object.Commit. This function returns the mapping with analysis
+// results. The keys must be the same as in Provides(). If there was an error,
+// nil is returned.
 func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps["commit"].(*object.Commit)
+	commit := deps[core.DependencyCommit].(*object.Commit)
 	changes := deps[DependencyTreeChanges].(object.Changes)
 	cache := map[plumbing.Hash]*object.Blob{}
 	newCache := map[plumbing.Hash]*object.Blob{}
@@ -104,22 +105,25 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 		case merkletrie.Insert:
 			blob, err = blobCache.getBlob(&change.To, commit.File)
 			if err != nil {
-				log.Printf("file to %s %s\n", change.To.Name, change.To.TreeEntry.Hash)
+				log.Printf("file to %s %s\n",
+					change.To.Name, change.To.TreeEntry.Hash)
 			} else {
 				cache[change.To.TreeEntry.Hash] = blob
 				newCache[change.To.TreeEntry.Hash] = blob
 			}
 		case merkletrie.Delete:
-			cache[change.From.TreeEntry.Hash], exists = blobCache.cache[change.From.TreeEntry.Hash]
+			cache[change.From.TreeEntry.Hash], exists =
+				blobCache.cache[change.From.TreeEntry.Hash]
 			if !exists {
-				cache[change.From.TreeEntry.Hash], err = blobCache.getBlob(&change.From, commit.File)
+				cache[change.From.TreeEntry.Hash], err =
+					blobCache.getBlob(&change.From, commit.File)
 				if err != nil {
 					if err.Error() != plumbing.ErrObjectNotFound.Error() {
 						log.Printf("file from %s %s\n", change.From.Name,
 							change.From.TreeEntry.Hash)
 					} else {
-						cache[change.From.TreeEntry.Hash], err = internal.CreateDummyBlob(
-							change.From.TreeEntry.Hash)
+						cache[change.From.TreeEntry.Hash], err =
+							internal.CreateDummyBlob(change.From.TreeEntry.Hash)
 					}
 				}
 			}
@@ -131,9 +135,11 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 				cache[change.To.TreeEntry.Hash] = blob
 				newCache[change.To.TreeEntry.Hash] = blob
 			}
-			cache[change.From.TreeEntry.Hash], exists = blobCache.cache[change.From.TreeEntry.Hash]
+			cache[change.From.TreeEntry.Hash], exists =
+				blobCache.cache[change.From.TreeEntry.Hash]
 			if !exists {
-				cache[change.From.TreeEntry.Hash], err = blobCache.getBlob(&change.From, commit.File)
+				cache[change.From.TreeEntry.Hash], err =
+					blobCache.getBlob(&change.From, commit.File)
 				if err != nil {
 					log.Printf("file from %s\n", change.From.Name)
 				}
@@ -147,9 +153,29 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 	return map[string]interface{}{DependencyBlobCache: cache}, nil
 }
 
-// FileGetter defines a function which loads the Git file by the specified path.
-// The state can be arbitrary though here it always corresponds to the currently processed
-// commit.
+func (blobCache *BlobCache) Fork(n int) []core.PipelineItem {
+	caches := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		cache := map[plumbing.Hash]*object.Blob{}
+		for k, v := range blobCache.cache {
+			cache[k] = v
+		}
+		caches[i] = &BlobCache{
+			FailOnMissingSubmodules: blobCache.FailOnMissingSubmodules,
+			repository: blobCache.repository,
+			cache: cache,
+		}
+	}
+	return caches
+}
+
+func (blobCache *BlobCache) Merge(branches []core.PipelineItem) {
+	// no-op
+}
+
+// FileGetter defines a function which loads the Git file by
+// the specified path. The state can be arbitrary though here it always
+// corresponds to the currently processed commit.
 type FileGetter func(path string) (*object.File, error)
 
 // Returns the blob which corresponds to the specified ChangeEntry.
@@ -164,7 +190,7 @@ func (blobCache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGe
 		if entry.TreeEntry.Mode != 0160000 {
 			// this is not a submodule
 			return nil, err
-		} else if blobCache.IgnoreMissingSubmodules {
+		} else if !blobCache.FailOnMissingSubmodules {
 			return internal.CreateDummyBlob(entry.TreeEntry.Hash)
 		}
 		file, errModules := fileGetter(".gitmodules")

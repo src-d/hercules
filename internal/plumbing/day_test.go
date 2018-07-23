@@ -40,8 +40,8 @@ func TestDaysSinceStartConsume(t *testing.T) {
 	deps := map[string]interface{}{}
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
-	deps["commit"] = commit
-	deps["index"] = 0
+	deps[core.DependencyCommit] = commit
+	deps[core.DependencyIndex] = 0
 	res, err := dss.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyDay].(int), 0)
@@ -52,8 +52,8 @@ func TestDaysSinceStartConsume(t *testing.T) {
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"fc9ceecb6dabcb2aab60e8619d972e8d8208a7df"))
-	deps["commit"] = commit
-	deps["index"] = 10
+	deps[core.DependencyCommit] = commit
+	deps[core.DependencyIndex] = 10
 	res, err = dss.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyDay].(int), 1)
@@ -61,8 +61,8 @@ func TestDaysSinceStartConsume(t *testing.T) {
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
-	deps["commit"] = commit
-	deps["index"] = 20
+	deps[core.DependencyCommit] = commit
+	deps[core.DependencyIndex] = 20
 	res, err = dss.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyDay].(int), 1)
@@ -70,8 +70,8 @@ func TestDaysSinceStartConsume(t *testing.T) {
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"a8b665a65d7aced63f5ba2ff6d9b71dac227f8cf"))
-	deps["commit"] = commit
-	deps["index"] = 20
+	deps[core.DependencyCommit] = commit
+	deps[core.DependencyIndex] = 20
 	res, err = dss.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyDay].(int), 2)
@@ -79,8 +79,8 @@ func TestDaysSinceStartConsume(t *testing.T) {
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"186ff0d7e4983637bb3762a24d6d0a658e7f4712"))
-	deps["commit"] = commit
-	deps["index"] = 30
+	deps[core.DependencyCommit] = commit
+	deps[core.DependencyIndex] = 30
 	res, err = dss.Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyDay].(int), 2)
@@ -105,4 +105,21 @@ func TestDaysCommits(t *testing.T) {
 	dss.Initialize(test.Repository)
 	assert.Len(t, dss.commits, 0)
 	assert.Equal(t, dss.commits, commits)
+}
+
+func TestDaysSinceStartFork(t *testing.T) {
+	dss1 := fixtureDaysSinceStart()
+	dss1.commits[0] = []plumbing.Hash{plumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1")}
+	clones := dss1.Fork(1)
+	assert.Len(t, clones, 1)
+	dss2 := clones[0].(*DaysSinceStart)
+	assert.Equal(t, dss1.day0, dss2.day0)
+	assert.Equal(t, dss1.previousDay, dss2.previousDay)
+	assert.Equal(t, dss1.commits, dss2.commits)
+	dss1.commits[0] = append(dss1.commits[0], plumbing.ZeroHash)
+	assert.Len(t, dss2.commits[0], 2)
+	assert.True(t, dss1 != dss2)
+	// just for the sake of it
+	dss1.Merge([]core.PipelineItem{dss2})
 }

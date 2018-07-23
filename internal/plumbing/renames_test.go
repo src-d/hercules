@@ -164,3 +164,12 @@ func TestSortableBlobs(t *testing.T) {
 	assert.Equal(t, blobs[0].size, int64(1))
 	assert.Equal(t, blobs[1].size, int64(0))
 }
+
+func TestRenameAnalysisFork(t *testing.T) {
+	ra1 := fixtureRenameAnalysis()
+	clones := ra1.Fork(1)
+	assert.Len(t, clones, 1)
+	ra2 := clones[0].(*RenameAnalysis)
+	assert.True(t, ra1 == ra2)
+	ra1.Merge([]core.PipelineItem{ra2})
+}

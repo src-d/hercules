@@ -89,7 +89,7 @@ func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -201,6 +201,18 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 		reducedChanges = append(reducedChanges, blob.change)
 	}
 	return map[string]interface{}{DependencyTreeChanges: reducedChanges}, nil
+}
+
+func (ra *RenameAnalysis) Fork(n int) []core.PipelineItem {
+	clones := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		clones[i] = ra
+	}
+	return clones
+}
+
+func (ra *RenameAnalysis) Merge(branches []core.PipelineItem) {
+	// no-op
 }
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {

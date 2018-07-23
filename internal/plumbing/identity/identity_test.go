@@ -133,13 +133,13 @@ func TestIdentityDetectorConsume(t *testing.T) {
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"5c0e755dd85ac74584d9988cc361eccf02ce1a48"))
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	res, err := fixtureIdentityDetector().Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyAuthor].(int), 0)
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"8a03b5620b1caa72ec9cb847ea88332621e2950a"))
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	res, err = fixtureIdentityDetector().Consume(deps)
 	assert.Nil(t, err)
 	assert.Equal(t, res[DependencyAuthor].(int), AuthorMissing)
@@ -391,4 +391,13 @@ func TestIdentityDetectorMergeReversedDicts(t *testing.T) {
 	assert.Equal(t, people["three"], [3]int{2, -1, 1})
 	vm = [...]string{"two", "one", "three"}
 	assert.Equal(t, merged, vm[:])
+}
+
+func TestIdentityDetectorFork(t *testing.T) {
+	id1 := fixtureIdentityDetector()
+	clones := id1.Fork(1)
+	assert.Len(t, clones, 1)
+	id2 := clones[0].(*Detector)
+	assert.True(t, id1 == id2)
+	id1.Merge([]core.PipelineItem{id2})
 }

@@ -99,9 +99,18 @@ type PipelineItem interface {
 	Initialize(*git.Repository)
 	// Consume processes the next commit.
 	// deps contains the required entities which match Depends(). Besides, it always includes
-	// "commit" and "index".
+	// DependencyCommit and DependencyIndex.
 	// Returns the calculated entities which match Provides().
 	Consume(deps map[string]interface{}) (map[string]interface{}, error)
+	// Fork clones the item the requested number of times. The data links between the clones
+	// are up to the implementation. Needed to handle Git branches. See also Merge().
+	// Returns a slice with `n` fresh clones. In other words, it does not include the original item.
+	Fork(n int) []PipelineItem
+	// Merge combines several branches together. Each is supposed to have been created with Fork().
+	// The result is stored in the called item, thus this function returns nothing.
+	// Merge() must update all the branches, not only self. When several branches merge, some of
+	// them may continue to live, hence this requirement.
+	Merge(branches []PipelineItem)
 }
 
 // FeaturedPipelineItem enables switching the automatic insertion of pipeline items on or off.
@@ -197,8 +206,8 @@ func MetadataToCommonAnalysisResult(meta *Metadata) *CommonAnalysisResult {
 // See the extended example of how a Pipeline works in doc.go
 type Pipeline struct {
 	// OnProgress is the callback which is invoked in Analyse() to output it's
-	// progress. The first argument is the number of processed commits and the
-	// second is the total number of commits.
+	// progress. The first argument is the number of complete steps and the
+	// second is the total number of steps.
 	OnProgress func(int, int)
 
 	// Repository points to the analysed Git repository struct from go-git.
@@ -227,6 +236,12 @@ const (
 	// ConfigPipelineCommits is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which allows to specify the custom commit sequence. By default, Pipeline.Commits() is used.
 	ConfigPipelineCommits = "commits"
+	// DependencyCommit is the name of one of the two items in `deps` supplied to PipelineItem.Consume()
+	// which always exists. It corresponds to the currently analyzed commit.
+	DependencyCommit = "commit"
+	// DependencyIndex is the name of one of the two items in `deps` supplied to PipelineItem.Consume()
+	// which always exists. It corresponds to the currently analyzed commit's index.
+	DependencyIndex = "index"
 )
 
 // NewPipeline initializes a new instance of Pipeline struct.
@@ -549,33 +564,56 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	if onProgress == nil {
 		onProgress = func(int, int) {}
 	}
+	plan := prepareRunPlan(commits)
+	progressSteps := len(plan) + 2
+	branches := map[int][]PipelineItem{0: pipeline.items}
 
-	for index, commit := range commits {
-		onProgress(index, len(commits))
-		state := map[string]interface{}{"commit": commit, "index": index}
-		for _, item := range pipeline.items {
-			update, err := item.Consume(state)
-			if err != nil {
-				log.Printf("%s failed on commit #%d %s\n",
-					item.Name(), index, commit.Hash.String())
-				return nil, err
+	for index, step := range plan {
+		onProgress(index + 1, progressSteps)
+		firstItem := step.Items[0]
+		switch step.Action {
+		case runActionCommit:
+			state := map[string]interface{}{
+				DependencyCommit: step.Commit,
+				DependencyIndex: index,
 			}
-			for _, key := range item.Provides() {
-				val, ok := update[key]
-				if !ok {
-					panic(fmt.Sprintf("%s: Consume() did not return %s", item.Name(), key))
+			for _, item := range branches[firstItem] {
+				update, err := item.Consume(state)
+				if err != nil {
+					log.Printf("%s failed on commit #%d %s\n",
+						item.Name(), index + 1, step.Commit.Hash.String())
+					return nil, err
 				}
-				state[key] = val
+				for _, key := range item.Provides() {
+					val, ok := update[key]
+					if !ok {
+						panic(fmt.Sprintf("%s: Consume() did not return %s", item.Name(), key))
+					}
+					state[key] = val
+				}
 			}
+		case runActionFork:
+			for i, clone := range cloneItems(branches[firstItem], len(step.Items)-1) {
+				branches[step.Items[i+1]] = clone
+			}
+		case runActionMerge:
+			merged := make([][]PipelineItem, len(step.Items))
+			for i, b := range step.Items {
+				merged[i] = branches[b]
+			}
+			mergeItems(merged)
+		case runActionDelete:
+			delete(branches, firstItem)
 		}
 	}
-	onProgress(len(commits), len(commits))
+	onProgress(len(plan) + 1, progressSteps)
 	result := map[LeafPipelineItem]interface{}{}
-	for _, item := range pipeline.items {
+	for _, item := range getMasterBranch(branches) {
 		if casted, ok := item.(LeafPipelineItem); ok {
 			result[casted] = casted.Finalize()
 		}
 	}
+	onProgress(progressSteps, progressSteps)
 	result[nil] = &CommonAnalysisResult{
 		BeginTime:     commits[0].Author.When.Unix(),
 		EndTime:       commits[len(commits)-1].Author.When.Unix(),
@@ -600,7 +638,7 @@ func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Com
 		file = os.Stdin
 	}
 	scanner := bufio.NewScanner(file)
-	commits := []*object.Commit{}
+	var commits []*object.Commit
 	for scanner.Scan() {
 		hash := plumbing.NewHash(scanner.Text())
 		if len(hash) != 20 {
@@ -616,9 +654,13 @@ func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Com
 }
 
 const (
+	// runActionCommit corresponds to a regular commit
 	runActionCommit = 0
+	// runActionFork splits a branch into several parts
 	runActionFork = iota
+	// runActionMerge merges several branches together
 	runActionMerge = iota
+	// runActionDelete removes the branch as it is no longer needed
 	runActionDelete = iota
 )
 
@@ -628,6 +670,44 @@ type runAction struct {
 	Items []int
 }
 
+func cloneItems(origin []PipelineItem, n int) [][]PipelineItem {
+	clones := make([][]PipelineItem, n)
+	for j := 0; j < n; j++ {
+		clones[j] = make([]PipelineItem, len(origin))
+	}
+	for i, item := range origin {
+		itemClones := item.Fork(n)
+		for j := 0; j < n; j++ {
+			clones[j][i] = itemClones[j]
+		}
+	}
+	return clones
+}
+
+func mergeItems(branches [][]PipelineItem) {
+	buffer := make([]PipelineItem, len(branches) - 1)
+	for i, item := range branches[0] {
+		for j := 0; j < len(branches)-1; j++ {
+			buffer[j] = branches[j+1][i]
+		}
+		item.Merge(buffer)
+	}
+}
+
+// getMasterBranch returns the branch with the smallest index.
+func getMasterBranch(branches map[int][]PipelineItem) []PipelineItem {
+	minKey := 1 << 31
+	var minVal []PipelineItem
+	for key, val := range branches {
+		if key < minKey {
+			minKey = key
+			minVal = val
+		}
+	}
+	return minVal
+}
+
+// prepareRunPlan schedules the actions for Pipeline.Run().
 func prepareRunPlan(commits []*object.Commit) []runAction {
 	hashes, dag := buildDag(commits)
 	leaveRootComponent(hashes, dag)

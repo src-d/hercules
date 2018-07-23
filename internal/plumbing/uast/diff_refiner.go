@@ -59,7 +59,7 @@ func (ref *FileDiffRefiner) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -159,6 +159,18 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 		result[fileName] = newDiff
 	}
 	return map[string]interface{}{plumbing.DependencyFileDiff: result}, nil
+}
+
+func (ref *FileDiffRefiner) Fork(n int) []core.PipelineItem {
+	refs := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		refs[i] = ref
+	}
+	return refs
+}
+
+func (ref *FileDiffRefiner) Merge(branches []core.PipelineItem) {
+	// no-op
 }
 
 // VisitEachNode is a handy routine to execute a callback on every node in the subtree,

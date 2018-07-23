@@ -77,7 +77,7 @@ func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, Shotn
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
-	state["commit"] = &object.Commit{}
+	state[DependencyCommit] = &object.Commit{}
 	fileDiffs := map[string]items.FileDiffData{}
 	const fileName = "test.java"
 	fileDiffs[fileName] = items.FileDiffData{
@@ -130,7 +130,7 @@ func TestShotnessConsume(t *testing.T) {
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
-	state["commit"] = &object.Commit{}
+	state[DependencyCommit] = &object.Commit{}
 	fileDiffs := map[string]items.FileDiffData{}
 	const fileName = "test.java"
 	const newfileName = "new.java"

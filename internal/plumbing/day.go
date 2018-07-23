@@ -77,12 +77,12 @@ func (days *DaysSinceStart) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps["commit"].(*object.Commit)
-	index := deps["index"].(int)
+	commit := deps[core.DependencyCommit].(*object.Commit)
+	index := deps[core.DependencyIndex].(int)
 	if index == 0 {
 		// first iteration - initialize the file objects from the tree
 		days.day0 = commit.Author.When
@@ -99,8 +99,34 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 	if dayCommits == nil {
 		dayCommits = []plumbing.Hash{}
 	}
-	days.commits[day] = append(dayCommits, commit.Hash)
+	exists := false
+	if commit.NumParents() > 0 {
+		for i := range dayCommits {
+			if dayCommits[len(dayCommits)-i-1] == commit.Hash {
+				exists = true
+			}
+		}
+	}
+	if !exists {
+		days.commits[day] = append(dayCommits, commit.Hash)
+	}
 	return map[string]interface{}{DependencyDay: day}, nil
+}
+
+func (days *DaysSinceStart) Fork(n int) []core.PipelineItem {
+	clones := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		clones[i] = &DaysSinceStart{
+			previousDay: days.previousDay,
+			day0: days.day0,
+			commits: days.commits,
+		}
+	}
+	return clones
+}
+
+func (days *DaysSinceStart) Merge(branches []core.PipelineItem) {
+	// no-op
 }
 
 func init() {

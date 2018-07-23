@@ -216,7 +216,7 @@ func (exr *Extractor) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -285,6 +285,18 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 		fmt.Fprintln(os.Stderr, joined)
 	}
 	return map[string]interface{}{DependencyUasts: uasts}, nil
+}
+
+func (exr *Extractor) Fork(n int) []core.PipelineItem {
+	exrs := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		exrs[i] = exr
+	}
+	return exrs
+}
+
+func (exr *Extractor) Merge(branches []core.PipelineItem) {
+	// no-op
 }
 
 func (exr *Extractor) extractUAST(
@@ -393,7 +405,7 @@ func (uc *Changes) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (uc *Changes) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -425,6 +437,24 @@ func (uc *Changes) Consume(deps map[string]interface{}) (map[string]interface{},
 		}
 	}
 	return map[string]interface{}{DependencyUastChanges: commit}, nil
+}
+
+func (uc *Changes) Fork(n int) []core.PipelineItem {
+	ucs := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		clone := &Changes{
+			cache: map[plumbing.Hash]*uast.Node{},
+		}
+		for key, val := range uc.cache {
+			clone.cache[key] = val
+		}
+		ucs[i] = clone
+	}
+	return ucs
+}
+
+func (uc *Changes) Merge(branches []core.PipelineItem) {
+	// no-op
 }
 
 // ChangesSaver dumps changed files and corresponding UASTs for every commit.
@@ -502,7 +532,7 @@ func (saver *ChangesSaver) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (saver *ChangesSaver) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -514,6 +544,18 @@ func (saver *ChangesSaver) Consume(deps map[string]interface{}) (map[string]inte
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (saver *ChangesSaver) Finalize() interface{} {
 	return saver.result
+}
+
+func (saver *ChangesSaver) Fork(n int) []core.PipelineItem {
+	savers := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		savers[i] = saver
+	}
+	return savers
+}
+
+func (saver *ChangesSaver) Merge(branches []core.PipelineItem) {
+	// no-op
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.

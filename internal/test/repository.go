@@ -8,6 +8,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
+	"path"
+	"io/ioutil"
 )
 
 // Repository is a boilerplate sample repository (Hercules itself).
@@ -28,6 +30,27 @@ func FakeChangeForName(name string, hashFrom string, hashTo string) *object.Chan
 func init() {
 	cwd, err := os.Getwd()
 	if err == nil {
+		for true {
+			files, err := ioutil.ReadDir(cwd)
+			if err != nil {
+				break
+			}
+			found := false
+			for _, f := range files {
+				if f.Name() == "README.md" {
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+			oldCwd := cwd
+			cwd = path.Dir(cwd)
+			if oldCwd == cwd {
+				break
+			}
+		}
 		Repository, err = git.PlainOpen(cwd)
 		if err == nil {
 			iter, err := Repository.CommitObjects()
@@ -45,7 +68,10 @@ func init() {
 			}
 		}
 	}
-	Repository, _ = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
+	Repository, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL: "https://github.com/src-d/hercules",
 	})
+	if err != nil {
+		panic(err)
+	}
 }

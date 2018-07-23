@@ -20,6 +20,8 @@ import (
 type testPipelineItem struct {
 	Initialized   bool
 	DepsConsumed  bool
+	Forked        bool
+	Merged        *bool
 	CommitMatches bool
 	IndexMatches  bool
 	TestError     bool
@@ -69,18 +71,31 @@ func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]i
 	if item.TestError {
 		return nil, errors.New("error")
 	}
-	obj, exists := deps["commit"]
+	obj, exists := deps[DependencyCommit]
 	item.DepsConsumed = exists
 	if item.DepsConsumed {
 		commit := obj.(*object.Commit)
 		item.CommitMatches = commit.Hash == plumbing.NewHash(
 			"af9ddc0db70f09f3f27b4b98e415592a7485171c")
-		obj, item.DepsConsumed = deps["index"]
+		obj, item.DepsConsumed = deps[DependencyIndex]
 		if item.DepsConsumed {
 			item.IndexMatches = obj.(int) == 0
 		}
 	}
 	return map[string]interface{}{"test": item}, nil
+}
+
+func (item *testPipelineItem) Fork(n int) []PipelineItem {
+	result := make([]PipelineItem, n)
+	for i := 0; i < n; i++ {
+		result[i] = &testPipelineItem{Merged: item.Merged}
+	}
+	item.Forked = true
+	return result
+}
+
+func (item *testPipelineItem) Merge(branches []PipelineItem) {
+	*item.Merged = true
 }
 
 func (item *testPipelineItem) Finalize() interface{} {
@@ -140,6 +155,13 @@ func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map
 	return nil, nil
 }
 
+func (item *dependingTestPipelineItem) Fork(n int) []PipelineItem {
+	return nil
+}
+
+func (item *dependingTestPipelineItem) Merge(branches []PipelineItem) {
+}
+
 func (item *dependingTestPipelineItem) Finalize() interface{} {
 	return true
 }
@@ -176,7 +198,7 @@ func TestPipelineFeatures(t *testing.T) {
 
 func TestPipelineRun(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
-	item := &testPipelineItem{}
+	item := &testPipelineItem{Merged: new(bool)}
 	pipeline.AddItem(item)
 	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
@@ -195,22 +217,58 @@ func TestPipelineRun(t *testing.T) {
 	assert.True(t, item.DepsConsumed)
 	assert.True(t, item.CommitMatches)
 	assert.True(t, item.IndexMatches)
+	assert.False(t, item.Forked)
+	assert.False(t, *item.Merged)
 	pipeline.RemoveItem(item)
 	result, err = pipeline.Run(commits)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
 }
 
+func TestPipelineRunBranches(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	item := &testPipelineItem{Merged: new(bool)}
+	pipeline.AddItem(item)
+	pipeline.Initialize(map[string]interface{}{})
+	assert.True(t, item.Initialized)
+	commits := make([]*object.Commit, 5)
+	hashes := []string {
+		"6db8065cdb9bb0758f36a7e75fc72ab95f9e8145",
+		"f30daba81ff2bf0b3ba02a1e1441e74f8a4f6fee",
+		"8a03b5620b1caa72ec9cb847ea88332621e2950a",
+		"dd9dd084d5851d7dc4399fc7dbf3d8292831ebc5",
+		"f4ed0405b14f006c0744029d87ddb3245607587a",
+	}
+	for i, h := range hashes {
+		var err error
+		commits[i], err = test.Repository.CommitObject(plumbing.NewHash(h))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := pipeline.Run(commits)
+	assert.Nil(t, err)
+	assert.True(t, item.Forked)
+	assert.True(t, *item.Merged)
+	assert.Equal(t, 2, len(result))
+	assert.Equal(t, item, result[item].(*testPipelineItem))
+	common := result[nil].(*CommonAnalysisResult)
+	assert.Equal(t, common.CommitsNumber, 5)
+}
+
 func TestPipelineOnProgress(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
-	var progressOk1, progressOk2 bool
+	progressOk := 0
 
 	onProgress := func(step int, total int) {
-		if step == 0 && total == 1 {
-			progressOk1 = true
+		if step == 1 && total == 3 {
+			progressOk++
 		}
-		if step == 1 && total == 1 && progressOk1 {
-			progressOk2 = true
+		if step == 2 && total == 3 {
+			progressOk++
+		}
+		if step == 3 && total == 3 {
+			progressOk++
 		}
 	}
 
@@ -221,8 +279,7 @@ func TestPipelineOnProgress(t *testing.T) {
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
-	assert.True(t, progressOk1)
-	assert.True(t, progressOk2)
+	assert.Equal(t, 3, progressOk)
 }
 
 func TestPipelineCommits(t *testing.T) {

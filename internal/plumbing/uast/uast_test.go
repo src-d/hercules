@@ -154,6 +154,15 @@ func TestUASTExtractorConsume(t *testing.T) {
 	assert.Equal(t, len(uasts[hash].Children), 24)
 }
 
+func TestUASTExtractorFork(t *testing.T) {
+	exr1 := fixtureUASTExtractor()
+	clones := exr1.Fork(1)
+	assert.Len(t, clones, 1)
+	exr2 := clones[0].(*Extractor)
+	assert.True(t, exr1 == exr2)
+	exr1.Merge([]core.PipelineItem{exr2})
+}
+
 func fixtureUASTChanges() *Changes {
 	ch := Changes{}
 	ch.Configure(nil)
@@ -269,6 +278,19 @@ func TestUASTChangesConsume(t *testing.T) {
 	assert.Equal(t, result[2].Change, changes[2])
 	assert.Equal(t, result[2].Before, uastsArray[0])
 	assert.Nil(t, result[2].After)
+}
+
+func TestUASTChangesFork(t *testing.T) {
+	changes1 := fixtureUASTChanges()
+	changes1.cache[plumbing.ZeroHash] = nil
+	clones := changes1.Fork(1)
+	assert.Len(t, clones, 1)
+	changes2 := clones[0].(*Changes)
+	assert.False(t, changes1 == changes2)
+	assert.Equal(t, changes1.cache, changes2.cache)
+	delete(changes1.cache, plumbing.ZeroHash)
+	assert.Len(t, changes2.cache, 1)
+	changes1.Merge([]core.PipelineItem{changes2})
 }
 
 func fixtureUASTChangesSaver() *ChangesSaver {
@@ -387,4 +409,13 @@ func TestUASTChangesSaverPayload(t *testing.T) {
 	assert.Equal(t, buffer.String(), fmt.Sprintf(`  - {file: analyser.go, src0: %s/0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.src, src1: %s/0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.src, uast0: %s/0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.pb, uast1: %s/0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.pb}
 `, tmpdir, tmpdir, tmpdir, tmpdir))
 	checkFiles()
+}
+
+func TestUASTChangesSaverFork(t *testing.T) {
+	saver1 := fixtureUASTChangesSaver()
+	clones := saver1.Fork(1)
+	assert.Len(t, clones, 1)
+	saver2 := clones[0].(*ChangesSaver)
+	assert.True(t, saver1 == saver2)
+	saver1.Merge([]core.PipelineItem{saver2})
 }
