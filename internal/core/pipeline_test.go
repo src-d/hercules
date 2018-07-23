@@ -2,10 +2,12 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
@@ -357,4 +359,108 @@ func TestConfigurationOptionFormatDefault(t *testing.T) {
 	assert.Equal(t, opt.FormatDefault(), "false")
 	opt = ConfigurationOption{Type: FloatConfigurationOption, Default: 0.5}
 	assert.Equal(t, opt.FormatDefault(), "0.5")
+}
+
+func TestPrepareRunPlanSmall(t *testing.T) {
+	cit, err := test.Repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
+	if err != nil {
+		panic(err)
+	}
+	defer cit.Close()
+	var commits []*object.Commit
+	timeCutoff := time.Date(2016, 12, 15, 0, 0, 0, 0, time.FixedZone("CET", 7200))
+	cit.ForEach(func(commit *object.Commit) error {
+		reliableTime := time.Date(commit.Author.When.Year(), commit.Author.When.Month(),
+			commit.Author.When.Day(), commit.Author.When.Hour(), commit.Author.When.Minute(),
+			commit.Author.When.Second(), 0, time.FixedZone("CET", 7200))
+		if reliableTime.Before(timeCutoff) {
+			commits = append(commits, commit)
+		}
+		return nil
+	})
+	plan := prepareRunPlan(commits)
+	/*for _, p := range plan {
+		if p.Commit != nil {
+			fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
+		} else {
+			fmt.Println(p.Action, strings.Repeat(" ", 40), p.Items)
+		}
+	}*/
+	// fork, merge and one artificial commit per branch
+	assert.Len(t, plan, len(commits))
+	assert.Equal(t, runActionCommit, plan[0].Action)
+	assert.Equal(t, 0, plan[0].Items[0])
+	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[0].Commit.Hash.String())
+	assert.Equal(t, runActionCommit, plan[1].Action)
+	assert.Equal(t, 0, plan[1].Items[0])
+	assert.Equal(t, "a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3", plan[1].Commit.Hash.String())
+	assert.Equal(t, runActionCommit, plan[9].Action)
+	assert.Equal(t, 0, plan[9].Items[0])
+	assert.Equal(t, "a28e9064c70618dc9d68e1401b889975e0680d11", plan[9].Commit.Hash.String())
+}
+
+func TestPrepareRunPlanBig(t *testing.T) {
+	cases := [][6]int {
+		{2017, 8, 9, 0, 0, 0},
+		{2017, 8, 10, 0, 0, 0},
+		{2017, 8, 24, 1, 1, 1},
+		{2017, 9, 19, 1-2, 1, 1},
+		{2017, 9, 23, 1-2, 1, 1},
+		{2017, 12, 8, 1, 1, 1},
+		{2017, 12, 9, 1, 1, 1},
+		{2017, 12, 10, 1, 1, 1},
+		{2017, 12, 11, 2, 2, 2},
+		{2017, 12, 19, 4, 4, 4},
+		{2017, 12, 27, 4, 4, 4},
+		{2018, 1, 10, 4, 4, 4},
+		{2018, 1, 16, 4, 4, 4},
+		{2018, 1, 18, 7, 6, 7},
+		{2018, 1, 23, 8, 6, 8},
+		{2018, 3, 12, 9, 7, 9},
+		{2018, 5, 13, 9, 7, 9},
+		{2018, 5, 16, 13, 9, 13},
+	}
+	for _, testCase := range cases {
+		cit, err := test.Repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
+		if err != nil {
+			panic(err)
+		}
+		defer cit.Close()
+		var commits []*object.Commit
+		timeCutoff := time.Date(
+			testCase[0], time.Month(testCase[1]), testCase[2], 0, 0, 0, 0, time.FixedZone("CET", 7200))
+		cit.ForEach(func(commit *object.Commit) error {
+			reliableTime := time.Date(commit.Author.When.Year(), commit.Author.When.Month(),
+				commit.Author.When.Day(), commit.Author.When.Hour(), commit.Author.When.Minute(),
+				commit.Author.When.Second(), 0, time.FixedZone("CET", 7200))
+			if reliableTime.Before(timeCutoff) {
+				commits = append(commits, commit)
+			}
+			return nil
+		})
+		plan := prepareRunPlan(commits)
+		/*for _, p := range plan {
+			if p.Commit != nil {
+				fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
+			} else {
+				fmt.Println(p.Action, strings.Repeat(" ", 40), p.Items)
+			}
+		}*/
+		numCommits := 0
+		numForks := 0
+		numMerges := 0
+		for _, p := range plan {
+			switch p.Action {
+			case runActionCommit:
+				numCommits++
+			case runActionFork:
+				numForks++
+			case runActionMerge:
+				numMerges++
+			}
+		}
+		assert.Equal(t, numCommits, len(commits)+testCase[3], fmt.Sprintf("commits %v", testCase))
+		assert.Equal(t, numForks, testCase[4], fmt.Sprintf("forks %v", testCase))
+		assert.Equal(t, numMerges, testCase[5], fmt.Sprintf("merges %v", testCase))
+	}
 }
