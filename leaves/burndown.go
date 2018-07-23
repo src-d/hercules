@@ -860,8 +860,8 @@ func (analyser *BurndownAnalysis) updateMatrix(
 }
 
 func (analyser *BurndownAnalysis) newFile(
-	author int, day int, size int, global map[int]int64, people []map[int]int64,
-	matrix []map[int]int64) *burndown.File {
+	hash plumbing.Hash, author int, day int, size int, global map[int]int64,
+	people []map[int]int64, matrix []map[int]int64) *burndown.File {
 	statuses := make([]burndown.Status, 1)
 	statuses[0] = burndown.NewStatus(global, analyser.updateStatus)
 	if analyser.TrackFiles {
@@ -872,7 +872,7 @@ func (analyser *BurndownAnalysis) newFile(
 		statuses = append(statuses, burndown.NewStatus(matrix, analyser.updateMatrix))
 		day = analyser.packPersonWithDay(author, day)
 	}
-	return burndown.NewFile(day, size, statuses...)
+	return burndown.NewFile(hash, day, size, statuses...)
 }
 
 func (analyser *BurndownAnalysis) handleInsertion(
@@ -891,7 +891,8 @@ func (analyser *BurndownAnalysis) handleInsertion(
 		return fmt.Errorf("file %s already exists", name)
 	}
 	file = analyser.newFile(
-		author, analyser.day, lines, analyser.globalStatus, analyser.people, analyser.matrix)
+		blob.Hash, author, analyser.day, lines,
+		analyser.globalStatus, analyser.people, analyser.matrix)
 	analyser.files[name] = file
 	return nil
 }
@@ -910,6 +911,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	name := change.From.Name
 	file := analyser.files[name]
 	file.Update(analyser.packPersonWithDay(author, analyser.day), 0, 0, lines)
+	file.Hash = plumbing.ZeroHash
 	delete(analyser.files, name)
 	return nil
 }
@@ -923,6 +925,7 @@ func (analyser *BurndownAnalysis) handleModification(
 		// this indeed may happen
 		return analyser.handleInsertion(change, author, cache)
 	}
+	file.Hash = change.To.TreeEntry.Hash
 
 	// possible rename
 	if change.To.Name != change.From.Name {

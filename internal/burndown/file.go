@@ -3,6 +3,7 @@ package burndown
 import (
 	"fmt"
 
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal"
 	"gopkg.in/src-d/hercules.v4/internal/rbtree"
 )
@@ -25,6 +26,9 @@ type Status struct {
 //
 // Dump() writes the tree to a string and Validate() checks the tree integrity.
 type File struct {
+	// Git hash of the contents.
+	Hash     plumbing.Hash
+
 	tree     *rbtree.RBTree
 	statuses []Status
 }
@@ -61,8 +65,8 @@ func (file *File) updateTime(currentTime int, previousTime int, delta int) {
 // last node);
 //
 // statuses are the attached interval length mappings.
-func NewFile(time int, length int, statuses ...Status) *File {
-	file := &File{tree: new(rbtree.RBTree), statuses: statuses}
+func NewFile(hash plumbing.Hash, time int, length int, statuses ...Status) *File {
+	file := &File{Hash: hash, tree: new(rbtree.RBTree), statuses: statuses}
 	if length > 0 {
 		file.updateTime(time, time, length)
 		file.tree.Insert(rbtree.Item{Key: 0, Value: time})
@@ -79,8 +83,8 @@ func NewFile(time int, length int, statuses ...Status) *File {
 // vals is a slice with the starting tree values. Must match the size of keys.
 //
 // statuses are the attached interval length mappings.
-func NewFileFromTree(keys []int, vals []int, statuses ...Status) *File {
-	file := &File{tree: new(rbtree.RBTree), statuses: statuses}
+func NewFileFromTree(hash plumbing.Hash, keys []int, vals []int, statuses ...Status) *File {
+	file := &File{Hash: hash, tree: new(rbtree.RBTree), statuses: statuses}
 	if len(keys) != len(vals) {
 		panic("keys and vals must be of equal length")
 	}
@@ -95,7 +99,7 @@ func NewFileFromTree(keys []int, vals []int, statuses ...Status) *File {
 // depending on `clearStatuses` the original statuses are removed or not.
 // Any new `statuses` are appended.
 func (file *File) Clone(clearStatuses bool, statuses ...Status) *File {
-	clone := &File{tree: file.tree.Clone(), statuses: file.statuses}
+	clone := &File{Hash: file.Hash, tree: file.tree.Clone(), statuses: file.statuses}
 	if clearStatuses {
 		clone.statuses = []Status{}
 	}
@@ -237,7 +241,19 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	}
 }
 
-func (file *File) Merge(day int, others... *File) {
+// Merge combines several prepared File-s together. Returns the value
+// indicating whether at least one File required merging.
+func (file *File) Merge(day int, others... *File) bool {
+	dirty := false
+	for _, other := range others {
+		if file.Hash != other.Hash {
+			dirty = true
+			break
+		}
+	}
+	if !dirty {
+		return false
+	}
 	myself := file.flatten()
 	for _, other := range others {
 		lines := other.flatten()
@@ -280,6 +296,7 @@ func (file *File) Merge(day int, others... *File) {
 	}
 	tree.Insert(rbtree.Item{Key: len(myself), Value: TreeEnd})
 	file.tree = tree
+	return true
 }
 
 // Status returns the bound status object by the specified index.

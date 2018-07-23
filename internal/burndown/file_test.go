@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/hercules.v4/internal/rbtree"
 	"fmt"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 func updateStatusFile(
@@ -15,7 +16,7 @@ func updateStatusFile(
 
 func fixtureFile() (*File, map[int]int64) {
 	status := map[int]int64{}
-	file := NewFile(0, 100, NewStatus(status, updateStatusFile))
+	file := NewFile(plumbing.ZeroHash, 0, 100, NewStatus(status, updateStatusFile))
 	return file, status
 }
 
@@ -167,7 +168,7 @@ func TestInsertFile(t *testing.T) {
 
 func TestZeroInitializeFile(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(0, 0, NewStatus(status, updateStatusFile))
+	file := NewFile(plumbing.ZeroHash, 0, 0, NewStatus(status, updateStatusFile))
 	assert.NotContains(t, status, 0)
 	dump := file.Dump()
 	// Output:
@@ -418,7 +419,7 @@ func TestBug3File(t *testing.T) {
 
 func TestBug4File(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(0, 10, NewStatus(status, updateStatusFile))
+	file := NewFile(plumbing.ZeroHash, 0, 10, NewStatus(status, updateStatusFile))
 	file.Update(125, 0, 20, 9)
 	file.Update(125, 0, 20, 20)
 	file.Update(166, 12, 1, 1)
@@ -448,14 +449,14 @@ func TestBug5File(t *testing.T) {
 	status := map[int]int64{}
 	keys := []int{0, 2, 4, 7, 10}
 	vals := []int{24, 28, 24, 28, -1}
-	file := NewFileFromTree(keys, vals, NewStatus(status, updateStatusFile))
+	file := NewFileFromTree(plumbing.ZeroHash, keys, vals, NewStatus(status, updateStatusFile))
 	file.Update(28, 0, 1, 3)
 	dump := file.Dump()
 	assert.Equal(t, "0 28\n2 24\n5 28\n8 -1\n", dump)
 
 	keys = []int{0, 1, 16, 18}
 	vals = []int{305, 0, 157, -1}
-	file = NewFileFromTree(keys, vals, NewStatus(status, updateStatusFile))
+	file = NewFileFromTree(plumbing.ZeroHash, keys, vals, NewStatus(status, updateStatusFile))
 	file.Update(310, 0, 0, 2)
 	dump = file.Dump()
 	assert.Equal(t, "0 0\n14 157\n16 -1\n", dump)
@@ -464,13 +465,13 @@ func TestBug5File(t *testing.T) {
 func TestNewFileFromTreeInvalidSize(t *testing.T) {
 	keys := [...]int{1, 2, 3}
 	vals := [...]int{4, 5}
-	assert.Panics(t, func() { NewFileFromTree(keys[:], vals[:]) })
+	assert.Panics(t, func() { NewFileFromTree(plumbing.ZeroHash, keys[:], vals[:]) })
 }
 
 func TestUpdatePanic(t *testing.T) {
 	keys := [...]int{0}
 	vals := [...]int{-1}
-	file := NewFileFromTree(keys[:], vals[:])
+	file := NewFileFromTree(plumbing.ZeroHash, keys[:], vals[:])
 	file.tree.DeleteWithKey(0)
 	file.tree.Insert(rbtree.Item{Key: -1, Value: -1})
 	var paniced interface{}
@@ -492,7 +493,7 @@ func TestFileStatus(t *testing.T) {
 func TestFileValidate(t *testing.T) {
 	keys := [...]int{0}
 	vals := [...]int{-1}
-	file := NewFileFromTree(keys[:], vals[:])
+	file := NewFileFromTree(plumbing.ZeroHash, keys[:], vals[:])
 	file.tree.DeleteWithKey(0)
 	file.tree.Insert(rbtree.Item{Key: -1, Value: -1})
 	assert.Panics(t, func() { file.Validate() })
@@ -566,6 +567,7 @@ func TestFileMergeMark(t *testing.T) {
 
 func TestFileMerge(t *testing.T) {
 	file1, status := fixtureFile()
+	file1.Hash = plumbing.NewHash("0b7101095af6f90a3a2f3941fdf82563a83ce4db")
 	// 0 0 | 100 -1                             [0]: 100
 	file1.Update(1, 20, 30, 0)
 	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
@@ -576,6 +578,7 @@ func TestFileMerge(t *testing.T) {
 	file1.Update(4, 20, 10, 0)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
 	file2 := file1.Clone(false)
+	assert.Equal(t, file1.Hash, file2.Hash)
 	file1.Update(TreeMergeMark, 60, 30, 30)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 90 0 | 130 -1
 	// [0]: 70, [1]: 20, [4]: 10
@@ -588,7 +591,9 @@ func TestFileMerge(t *testing.T) {
 	file2.Update(6, 0, 10, 10)
 	// 0 6 | 10 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 M | 90 0 | 130 -1
 	// [0]: 60, [1]: 20, [4]: 10, [5]: 20, [6]: 10
-	file1.Merge(7, file2)
+	file2.Hash = plumbing.ZeroHash
+	dirty := file1.Merge(7, file2)
+	assert.True(t, dirty)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 7 | 90 0 | 130 -1
 	// [0]: 70, [1]: 20, [4]: 10, [5]: 20, [6]: 0, [7]: 10
 	dump := file1.Dump()
@@ -601,4 +606,35 @@ func TestFileMerge(t *testing.T) {
 	assert.Equal(t, int64(20), status[5])
 	assert.Equal(t, int64(0), status[6])
 	assert.Equal(t, int64(10), status[7])
+}
+
+func TestFileMergeNoop(t *testing.T) {
+	file1, status := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file1.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file1.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file1.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file1.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	file2 := file1.Clone(false)
+	dirty := file1.Merge(7, file2)
+	assert.False(t, dirty)
+	dump1 := file1.Dump()
+	dump2 := file2.Dump()
+	assert.Equal(t, dump1, dump2)
+	assert.Equal(t, dump1, "0 0\n20 4\n30 1\n50 0\n130 -1\n")
+	assert.Equal(t, int64(100), status[0])
+	assert.Equal(t, int64(20), status[1])
+	assert.Equal(t, int64(0), status[2])
+	assert.Equal(t, int64(0), status[3])
+	assert.Equal(t, int64(10), status[4])
+	file1.Update(TreeMergeMark, 60, 30, 30)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 90 0 | 130 -1
+	// [0]: 70, [1]: 20, [4]: 10
+	dirty = file1.Merge(7, file2)
+	// because the hashes are still the same
+	assert.False(t, dirty)
 }
