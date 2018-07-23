@@ -619,6 +619,7 @@ const (
 	runActionCommit = 0
 	runActionFork = iota
 	runActionMerge = iota
+	runActionDelete = iota
 )
 
 type runAction struct {
@@ -982,7 +983,7 @@ func generatePlan(
 	return plan
 }
 
-// optimizePlan removes "dead" nodes.
+// optimizePlan removes "dead" nodes and inserts `runActionDelete` disposal steps.
 //
 // |   *
 // *  /
@@ -991,56 +992,92 @@ func generatePlan(
 // *
 //
 func optimizePlan(plan []runAction) []runAction {
-	lives := map[int][]int{}
+	// lives maps branch index to the number of commits in that branch
+	lives := map[int]int{}
+	// lastMentioned maps branch index to the index inside `plan` when that branch was last used
+	lastMentioned := map[int]int{}
 	for i, p := range plan {
-		if p.Action == runActionCommit {
-			lives[p.Items[0]] = append(lives[p.Items[0]], i)
+		firstItem := p.Items[0]
+		switch p.Action {
+		case runActionCommit:
+			lives[firstItem]++
+			lastMentioned[firstItem] = i
+		case runActionFork:
+			lastMentioned[firstItem] = i
+		case runActionMerge:
+			for _, item := range p.Items {
+				lastMentioned[item] = i
+			}
 		}
 	}
 	branchesToDelete := map[int]bool{}
 	for key, life := range lives {
-		if len(life) == 1 {
+		if life == 1 {
 			branchesToDelete[key] = true
+			delete(lastMentioned, key)
 		}
 	}
-	if len(branchesToDelete) == 0 {
+	var optimizedPlan []runAction
+	lastMentionedArr := make([][2]int, 0, len(lastMentioned) + 1)
+	for key, val := range lastMentioned {
+		if val != len(plan) - 1 {
+			lastMentionedArr = append(lastMentionedArr, [2]int{val, key})
+		}
+	}
+	if len(lastMentionedArr) == 0 && len(branchesToDelete) == 0 {
+		// early return - we have nothing to optimize
 		return plan
 	}
-	var optimizedPlan []runAction
-	for _, p := range plan {
-		switch p.Action {
-		case runActionCommit:
-			if !branchesToDelete[p.Items[0]] {
-				optimizedPlan = append(optimizedPlan, p)
-			}
-		case runActionFork:
-			var newBranches []int
-			for _, b := range p.Items {
-				if !branchesToDelete[b] {
-					newBranches = append(newBranches, b)
+	sort.Slice(lastMentionedArr, func(i, j int) bool { 
+		return lastMentionedArr[i][0] < lastMentionedArr[j][0]
+	})
+	lastMentionedArr = append(lastMentionedArr, [2]int{len(plan)-1, -1})
+	prevpi := -1
+	for _, pair := range lastMentionedArr {
+		for pi := prevpi + 1; pi <= pair[0]; pi++ {
+			p := plan[pi]
+			switch p.Action {
+			case runActionCommit:
+				if !branchesToDelete[p.Items[0]] {
+					optimizedPlan = append(optimizedPlan, p)
+				}
+			case runActionFork:
+				var newBranches []int
+				for _, b := range p.Items {
+					if !branchesToDelete[b] {
+						newBranches = append(newBranches, b)
+					}
+				}
+				if len(newBranches) > 1 {
+					optimizedPlan = append(optimizedPlan, runAction{
+						Action: runActionFork,
+						Commit: p.Commit,
+						Items:  newBranches,
+					})
+				}
+			case runActionMerge:
+				var newBranches []int
+				for _, b := range p.Items {
+					if !branchesToDelete[b] {
+						newBranches = append(newBranches, b)
+					}
+				}
+				if len(newBranches) > 1 {
+					optimizedPlan = append(optimizedPlan, runAction{
+						Action: runActionMerge,
+						Commit: p.Commit,
+						Items:  newBranches,
+					})
 				}
 			}
-			if len(newBranches) > 1 {
-				optimizedPlan = append(optimizedPlan, runAction{
-					Action: runActionFork,
-					Commit: p.Commit,
-					Items:  newBranches,
-				})
-			}
-		case runActionMerge:
-			var newBranches []int
-			for _, b := range p.Items {
-				if !branchesToDelete[b] {
-					newBranches = append(newBranches, b)
-				}
-			}
-			if len(newBranches) > 1 {
-				optimizedPlan = append(optimizedPlan, runAction{
-					Action: runActionMerge,
-					Commit: p.Commit,
-					Items:  newBranches,
-				})
-			}
+		}
+		if pair[1] >= 0 {
+			prevpi = pair[0]
+			optimizedPlan = append(optimizedPlan, runAction{
+				Action: runActionDelete,
+				Commit: nil,
+				Items:  []int{pair[1]},
+			})
 		}
 	}
 	// single commit can be detected as redundant
