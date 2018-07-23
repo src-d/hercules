@@ -33,6 +33,7 @@ import (
 // Extractor retrieves UASTs from Babelfish server which correspond to changed files in a commit.
 // It is a PipelineItem.
 type Extractor struct {
+	core.NoopMerger
 	Endpoint       string
 	Context        func() (context.Context, context.CancelFunc)
 	PoolSize       int
@@ -288,15 +289,7 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 }
 
 func (exr *Extractor) Fork(n int) []core.PipelineItem {
-	exrs := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		exrs[i] = exr
-	}
-	return exrs
-}
-
-func (exr *Extractor) Merge(branches []core.PipelineItem) {
-	// no-op
+	return core.ForkSamePipelineItem(exr, n)
 }
 
 func (exr *Extractor) extractUAST(
@@ -359,6 +352,7 @@ const (
 // Changes is a structured analog of TreeDiff: it provides UASTs for every logical change
 // in a commit. It is a PipelineItem.
 type Changes struct {
+	core.NoopMerger
 	cache map[plumbing.Hash]*uast.Node
 }
 
@@ -453,13 +447,11 @@ func (uc *Changes) Fork(n int) []core.PipelineItem {
 	return ucs
 }
 
-func (uc *Changes) Merge(branches []core.PipelineItem) {
-	// no-op
-}
-
 // ChangesSaver dumps changed files and corresponding UASTs for every commit.
 // it is a LeafPipelineItem.
 type ChangesSaver struct {
+	core.NoopMerger
+	core.OneShotMergeProcessor
 	// OutputPath points to the target directory with UASTs
 	OutputPath string
 
@@ -528,6 +520,7 @@ func (saver *ChangesSaver) Configure(facts map[string]interface{}) {
 func (saver *ChangesSaver) Initialize(repository *git.Repository) {
 	saver.repository = repository
 	saver.result = [][]Change{}
+	saver.OneShotMergeProcessor.Initialize()
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -536,6 +529,9 @@ func (saver *ChangesSaver) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (saver *ChangesSaver) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	if !saver.ShouldConsumeCommit(deps) {
+		return nil, nil
+	}
 	changes := deps[DependencyUastChanges].([]Change)
 	saver.result = append(saver.result, changes)
 	return nil, nil
@@ -547,15 +543,7 @@ func (saver *ChangesSaver) Finalize() interface{} {
 }
 
 func (saver *ChangesSaver) Fork(n int) []core.PipelineItem {
-	savers := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		savers[i] = saver
-	}
-	return savers
-}
-
-func (saver *ChangesSaver) Merge(branches []core.PipelineItem) {
-	// no-op
+	return core.ForkSamePipelineItem(saver, n)
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.

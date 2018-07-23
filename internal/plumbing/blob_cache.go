@@ -17,6 +17,7 @@ import (
 // It must provide the old and the new objects; "blobCache" rotates and allows to not load
 // the same blobs twice. Outdated objects are removed so "blobCache" never grows big.
 type BlobCache struct {
+	core.NoopMerger
 	// Specifies how to handle the situation when we encounter a git submodule - an object
 	// without the blob. If true, we look inside .gitmodules and if we don't find it,
 	// raise an error. If false, we do not look inside .gitmodules and always succeed.
@@ -167,10 +168,6 @@ func (blobCache *BlobCache) Fork(n int) []core.PipelineItem {
 		}
 	}
 	return caches
-}
-
-func (blobCache *BlobCache) Merge(branches []core.PipelineItem) {
-	// no-op
 }
 
 // FileGetter defines a function which loads the Git file by

@@ -18,6 +18,7 @@ import (
 // paths which are likely to be the result of a rename with subsequent edits.
 // RenameAnalysis is a PipelineItem.
 type RenameAnalysis struct {
+	core.NoopMerger
 	// SimilarityThreshold adjusts the heuristic to determine file renames.
 	// It has the same units as cgit's -X rename-threshold or -M. Better to
 	// set it to the default value of 90 (90%).
@@ -204,15 +205,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 }
 
 func (ra *RenameAnalysis) Fork(n int) []core.PipelineItem {
-	clones := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		clones[i] = ra
-	}
-	return clones
-}
-
-func (ra *RenameAnalysis) Merge(branches []core.PipelineItem) {
-	// no-op
+	return core.ForkSamePipelineItem(ra, n)
 }
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {

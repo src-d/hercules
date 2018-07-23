@@ -18,6 +18,7 @@ import (
 // FileDiff calculates the difference of files which were modified.
 // It is a PipelineItem.
 type FileDiff struct {
+	core.NoopMerger
 	CleanupDisabled bool
 }
 
@@ -129,15 +130,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 }
 
 func (diff *FileDiff) Fork(n int) []core.PipelineItem {
-	diffs := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		diffs[i] = diff
-	}
-	return diffs
-}
-
-func (diff *FileDiff) Merge(branches []core.PipelineItem) {
-	// no-op
+	return core.ForkSamePipelineItem(diff, n)
 }
 
 // CountLines returns the number of lines in a *object.Blob.

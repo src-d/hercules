@@ -12,6 +12,7 @@ import (
 // DaysSinceStart provides the relative date information for every commit.
 // It is a PipelineItem.
 type DaysSinceStart struct {
+	core.NoopMerger
 	day0        time.Time
 	previousDay int
 	commits     map[int][]plumbing.Hash
@@ -114,19 +115,7 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 }
 
 func (days *DaysSinceStart) Fork(n int) []core.PipelineItem {
-	clones := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		clones[i] = &DaysSinceStart{
-			previousDay: days.previousDay,
-			day0: days.day0,
-			commits: days.commits,
-		}
-	}
-	return clones
-}
-
-func (days *DaysSinceStart) Merge(branches []core.PipelineItem) {
-	// no-op
+	return core.ForkCopyPipelineItem(days, n)
 }
 
 func init() {

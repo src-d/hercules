@@ -15,6 +15,7 @@ import (
 // signatures, and we apply some heuristics to merge those together.
 // It is a PipelineItem.
 type Detector struct {
+	core.NoopMerger
 	// PeopleDict maps email || name  -> developer id
 	PeopleDict map[string]int
 	// ReversedPeopleDict maps developer id -> description
@@ -131,15 +132,7 @@ func (detector *Detector) Consume(deps map[string]interface{}) (map[string]inter
 }
 
 func (detector *Detector) Fork(n int) []core.PipelineItem {
-	detectors := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		// we are safe to share the same dictionaries across branches
-		detectors[i] = detector
-	}
-	return detectors
-}
-
-func (detector *Detector) Merge(branches []core.PipelineItem) {
+	return core.ForkSamePipelineItem(detector, n)
 }
 
 // LoadPeopleDict loads author signatures from a text file.

@@ -14,6 +14,7 @@ import (
 // If "after" is nil, the change is a removal. Otherwise, it is a modification.
 // TreeDiff is a PipelineItem.
 type TreeDiff struct {
+	core.NoopMerger
 	SkipDirs     []string
 	previousTree *object.Tree
 }
@@ -142,18 +143,7 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 }
 
 func (treediff *TreeDiff) Fork(n int) []core.PipelineItem {
-	clones := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		clones[i] = &TreeDiff{
-			SkipDirs: treediff.SkipDirs,
-			previousTree: treediff.previousTree,
-		}
-	}
-	return clones
-}
-
-func (treediff *TreeDiff) Merge(branches []core.PipelineItem) {
-	// no-op
+	return core.ForkCopyPipelineItem(treediff, n)
 }
 
 func init() {
