@@ -5,9 +5,9 @@ It follows the main (zero index) branch when it encounters a fork.
 This behavior ignores all the side branches, and we are currently
 thinking how to include them into the analysis.
 
-### Plan
+### Plan - done
 
-* Commits must be sorted by time.
+* Commits must be ordered topologically.
 * When a fork is hit, clone the pipeline. Assign the old instance to the main branch and new
 instances to the sprouts. BurndownAnalysis should share the same counters for efficiency
 and simplicity, but the files must be copied.
@@ -21,7 +21,7 @@ with the previous commit in the main branch.
 * The sequence of commits must be the analysis scenario: it must inform when to fork and to merge,
 which pipeline instance to apply.
 
-### New APIs
+### New APIs - done
 
 * PipelineItem
   * `Fork()`
@@ -30,8 +30,8 @@ which pipeline instance to apply.
 ### Major changes
 
 * `Pipeline`
-  * `Commits()`
-  * `Run()`
-* `Burndown`
+  * `Commits()` - done
+  * `Run()` - done
+* `Burndown` - done
 * `Couples`
-* `FileDiff`
+* `FileDiff` - done

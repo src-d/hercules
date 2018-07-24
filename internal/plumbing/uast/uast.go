@@ -33,6 +33,7 @@ import (
 // Extractor retrieves UASTs from Babelfish server which correspond to changed files in a commit.
 // It is a PipelineItem.
 type Extractor struct {
+	core.NoopMerger
 	Endpoint       string
 	Context        func() (context.Context, context.CancelFunc)
 	PoolSize       int
@@ -216,7 +217,7 @@ func (exr *Extractor) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -287,6 +288,11 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{DependencyUasts: uasts}, nil
 }
 
+// Fork clones this PipelineItem.
+func (exr *Extractor) Fork(n int) []core.PipelineItem {
+	return core.ForkSamePipelineItem(exr, n)
+}
+
 func (exr *Extractor) extractUAST(
 	client *bblfsh.Client, file *object.File) (*uast.Node, error) {
 	request := client.NewParseRequest()
@@ -347,6 +353,7 @@ const (
 // Changes is a structured analog of TreeDiff: it provides UASTs for every logical change
 // in a commit. It is a PipelineItem.
 type Changes struct {
+	core.NoopMerger
 	cache map[plumbing.Hash]*uast.Node
 }
 
@@ -393,7 +400,7 @@ func (uc *Changes) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (uc *Changes) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -427,9 +434,26 @@ func (uc *Changes) Consume(deps map[string]interface{}) (map[string]interface{},
 	return map[string]interface{}{DependencyUastChanges: commit}, nil
 }
 
+// Fork clones this PipelineItem.
+func (uc *Changes) Fork(n int) []core.PipelineItem {
+	ucs := make([]core.PipelineItem, n)
+	for i := 0; i < n; i++ {
+		clone := &Changes{
+			cache: map[plumbing.Hash]*uast.Node{},
+		}
+		for key, val := range uc.cache {
+			clone.cache[key] = val
+		}
+		ucs[i] = clone
+	}
+	return ucs
+}
+
 // ChangesSaver dumps changed files and corresponding UASTs for every commit.
 // it is a LeafPipelineItem.
 type ChangesSaver struct {
+	core.NoopMerger
+	core.OneShotMergeProcessor
 	// OutputPath points to the target directory with UASTs
 	OutputPath string
 
@@ -498,14 +522,18 @@ func (saver *ChangesSaver) Configure(facts map[string]interface{}) {
 func (saver *ChangesSaver) Initialize(repository *git.Repository) {
 	saver.repository = repository
 	saver.result = [][]Change{}
+	saver.OneShotMergeProcessor.Initialize()
 }
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (saver *ChangesSaver) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	if !saver.ShouldConsumeCommit(deps) {
+		return nil, nil
+	}
 	changes := deps[DependencyUastChanges].([]Change)
 	saver.result = append(saver.result, changes)
 	return nil, nil
@@ -514,6 +542,11 @@ func (saver *ChangesSaver) Consume(deps map[string]interface{}) (map[string]inte
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (saver *ChangesSaver) Finalize() interface{} {
 	return saver.result
+}
+
+// Fork clones this PipelineItem.
+func (saver *ChangesSaver) Fork(n int) []core.PipelineItem {
+	return core.ForkSamePipelineItem(saver, n)
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.

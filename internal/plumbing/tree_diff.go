@@ -14,6 +14,7 @@ import (
 // If "after" is nil, the change is a removal. Otherwise, it is a modification.
 // TreeDiff is a PipelineItem.
 type TreeDiff struct {
+	core.NoopMerger
 	SkipDirs     []string
 	previousTree *object.Tree
 }
@@ -83,11 +84,11 @@ func (treediff *TreeDiff) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps["commit"].(*object.Commit)
+	commit := deps[core.DependencyCommit].(*object.Commit)
 	tree, err := commit.Tree()
 	if err != nil {
 		return nil, err
@@ -139,6 +140,11 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 		diff = filteredDiff
 	}
 	return map[string]interface{}{DependencyTreeChanges: diff}, nil
+}
+
+// Fork clones this PipelineItem.
+func (treediff *TreeDiff) Fork(n int) []core.PipelineItem {
+	return core.ForkCopyPipelineItem(treediff, n)
 }
 
 func init() {

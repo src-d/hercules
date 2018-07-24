@@ -125,6 +125,8 @@ func TestUASTExtractorConsume(t *testing.T) {
 	deps := map[string]interface{}{}
 	deps[items.DependencyBlobCache] = cache
 	deps[items.DependencyTreeChanges] = changes
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(
+		plumbing.NewHash("2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	res, err := exr.Consume(deps)
 	// Language not enabled
 	assert.Len(t, res[DependencyUasts], 0)
@@ -152,6 +154,15 @@ func TestUASTExtractorConsume(t *testing.T) {
 	uasts := res[DependencyUasts].(map[plumbing.Hash]*uast.Node)
 	assert.Equal(t, len(uasts), 1)
 	assert.Equal(t, len(uasts[hash].Children), 24)
+}
+
+func TestUASTExtractorFork(t *testing.T) {
+	exr1 := fixtureUASTExtractor()
+	clones := exr1.Fork(1)
+	assert.Len(t, clones, 1)
+	exr2 := clones[0].(*Extractor)
+	assert.True(t, exr1 == exr2)
+	exr1.Merge([]core.PipelineItem{exr2})
 }
 
 func fixtureUASTChanges() *Changes {
@@ -271,6 +282,19 @@ func TestUASTChangesConsume(t *testing.T) {
 	assert.Nil(t, result[2].After)
 }
 
+func TestUASTChangesFork(t *testing.T) {
+	changes1 := fixtureUASTChanges()
+	changes1.cache[plumbing.ZeroHash] = nil
+	clones := changes1.Fork(1)
+	assert.Len(t, clones, 1)
+	changes2 := clones[0].(*Changes)
+	assert.False(t, changes1 == changes2)
+	assert.Equal(t, changes1.cache, changes2.cache)
+	delete(changes1.cache, plumbing.ZeroHash)
+	assert.Len(t, changes2.cache, 1)
+	changes1.Merge([]core.PipelineItem{changes2})
+}
+
 func fixtureUASTChangesSaver() *ChangesSaver {
 	ch := ChangesSaver{}
 	ch.Initialize(test.Repository)
@@ -322,6 +346,8 @@ func TestUASTChangesSaverPayload(t *testing.T) {
 	deps := map[string]interface{}{}
 	changes := make([]Change, 1)
 	deps[DependencyUastChanges] = changes
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(
+		plumbing.NewHash("2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
 	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
@@ -387,4 +413,56 @@ func TestUASTChangesSaverPayload(t *testing.T) {
 	assert.Equal(t, buffer.String(), fmt.Sprintf(`  - {file: analyser.go, src0: %s/0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.src, src1: %s/0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.src, uast0: %s/0_0_before_dc248ba2b22048cc730c571a748e8ffcf7085ab9.pb, uast1: %s/0_0_after_334cde09da4afcb74f8d2b3e6fd6cce61228b485.pb}
 `, tmpdir, tmpdir, tmpdir, tmpdir))
 	checkFiles()
+}
+
+func TestUASTChangesSaverConsumeMerge(t *testing.T) {
+	chs := fixtureUASTChangesSaver()
+	deps := map[string]interface{}{}
+	changes := make([]Change, 1)
+	deps[DependencyUastChanges] = changes
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(
+		plumbing.NewHash("2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
+		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
+		"994eac1cd07235bb9815e547a75c84265dea00f5"))
+	changes[0] = Change{Before: &uast.Node{}, After: &uast.Node{},
+		Change: &object.Change{From: object.ChangeEntry{
+			Name: "analyser.go",
+			Tree: treeFrom,
+			TreeEntry: object.TreeEntry{
+				Name: "analyser.go",
+				Mode: 0100644,
+				Hash: plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"),
+			},
+		}, To: object.ChangeEntry{
+			Name: "analyser.go",
+			Tree: treeTo,
+			TreeEntry: object.TreeEntry{
+				Name: "analyser.go",
+				Mode: 0100644,
+				Hash: plumbing.NewHash("334cde09da4afcb74f8d2b3e6fd6cce61228b485"),
+			},
+		}}}
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(
+		plumbing.NewHash("cce947b98a050c6d356bc6ba95030254914027b1"))
+	chs.Consume(deps)
+	assert.Len(t, chs.result, 1)
+	chs.Consume(deps)
+	assert.Len(t, chs.result, 2)
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(
+		plumbing.NewHash("dd9dd084d5851d7dc4399fc7dbf3d8292831ebc5"))
+	chs.Consume(deps)
+	assert.Len(t, chs.result, 3)
+	chs.Consume(deps)
+	assert.Len(t, chs.result, 3)
+}
+
+func TestUASTChangesSaverFork(t *testing.T) {
+	saver1 := fixtureUASTChangesSaver()
+	clones := saver1.Fork(1)
+	assert.Len(t, clones, 1)
+	saver2 := clones[0].(*ChangesSaver)
+	assert.True(t, saver1 == saver2)
+	saver1.Merge([]core.PipelineItem{saver2})
 }

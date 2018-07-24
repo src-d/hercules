@@ -273,3 +273,12 @@ func TestFileDiffDarkMagic(t *testing.T) {
 	assert.Equal(t, magicDiffs.OldLinesOfCode, plainDiffs.OldLinesOfCode)
 	assert.Equal(t, magicDiffs.NewLinesOfCode, plainDiffs.NewLinesOfCode)
 }
+
+func TestFileDiffFork(t *testing.T) {
+	fd1 := fixtures.FileDiff()
+	clones := fd1.Fork(1)
+	assert.Len(t, clones, 1)
+	fd2 := clones[0].(*items.FileDiff)
+	assert.True(t, fd1 == fd2)
+	fd1.Merge([]core.PipelineItem{fd2})
+}

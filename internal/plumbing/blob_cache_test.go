@@ -20,14 +20,14 @@ func fixtureBlobCache() *BlobCache {
 func TestBlobCacheConfigureInitialize(t *testing.T) {
 	cache := fixtureBlobCache()
 	assert.Equal(t, test.Repository, cache.repository)
-	assert.False(t, cache.IgnoreMissingSubmodules)
+	assert.False(t, cache.FailOnMissingSubmodules)
 	facts := map[string]interface{}{}
-	facts[ConfigBlobCacheIgnoreMissingSubmodules] = true
+	facts[ConfigBlobCacheFailOnMissingSubmodules] = true
 	cache.Configure(facts)
-	assert.True(t, cache.IgnoreMissingSubmodules)
+	assert.True(t, cache.FailOnMissingSubmodules)
 	facts = map[string]interface{}{}
 	cache.Configure(facts)
-	assert.True(t, cache.IgnoreMissingSubmodules)
+	assert.True(t, cache.FailOnMissingSubmodules)
 }
 
 func TestBlobCacheMetadata(t *testing.T) {
@@ -40,7 +40,7 @@ func TestBlobCacheMetadata(t *testing.T) {
 	assert.Equal(t, cache.Requires()[0], changes.Provides()[0])
 	opts := cache.ListConfigurationOptions()
 	assert.Len(t, opts, 1)
-	assert.Equal(t, opts[0].Name, ConfigBlobCacheIgnoreMissingSubmodules)
+	assert.Equal(t, opts[0].Name, ConfigBlobCacheFailOnMissingSubmodules)
 }
 
 func TestBlobCacheRegistration(t *testing.T) {
@@ -78,7 +78,7 @@ func TestBlobCacheConsumeModification(t *testing.T) {
 		},
 	}}
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, err)
@@ -124,7 +124,7 @@ func TestBlobCacheConsumeInsertionDeletion(t *testing.T) {
 	},
 	}
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, err)
@@ -151,7 +151,7 @@ func TestBlobCacheConsumeNoAction(t *testing.T) {
 		"63076fa0dfd93e94b6d2ef0fc8b1fdf9092f83c4"))
 	changes[0] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{}}
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
@@ -188,7 +188,7 @@ func TestBlobCacheConsumeBadHashes(t *testing.T) {
 		TreeEntry: object.TreeEntry{},
 	}}
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
@@ -235,7 +235,7 @@ func TestBlobCacheConsumeInvalidHash(t *testing.T) {
 		TreeEntry: object.TreeEntry{},
 	}}
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, result)
@@ -294,7 +294,7 @@ func TestBlobCacheDeleteInvalidBlob(t *testing.T) {
 	}, To: object.ChangeEntry{},
 	}
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.Nil(t, err)
@@ -325,7 +325,7 @@ func TestBlobCacheInsertInvalidBlob(t *testing.T) {
 	},
 	}
 	deps := map[string]interface{}{}
-	deps["commit"] = commit
+	deps[core.DependencyCommit] = commit
 	deps[DependencyTreeChanges] = changes
 	result, err := fixtureBlobCache().Consume(deps)
 	assert.NotNil(t, err)
@@ -334,14 +334,14 @@ func TestBlobCacheInsertInvalidBlob(t *testing.T) {
 
 func TestBlobCacheGetBlobIgnoreMissing(t *testing.T) {
 	cache := fixtureBlobCache()
-	cache.IgnoreMissingSubmodules = true
+	cache.FailOnMissingSubmodules = false
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"80fe25955b8e725feee25c08ea5759d74f8b670d"))
 	entry := object.ChangeEntry{
-		Name: "commit",
+		Name: core.DependencyCommit,
 		Tree: treeFrom,
 		TreeEntry: object.TreeEntry{
-			Name: "commit",
+			Name: core.DependencyCommit,
 			Mode: 0160000,
 			Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),
 		},
@@ -353,7 +353,7 @@ func TestBlobCacheGetBlobIgnoreMissing(t *testing.T) {
 	assert.NotNil(t, blob)
 	assert.Nil(t, err)
 	assert.Equal(t, blob.Size, int64(0))
-	cache.IgnoreMissingSubmodules = false
+	cache.FailOnMissingSubmodules = true
 	getter = func(path string) (*object.File, error) {
 		assert.Equal(t, path, ".gitmodules")
 		commit, _ := test.Repository.CommitObject(plumbing.NewHash(
@@ -367,7 +367,7 @@ func TestBlobCacheGetBlobIgnoreMissing(t *testing.T) {
 
 func TestBlobCacheGetBlobGitModulesErrors(t *testing.T) {
 	cache := fixtureBlobCache()
-	cache.IgnoreMissingSubmodules = false
+	cache.FailOnMissingSubmodules = true
 	entry := object.ChangeEntry{
 		Name: "labours.py",
 		TreeEntry: object.TreeEntry{
@@ -401,4 +401,39 @@ func TestBlobCacheGetBlobGitModulesErrors(t *testing.T) {
 	assert.Nil(t, blob)
 	assert.NotNil(t, err)
 	assert.NotEqual(t, err.Error(), plumbing.ErrObjectNotFound.Error())
+}
+
+func TestBlobCacheFork(t *testing.T) {
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
+		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
+	changes := make(object.Changes, 1)
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
+		"251f2094d7b523d5bcc60e663b6cf38151bf8844"))
+	hash := plumbing.NewHash("db99e1890f581ad69e1527fe8302978c661eb473")
+	changes[0] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: "pipeline.go",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "pipeline.go",
+			Mode: 0100644,
+			Hash: hash,
+		},
+	}}
+	deps := map[string]interface{}{}
+	deps[core.DependencyCommit] = commit
+	deps[DependencyTreeChanges] = changes
+	cache1 := fixtureBlobCache()
+	cache1.FailOnMissingSubmodules = true
+	cache1.Consume(deps)
+	clones := cache1.Fork(1)
+	assert.Len(t, clones, 1)
+	cache2 := clones[0].(*BlobCache)
+	assert.True(t, cache2.FailOnMissingSubmodules)
+	assert.Equal(t, cache1.repository, cache2.repository)
+	cache1.cache[plumbing.ZeroHash] = nil
+	assert.Len(t, cache1.cache, 2)
+	assert.Len(t, cache2.cache, 1)
+	assert.Equal(t, cache1.cache[hash].Size, cache2.cache[hash].Size)
+	// just for the sake of it
+	cache1.Merge([]core.PipelineItem{cache2})
 }

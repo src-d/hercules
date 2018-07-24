@@ -12,6 +12,7 @@ import (
 // DaysSinceStart provides the relative date information for every commit.
 // It is a PipelineItem.
 type DaysSinceStart struct {
+	core.NoopMerger
 	day0        time.Time
 	previousDay int
 	commits     map[int][]plumbing.Hash
@@ -77,12 +78,12 @@ func (days *DaysSinceStart) Initialize(repository *git.Repository) {
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps["commit"].(*object.Commit)
-	index := deps["index"].(int)
+	commit := deps[core.DependencyCommit].(*object.Commit)
+	index := deps[core.DependencyIndex].(int)
 	if index == 0 {
 		// first iteration - initialize the file objects from the tree
 		days.day0 = commit.Author.When
@@ -99,8 +100,23 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 	if dayCommits == nil {
 		dayCommits = []plumbing.Hash{}
 	}
-	days.commits[day] = append(dayCommits, commit.Hash)
+	exists := false
+	if commit.NumParents() > 0 {
+		for i := range dayCommits {
+			if dayCommits[len(dayCommits)-i-1] == commit.Hash {
+				exists = true
+			}
+		}
+	}
+	if !exists {
+		days.commits[day] = append(dayCommits, commit.Hash)
+	}
 	return map[string]interface{}{DependencyDay: day}, nil
+}
+
+// Fork clones this PipelineItem.
+func (days *DaysSinceStart) Fork(n int) []core.PipelineItem {
+	return core.ForkCopyPipelineItem(days, n)
 }
 
 func init() {

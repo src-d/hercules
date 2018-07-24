@@ -20,6 +20,10 @@ import (
 // ChurnAnalysis contains the intermediate state which is mutated by Consume(). It should implement
 // hercules.LeafPipelineItem.
 type ChurnAnalysis struct {
+	// No special merge logic is required
+	hercules.NoopMerger
+	// Process each merge only once
+	hercules.OneShotMergeProcessor
 	TrackPeople bool
 
 	global []editInfo
@@ -109,9 +113,13 @@ func (churn *ChurnAnalysis) Configure(facts map[string]interface{}) {
 func (churn *ChurnAnalysis) Initialize(repository *git.Repository) {
 	churn.global = []editInfo{}
 	churn.people = map[int][]editInfo{}
+	churn.OneShotMergeProcessor.Initialize()
 }
 
 func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	if !churn.ShouldConsumeCommit(deps) {
+		return nil, nil
+	}
 	fileDiffs := deps[hercules.DependencyFileDiff].(map[string]hercules.FileDiffData)
 	treeDiffs := deps[hercules.DependencyTreeChanges].(object.Changes)
 	cache := deps[hercules.DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
@@ -165,6 +173,11 @@ func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]int
 		}
 	}
 	return nil, nil
+}
+
+// Fork clones the same item several times on branches.
+func (churn *ChurnAnalysis) Fork(n int) []hercules.PipelineItem {
+	return hercules.ForkSamePipelineItem(churn, n)
 }
 
 func (churn *ChurnAnalysis) Finalize() interface{} {

@@ -59,6 +59,13 @@ func (item *dummyPipelineItem) Consume(deps map[string]interface{}) (map[string]
 	return map[string]interface{}{"dummy": nil}, nil
 }
 
+func (item *dummyPipelineItem) Fork(n int) []PipelineItem {
+	return nil
+}
+
+func (item *dummyPipelineItem) Merge(branches []PipelineItem) {
+}
+
 type dummyPipelineItem2 struct{}
 
 func (item *dummyPipelineItem2) Name() string {
@@ -90,6 +97,13 @@ func (item *dummyPipelineItem2) Initialize(repository *git.Repository) {}
 
 func (item *dummyPipelineItem2) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	return map[string]interface{}{"dummy2": nil}, nil
+}
+
+func (item *dummyPipelineItem2) Fork(n int) []PipelineItem {
+	return nil
+}
+
+func (item *dummyPipelineItem2) Merge(branches []PipelineItem) {
 }
 
 func TestRegistrySummon(t *testing.T) {

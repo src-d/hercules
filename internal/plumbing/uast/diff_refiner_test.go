@@ -153,3 +153,12 @@ func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
 	assert.Len(t, result, 1)
 	assert.Equal(t, fileDiffs[fileName], result[fileName])
 }
+
+func TestFileDiffRefinerFork(t *testing.T) {
+	fd1 := fixtureFileDiffRefiner()
+	clones := fd1.Fork(1)
+	assert.Len(t, clones, 1)
+	fd2 := clones[0].(*FileDiffRefiner)
+	assert.True(t, fd1 == fd2)
+	fd1.Merge([]core.PipelineItem{fd2})
+}

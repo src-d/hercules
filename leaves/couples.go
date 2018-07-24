@@ -20,6 +20,8 @@ import (
 // The results are matrices, where cell at row X and column Y is the number of commits which
 // changed X and Y together. In case with people, the numbers are summed for every common file.
 type CouplesAnalysis struct {
+	core.NoopMerger
+	core.OneShotMergeProcessor
 	// PeopleNumber is the number of developers for which to build the matrix. 0 disables this analysis.
 	PeopleNumber int
 
@@ -92,14 +94,18 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 	}
 	couples.peopleCommits = make([]int, couples.PeopleNumber+1)
 	couples.files = map[string]map[string]int{}
+	couples.OneShotMergeProcessor.Initialize()
 }
 
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
-// Additionally, "commit" is always present there and represents the analysed *object.Commit.
+// Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	if !couples.ShouldConsumeCommit(deps) {
+		return nil, nil
+	}
 	author := deps[identity.DependencyAuthor].(int)
 	if author == identity.AuthorMissing {
 		author = couples.PeopleNumber
@@ -215,6 +221,11 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 		FilesMatrix:        filesMatrix,
 		reversedPeopleDict: couples.reversedPeopleDict,
 	}
+}
+
+// Fork clones this pipeline item.
+func (couples *CouplesAnalysis) Fork(n int) []core.PipelineItem {
+	return core.ForkSamePipelineItem(couples, n)
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.
