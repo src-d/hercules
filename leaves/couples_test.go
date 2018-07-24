@@ -10,6 +10,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/core"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing"
@@ -89,6 +90,8 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	c := fixtureCouples()
 	deps := map[string]interface{}{}
 	deps[identity.DependencyAuthor] = 0
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
 	c.Consume(deps)
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
@@ -191,6 +194,8 @@ func TestCouplesSerialize(t *testing.T) {
 	deps := map[string]interface{}{}
 	deps[identity.DependencyAuthor] = 0
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	c.Consume(deps)
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
 	c.Consume(deps)

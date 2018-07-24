@@ -245,7 +245,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	commit := deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
 	day := deps[items.DependencyDay].(int)
-	if len(commit.ParentHashes) == 1 {
+	if len(commit.ParentHashes) <= 1 {
 		analyser.day = day
 		analyser.onNewDay()
 	} else {
