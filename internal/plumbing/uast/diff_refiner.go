@@ -15,6 +15,7 @@ import (
 // The idea behind this algorithm is simple: in case of multiple choices which are equally
 // optimal, choose the one which touches less AST nodes.
 type FileDiffRefiner struct {
+	core.NoopMerger
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -161,16 +162,9 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 	return map[string]interface{}{plumbing.DependencyFileDiff: result}, nil
 }
 
+// Fork clones this PipelineItem.
 func (ref *FileDiffRefiner) Fork(n int) []core.PipelineItem {
-	refs := make([]core.PipelineItem, n)
-	for i := 0; i < n; i++ {
-		refs[i] = ref
-	}
-	return refs
-}
-
-func (ref *FileDiffRefiner) Merge(branches []core.PipelineItem) {
-	// no-op
+	return core.ForkSamePipelineItem(ref, n)
 }
 
 // VisitEachNode is a handy routine to execute a callback on every node in the subtree,

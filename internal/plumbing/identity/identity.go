@@ -131,6 +131,7 @@ func (detector *Detector) Consume(deps map[string]interface{}) (map[string]inter
 	return map[string]interface{}{DependencyAuthor: authorID}, nil
 }
 
+// Fork clones this PipelineItem.
 func (detector *Detector) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(detector, n)
 }

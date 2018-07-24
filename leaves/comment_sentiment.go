@@ -25,6 +25,8 @@ import (
 
 // CommentSentimentAnalysis measures comment sentiment through time.
 type CommentSentimentAnalysis struct {
+	core.NoopMerger
+	core.OneShotMergeProcessor
 	MinCommentLength int
 	Gap              float32
 
@@ -141,6 +143,7 @@ func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) {
 	sent.commentsByDay = map[int][]string{}
 	sent.xpather = &uast_items.ChangesXPather{XPath: "//*[@roleComment]"}
 	sent.validate()
+	sent.OneShotMergeProcessor.Initialize()
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -149,6 +152,9 @@ func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (sent *CommentSentimentAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	if !sent.ShouldConsumeCommit(deps) {
+		return nil, nil
+	}
 	changes := deps[uast_items.DependencyUastChanges].([]uast_items.Change)
 	day := deps[items.DependencyDay].(int)
 	commentNodes := sent.xpather.Extract(changes)
@@ -223,6 +229,11 @@ func (sent *CommentSentimentAnalysis) Finalize() interface{} {
 		}
 	}
 	return result
+}
+
+// Fork clones this PipelineItem.
+func (sent *CommentSentimentAnalysis) Fork(n int) []core.PipelineItem {
+	return core.ForkSamePipelineItem(sent, n)
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.

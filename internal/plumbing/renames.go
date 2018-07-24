@@ -204,6 +204,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	return map[string]interface{}{DependencyTreeChanges: reducedChanges}, nil
 }
 
+// Fork clones this PipelineItem.
 func (ra *RenameAnalysis) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(ra, n)
 }

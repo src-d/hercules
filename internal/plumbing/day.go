@@ -114,6 +114,7 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 	return map[string]interface{}{DependencyDay: day}, nil
 }
 
+// Fork clones this PipelineItem.
 func (days *DaysSinceStart) Fork(n int) []core.PipelineItem {
 	return core.ForkCopyPipelineItem(days, n)
 }

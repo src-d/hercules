@@ -22,6 +22,8 @@ import (
 // ShotnessAnalysis contains the intermediate state which is mutated by Consume(). It should implement
 // LeafPipelineItem.
 type ShotnessAnalysis struct {
+	core.NoopMerger
+	core.OneShotMergeProcessor
 	XpathStruct string
 	XpathName   string
 
@@ -138,6 +140,7 @@ func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) {
 func (shotness *ShotnessAnalysis) Initialize(repository *git.Repository) {
 	shotness.nodes = map[string]*nodeShotness{}
 	shotness.files = map[string]map[string]*nodeShotness{}
+	shotness.OneShotMergeProcessor.Initialize()
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -146,7 +149,10 @@ func (shotness *ShotnessAnalysis) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps[DependencyCommit].(*object.Commit)
+	if !shotness.ShouldConsumeCommit(deps) {
+		return nil, nil
+	}
+	commit := deps[core.DependencyCommit].(*object.Commit)
 	changesList := deps[uast_items.DependencyUastChanges].([]uast_items.Change)
 	diffs := deps[items.DependencyFileDiff].(map[string]items.FileDiffData)
 	allNodes := map[string]bool{}
@@ -320,6 +326,11 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 		}
 	}
 	return nil, nil
+}
+
+// Fork clones this PipelineItem.
+func (shotness *ShotnessAnalysis) Fork(n int) []core.PipelineItem {
+	return core.ForkSamePipelineItem(shotness, n)
 }
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.

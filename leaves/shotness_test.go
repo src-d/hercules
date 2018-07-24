@@ -77,7 +77,7 @@ func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, Shotn
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
-	state[DependencyCommit] = &object.Commit{}
+	state[core.DependencyCommit] = &object.Commit{}
 	fileDiffs := map[string]items.FileDiffData{}
 	const fileName = "test.java"
 	fileDiffs[fileName] = items.FileDiffData{
@@ -130,7 +130,7 @@ func TestShotnessConsume(t *testing.T) {
 	dmp := diffmatchpatch.New()
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
-	state[DependencyCommit] = &object.Commit{}
+	state[core.DependencyCommit] = &object.Commit{}
 	fileDiffs := map[string]items.FileDiffData{}
 	const fileName = "test.java"
 	const newfileName = "new.java"
@@ -207,6 +207,15 @@ func TestShotnessConsume(t *testing.T) {
 	assert.Nil(t, iresult)
 	assert.Len(t, sh.nodes, 0)
 	assert.Len(t, sh.files, 0)
+}
+
+func TestShotnessFork(t *testing.T) {
+	sh1 := fixtureShotness()
+	clones := sh1.Fork(1)
+	assert.Len(t, clones, 1)
+	sh2 := clones[0].(*ShotnessAnalysis)
+	assert.True(t, sh1 == sh2)
+	sh1.Merge([]core.PipelineItem{sh2})
 }
 
 func TestShotnessConsumeNoEnd(t *testing.T) {

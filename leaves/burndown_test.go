@@ -178,6 +178,8 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	result, err := fd.Consume(deps)
 	assert.Nil(t, err)
 	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	result, err = burndown.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)

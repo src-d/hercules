@@ -168,6 +168,15 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, cr.FilesMatrix[2][2], int64(2))
 }
 
+func TestCouplesFork(t *testing.T) {
+	couples1 := fixtureCouples()
+	clones := couples1.Fork(1)
+	assert.Len(t, clones, 1)
+	couples2 := clones[0].(*CouplesAnalysis)
+	assert.True(t, couples1 == couples2)
+	couples1.Merge([]core.PipelineItem{couples2})
+}
+
 func TestCouplesSerialize(t *testing.T) {
 	c := fixtureCouples()
 	c.PeopleNumber = 1

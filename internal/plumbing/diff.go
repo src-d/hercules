@@ -129,6 +129,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{DependencyFileDiff: result}, nil
 }
 
+// Fork clones this PipelineItem.
 func (diff *FileDiff) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(diff, n)
 }

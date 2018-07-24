@@ -19,6 +19,8 @@ import (
 // FileHistory contains the intermediate state which is mutated by Consume(). It should implement
 // LeafPipelineItem.
 type FileHistory struct {
+	core.NoopMerger
+	core.OneShotMergeProcessor
 	files map[string][]plumbing.Hash
 }
 
@@ -65,6 +67,7 @@ func (history *FileHistory) Configure(facts map[string]interface{}) {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (history *FileHistory) Initialize(repository *git.Repository) {
 	history.files = map[string][]plumbing.Hash{}
+	history.OneShotMergeProcessor.Initialize()
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -73,7 +76,10 @@ func (history *FileHistory) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (history *FileHistory) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps[DependencyCommit].(*object.Commit).Hash
+	if !history.ShouldConsumeCommit(deps) {
+		return nil, nil
+	}
+	commit := deps[core.DependencyCommit].(*object.Commit).Hash
 	changes := deps[items.DependencyTreeChanges].(object.Changes)
 	for _, change := range changes {
 		action, _ := change.Action()
@@ -99,6 +105,11 @@ func (history *FileHistory) Consume(deps map[string]interface{}) (map[string]int
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (history *FileHistory) Finalize() interface{} {
 	return FileHistoryResult{Files: history.files}
+}
+
+// Fork clones this PipelineItem.
+func (history *FileHistory) Fork(n int) []core.PipelineItem {
+	return core.ForkSamePipelineItem(history, n)
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.

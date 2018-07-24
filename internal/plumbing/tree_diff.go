@@ -142,6 +142,7 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 	return map[string]interface{}{DependencyTreeChanges: diff}, nil
 }
 
+// Fork clones this PipelineItem.
 func (treediff *TreeDiff) Fork(n int) []core.PipelineItem {
 	return core.ForkCopyPipelineItem(treediff, n)
 }

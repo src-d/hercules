@@ -93,7 +93,7 @@ func TestFileHistoryConsume(t *testing.T) {
 	deps[items.DependencyTreeChanges] = changes
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
-	deps[DependencyCommit] = commit
+	deps[core.DependencyCommit] = commit
 	fh.files["cmd/hercules/main.go"] = []plumbing.Hash{plumbing.NewHash(
 		"0000000000000000000000000000000000000000")}
 	fh.files["analyser.go"] = []plumbing.Hash{plumbing.NewHash(
@@ -111,6 +111,15 @@ func TestFileHistoryConsume(t *testing.T) {
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	res := fh.Finalize().(FileHistoryResult)
 	assert.Equal(t, fh.files, res.Files)
+}
+
+func TestFileHistoryFork(t *testing.T) {
+	fh1 := fixtureFileHistory()
+	clones := fh1.Fork(1)
+	assert.Len(t, clones, 1)
+	fh2 := clones[0].(*FileHistory)
+	assert.True(t, fh1 == fh2)
+	fh1.Merge([]core.PipelineItem{fh2})
 }
 
 func TestFileHistorySerializeText(t *testing.T) {
@@ -132,7 +141,7 @@ func TestFileHistorySerializeText(t *testing.T) {
 	deps[items.DependencyTreeChanges] = changes
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
-	deps[DependencyCommit] = commit
+	deps[core.DependencyCommit] = commit
 	fh.Consume(deps)
 	res := fh.Finalize().(FileHistoryResult)
 	buffer := &bytes.Buffer{}
@@ -159,7 +168,7 @@ func TestFileHistorySerializeBinary(t *testing.T) {
 	deps[items.DependencyTreeChanges] = changes
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
-	deps[DependencyCommit] = commit
+	deps[core.DependencyCommit] = commit
 	fh.Consume(deps)
 	res := fh.Finalize().(FileHistoryResult)
 	buffer := &bytes.Buffer{}

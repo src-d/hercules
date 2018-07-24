@@ -87,6 +87,15 @@ func TestCommentSentimentRegistration(t *testing.T) {
 	assert.True(t, matched)
 }
 
+func TestCommentSentimentFork(t *testing.T) {
+	sent1 := fixtureCommentSentiment()
+	clones := sent1.Fork(1)
+	assert.Len(t, clones, 1)
+	sent2 := clones[0].(*CommentSentimentAnalysis)
+	assert.True(t, sent1 == sent2)
+	sent1.Merge([]core.PipelineItem{sent2})
+}
+
 func TestCommentSentimentSerializeText(t *testing.T) {
 	sent := fixtureCommentSentiment()
 	result := CommentSentimentResult{

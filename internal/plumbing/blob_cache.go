@@ -154,6 +154,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 	return map[string]interface{}{DependencyBlobCache: cache}, nil
 }
 
+// Fork clones this PipelineItem.
 func (blobCache *BlobCache) Fork(n int) []core.PipelineItem {
 	caches := make([]core.PipelineItem, n)
 	for i := 0; i < n; i++ {

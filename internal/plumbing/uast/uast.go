@@ -288,6 +288,7 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{DependencyUasts: uasts}, nil
 }
 
+// Fork clones this PipelineItem.
 func (exr *Extractor) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(exr, n)
 }
@@ -433,6 +434,7 @@ func (uc *Changes) Consume(deps map[string]interface{}) (map[string]interface{},
 	return map[string]interface{}{DependencyUastChanges: commit}, nil
 }
 
+// Fork clones this PipelineItem.
 func (uc *Changes) Fork(n int) []core.PipelineItem {
 	ucs := make([]core.PipelineItem, n)
 	for i := 0; i < n; i++ {
@@ -542,6 +544,7 @@ func (saver *ChangesSaver) Finalize() interface{} {
 	return saver.result
 }
 
+// Fork clones this PipelineItem.
 func (saver *ChangesSaver) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(saver, n)
 }
