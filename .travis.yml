@@ -114,7 +114,7 @@ jobs:
         - sudo ldconfig
       script: skip
       install:
-        - make
+        - DISABLE_TENSORFLOW=1 make
       after_success:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
       deploy:
