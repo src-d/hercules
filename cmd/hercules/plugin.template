@@ -30,6 +30,10 @@ import (
 // {{.name}} contains the intermediate state which is mutated by Consume(). It should implement
 // hercules.LeafPipelineItem.
 type {{.name}} struct {
+  // No special branch merge logic is required
+  hercules.NoopMerger
+  // Process each merge commit only once
+  hercules.OneShotMergeProcessor
 }
 
 // {{.name}}Result is returned by Finalize() and represents the analysis result.
@@ -76,11 +80,20 @@ func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) {
 
 // Initialize resets the internal temporary data structures and prepares the object for Consume().
 func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) {
+  {{.varname}}.OneShotMergeProcessor.Initialize()
 }
 
 // Consume is called for every commit in the sequence.
 func ({{.varname}} *{{.name}}) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+  if !{{.varname}}.ShouldConsumeCommit(deps) {
+    return nil, nil
+  }
   return nil, nil
+}
+
+// Fork clones the same item several times on branches.
+func ({{.varname}} *{{.name}}) Fork(n int) []hercules.PipelineItem {
+  return hercules.ForkSamePipelineItem({{.varname}}, n)
 }
 
 // Finalize produces the result of the analysis. No more Consume() calls are expected afterwards.

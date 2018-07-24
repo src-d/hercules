@@ -44,6 +44,12 @@ type MergeablePipelineItem = core.MergeablePipelineItem
 // CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
 type CommonAnalysisResult = core.CommonAnalysisResult
 
+// NoopMerger provides an empty Merge() method suitable for PipelineItem.
+type NoopMerger = core.NoopMerger
+
+// OneShotMergeProcessor provides the convenience method to consume merges only once.
+type OneShotMergeProcessor = core.OneShotMergeProcessor
+
 // MetadataToCommonAnalysisResult copies the data from a Protobuf message.
 func MetadataToCommonAnalysisResult(meta *core.Metadata) *CommonAnalysisResult {
 	return core.MetadataToCommonAnalysisResult(meta)
@@ -76,6 +82,16 @@ func NewPipeline(repository *git.Repository) *Pipeline {
 // by interpreting each line as a Git commit hash.
 func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Commit, error) {
 	return core.LoadCommitsFromFile(path, repository)
+}
+
+// ForkSamePipelineItem clones items by referencing the same origin.
+func ForkSamePipelineItem(origin PipelineItem, n int) []PipelineItem {
+	return core.ForkSamePipelineItem(origin ,n)
+}
+
+// ForkCopyPipelineItem clones items by copying them by value from the origin.
+func ForkCopyPipelineItem(origin PipelineItem, n int) []PipelineItem {
+	return core.ForkCopyPipelineItem(origin ,n)
 }
 
 // PipelineItemRegistry contains all the known PipelineItem-s.

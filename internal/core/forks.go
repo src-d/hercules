@@ -34,7 +34,7 @@ func (proc *OneShotMergeProcessor) ShouldConsumeCommit(deps map[string]interface
 	return false
 }
 
-// NoopMerger provides an empty Merge() method suitable for PipelineITem.
+// NoopMerger provides an empty Merge() method suitable for PipelineItem.
 type NoopMerger struct {
 }
 
