@@ -276,6 +276,8 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	return nil, nil
 }
 
+// Fork clones this item. Everything is copied by reference except the files
+// which are copied by value.
 func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
 	result := make([]core.PipelineItem, n)
 	for i := range result {
@@ -289,6 +291,7 @@ func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
 	return result
 }
 
+// Merge combines several items together. We apply the special file merging logic here.
 func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 	for key, file := range analyser.files {
 		others := make([]*burndown.File, len(branches))
