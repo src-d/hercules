@@ -3,6 +3,7 @@ package leaves
 import (
 	"fmt"
 	"io"
+	"log"
 	"sort"
 
 	"github.com/gogo/protobuf/proto"
@@ -20,7 +21,6 @@ import (
 // The results are matrices, where cell at row X and column Y is the number of commits which
 // changed X and Y together. In case with people, the numbers are summed for every common file.
 type CouplesAnalysis struct {
-	core.NoopMerger
 	core.OneShotMergeProcessor
 	// PeopleNumber is the number of developers for which to build the matrix. 0 disables this analysis.
 	PeopleNumber int
@@ -103,14 +103,15 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	if !couples.ShouldConsumeCommit(deps) {
-		return nil, nil
-	}
+	firstMerge := couples.ShouldConsumeCommit(deps)
+	mergeMode := core.IsMergeCommit(deps)
 	author := deps[identity.DependencyAuthor].(int)
 	if author == identity.AuthorMissing {
 		author = couples.PeopleNumber
 	}
-	couples.peopleCommits[author]++
+	if firstMerge {
+		couples.peopleCommits[author]++
+	}
 	treeDiff := deps[items.DependencyTreeChanges].(object.Changes)
 	context := make([]string, 0)
 	deleteFile := func(name string) {
@@ -129,15 +130,26 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 		fromName := change.From.Name
 		switch action {
 		case merkletrie.Insert:
-			context = append(context, toName)
-			couples.people[author][toName]++
+			if !mergeMode {
+				context = append(context, toName)
+				couples.people[author][toName]++
+			} else {
+				couples.files[toName] = map[string]int{}
+			}
 		case merkletrie.Delete:
 			deleteFile(fromName)
-			couples.people[author][fromName]++
+			if !mergeMode {
+				couples.people[author][fromName]++
+			}
 		case merkletrie.Modify:
 			if fromName != toName {
 				// renamed
-				couples.files[toName] = couples.files[fromName]
+				fromFiles := couples.files[fromName]
+				if fromFiles == nil {
+					log.Panicf("CouplesAnalysis corruption: %s %s",
+						fromName, deps[core.DependencyCommit].(*object.Commit).Hash.String())
+				}
+				couples.files[toName] = fromFiles
 				for _, otherFiles := range couples.files {
 					val, exists := otherFiles[fromName]
 					if exists {
@@ -153,8 +165,10 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 					}
 				}
 			}
-			context = append(context, toName)
-			couples.people[author][toName]++
+			if !mergeMode {
+				context = append(context, toName)
+				couples.people[author][toName]++
+			}
 		}
 	}
 	for _, file := range context {
@@ -225,7 +239,33 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 
 // Fork clones this pipeline item.
 func (couples *CouplesAnalysis) Fork(n int) []core.PipelineItem {
-	return core.ForkSamePipelineItem(couples, n)
+	clones := core.ForkCopyPipelineItem(couples, n)
+	for i := range clones {
+		files := map[string]map[string]int{}
+		clones[i].(*CouplesAnalysis).files = files
+		for key1, val1 := range couples.files {
+			subfiles := map[string]int{}
+			files[key1] = subfiles
+			for key2 := range val1 {
+				subfiles[key2] = 0
+			}
+		}
+	}
+	return clones
+}
+
+// Merge combines several couples together after a merge commit.
+func (couples *CouplesAnalysis) Merge(clones []core.PipelineItem) {
+	for i := range clones {
+		files := clones[i].(*CouplesAnalysis).files
+		for key1, vals := range files {
+			subfiles := couples.files[key1]
+			for key2, delta := range vals {
+				subfiles[key2] += delta
+				vals[key2] = 0
+			}
+		}
+	}
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.
