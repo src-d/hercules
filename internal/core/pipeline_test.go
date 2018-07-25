@@ -285,12 +285,14 @@ func TestPipelineOnProgress(t *testing.T) {
 func TestPipelineCommits(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
 	commits := pipeline.Commits()
-	assert.True(t, len(commits) >= 90)
-	assert.Equal(t, commits[0].Hash, plumbing.NewHash(
+	assert.True(t, len(commits) >= 100)
+	hashMap := map[plumbing.Hash]bool{}
+	for _, c := range commits {
+		hashMap[c.Hash] = true
+	}
+	assert.Equal(t, len(commits), len(hashMap))
+	assert.Contains(t, hashMap, plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
-	assert.Equal(t, commits[89].Hash, plumbing.NewHash(
-		"6db8065cdb9bb0758f36a7e75fc72ab95f9e8145"))
-	assert.NotEqual(t, commits[len(commits)-1], commits[len(commits)-2])
 }
 
 func TestLoadCommitsFromFile(t *testing.T) {
@@ -491,50 +493,52 @@ func TestPrepareRunPlanBig(t *testing.T) {
 		{2018, 5, 16, 13, 9, 13, 13},
 	}
 	for _, testCase := range cases {
-		cit, err := test.Repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
-		if err != nil {
-			panic(err)
-		}
-		defer cit.Close()
-		var commits []*object.Commit
-		timeCutoff := time.Date(
-			testCase[0], time.Month(testCase[1]), testCase[2], 0, 0, 0, 0, time.FixedZone("CET", 7200))
-		cit.ForEach(func(commit *object.Commit) error {
-			reliableTime := time.Date(commit.Author.When.Year(), commit.Author.When.Month(),
-				commit.Author.When.Day(), commit.Author.When.Hour(), commit.Author.When.Minute(),
-				commit.Author.When.Second(), 0, time.FixedZone("CET", 7200))
-			if reliableTime.Before(timeCutoff) {
-				commits = append(commits, commit)
+		func() {
+			cit, err := test.Repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
+			if err != nil {
+				panic(err)
 			}
-			return nil
-		})
-		plan := prepareRunPlan(commits)
-		/*for _, p := range plan {
+			defer cit.Close()
+			var commits []*object.Commit
+			timeCutoff := time.Date(
+				testCase[0], time.Month(testCase[1]), testCase[2], 0, 0, 0, 0, time.FixedZone("CET", 7200))
+			cit.ForEach(func(commit *object.Commit) error {
+				reliableTime := time.Date(commit.Author.When.Year(), commit.Author.When.Month(),
+					commit.Author.When.Day(), commit.Author.When.Hour(), commit.Author.When.Minute(),
+					commit.Author.When.Second(), 0, time.FixedZone("CET", 7200))
+				if reliableTime.Before(timeCutoff) {
+					commits = append(commits, commit)
+				}
+				return nil
+			})
+			plan := prepareRunPlan(commits)
+			/*for _, p := range plan {
 			if p.Commit != nil {
 				fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
 			} else {
 				fmt.Println(p.Action, strings.Repeat(" ", 40), p.Items)
 			}
 		}*/
-		numCommits := 0
-		numForks := 0
-		numMerges := 0
-		numDeletes := 0
-		for _, p := range plan {
-			switch p.Action {
-			case runActionCommit:
-				numCommits++
-			case runActionFork:
-				numForks++
-			case runActionMerge:
-				numMerges++
-			case runActionDelete:
-				numDeletes++
+			numCommits := 0
+			numForks := 0
+			numMerges := 0
+			numDeletes := 0
+			for _, p := range plan {
+				switch p.Action {
+				case runActionCommit:
+					numCommits++
+				case runActionFork:
+					numForks++
+				case runActionMerge:
+					numMerges++
+				case runActionDelete:
+					numDeletes++
+				}
 			}
-		}
-		assert.Equal(t, numCommits, len(commits)+testCase[3], fmt.Sprintf("commits %v", testCase))
-		assert.Equal(t, numForks, testCase[4], fmt.Sprintf("forks %v", testCase))
-		assert.Equal(t, numMerges, testCase[5], fmt.Sprintf("merges %v", testCase))
-		assert.Equal(t, numMerges, testCase[6], fmt.Sprintf("deletes %v", testCase))
+			assert.Equal(t, numCommits, len(commits)+testCase[3], fmt.Sprintf("commits %v", testCase))
+			assert.Equal(t, numForks, testCase[4], fmt.Sprintf("forks %v", testCase))
+			assert.Equal(t, numMerges, testCase[5], fmt.Sprintf("merges %v", testCase))
+			assert.Equal(t, numMerges, testCase[6], fmt.Sprintf("deletes %v", testCase))
+		}()
 	}
 }
