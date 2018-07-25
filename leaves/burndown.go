@@ -242,10 +242,9 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
 	day := deps[items.DependencyDay].(int)
-	if len(commit.ParentHashes) <= 1 {
+	if !core.IsMergeCommit(deps) {
 		analyser.day = day
 		analyser.onNewDay()
 	} else {
