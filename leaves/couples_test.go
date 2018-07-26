@@ -16,7 +16,7 @@ import (
 	"gopkg.in/src-d/hercules.v4/internal/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/internal/test"
-)
+		)
 
 func fixtureCouples() *CouplesAnalysis {
 	c := CouplesAnalysis{PeopleNumber: 3}
@@ -351,6 +351,55 @@ func TestCouplesMerge(t *testing.T) {
 	assert.Equal(t, merged.FilesMatrix[0], getCouplesMap(1, 100))
 	assert.Equal(t, merged.FilesMatrix[1], getCouplesMap(0, 100, 2, 200))
 	assert.Equal(t, merged.FilesMatrix[2], getCouplesMap(1, 200))
+}
+
+func TestCouplesCurrentFiles(t *testing.T) {
+	c := fixtureCouples()
+	c.lastCommit, _ = test.Repository.CommitObject(gitplumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1"))
+	files := c.currentFiles()
+	assert.Equal(t, files, map[string]bool{".gitignore": true, "LICENSE": true})
+}
+
+func TestCouplesPropagateRenames(t *testing.T) {
+	c := fixtureCouples()
+	c.files["one"] = map[string]int{
+		"one": 1,
+		"two": 2,
+		"three": 3,
+	}
+	c.files["two"] = map[string]int{
+		"one": 2,
+		"two": 10,
+		"three": 1,
+		"four": 7,
+	}
+	c.files["three"] = map[string]int{
+		"one": 3,
+		"two": 1,
+		"three": 3,
+		"four": 2,
+	}
+	c.files["four"] = map[string]int{
+		"two": 7,
+		"three": 3,
+		"four": 1,
+	}
+	c.PeopleNumber = 1
+	c.people = make([]map[string]int, 1)
+	c.people[0] = map[string]int{}
+	c.people[0]["one"] = 1
+	c.people[0]["two"] = 2
+	c.people[0]["three"] = 3
+	c.people[0]["four"] = 4
+	*c.renames = []rename{{ToName: "four", FromName: "one"}}
+	files, people := c.propagateRenames(map[string]bool{"two": true, "three": true, "four": true})
+	assert.Len(t, files, 3)
+	assert.Len(t, people, 1)
+	assert.Equal(t, files["two"], map[string]int{"two": 10, "three": 1, "four": 9})
+	assert.Equal(t, files["three"], map[string]int{"two": 1, "three": 3, "four": 6})
+	assert.Equal(t, files["four"], map[string]int{"two": 9, "three": 6, "four": 2})
+	assert.Equal(t, people[0], map[string]int{"two": 2, "three": 3, "four": 5})
 }
 
 func getSlice(vals ...int) []int {
