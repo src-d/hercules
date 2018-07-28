@@ -16,7 +16,7 @@ import (
 	"gopkg.in/src-d/hercules.v4/internal/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/internal/test"
-		)
+	)
 
 func fixtureCouples() *CouplesAnalysis {
 	c := CouplesAnalysis{PeopleNumber: 3}
@@ -91,61 +91,78 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	deps := map[string]interface{}{}
 	deps[identity.DependencyAuthor] = 0
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
-		"cce947b98a050c6d356bc6ba95030254914027b1"))
-	deps[plumbing.DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
+		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+LICENSE2", "+file2.go", "+rbtree2.go")
 	c.Consume(deps)
-	deps[plumbing.DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+README.md", "-LICENSE2", "=analyser.go", ">file2.go>file_test.go")
 	c.Consume(deps)
 	deps[identity.DependencyAuthor] = 1
-	deps[plumbing.DependencyTreeChanges] = generateChanges("=one", "=three", "-six")
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=README.md", "=analyser.go", "-rbtree2.go")
 	c.Consume(deps)
 	deps[identity.DependencyAuthor] = 2
-	deps[plumbing.DependencyTreeChanges] = generateChanges("=five")
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=file_test.go")
 	c.Consume(deps)
-	assert.Equal(t, len(c.people[0]), 5)
-	assert.Equal(t, c.people[0]["one"], 1)
-	assert.Equal(t, c.people[0]["two"], 2)
-	assert.Equal(t, c.people[0]["three"], 1)
-	assert.Equal(t, c.people[0]["five"], 2)
-	assert.Equal(t, c.people[0]["six"], 1)
+	assert.Equal(t, len(c.people[0]), 6)
+	assert.Equal(t, c.people[0]["README.md"], 1)
+	assert.Equal(t, c.people[0]["LICENSE2"], 2)
+	assert.Equal(t, c.people[0]["analyser.go"], 1)
+	assert.Equal(t, c.people[0]["file2.go"], 1)
+	assert.Equal(t, c.people[0]["file_test.go"], 1)
+	assert.Equal(t, c.people[0]["rbtree2.go"], 1)
 	assert.Equal(t, len(c.people[1]), 3)
-	assert.Equal(t, c.people[1]["one"], 1)
-	assert.Equal(t, c.people[1]["three"], 1)
-	assert.Equal(t, c.people[1]["six"], 1)
+	assert.Equal(t, c.people[1]["README.md"], 1)
+	assert.Equal(t, c.people[1]["analyser.go"], 1)
+	assert.Equal(t, c.people[1]["rbtree2.go"], 1)
 	assert.Equal(t, len(c.people[2]), 1)
-	assert.Equal(t, c.people[2]["five"], 1)
-	assert.Equal(t, len(c.files["one"]), 3)
-	assert.Equal(t, c.files["one"]["one"], 2)
-	assert.Equal(t, c.files["one"]["three"], 2)
-	assert.Equal(t, c.files["one"]["five"], 1)
-	assert.NotContains(t, c.files, "two")
-	assert.NotContains(t, c.files, "four")
-	assert.NotContains(t, c.files, "six")
-	assert.Equal(t, len(c.files["three"]), 3)
-	assert.Equal(t, c.files["three"]["three"], 2)
-	assert.Equal(t, c.files["three"]["one"], 2)
-	assert.Equal(t, c.files["three"]["five"], 1)
-	assert.Equal(t, len(c.files["five"]), 3)
-	assert.Equal(t, c.files["five"]["five"], 3)
-	assert.Equal(t, c.files["five"]["one"], 1)
-	assert.Equal(t, c.files["five"]["three"], 1)
+	assert.Equal(t, c.people[2]["file_test.go"], 1)
+	assert.Equal(t, len(c.files["README.md"]), 3)
+	assert.Equal(t, c.files["README.md"], map[string]int{
+		"README.md": 2,
+		"analyser.go": 2,
+		"file_test.go": 1,
+	})
+	assert.Equal(t, c.files["LICENSE2"], map[string]int{
+		"LICENSE2": 1,
+		"file2.go": 1,
+		"rbtree2.go": 1,
+	})
+	assert.Equal(t, c.files["file2.go"], map[string]int{
+		"LICENSE2": 1,
+		"file2.go": 1,
+		"rbtree2.go": 1,
+	})
+	assert.Equal(t, c.files["rbtree2.go"], map[string]int{
+		"LICENSE2": 1,
+		"file2.go": 1,
+		"rbtree2.go": 1,
+	})
+	assert.Equal(t, c.files["analyser.go"], map[string]int{
+		"analyser.go": 2,
+		"README.md": 2,
+		"file_test.go": 1,
+	})
+	assert.Equal(t, c.files["file_test.go"], map[string]int{
+		"file_test.go": 2,
+		"README.md": 1,
+		"analyser.go": 1,
+	})
 	assert.Equal(t, c.peopleCommits[0], 2)
 	assert.Equal(t, c.peopleCommits[1], 1)
 	assert.Equal(t, c.peopleCommits[2], 1)
 	cr := c.Finalize().(CouplesResult)
 	assert.Equal(t, len(cr.Files), 3)
-	assert.Equal(t, cr.Files[0], "five")
-	assert.Equal(t, cr.Files[1], "one")
-	assert.Equal(t, cr.Files[2], "three")
+	assert.Equal(t, cr.Files[0], "README.md")
+	assert.Equal(t, cr.Files[1], "analyser.go")
+	assert.Equal(t, cr.Files[2], "file_test.go")
 	assert.Equal(t, len(cr.PeopleFiles[0]), 3)
 	assert.Equal(t, cr.PeopleFiles[0][0], 0)
 	assert.Equal(t, cr.PeopleFiles[0][1], 1)
 	assert.Equal(t, cr.PeopleFiles[0][2], 2)
 	assert.Equal(t, len(cr.PeopleFiles[1]), 2)
-	assert.Equal(t, cr.PeopleFiles[1][0], 1)
-	assert.Equal(t, cr.PeopleFiles[1][1], 2)
+	assert.Equal(t, cr.PeopleFiles[1][0], 0)
+	assert.Equal(t, cr.PeopleFiles[1][1], 1)
 	assert.Equal(t, len(cr.PeopleFiles[2]), 1)
-	assert.Equal(t, cr.PeopleFiles[2][0], 0)
+	assert.Equal(t, cr.PeopleFiles[2][0], 2)
 	assert.Equal(t, len(cr.PeopleMatrix[0]), 3)
 	assert.Equal(t, cr.PeopleMatrix[0][0], int64(7))
 	assert.Equal(t, cr.PeopleMatrix[0][1], int64(3))
@@ -158,17 +175,17 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, cr.PeopleMatrix[2][2], int64(1))
 	assert.Equal(t, len(cr.FilesMatrix), 3)
 	assert.Equal(t, len(cr.FilesMatrix[0]), 3)
-	assert.Equal(t, cr.FilesMatrix[0][0], int64(3))
-	assert.Equal(t, cr.FilesMatrix[0][1], int64(1))
 	assert.Equal(t, cr.FilesMatrix[0][2], int64(1))
+	assert.Equal(t, cr.FilesMatrix[0][0], int64(2))
+	assert.Equal(t, cr.FilesMatrix[0][1], int64(2))
 	assert.Equal(t, len(cr.FilesMatrix[1]), 3)
-	assert.Equal(t, cr.FilesMatrix[1][0], int64(1))
+	assert.Equal(t, cr.FilesMatrix[1][2], int64(1))
+	assert.Equal(t, cr.FilesMatrix[1][0], int64(2))
 	assert.Equal(t, cr.FilesMatrix[1][1], int64(2))
-	assert.Equal(t, cr.FilesMatrix[1][2], int64(2))
 	assert.Equal(t, len(cr.FilesMatrix[2]), 3)
 	assert.Equal(t, cr.FilesMatrix[2][0], int64(1))
-	assert.Equal(t, cr.FilesMatrix[2][1], int64(2))
-	assert.Equal(t, cr.FilesMatrix[2][2], int64(2))
+	assert.Equal(t, cr.FilesMatrix[2][1], int64(1))
+	assert.Equal(t, cr.FilesMatrix[2][2], int64(3))
 }
 
 func TestCouplesFork(t *testing.T) {
@@ -176,36 +193,26 @@ func TestCouplesFork(t *testing.T) {
 	clones := couples1.Fork(1)
 	assert.Len(t, clones, 1)
 	couples2 := clones[0].(*CouplesAnalysis)
-	assert.True(t, couples1 == couples2)
+	assert.True(t, couples1 != couples2)
+	assert.Equal(t, *couples1, *couples2)
 	couples1.Merge([]core.PipelineItem{couples2})
 }
 
 func TestCouplesSerialize(t *testing.T) {
 	c := fixtureCouples()
-	c.PeopleNumber = 1
-	people := [...]string{"p1", "p2", "p3"}
-	facts := map[string]interface{}{}
-	c.Configure(facts)
-	assert.Equal(t, c.PeopleNumber, 1)
-	facts[identity.FactIdentityDetectorPeopleCount] = 3
-	facts[identity.FactIdentityDetectorReversedPeopleDict] = people[:]
-	c.Configure(facts)
-	assert.Equal(t, c.PeopleNumber, 3)
-	deps := map[string]interface{}{}
-	deps[identity.DependencyAuthor] = 0
-	deps[plumbing.DependencyTreeChanges] = generateChanges("+two", "+four", "+six")
-	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
-		"cce947b98a050c6d356bc6ba95030254914027b1"))
-	c.Consume(deps)
-	deps[plumbing.DependencyTreeChanges] = generateChanges("+one", "-two", "=three", ">four>five")
-	c.Consume(deps)
-	deps[identity.DependencyAuthor] = 1
-	deps[plumbing.DependencyTreeChanges] = generateChanges("=one", "=three", "-six")
-	c.Consume(deps)
-	deps[identity.DependencyAuthor] = 2
-	deps[plumbing.DependencyTreeChanges] = generateChanges("=five")
-	c.Consume(deps)
-	result := c.Finalize().(CouplesResult)
+	result := CouplesResult {
+		PeopleMatrix: []map[int]int64{
+			{0:7, 1:3, 2:1}, {0:3, 1:3}, {0:1, 2:1}, {},
+		},
+		PeopleFiles: [][]int{
+			{0, 1, 2}, {1, 2}, {0}, {},
+		},
+		FilesMatrix: []map[int]int64{
+			{1:1, 2:1, 0:3}, {1:2, 2:2, 0:1}, {2:2, 0:1, 1:2},
+		},
+		Files: []string{"five", "one", "three"},
+		reversedPeopleDict: []string{"p1", "p2", "p3"},
+	}
 	buffer := &bytes.Buffer{}
 	c.Serialize(result, false, buffer)
 	assert.Equal(t, buffer.String(), `  files_coocc:
@@ -249,7 +256,7 @@ func TestCouplesSerialize(t *testing.T) {
 	assert.Equal(t, msg.PeopleFiles[1].Files, tmp2[:])
 	tmp3 := [...]int32{0}
 	assert.Equal(t, msg.PeopleFiles[2].Files, tmp3[:])
-	assert.Equal(t, msg.PeopleCouples.Index, people[:])
+	assert.Equal(t, msg.PeopleCouples.Index, result.reversedPeopleDict)
 	assert.Equal(t, msg.PeopleCouples.Matrix.NumberOfRows, int32(4))
 	assert.Equal(t, msg.PeopleCouples.Matrix.NumberOfColumns, int32(4))
 	data := [...]int64{7, 3, 1, 3, 3, 1, 1}

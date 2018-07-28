@@ -379,7 +379,7 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 
 	fmt.Fprintln(writer, "  people_coocc:")
 	fmt.Fprintln(writer, "    index:")
-	for _, person := range couples.reversedPeopleDict {
+	for _, person := range result.reversedPeopleDict {
 		fmt.Fprintf(writer, "      - %s\n", yaml.SafeString(person))
 	}
 
@@ -401,7 +401,7 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 	}
 
 	fmt.Fprintln(writer, "    author_files:") // sorted by number of files each author changed
-	peopleFiles := sortByNumberOfFiles(result.PeopleFiles, couples.reversedPeopleDict, result.Files)
+	peopleFiles := sortByNumberOfFiles(result.PeopleFiles, result.reversedPeopleDict, result.Files)
 	for _, authorFiles := range peopleFiles {
 		fmt.Fprintf(writer, "      - %s:\n", yaml.SafeString(authorFiles.Author))
 		sort.Strings(authorFiles.Files)
@@ -477,9 +477,14 @@ func (couples *CouplesAnalysis) serializeBinary(result *CouplesResult, writer io
 
 // currentFiles return the list of files in the last consumed commit.
 func (couples *CouplesAnalysis) currentFiles() map[string]bool {
+	files := map[string]bool{}
+	if couples.lastCommit == nil {
+		for key := range couples.files {
+			files[key] = true
+		}
+	}
 	tree, _ := couples.lastCommit.Tree()
 	fileIter := tree.Files()
-	files := map[string]bool{}
 	fileIter.ForEach(func(fobj *object.File) error {
 		files[fobj.Name] = true
 		return nil
@@ -495,7 +500,6 @@ func (couples *CouplesAnalysis) propagateRenames(files map[string]bool) (
 	reducedFiles := map[string]map[string]int{}
 	for file := range files {
 		fmap := map[string]int{}
-		reducedFiles[file] = fmap
 		refmap := couples.files[file]
 		for other := range files {
 			refval := refmap[other]
@@ -503,29 +507,30 @@ func (couples *CouplesAnalysis) propagateRenames(files map[string]bool) (
 				fmap[other] = refval
 			}
 		}
+		if len(fmap) > 0 {
+			reducedFiles[file] = fmap
+		}
 	}
 	// propagate renames
 	aliases := map[string]map[string]bool{}
-	{
-		pointers := map[string]string{}
-		for i := range renames {
-			rename := renames[len(renames)-i-1]
-			toName := rename.ToName
-			if newTo, exists := pointers[toName]; exists {
-				toName = newTo
-			}
-			if _, exists := reducedFiles[toName]; exists {
-				if rename.FromName != toName {
-					var set map[string]bool
-					if set, exists = aliases[toName]; !exists {
-						set = map[string]bool{}
-						aliases[toName] = set
-					}
-					set[rename.FromName] = true
-					pointers[rename.FromName] = toName
+	pointers := map[string]string{}
+	for i := range renames {
+		rename := renames[len(renames)-i-1]
+		toName := rename.ToName
+		if newTo, exists := pointers[toName]; exists {
+			toName = newTo
+		}
+		if _, exists := reducedFiles[toName]; exists {
+			if rename.FromName != toName {
+				var set map[string]bool
+				if set, exists = aliases[toName]; !exists {
+					set = map[string]bool{}
+					aliases[toName] = set
 				}
-				continue
+				set[rename.FromName] = true
+				pointers[rename.FromName] = toName
 			}
+			continue
 		}
 	}
 	adjustments := map[string]map[string]int{}
@@ -565,6 +570,13 @@ func (couples *CouplesAnalysis) propagateRenames(files map[string]bool) (
 			}
 			if count > 0 {
 				reducedCounts[file] = count
+			}
+		}
+		for key, val := range counts {
+			if _, exists := files[key]; !exists {
+				if _, exists = pointers[key]; !exists {
+					reducedCounts[key] = val
+				}
 			}
 		}
 	}
