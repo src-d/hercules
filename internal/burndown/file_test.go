@@ -174,7 +174,7 @@ func TestZeroInitializeFile(t *testing.T) {
 	file := NewFile(plumbing.ZeroHash, 0, 0, func(a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
-	assert.NotContains(t, status, 0)
+	assert.Contains(t, status, 0)
 	dump := file.Dump()
 	// Output:
 	// 0 -1

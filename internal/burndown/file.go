@@ -61,8 +61,8 @@ func (file *File) updateTime(currentTime, previousTime, delta int) {
 // updaters are the attached interval length mappings.
 func NewFile(hash plumbing.Hash, time int, length int, updaters ...Updater) *File {
 	file := &File{Hash: hash, tree: new(rbtree.RBTree), updaters: updaters}
+	file.updateTime(time, time, length)
 	if length > 0 {
-		file.updateTime(time, time, length)
 		file.tree.Insert(rbtree.Item{Key: 0, Value: time})
 	}
 	file.tree.Insert(rbtree.Item{Key: length, Value: TreeEnd})
