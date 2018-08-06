@@ -2,11 +2,13 @@ package plumbing
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 // TreeDiff generates the list of changes for a commit. A change can be either one or two blobs
@@ -17,6 +19,7 @@ type TreeDiff struct {
 	core.NoopMerger
 	SkipDirs     []string
 	previousTree *object.Tree
+	previousCommit plumbing.Hash
 }
 
 const (
@@ -89,6 +92,15 @@ func (treediff *TreeDiff) Initialize(repository *git.Repository) {
 // in Provides(). If there was an error, nil is returned.
 func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps[core.DependencyCommit].(*object.Commit)
+	pass := false
+	for _, hash := range commit.ParentHashes {
+		if hash == treediff.previousCommit {
+			pass = true
+		}
+	}
+	if !pass && treediff.previousCommit != plumbing.ZeroHash {
+		log.Panicf("%s > %s", treediff.previousCommit.String(), commit.Hash.String())
+	}
 	tree, err := commit.Tree()
 	if err != nil {
 		return nil, err
@@ -123,6 +135,7 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 		}
 	}
 	treediff.previousTree = tree
+	treediff.previousCommit = commit.Hash
 
 	if len(treediff.SkipDirs) > 0 {
 		// filter without allocation
