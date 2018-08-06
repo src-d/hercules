@@ -8,7 +8,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/toposort"
-)
+	)
 
 // OneShotMergeProcessor provides the convenience method to consume merges only once.
 type OneShotMergeProcessor struct {
@@ -86,6 +86,8 @@ type runAction struct {
 	Commit *object.Commit
 	Items []int
 }
+
+type orderer = func(reverse, direction bool) []string
 
 func cloneItems(origin []PipelineItem, n int) [][]PipelineItem {
 	clones := make([][]PipelineItem, n)
@@ -256,8 +258,8 @@ func leaveRootComponent(
 }
 
 // bindOrderNodes returns curried "orderNodes" function.
-func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) func(reverse bool) []string {
-	return func(reverse bool) []string {
+func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) orderer {
+	return func(reverse, direction bool) []string {
 		graph := toposort.NewGraph()
 		keys := make([]plumbing.Hash, 0, len(mergedDag))
 		for key := range mergedDag {
@@ -273,7 +275,11 @@ func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) func(reverse b
 				return children[i].Hash.String() < children[j].Hash.String()
 			})
 			for _, c := range children {
-				graph.AddEdge(key.String(), c.Hash.String())
+				if !direction {
+					graph.AddEdge(key.String(), c.Hash.String())
+				} else {
+					graph.AddEdge(c.Hash.String(), key.String())
+				}
 			}
 		}
 		order, ok := graph.Toposort()
@@ -281,7 +287,7 @@ func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) func(reverse b
 			// should never happen
 			panic("Could not topologically sort the DAG of commits")
 		}
-		if reverse {
+		if reverse != direction {
 			// one day this must appear in the standard library...
 			for i, j := 0, len(order)-1; i < len(order)/2; i, j = i+1, j-1 {
 				order[i], order[j] = order[j], order[i]
@@ -349,11 +355,10 @@ func mergeDag(
 
 // collapseFastForwards removes the fast forward merges.
 func collapseFastForwards(
-	orderNodes func(reverse bool) []string,
-	hashes map[string]*object.Commit,
+	orderNodes orderer, hashes map[string]*object.Commit,
 	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit)  {
 
-	for _, strkey := range orderNodes(true) {
+	for _, strkey := range orderNodes(true, false) {
 		key := hashes[strkey].Hash
 		vals, exists := mergedDag[key]
 		if !exists {
@@ -389,15 +394,15 @@ func collapseFastForwards(
 
 // generatePlan creates the list of actions from the commit DAG.
 func generatePlan(
-	orderNodes func(reverse bool) []string,
-	numParents func(c *object.Commit) int,
+	orderNodes orderer, numParents func(c *object.Commit) int,
 	hashes map[string]*object.Commit,
 	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit) []runAction {
 
 	var plan []runAction
 	branches := map[plumbing.Hash]int{}
+	branchers := map[plumbing.Hash]map[plumbing.Hash]int{}
 	counter := 1
-	for seqIndex, name := range orderNodes(false) {
+	for seqIndex, name := range orderNodes(false, true) {
 		commit := hashes[name]
 		if seqIndex == 0 {
 			branches[commit.Hash] = 0
@@ -417,6 +422,7 @@ func generatePlan(
 				Commit: c,
 				Items: []int{branch},
 			})
+
 		}
 		appendMergeIfNeeded := func() {
 			if numParents(commit) < 2 {
@@ -426,22 +432,31 @@ func generatePlan(
 			var items []int
 			minBranch := 1 << 31
 			for _, parent := range commit.ParentHashes {
-				if _, exists := hashes[parent.String()]; exists {
-					parentBranch := branches[parent]
-					if len(dag[parent]) == 1 && minBranch > parentBranch {
-						minBranch = parentBranch
+				if _, exists := hashes[parent.String()]; !exists {
+					continue
+				}
+				parentBranch := -1
+				if parents, exists := branchers[commit.Hash]; exists {
+					if inheritedBranch, exists := parents[parent]; exists {
+						parentBranch = inheritedBranch
 					}
-					items = append(items, parentBranch)
-					if parentBranch != branch {
-						appendCommit(commit, parentBranch)
-					}
+				}
+				if parentBranch == -1 {
+					parentBranch = branches[parent]
+				}
+				if len(dag[parent]) == 1 && minBranch > parentBranch {
+					minBranch = parentBranch
+				}
+				items = append(items, parentBranch)
+				if parentBranch != branch {
+					appendCommit(commit, parentBranch)
 				}
 			}
 			if minBranch < 1 << 31 {
 				branch = minBranch
 				branches[commit.Hash] = minBranch
 			} else if !branchExists() {
-				panic("!branchExists()")
+				log.Panicf("!branchExists(%s)", commit.Hash.String())
 			}
 			plan = append(plan, runAction{
 				Action: runActionMerge,
@@ -449,6 +464,7 @@ func generatePlan(
 				Items: items,
 			})
 		}
+		var head plumbing.Hash
 		if subseq, exists := mergedSeq[commit.Hash]; exists {
 			for subseqIndex, offspring := range subseq {
 				if branchExists() {
@@ -458,22 +474,34 @@ func generatePlan(
 					appendMergeIfNeeded()
 				}
 			}
-			branches[subseq[len(subseq)-1].Hash] = branch
+			head = subseq[len(subseq)-1].Hash
+			branches[head] = branch
+		} else {
+			head = commit.Hash
 		}
 		if len(mergedDag[commit.Hash]) > 1 {
-			branches[mergedDag[commit.Hash][0].Hash] = branch
 			children := []int{branch}
 			for i, child := range mergedDag[commit.Hash] {
-				if i > 0 {
-					branches[child.Hash] = counter
-					children = append(children, counter)
-					counter++
+				if i == 0 {
+					branches[child.Hash] = branch
+					continue
 				}
+				if _, exists := branches[child.Hash]; !exists {
+					branches[child.Hash] = counter
+				}
+				parents := branchers[child.Hash]
+				if parents == nil {
+					parents = map[plumbing.Hash]int{}
+					branchers[child.Hash] = parents
+				}
+				parents[head] = counter
+				children = append(children, counter)
+				counter++
 			}
 			plan = append(plan, runAction{
 				Action: runActionFork,
 				Commit: nil,
-				Items: children,
+				Items:  children,
 			})
 		}
 	}
