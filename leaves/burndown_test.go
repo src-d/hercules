@@ -18,12 +18,12 @@ import (
 	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/internal/test"
-)
+	)
 
 func TestBurndownMeta(t *testing.T) {
 	burndown := BurndownAnalysis{}
 	assert.Equal(t, burndown.Name(), "Burndown")
-	assert.Equal(t, len(burndown.Provides()), 0)
+	assert.Len(t, burndown.Provides(), 0)
 	required := [...]string{
 		items.DependencyFileDiff, items.DependencyTreeChanges, items.DependencyBlobCache,
 		items.DependencyDay, identity.DependencyAuthor}
@@ -184,16 +184,15 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Nil(t, err)
 	assert.Equal(t, burndown.previousDay, 0)
-	assert.Equal(t, len(burndown.files), 3)
+	assert.Len(t, burndown.files, 3)
 	assert.Equal(t, burndown.files["cmd/hercules/main.go"].Len(), 207)
 	assert.Equal(t, burndown.files["analyser.go"].Len(), 926)
 	assert.Equal(t, burndown.files[".travis.yml"].Len(), 12)
-	assert.Equal(t, len(burndown.people), 2)
-	assert.Equal(t, burndown.people[0][0], int64(12+207+926))
-	assert.Equal(t, len(burndown.globalStatus), 1)
-	assert.Equal(t, burndown.globalStatus[0], int64(12+207+926))
-	assert.Equal(t, len(burndown.globalHistory), 0)
-	assert.Equal(t, len(burndown.fileHistories), 0)
+	assert.Len(t, burndown.peopleHistories, 2)
+	assert.Equal(t, burndown.peopleHistories[0][0][0], int64(12+207+926))
+	assert.Len(t, burndown.globalHistory, 1)
+	assert.Equal(t, burndown.globalHistory[0][0], int64(12+207+926))
+	assert.Len(t, burndown.fileHistories, 3)
 	burndown2 := BurndownAnalysis{
 		Granularity: 30,
 		Sampling:    0,
@@ -201,9 +200,8 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	burndown2.Initialize(test.Repository)
 	_, err = burndown2.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, len(burndown2.people), 0)
-	assert.Equal(t, len(burndown2.peopleHistories), 0)
-	assert.Equal(t, len(burndown2.fileHistories), 0)
+	assert.Len(t, burndown2.peopleHistories, 0)
+	assert.Len(t, burndown2.fileHistories, 0)
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
@@ -281,16 +279,15 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Nil(t, err)
 	assert.Equal(t, burndown.previousDay, 30)
-	assert.Equal(t, len(burndown.files), 2)
+	assert.Len(t, burndown.files, 2)
 	assert.Equal(t, burndown.files["cmd/hercules/main.go"].Len(), 290)
 	assert.Equal(t, burndown.files["burndown.go"].Len(), 543)
-	assert.Equal(t, len(burndown.people), 2)
-	assert.Equal(t, len(burndown.globalStatus), 2)
-	assert.Equal(t, burndown.globalStatus[0], int64(464))
-	assert.Equal(t, burndown.globalStatus[1], int64(0))
-	assert.Equal(t, len(burndown.globalHistory), 1)
-	assert.Equal(t, len(burndown.globalHistory[0]), 2)
-	assert.Equal(t, len(burndown.fileHistories), 3)
+	assert.Len(t, burndown.peopleHistories, 2)
+	assert.Len(t, burndown.globalHistory, 2)
+	assert.Equal(t, burndown.globalHistory[0][0], int64(1145))
+	assert.Equal(t, burndown.globalHistory[30][0], int64(-681))
+	assert.Equal(t, burndown.globalHistory[30][30], int64(369))
+	assert.Len(t, burndown.fileHistories, 2)
 	out := burndown.Finalize().(BurndownResult)
 	/*
 		GlobalHistory   [][]int64
@@ -298,23 +295,23 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		PeopleHistories [][][]int64
 		PeopleMatrix    [][]int64
 	*/
-	assert.Equal(t, len(out.GlobalHistory), 2)
+	assert.Len(t, out.GlobalHistory, 2)
 	for i := 0; i < 2; i++ {
-		assert.Equal(t, len(out.GlobalHistory[i]), 2)
+		assert.Len(t, out.GlobalHistory[i], 2)
 	}
-	assert.Equal(t, len(out.GlobalHistory), 2)
+	assert.Len(t, out.GlobalHistory, 2)
 	assert.Equal(t, out.GlobalHistory[0][0], int64(1145))
 	assert.Equal(t, out.GlobalHistory[0][1], int64(0))
 	assert.Equal(t, out.GlobalHistory[1][0], int64(464))
 	assert.Equal(t, out.GlobalHistory[1][1], int64(369))
-	assert.Equal(t, len(out.FileHistories), 2)
-	assert.Equal(t, len(out.FileHistories["cmd/hercules/main.go"]), 2)
-	assert.Equal(t, len(out.FileHistories["burndown.go"]), 2)
-	assert.Equal(t, len(out.FileHistories["cmd/hercules/main.go"][0]), 2)
-	assert.Equal(t, len(out.FileHistories["burndown.go"][0]), 2)
-	assert.Equal(t, len(out.PeopleMatrix), 2)
-	assert.Equal(t, len(out.PeopleMatrix[0]), 4)
-	assert.Equal(t, len(out.PeopleMatrix[1]), 4)
+	assert.Len(t, out.FileHistories, 2)
+	assert.Len(t, out.FileHistories["cmd/hercules/main.go"], 2)
+	assert.Len(t, out.FileHistories["burndown.go"], 2)
+	assert.Len(t, out.FileHistories["cmd/hercules/main.go"][0], 2)
+	assert.Len(t, out.FileHistories["burndown.go"][0], 2)
+	assert.Len(t, out.PeopleMatrix, 2)
+	assert.Len(t, out.PeopleMatrix[0], 4)
+	assert.Len(t, out.PeopleMatrix[1], 4)
 	assert.Equal(t, out.PeopleMatrix[0][0], int64(1145))
 	assert.Equal(t, out.PeopleMatrix[0][1], int64(0))
 	assert.Equal(t, out.PeopleMatrix[0][2], int64(0))
@@ -323,11 +320,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Equal(t, out.PeopleMatrix[1][1], int64(0))
 	assert.Equal(t, out.PeopleMatrix[1][2], int64(0))
 	assert.Equal(t, out.PeopleMatrix[1][3], int64(0))
-	assert.Equal(t, len(out.PeopleHistories), 2)
+	assert.Len(t, out.PeopleHistories, 2)
 	for i := 0; i < 2; i++ {
-		assert.Equal(t, len(out.PeopleHistories[i]), 2)
-		assert.Equal(t, len(out.PeopleHistories[i][0]), 2)
-		assert.Equal(t, len(out.PeopleHistories[i][1]), 2)
+		assert.Len(t, out.PeopleHistories[i], 2)
+		assert.Len(t, out.PeopleHistories[i][0], 2)
+		assert.Len(t, out.PeopleHistories[i][1], 2)
 	}
 }
 
@@ -488,7 +485,7 @@ func TestBurndownSerialize(t *testing.T) {
      464  369
   files:
     "burndown.go": |-
-      0     0
+      926   0
       293 250
     "cmd/hercules/main.go": |-
       207   0
@@ -526,7 +523,8 @@ func TestBurndownSerialize(t *testing.T) {
 	assert.Equal(t, msg.Files[0].Name, "burndown.go")
 	assert.Equal(t, msg.Files[1].Name, "cmd/hercules/main.go")
 	assert.Len(t, msg.Files[0].Rows, 2)
-	assert.Len(t, msg.Files[0].Rows[0].Columns, 0)
+	assert.Len(t, msg.Files[0].Rows[0].Columns, 1)
+	assert.Equal(t, msg.Files[0].Rows[0].Columns[0], uint32(926))
 	assert.Len(t, msg.Files[0].Rows[1].Columns, 2)
 	assert.Equal(t, msg.Files[0].Rows[1].Columns[0], uint32(293))
 	assert.Equal(t, msg.Files[0].Rows[1].Columns[1], uint32(250))
