@@ -43,6 +43,9 @@ func (file *File) updateTime(currentTime, previousTime, delta int) {
 		// merge mode
 		return
 	}
+	if previousTime & TreeMergeMark == TreeMergeMark {
+		previousTime = currentTime
+	}
 	for _, update := range file.updaters {
 		update(currentTime, previousTime, delta)
 	}
