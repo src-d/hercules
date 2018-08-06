@@ -170,7 +170,7 @@ targets can be added using the --plugin system.`,
 					bar.SetMaxWidth(80)
 					bar.Start()
 				}
-				if commit == length {
+				if commit == length - 1 {
 					bar.Finish()
 					fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\rfinalizing...")
 				} else {
