@@ -21,7 +21,7 @@ import (
 	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/yaml"
-)
+	)
 
 // BurndownAnalysis allows to gather the line burndown statistics for a Git repository.
 // It is a LeafPipelineItem.
@@ -66,6 +66,8 @@ type BurndownAnalysis struct {
 	peopleHistories []sparseHistory
 	// files is the mapping <file path> -> *File.
 	files map[string]*burndown.File
+	// renames is a quick and dirty solution for the "future branch renames" problem.
+	renames map[string]string
 	// matrix is the mutual deletions and self insertions.
 	matrix []map[int]int64
 	// day is the most recent day index processed.
@@ -238,6 +240,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	analyser.fileHistories = map[string]sparseHistory{}
 	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
 	analyser.files = map[string]*burndown.File{}
+	analyser.renames = map[string]string{}
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
 	analyser.day = 0
 	analyser.previousDay = 0
@@ -924,24 +927,25 @@ func (analyser *BurndownAnalysis) updateMatrix(currentTime, previousTime, delta 
 
 func (analyser *BurndownAnalysis) newFile(
 	hash plumbing.Hash, name string, author int, day int, size int) (*burndown.File, error) {
-	statuses := make([]burndown.Updater, 1)
-	statuses[0] = analyser.updateGlobal
+	updaters := make([]burndown.Updater, 1)
+	updaters[0] = analyser.updateGlobal
 	if analyser.TrackFiles {
-		if _, exists := analyser.fileHistories[name]; exists {
-			return nil, fmt.Errorf("file %s already exists", name)
+		history := analyser.fileHistories[name]
+		if history == nil {
+			// can be not nil if the file was created in a future branch
+			history = sparseHistory{}
 		}
-		history := sparseHistory{}
 		analyser.fileHistories[name] = history
-		statuses = append(statuses, func(currentTime, previousTime, delta int) {
+		updaters = append(updaters, func(currentTime, previousTime, delta int) {
 			analyser.updateFile(history, currentTime, previousTime, delta)
 		})
 	}
 	if analyser.PeopleNumber > 0 {
-		statuses = append(statuses, analyser.updateAuthor)
-		statuses = append(statuses, analyser.updateMatrix)
+		updaters = append(updaters, analyser.updateAuthor)
+		updaters = append(updaters, analyser.updateMatrix)
 		day = analyser.packPersonWithDay(author, day)
 	}
-	return burndown.NewFile(hash, day, size, statuses...), nil
+	return burndown.NewFile(hash, day, size, updaters...), nil
 }
 
 func (analyser *BurndownAnalysis) handleInsertion(
@@ -981,6 +985,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	file.Hash = plumbing.ZeroHash
 	delete(analyser.files, name)
 	delete(analyser.fileHistories, name)
+	analyser.renames[name] = ""
 	return nil
 }
 
@@ -1095,21 +1100,37 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 	}
 	file, exists := analyser.files[from]
 	if !exists {
-		return fmt.Errorf("file %s does not exist", from)
+		return fmt.Errorf("file %s > %s does not exist (files)", from, to)
 	}
 	analyser.files[to] = file
 	delete(analyser.files, from)
 
-	history, exists := analyser.fileHistories[from]
-	if !exists {
-		return fmt.Errorf("file %s does not exist", from)
+	if analyser.TrackFiles {
+		history := analyser.fileHistories[from]
+		if history == nil {
+			// a future branch could have already renamed it and we are retarded
+			futureRename, exists := analyser.renames[from]
+			if futureRename == "" && exists {
+				// the file will be deleted in the future, whatever
+				history = sparseHistory{}
+			} else {
+				history = analyser.fileHistories[futureRename]
+				if history == nil {
+					return fmt.Errorf("file %s > %s does not exist (histories)", from, to)
+				}
+			}
+		}
+		analyser.fileHistories[to] = history
+		delete(analyser.fileHistories, from)
 	}
-	analyser.fileHistories[to] = history
-	delete(analyser.fileHistories, from)
+	analyser.renames[from] = to
 	return nil
 }
 
 func (analyser *BurndownAnalysis) groupSparseHistory(history sparseHistory) DenseHistory {
+	if len(history) == 0 {
+		panic("empty history")
+	}
 	var days []int
 	for day := range history {
 		days = append(days, day)
@@ -1119,14 +1140,8 @@ func (analyser *BurndownAnalysis) groupSparseHistory(history sparseHistory) Dens
 	// y - sampling
 	// x - granularity
 	maxDay := days[len(days)-1]
-	samples := maxDay / analyser.Sampling
-	if (samples + 1) * analyser.Sampling - 1 != maxDay {
-		samples++
-	}
-	bands := maxDay / analyser.Granularity
-	if (bands + 1) * analyser.Granularity - 1 != maxDay {
-		bands++
-	}
+	samples := maxDay / analyser.Sampling + 1
+	bands := maxDay / analyser.Granularity + 1
 	result := make(DenseHistory, samples)
 	for i := 0; i < bands; i++ {
 		result[i] = make([]int64, bands)
