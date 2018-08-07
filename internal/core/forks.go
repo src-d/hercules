@@ -8,7 +8,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/toposort"
-	)
+		)
 
 // OneShotMergeProcessor provides the convenience method to consume merges only once.
 type OneShotMergeProcessor struct {
@@ -133,20 +133,20 @@ func prepareRunPlan(commits []*object.Commit) []runAction {
 	numParents := bindNumParents(hashes, dag)
 	mergedDag, mergedSeq := mergeDag(numParents, hashes, dag)
 	orderNodes := bindOrderNodes(mergedDag)
-	collapseFastForwards(orderNodes, hashes, mergedDag, dag, mergedSeq)
-
-	/*fmt.Printf("digraph Hercules {\n")
-	for i, c := range order {
-		commit := hashes[c]
-		fmt.Printf("  \"%s\"[label=\"[%d] %s\"]\n", commit.Hash.String(), i, commit.Hash.String()[:6])
-		for _, child := range mergedDag[commit.Hash] {
-			fmt.Printf("  \"%s\" -> \"%s\"\n", commit.Hash.String(), child.Hash.String())
-		}
-	}
-	fmt.Printf("}\n")*/
-
+	collapseFastForwards(orderNodes, numParents, hashes, mergedDag, dag, mergedSeq)
 	plan := generatePlan(orderNodes, numParents, hashes, mergedDag, dag, mergedSeq)
 	plan = optimizePlan(plan)
+	/*for _, p := range plan {
+		firstItem := p.Items[0]
+		switch p.Action {
+		case runActionCommit:
+			fmt.Fprintln(os.Stderr, "C", firstItem, p.Commit.Hash.String())
+		case runActionFork:
+			fmt.Fprintln(os.Stderr, "F", p.Items)
+		case runActionMerge:
+			fmt.Fprintln(os.Stderr, "M", p.Items)
+		}
+	}*/
 	return plan
 }
 
@@ -355,7 +355,8 @@ func mergeDag(
 
 // collapseFastForwards removes the fast forward merges.
 func collapseFastForwards(
-	orderNodes orderer, hashes map[string]*object.Commit,
+	orderNodes orderer, numParents func(c *object.Commit) int,
+	hashes map[string]*object.Commit,
 	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit)  {
 
 	for _, strkey := range orderNodes(true, false) {
@@ -364,31 +365,81 @@ func collapseFastForwards(
 		if !exists {
 			continue
 		}
-		if len(vals) == 2 {
-			grand1 := mergedDag[vals[0].Hash]
-			grand2 := mergedDag[vals[1].Hash]
-			if len(grand2) == 1 && vals[0].Hash == grand2[0].Hash {
-				mergedDag[key] = mergedDag[vals[0].Hash]
-				dag[key] = vals[1:]
-				delete(mergedDag, vals[0].Hash)
-				delete(mergedDag, vals[1].Hash)
-				mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[1].Hash]...)
-				mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[0].Hash]...)
-				delete(mergedSeq, vals[0].Hash)
-				delete(mergedSeq, vals[1].Hash)
+		if len(vals) != 2 {
+			continue
+		}
+		grand1 := mergedDag[vals[0].Hash]
+		grand2 := mergedDag[vals[1].Hash]
+		if len(grand2) == 1 && vals[0].Hash == grand2[0].Hash && numParents(vals[1]) == 1 {
+			mergedDag[key] = mergedDag[vals[0].Hash]
+			dag[key] = vals[1:]
+			delete(mergedDag, vals[0].Hash)
+			delete(mergedDag, vals[1].Hash)
+			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[1].Hash]...)
+			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[0].Hash]...)
+			delete(mergedSeq, vals[0].Hash)
+			delete(mergedSeq, vals[1].Hash)
+		}
+		// symmetric
+		if len(grand1) == 1 && vals[1].Hash == grand1[0].Hash && numParents(vals[0]) == 1 {
+			mergedDag[key] = mergedDag[vals[1].Hash]
+			dag[key] = vals[:1]
+			delete(mergedDag, vals[0].Hash)
+			delete(mergedDag, vals[1].Hash)
+			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[0].Hash]...)
+			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[1].Hash]...)
+			delete(mergedSeq, vals[0].Hash)
+			delete(mergedSeq, vals[1].Hash)
+		}
+	}
+	for _, strkey := range orderNodes(true, false) {
+		key := hashes[strkey].Hash
+		vals, exists := mergedDag[key]
+		if !exists {
+			continue
+		}
+		if len(vals) < 2 {
+			continue
+		}
+		toRemove := map[plumbing.Hash]bool{}
+		for x, child := range vals {
+			grands := mergedDag[child.Hash]
+			if len(grands) != 1 {
+				continue
 			}
-			// symmetric
-			if len(grand1) == 1 && vals[1].Hash == grand1[0].Hash {
-				mergedDag[key] = mergedDag[vals[1].Hash]
-				dag[key] = vals[:1]
-				delete(mergedDag, vals[0].Hash)
-				delete(mergedDag, vals[1].Hash)
-				mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[0].Hash]...)
-				mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[1].Hash]...)
-				delete(mergedSeq, vals[0].Hash)
-				delete(mergedSeq, vals[1].Hash)
+			grand := grands[0]
+			for y, otherChild := range vals {
+				if y == x {
+					continue
+				}
+				if otherChild.Hash == grand.Hash {
+					toRemove[otherChild.Hash] = true
+					if numParents(child) == 1 {
+						mergedSeq[child.Hash] = append(mergedSeq[child.Hash], mergedSeq[grand.Hash]...)
+						delete(mergedSeq, grand.Hash)
+						mergedDag[child.Hash] = mergedDag[grand.Hash]
+						delete(mergedDag, grand.Hash)
+					}
+				}
 			}
 		}
+		if len(toRemove) == 0 {
+			continue
+		}
+		var newVals []*object.Commit
+		for _, child := range vals {
+			if !toRemove[child.Hash] {
+				newVals = append(newVals, child)
+			}
+		}
+		mergedDag[key] = newVals
+		newVals = []*object.Commit{}
+		for _, child := range dag[key] {
+			if !toRemove[child.Hash] {
+				newVals = append(newVals, child)
+			}
+		}
+		dag[key] = newVals
 	}
 }
 

@@ -486,11 +486,11 @@ func TestPrepareRunPlanBig(t *testing.T) {
 		{2017, 12, 27, 4, 4, 4, 4},
 		{2018, 1, 10, 4, 4, 4, 4},
 		{2018, 1, 16, 4, 4, 4, 4},
-		{2018, 1, 18, 7, 6, 7, 7},
-		{2018, 1, 23, 8, 6, 8, 8},
-		{2018, 3, 12, 9, 7, 9, 9},
-		{2018, 5, 13, 9, 7, 9, 9},
-		{2018, 5, 16, 13, 9, 13, 13},
+		{2018, 1, 18, 5, 6, 5, 5},
+		{2018, 1, 23, 6, 6, 6, 6},
+		{2018, 3, 12, 7, 7, 7, 7},
+		{2018, 5, 13, 7, 7, 7, 7},
+		{2018, 5, 16, 10, 9, 10, 9},
 	}
 	for _, testCase := range cases {
 		func() {
@@ -513,19 +513,24 @@ func TestPrepareRunPlanBig(t *testing.T) {
 			})
 			plan := prepareRunPlan(commits)
 			/*for _, p := range plan {
-			if p.Commit != nil {
-				fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
-			} else {
-				fmt.Println(p.Action, strings.Repeat(" ", 40), p.Items)
-			}
-		}*/
+				if p.Commit != nil {
+					fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
+				} else {
+					fmt.Println(p.Action, strings.Repeat(" ", 40), p.Items)
+				}
+			}*/
 			numCommits := 0
 			numForks := 0
 			numMerges := 0
 			numDeletes := 0
+			processed := map[plumbing.Hash]bool{}
 			for _, p := range plan {
 				switch p.Action {
 				case runActionCommit:
+					processed[p.Commit.Hash] = true
+					for _, parent := range p.Commit.ParentHashes {
+						assert.Contains(t, processed, parent)
+					}
 					numCommits++
 				case runActionFork:
 					numForks++
@@ -538,7 +543,7 @@ func TestPrepareRunPlanBig(t *testing.T) {
 			assert.Equal(t, numCommits, len(commits)+testCase[3], fmt.Sprintf("commits %v", testCase))
 			assert.Equal(t, numForks, testCase[4], fmt.Sprintf("forks %v", testCase))
 			assert.Equal(t, numMerges, testCase[5], fmt.Sprintf("merges %v", testCase))
-			assert.Equal(t, numMerges, testCase[6], fmt.Sprintf("deletes %v", testCase))
+			assert.Equal(t, numDeletes, testCase[6], fmt.Sprintf("deletes %v", testCase))
 		}()
 	}
 }
