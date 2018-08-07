@@ -319,13 +319,22 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (analyser *BurndownAnalysis) Finalize() interface{} {
+	globalHistory := analyser.groupSparseHistory(analyser.globalHistory)
 	fileHistories := map[string]DenseHistory{}
 	for key, history := range analyser.fileHistories {
 		fileHistories[key] = analyser.groupSparseHistory(history)
 	}
 	peopleHistories := make([]DenseHistory, analyser.PeopleNumber)
 	for i, history := range analyser.peopleHistories {
-		peopleHistories[i] = analyser.groupSparseHistory(history)
+		if len(history) > 0 {
+			// there can be people with only trivial merge commits and without own lines
+			peopleHistories[i] = analyser.groupSparseHistory(history)
+		} else {
+			peopleHistories[i] = make(DenseHistory, len(globalHistory))
+			for j, gh := range globalHistory {
+				peopleHistories[i][j] = make([]int64, len(gh))
+			}
+		}
 	}
 	peopleMatrix := make(DenseHistory, analyser.PeopleNumber)
 	for i, row := range analyser.matrix {
@@ -341,7 +350,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		}
 	}
 	return BurndownResult{
-		GlobalHistory:      analyser.groupSparseHistory(analyser.globalHistory),
+		GlobalHistory:      globalHistory,
 		FileHistories:      fileHistories,
 		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,

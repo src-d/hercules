@@ -39,5 +39,5 @@ ${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2: ${GOPATH}/src/gopkg.in/bblfsh
 	cd ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 && \
 	make dependencies
 
-${GOPATH}/bin/hercules${EXE}: *.go */*.go */*/*.go ${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2 internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go
+${GOPATH}/bin/hercules${EXE}: *.go */*.go */*/*.go */*/*/*.go ${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2 internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go
 	go get -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v4.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v4/cmd/hercules
