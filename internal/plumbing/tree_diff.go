@@ -139,7 +139,7 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 
 	if len(treediff.SkipDirs) > 0 {
 		// filter without allocation
-		filteredDiff := diff[:0]
+		filteredDiff := make([]*object.Change, 0, len(diff))
 	OUTER:
 		for _, change := range diff {
 			for _, dir := range treediff.SkipDirs {

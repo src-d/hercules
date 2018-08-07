@@ -309,7 +309,7 @@ func (sent *CommentSentimentAnalysis) mergeComments(nodes []*uast.Node) []string
 		lineNums = append(lineNums, line)
 	}
 	sort.Ints(lineNums)
-	buffer := []string{}
+	var buffer []string
 	for i, line := range lineNums {
 		lineNodes := lines[line]
 		maxEnd := line
@@ -326,7 +326,7 @@ func (sent *CommentSentimentAnalysis) mergeComments(nodes []*uast.Node) []string
 			continue
 		}
 		mergedComments = append(mergedComments, strings.Join(buffer, "\n"))
-		buffer = buffer[:0]
+		buffer = make([]string, 0, len(buffer))
 	}
 	// We remove unneeded chars and filter too short comments
 	filteredComments := make([]string, 0, len(mergedComments))
