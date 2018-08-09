@@ -375,13 +375,6 @@ func collapseFastForwards(
 		if len(vals) < 2 {
 			continue
 		}
-		/*println()
-		println()
-		var logvals []string
-		for _, v := range vals {
-			logvals = append(logvals, v.Hash.String())
-		}
-		fmt.Println("candidate", key.String(), logvals)*/
 		toRemove := map[plumbing.Hash]bool{}
 		for _, child := range vals {
 			var queue []plumbing.Hash
@@ -399,17 +392,13 @@ func collapseFastForwards(
 			if childNumOtherParents == 1 {
 				immediateParent = queue[0]
 			}
-			//fmt.Println("queue", key.String(), child.Hash, queue)
 			for len(queue) > 0 {
 				head := queue[len(queue)-1]
 				queue = queue[:len(queue)-1]
 				if processed[head] {
-					//fmt.Println("processed", key.String(), head)
 					if head == key {
 						toRemove[child.Hash] = true
-						//fmt.Println("remove", key.String(), child.Hash.String(), immediateParent.String())
 						if childNumOtherParents == 1 && len(mergedDag[immediateParent]) == 1 {
-							//println("mokpyxa", key.String(), child.Hash.String(), immediateParent.String())
 							mergedSeq[immediateParent] = append(
 								mergedSeq[immediateParent], mergedSeq[child.Hash]...)
 							delete(mergedSeq, child.Hash)
@@ -463,11 +452,9 @@ func collapseFastForwards(
 						}
 					}
 				}
-				//fmt.Println("merge", key.String(), onlyChild.String())
 			}
 		}
 		if !merged {
-			//fmt.Println("prune", key.String(), newVals)
 			mergedDag[key] = newVals
 		}
 		newVals = []*object.Commit{}
@@ -702,14 +689,4 @@ func optimizePlan(plan []runAction) []runAction {
 		return optimizedPlan
 	}
 	return plan
-	// TODO(vmarkovtsev): there can be also duplicate redundant merges, e.g.
-	/*
-	0 4e34f03d829fbacb71cde0e010de87ea945dc69a [3]
-	0 4e34f03d829fbacb71cde0e010de87ea945dc69a [12]
-	2                                          [3 12]
-	0 06716c2b39422938b77ddafa4d5c39bb9e4476da [3]
-	0 06716c2b39422938b77ddafa4d5c39bb9e4476da [12]
-	2                                          [3 12]
-	0 1219c7bf9e0e1a93459a052ab8b351bfc379dc19 [12]
-	*/
 }
