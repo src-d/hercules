@@ -29,9 +29,9 @@ which pipeline instance to apply.
   
 ### Major changes
 
-* `Pipeline`
+* `Pipeline` - done
   * `Commits()` - done
   * `Run()` - done
 * `Burndown` - done
-* `Couples`
+* `Couples` - done
 * `FileDiff` - done

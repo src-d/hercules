@@ -21,7 +21,7 @@ import (
 	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/yaml"
-)
+	)
 
 // BurndownAnalysis allows to gather the line burndown statistics for a Git repository.
 // It is a LeafPipelineItem.
@@ -49,21 +49,27 @@ type BurndownAnalysis struct {
 
 	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
-	// globalStatus is the current daily alive number of lines; key is the number
-	// of days from the beginning of the history.
-	globalStatus map[int]int64
-	// globalHistory is the periodic snapshots of globalStatus.
-	globalHistory [][]int64
-	// fileHistories is the periodic snapshots of each file's status.
-	fileHistories map[string][][]int64
-	// peopleHistories is the periodic snapshots of each person's status.
-	peopleHistories [][][]int64
+	// globalHistory is the daily deltas of daily line counts.
+	// E.g. day 0: day 0 +50 lines
+	//      day 10: day 0 -10 lines; day 10 +20 lines
+	//      day 12: day 0 -5 lines; day 10 -3 lines; day 12 +10 lines
+	// map [0] [0] = 50
+	// map[10] [0] = -10
+	// map[10][10] = 20
+	// map[12] [0] = -5
+	// map[12][10] = -3
+	// map[12][12] = 10
+	globalHistory sparseHistory
+	// fileHistories is the daily deltas of each file's daily line counts.
+	fileHistories map[string]sparseHistory
+	// peopleHistories is the daily deltas of each person's daily line counts.
+	peopleHistories []sparseHistory
 	// files is the mapping <file path> -> *File.
 	files map[string]*burndown.File
+	// renames is a quick and dirty solution for the "future branch renames" problem.
+	renames map[string]string
 	// matrix is the mutual deletions and self insertions.
 	matrix []map[int]int64
-	// people is the people's individual time stats.
-	people []map[int]int64
 	// day is the most recent day index processed.
 	day int
 	// previousDay is the day from the previous sample period -
@@ -79,18 +85,18 @@ type BurndownResult struct {
 	// [number of samples][number of bands]
 	// The number of samples depends on Sampling: the less Sampling, the bigger the number.
 	// The number of bands depends on Granularity: the less Granularity, the bigger the number.
-	GlobalHistory [][]int64
+	GlobalHistory DenseHistory
 	// The key is the path inside the Git repository. The value's dimensions are the same as
 	// in GlobalHistory.
-	FileHistories map[string][][]int64
+	FileHistories map[string]DenseHistory
 	// [number of people][number of samples][number of bands]
-	PeopleHistories [][][]int64
+	PeopleHistories []DenseHistory
 	// [number of people][number of people + 2]
 	// The first element is the total number of lines added by the author.
 	// The second element is the number of removals by unidentified authors (outside reversedPeopleDict).
 	// The rest of the elements are equal the number of line removals by the corresponding
 	// authors in reversedPeopleDict: 2 -> 0, 3 -> 1, etc.
-	PeopleMatrix [][]int64
+	PeopleMatrix DenseHistory
 
 	// The following members are private.
 
@@ -122,6 +128,11 @@ const (
 	// format the author overwrites matrix.
 	authorSelf = (1 << (32 - burndown.TreeMaxBinPower)) - 2
 )
+
+type sparseHistory = map[int]map[int]int64
+
+// DenseHistory is the matrix [number of samples][number of bands] -> number of lines.
+type DenseHistory = [][]int64
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (analyser *BurndownAnalysis) Name() string {
@@ -225,27 +236,25 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 		analyser.Sampling = analyser.Granularity
 	}
 	analyser.repository = repository
-	analyser.globalStatus = map[int]int64{}
-	analyser.globalHistory = [][]int64{}
-	analyser.fileHistories = map[string][][]int64{}
-	analyser.peopleHistories = make([][][]int64, analyser.PeopleNumber)
+	analyser.globalHistory = sparseHistory{}
+	analyser.fileHistories = map[string]sparseHistory{}
+	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
 	analyser.files = map[string]*burndown.File{}
+	analyser.renames = map[string]string{}
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
-	analyser.people = make([]map[int]int64, analyser.PeopleNumber)
 	analyser.day = 0
 	analyser.previousDay = 0
 }
 
-// Consume runs this PipelineItem on the next commit data.
+// Consume runs this PipelineItem on the next commit's data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
 // Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	commit := deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
 	day := deps[items.DependencyDay].(int)
-	if len(commit.ParentHashes) <= 1 {
+	if !core.IsMergeCommit(deps) {
 		analyser.day = day
 		analyser.onNewDay()
 	} else {
@@ -310,19 +319,24 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (analyser *BurndownAnalysis) Finalize() interface{} {
-	gs, fss, pss := analyser.groupStatus()
-	analyser.updateHistories(1, gs, fss, pss)
-	for key, statuses := range analyser.fileHistories {
-		if len(statuses) == len(analyser.globalHistory) {
-			continue
-		}
-		padding := make([][]int64, len(analyser.globalHistory)-len(statuses))
-		for i := range padding {
-			padding[i] = make([]int64, len(analyser.globalStatus))
-		}
-		analyser.fileHistories[key] = append(padding, statuses...)
+	globalHistory, lastDay := analyser.groupSparseHistory(analyser.globalHistory, -1)
+	fileHistories := map[string]DenseHistory{}
+	for key, history := range analyser.fileHistories {
+		fileHistories[key], _ = analyser.groupSparseHistory(history, lastDay)
 	}
-	peopleMatrix := make([][]int64, analyser.PeopleNumber)
+	peopleHistories := make([]DenseHistory, analyser.PeopleNumber)
+	for i, history := range analyser.peopleHistories {
+		if len(history) > 0 {
+			// there can be people with only trivial merge commits and without own lines
+			peopleHistories[i], _ = analyser.groupSparseHistory(history, lastDay)
+		} else {
+			peopleHistories[i] = make(DenseHistory, len(globalHistory))
+			for j, gh := range globalHistory {
+				peopleHistories[i][j] = make([]int64, len(gh))
+			}
+		}
+	}
+	peopleMatrix := make(DenseHistory, analyser.PeopleNumber)
 	for i, row := range analyser.matrix {
 		mrow := make([]int64, analyser.PeopleNumber+2)
 		peopleMatrix[i] = mrow
@@ -336,9 +350,9 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		}
 	}
 	return BurndownResult{
-		GlobalHistory:      analyser.globalHistory,
-		FileHistories:      analyser.fileHistories,
-		PeopleHistories:    analyser.peopleHistories,
+		GlobalHistory:      globalHistory,
+		FileHistories:      fileHistories,
+		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,
 		reversedPeopleDict: analyser.reversedPeopleDict,
 		sampling:           analyser.Sampling,
@@ -365,8 +379,8 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 		return nil, err
 	}
 	result := BurndownResult{}
-	convertCSR := func(mat *pb.BurndownSparseMatrix) [][]int64 {
-		res := make([][]int64, mat.NumberOfRows)
+	convertCSR := func(mat *pb.BurndownSparseMatrix) DenseHistory {
+		res := make(DenseHistory, mat.NumberOfRows)
 		for i := 0; i < int(mat.NumberOfRows); i++ {
 			res[i] = make([]int64, mat.NumberOfColumns)
 			for j := 0; j < len(mat.Rows[i].Columns); j++ {
@@ -376,18 +390,18 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 		return res
 	}
 	result.GlobalHistory = convertCSR(msg.Project)
-	result.FileHistories = map[string][][]int64{}
+	result.FileHistories = map[string]DenseHistory{}
 	for _, mat := range msg.Files {
 		result.FileHistories[mat.Name] = convertCSR(mat)
 	}
 	result.reversedPeopleDict = make([]string, len(msg.People))
-	result.PeopleHistories = make([][][]int64, len(msg.People))
+	result.PeopleHistories = make([]DenseHistory, len(msg.People))
 	for i, mat := range msg.People {
 		result.PeopleHistories[i] = convertCSR(mat)
 		result.reversedPeopleDict[i] = mat.Name
 	}
 	if msg.PeopleInteraction != nil {
-		result.PeopleMatrix = make([][]int64, msg.PeopleInteraction.NumberOfRows)
+		result.PeopleMatrix = make(DenseHistory, msg.PeopleInteraction.NumberOfRows)
 	}
 	for i := 0; i < len(result.PeopleMatrix); i++ {
 		result.PeopleMatrix[i] = make([]int64, msg.PeopleInteraction.NumberOfColumns)
@@ -432,12 +446,12 @@ func (analyser *BurndownAnalysis) MergeResults(
 		}()
 	}
 	if len(bar1.FileHistories) > 0 || len(bar2.FileHistories) > 0 {
-		merged.FileHistories = map[string][][]int64{}
+		merged.FileHistories = map[string]DenseHistory{}
 		historyMutex := sync.Mutex{}
 		for key, fh1 := range bar1.FileHistories {
 			if fh2, exists := bar2.FileHistories[key]; exists {
 				wg.Add(1)
-				go func(fh1, fh2 [][]int64, key string) {
+				go func(fh1, fh2 DenseHistory, key string) {
 					defer wg.Done()
 					historyMutex.Lock()
 					defer historyMutex.Unlock()
@@ -459,7 +473,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 		}
 	}
 	if len(merged.reversedPeopleDict) > 0 {
-		merged.PeopleHistories = make([][][]int64, len(merged.reversedPeopleDict))
+		merged.PeopleHistories = make([]DenseHistory, len(merged.reversedPeopleDict))
 		for i, key := range merged.reversedPeopleDict {
 			ptrs := people[key]
 			if ptrs[1] < 0 {
@@ -474,7 +488,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 				wg.Add(1)
 				go func(i int) {
 					defer wg.Done()
-					var m1, m2 [][]int64
+					var m1, m2 DenseHistory
 					if len(bar1.PeopleHistories) > 0 {
 						m1 = bar1.PeopleHistories[ptrs[1]]
 					}
@@ -506,7 +520,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 						merged.PeopleMatrix, make([]int64, len(merged.reversedPeopleDict)+2))
 				}
 			} else {
-				merged.PeopleMatrix = make([][]int64, len(merged.reversedPeopleDict))
+				merged.PeopleMatrix = make(DenseHistory, len(merged.reversedPeopleDict))
 				for i := range merged.PeopleMatrix {
 					merged.PeopleMatrix[i] = make([]int64, len(merged.reversedPeopleDict)+2)
 				}
@@ -535,8 +549,8 @@ func (analyser *BurndownAnalysis) MergeResults(
 // mergeMatrices takes two [number of samples][number of bands] matrices,
 // resamples them to days so that they become square, sums and resamples back to the
 // least of (sampling1, sampling2) and (granularity1, granularity2).
-func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, sampling2 int,
-	c1, c2 *core.CommonAnalysisResult) [][]int64 {
+func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int,
+	c1, c2 *core.CommonAnalysisResult) DenseHistory {
 	commonMerged := *c1
 	commonMerged.Merge(c2)
 
@@ -566,8 +580,8 @@ func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, samp
 			int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
 	}
 
-	// convert daily to [][]in(t64
-	result := make([][]int64, (size+sampling-1)/sampling)
+	// convert daily to [][]int64
+	result := make(DenseHistory, (size+sampling-1)/sampling)
 	for i := range result {
 		result[i] = make([]int64, (size+granularity-1)/granularity)
 		sampledIndex := i * sampling
@@ -591,7 +605,7 @@ func mergeMatrices(m1, m2 [][]int64, granularity1, sampling1, granularity2, samp
 // Rows: *at least* len(matrix) * sampling + offset
 // Columns: *at least* len(matrix[...]) * granularity + offset
 // `matrix` can be sparse, so that the last columns which are equal to 0 are truncated.
-func addBurndownMatrix(matrix [][]int64, granularity, sampling int, daily [][]float32, offset int) {
+func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, daily [][]float32, offset int) {
 	// Determine the maximum number of bands; the actual one may be larger but we do not care
 	maxCols := 0
 	for _, row := range matrix {
@@ -809,7 +823,7 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	return nil
 }
 
-func sortedKeys(m map[string][][]int64) []string {
+func sortedKeys(m map[string]DenseHistory) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -847,54 +861,70 @@ func (analyser *BurndownAnalysis) unpackPersonWithDay(value int) (int, int) {
 }
 
 func (analyser *BurndownAnalysis) onNewDay() {
-	day := analyser.day
-	sampling := analyser.Sampling
-	delta := (day / sampling) - (analyser.previousDay / sampling)
-	if delta > 0 {
-		analyser.previousDay = day
-		gs, fss, pss := analyser.groupStatus()
-		analyser.updateHistories(delta, gs, fss, pss)
+	if analyser.day > analyser.previousDay {
+		analyser.previousDay = analyser.day
 	}
 }
 
-func (analyser *BurndownAnalysis) updateStatus(
-	status interface{}, _ int, previousValue int, delta int) {
-
-	_, previousTime := analyser.unpackPersonWithDay(previousValue)
-	status.(map[int]int64)[previousTime] += int64(delta)
+func (analyser *BurndownAnalysis) updateGlobal(currentTime, previousTime, delta int) {
+	_, currentDay := analyser.unpackPersonWithDay(currentTime)
+	_, previousDay := analyser.unpackPersonWithDay(previousTime)
+	currentHistory := analyser.globalHistory[currentDay]
+	if currentHistory == nil {
+		currentHistory = map[int]int64{}
+		analyser.globalHistory[currentDay] = currentHistory
+	}
+	currentHistory[previousDay] += int64(delta)
 }
 
-func (analyser *BurndownAnalysis) updatePeople(
-	peopleUncasted interface{}, _ int, previousValue int, delta int) {
-	previousAuthor, previousTime := analyser.unpackPersonWithDay(previousValue)
+// updateFile is bound to the specific `history` in the closure.
+func (analyser *BurndownAnalysis) updateFile(
+	history sparseHistory, currentTime, previousTime, delta int) {
+		
+	_, currentDay := analyser.unpackPersonWithDay(currentTime)
+	_, previousDay := analyser.unpackPersonWithDay(previousTime)
+
+	currentHistory := history[currentDay]
+	if currentHistory == nil {
+		currentHistory = map[int]int64{}
+		history[currentDay] = currentHistory
+	}
+	currentHistory[previousDay] += int64(delta)
+}
+
+func (analyser *BurndownAnalysis) updateAuthor(currentTime, previousTime, delta int) {
+	previousAuthor, previousDay := analyser.unpackPersonWithDay(previousTime)
 	if previousAuthor == identity.AuthorMissing {
 		return
 	}
-	people := peopleUncasted.([]map[int]int64)
-	stats := people[previousAuthor]
-	if stats == nil {
-		stats = map[int]int64{}
-		people[previousAuthor] = stats
+	_, currentDay := analyser.unpackPersonWithDay(currentTime)
+	history := analyser.peopleHistories[previousAuthor]
+	if history == nil {
+		history = sparseHistory{}
+		analyser.peopleHistories[previousAuthor] = history
 	}
-	stats[previousTime] += int64(delta)
+	currentHistory := history[currentDay]
+	if currentHistory == nil {
+		currentHistory = map[int]int64{}
+		history[currentDay] = currentHistory
+	}
+	currentHistory[previousDay] += int64(delta)
 }
 
-func (analyser *BurndownAnalysis) updateMatrix(
-	matrixUncasted interface{}, currentTime int, previousTime int, delta int) {
-
-	matrix := matrixUncasted.([]map[int]int64)
+func (analyser *BurndownAnalysis) updateMatrix(currentTime, previousTime, delta int) {
 	newAuthor, _ := analyser.unpackPersonWithDay(currentTime)
 	oldAuthor, _ := analyser.unpackPersonWithDay(previousTime)
+
 	if oldAuthor == identity.AuthorMissing {
 		return
 	}
 	if newAuthor == oldAuthor && delta > 0 {
 		newAuthor = authorSelf
 	}
-	row := matrix[oldAuthor]
+	row := analyser.matrix[oldAuthor]
 	if row == nil {
 		row = map[int]int64{}
-		matrix[oldAuthor] = row
+		analyser.matrix[oldAuthor] = row
 	}
 	cell, exists := row[newAuthor]
 	if !exists {
@@ -905,19 +935,26 @@ func (analyser *BurndownAnalysis) updateMatrix(
 }
 
 func (analyser *BurndownAnalysis) newFile(
-	hash plumbing.Hash, author int, day int, size int, global map[int]int64,
-	people []map[int]int64, matrix []map[int]int64) *burndown.File {
-	statuses := make([]burndown.Status, 1)
-	statuses[0] = burndown.NewStatus(global, analyser.updateStatus)
+	hash plumbing.Hash, name string, author int, day int, size int) (*burndown.File, error) {
+	updaters := make([]burndown.Updater, 1)
+	updaters[0] = analyser.updateGlobal
 	if analyser.TrackFiles {
-		statuses = append(statuses, burndown.NewStatus(map[int]int64{}, analyser.updateStatus))
+		history := analyser.fileHistories[name]
+		if history == nil {
+			// can be not nil if the file was created in a future branch
+			history = sparseHistory{}
+		}
+		analyser.fileHistories[name] = history
+		updaters = append(updaters, func(currentTime, previousTime, delta int) {
+			analyser.updateFile(history, currentTime, previousTime, delta)
+		})
 	}
 	if analyser.PeopleNumber > 0 {
-		statuses = append(statuses, burndown.NewStatus(people, analyser.updatePeople))
-		statuses = append(statuses, burndown.NewStatus(matrix, analyser.updateMatrix))
+		updaters = append(updaters, analyser.updateAuthor)
+		updaters = append(updaters, analyser.updateMatrix)
 		day = analyser.packPersonWithDay(author, day)
 	}
-	return burndown.NewFile(hash, day, size, statuses...)
+	return burndown.NewFile(hash, day, size, updaters...), nil
 }
 
 func (analyser *BurndownAnalysis) handleInsertion(
@@ -935,11 +972,9 @@ func (analyser *BurndownAnalysis) handleInsertion(
 	if exists {
 		return fmt.Errorf("file %s already exists", name)
 	}
-	file = analyser.newFile(
-		blob.Hash, author, analyser.day, lines,
-		analyser.globalStatus, analyser.people, analyser.matrix)
+	file, err = analyser.newFile(blob.Hash, name, author, analyser.day, lines)
 	analyser.files[name] = file
-	return nil
+	return err
 }
 
 func (analyser *BurndownAnalysis) handleDeletion(
@@ -958,6 +993,8 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	file.Update(analyser.packPersonWithDay(author, analyser.day), 0, 0, lines)
 	file.Hash = plumbing.ZeroHash
 	delete(analyser.files, name)
+	delete(analyser.fileHistories, name)
+	analyser.renames[name] = ""
 	return nil
 }
 
@@ -1067,113 +1104,83 @@ func (analyser *BurndownAnalysis) handleModification(
 }
 
 func (analyser *BurndownAnalysis) handleRename(from, to string) error {
+	if from == to {
+		return nil
+	}
 	file, exists := analyser.files[from]
 	if !exists {
-		return fmt.Errorf("file %s does not exist", from)
+		return fmt.Errorf("file %s > %s does not exist (files)", from, to)
 	}
 	analyser.files[to] = file
 	delete(analyser.files, from)
+
+	if analyser.TrackFiles {
+		history := analyser.fileHistories[from]
+		if history == nil {
+			// a future branch could have already renamed it and we are retarded
+			futureRename, exists := analyser.renames[from]
+			if futureRename == "" && exists {
+				// the file will be deleted in the future, whatever
+				history = sparseHistory{}
+			} else {
+				history = analyser.fileHistories[futureRename]
+				if history == nil {
+					return fmt.Errorf("file %s > %s does not exist (histories)", from, to)
+				}
+			}
+		}
+		analyser.fileHistories[to] = history
+		delete(analyser.fileHistories, from)
+	}
+	analyser.renames[from] = to
 	return nil
 }
 
-func (analyser *BurndownAnalysis) groupStatus() ([]int64, map[string][]int64, [][]int64) {
-	granularity := analyser.Granularity
-	if granularity == 0 {
-		granularity = 1
-	}
-	day := analyser.day
-	day++
-	adjust := 0
-	if day%granularity != 0 {
-		adjust = 1
-	}
-	global := make([]int64, day/granularity+adjust)
-	var group int64
-	for i := 0; i < day; i++ {
-		group += analyser.globalStatus[i]
-		if (i % granularity) == (granularity - 1) {
-			global[i/granularity] = group
-			group = 0
-		}
-	}
-	if day%granularity != 0 {
-		global[len(global)-1] = group
-	}
-	locals := make(map[string][]int64)
-	if analyser.TrackFiles {
-		for key, file := range analyser.files {
-			status := make([]int64, day/granularity+adjust)
-			var group int64
-			for i := 0; i < day; i++ {
-				group += file.Status(1).(map[int]int64)[i]
-				if (i % granularity) == (granularity - 1) {
-					status[i/granularity] = group
-					group = 0
-				}
-			}
-			if day%granularity != 0 {
-				status[len(status)-1] = group
-			}
-			locals[key] = status
-		}
-	}
-	peoples := make([][]int64, len(analyser.people))
-	for key, person := range analyser.people {
-		status := make([]int64, day/granularity+adjust)
-		var group int64
-		for i := 0; i < day; i++ {
-			group += person[i]
-			if (i % granularity) == (granularity - 1) {
-				status[i/granularity] = group
-				group = 0
-			}
-		}
-		if day%granularity != 0 {
-			status[len(status)-1] = group
-		}
-		peoples[key] = status
-	}
-	return global, locals, peoples
-}
+func (analyser *BurndownAnalysis) groupSparseHistory(
+	history sparseHistory, lastDay int) (DenseHistory, int) {
 
-func (analyser *BurndownAnalysis) updateHistories(
-	delta int, globalStatus []int64, fileStatuses map[string][]int64, peopleStatuses [][]int64) {
-	for i := 0; i < delta; i++ {
-		analyser.globalHistory = append(analyser.globalHistory, globalStatus)
+	if len(history) == 0 {
+		panic("empty history")
 	}
-	toDelete := make([]string, 0)
-	for key, fh := range analyser.fileHistories {
-		ls, exists := fileStatuses[key]
-		if !exists {
-			toDelete = append(toDelete, key)
-		} else {
-			for i := 0; i < delta; i++ {
-				fh = append(fh, ls)
+	var days []int
+	for day := range history {
+		days = append(days, day)
+	}
+	sort.Ints(days)
+	if lastDay >= 0 {
+		if days[len(days)-1] < lastDay {
+			days = append(days, lastDay)
+		} else if days[len(days)-1] > lastDay {
+			panic("days corruption")
+		}
+	} else {
+		lastDay = days[len(days)-1]
+	}
+	// [y][x]
+	// y - sampling
+	// x - granularity
+	samples := lastDay / analyser.Sampling + 1
+	bands := lastDay / analyser.Granularity + 1
+	result := make(DenseHistory, samples)
+	for i := 0; i < bands; i++ {
+		result[i] = make([]int64, bands)
+	}
+	prevsi := 0
+	for _, day := range days {
+		si := day / analyser.Sampling
+		if si > prevsi {
+			state := result[prevsi]
+			for i := prevsi + 1; i <= si; i++ {
+				copy(result[i], state)
 			}
-			analyser.fileHistories[key] = fh
+			prevsi = si
+		}
+		sample := result[si]
+		for bday, value := range history[day] {
+			sample[bday / analyser.Granularity] += value
 		}
 	}
-	for _, key := range toDelete {
-		delete(analyser.fileHistories, key)
-	}
-	for key, ls := range fileStatuses {
-		fh, exists := analyser.fileHistories[key]
-		if exists {
-			continue
-		}
-		for i := 0; i < delta; i++ {
-			fh = append(fh, ls)
-		}
-		analyser.fileHistories[key] = fh
-	}
-
-	for key, ph := range analyser.peopleHistories {
-		ls := peopleStatuses[key]
-		for i := 0; i < delta; i++ {
-			ph = append(ph, ls)
-		}
-		analyser.peopleHistories[key] = ph
-	}
+	return result, lastDay
 }
 
 func init() {

@@ -3,7 +3,7 @@ package leaves
 import (
 	"fmt"
 	"io"
-	"sort"
+		"sort"
 
 	"github.com/gogo/protobuf/proto"
 	"gopkg.in/src-d/go-git.v4"
@@ -31,6 +31,10 @@ type CouplesAnalysis struct {
 	peopleCommits []int
 	// files store every file occurred in the same commit with every other file.
 	files map[string]map[string]int
+	// renames point from new file name to old file name.
+	renames *[]rename
+	// lastCommit is the last commit which was consumed.
+	lastCommit *object.Commit
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 }
@@ -45,6 +49,11 @@ type CouplesResult struct {
 
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+}
+
+type rename struct {
+	FromName string
+	ToName string
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -94,6 +103,7 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 	}
 	couples.peopleCommits = make([]int, couples.PeopleNumber+1)
 	couples.files = map[string]map[string]int{}
+	couples.renames = &[]rename{}
 	couples.OneShotMergeProcessor.Initialize()
 }
 
@@ -103,23 +113,18 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	if !couples.ShouldConsumeCommit(deps) {
-		return nil, nil
-	}
+	firstMerge := couples.ShouldConsumeCommit(deps)
+	mergeMode := core.IsMergeCommit(deps)
+	couples.lastCommit = deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
 	if author == identity.AuthorMissing {
 		author = couples.PeopleNumber
 	}
-	couples.peopleCommits[author]++
-	treeDiff := deps[items.DependencyTreeChanges].(object.Changes)
-	context := make([]string, 0)
-	deleteFile := func(name string) {
-		// we do not remove the file from people - the context does not expire
-		delete(couples.files, name)
-		for _, otherFiles := range couples.files {
-			delete(otherFiles, name)
-		}
+	if firstMerge {
+		couples.peopleCommits[author]++
 	}
+	treeDiff := deps[items.DependencyTreeChanges].(object.Changes)
+	context := make([]string, 0, len(treeDiff))
 	for _, change := range treeDiff {
 		action, err := change.Action()
 		if err != nil {
@@ -129,32 +134,28 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 		fromName := change.From.Name
 		switch action {
 		case merkletrie.Insert:
-			context = append(context, toName)
-			couples.people[author][toName]++
+			if !mergeMode {
+				context = append(context, toName)
+				couples.people[author][toName]++
+			} else if couples.people[author][toName] == 0 {
+				couples.people[author][toName] = 1
+			}
 		case merkletrie.Delete:
-			deleteFile(fromName)
-			couples.people[author][fromName]++
+			if !mergeMode {
+				couples.people[author][fromName]++
+			} else if couples.people[author][fromName] == 0 {
+				couples.people[author][fromName] = 1
+			}
 		case merkletrie.Modify:
 			if fromName != toName {
 				// renamed
-				couples.files[toName] = couples.files[fromName]
-				for _, otherFiles := range couples.files {
-					val, exists := otherFiles[fromName]
-					if exists {
-						otherFiles[toName] = val
-					}
-				}
-				deleteFile(fromName)
-				for _, authorFiles := range couples.people {
-					val, exists := authorFiles[fromName]
-					if exists {
-						authorFiles[toName] = val
-						delete(authorFiles, fromName)
-					}
-				}
+				*couples.renames = append(
+					*couples.renames, rename{ToName: toName, FromName: fromName})
 			}
-			context = append(context, toName)
-			couples.people[author][toName]++
+			if !mergeMode {
+				context = append(context, toName)
+				couples.people[author][toName]++
+			}
 		}
 	}
 	for _, file := range context {
@@ -172,9 +173,10 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (couples *CouplesAnalysis) Finalize() interface{} {
-	filesSequence := make([]string, len(couples.files))
+	files, people := couples.propagateRenames(couples.currentFiles())
+	filesSequence := make([]string, len(files))
 	i := 0
-	for file := range couples.files {
+	for file := range files {
 		filesSequence[i] = file
 		i++
 	}
@@ -188,12 +190,11 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 	peopleFiles := make([][]int, couples.PeopleNumber+1)
 	for i := range peopleMatrix {
 		peopleMatrix[i] = map[int]int64{}
-		for file, commits := range couples.people[i] {
-			fi, exists := filesIndex[file]
-			if exists {
+		for file, commits := range people[i] {
+			if fi, exists := filesIndex[file]; exists {
 				peopleFiles[i] = append(peopleFiles[i], fi)
 			}
-			for j, otherFiles := range couples.people {
+			for j, otherFiles := range people {
 				otherCommits := otherFiles[file]
 				delta := otherCommits
 				if otherCommits > commits {
@@ -210,7 +211,7 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 	filesMatrix := make([]map[int]int64, len(filesIndex))
 	for i := range filesMatrix {
 		filesMatrix[i] = map[int]int64{}
-		for otherFile, cooccs := range couples.files[filesSequence[i]] {
+		for otherFile, cooccs := range files[filesSequence[i]] {
 			filesMatrix[i][filesIndex[otherFile]] = int64(cooccs)
 		}
 	}
@@ -225,7 +226,7 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 
 // Fork clones this pipeline item.
 func (couples *CouplesAnalysis) Fork(n int) []core.PipelineItem {
-	return core.ForkSamePipelineItem(couples, n)
+	return core.ForkCopyPipelineItem(couples, n)
 }
 
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.
@@ -362,7 +363,7 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 	fmt.Fprintln(writer, "    matrix:")
 	for _, files := range result.FilesMatrix {
 		fmt.Fprint(writer, "      - {")
-		indices := []int{}
+		var indices []int
 		for file := range files {
 			indices = append(indices, file)
 		}
@@ -378,14 +379,14 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 
 	fmt.Fprintln(writer, "  people_coocc:")
 	fmt.Fprintln(writer, "    index:")
-	for _, person := range couples.reversedPeopleDict {
+	for _, person := range result.reversedPeopleDict {
 		fmt.Fprintf(writer, "      - %s\n", yaml.SafeString(person))
 	}
 
 	fmt.Fprintln(writer, "    matrix:")
 	for _, people := range result.PeopleMatrix {
 		fmt.Fprint(writer, "      - {")
-		indices := []int{}
+		var indices []int
 		for file := range people {
 			indices = append(indices, file)
 		}
@@ -400,7 +401,7 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 	}
 
 	fmt.Fprintln(writer, "    author_files:") // sorted by number of files each author changed
-	peopleFiles := sortByNumberOfFiles(result.PeopleFiles, couples.reversedPeopleDict, result.Files)
+	peopleFiles := sortByNumberOfFiles(result.PeopleFiles, result.reversedPeopleDict, result.Files)
 	for _, authorFiles := range peopleFiles {
 		fmt.Fprintf(writer, "      - %s:\n", yaml.SafeString(authorFiles.Author))
 		sort.Strings(authorFiles.Files)
@@ -472,6 +473,114 @@ func (couples *CouplesAnalysis) serializeBinary(result *CouplesResult, writer io
 	}
 	writer.Write(serialized)
 	return nil
+}
+
+// currentFiles return the list of files in the last consumed commit.
+func (couples *CouplesAnalysis) currentFiles() map[string]bool {
+	files := map[string]bool{}
+	if couples.lastCommit == nil {
+		for key := range couples.files {
+			files[key] = true
+		}
+	}
+	tree, _ := couples.lastCommit.Tree()
+	fileIter := tree.Files()
+	fileIter.ForEach(func(fobj *object.File) error {
+		files[fobj.Name] = true
+		return nil
+	})
+	return files
+}
+
+// propagateRenames applies `renames` over the files from `lastCommit`.
+func (couples *CouplesAnalysis) propagateRenames(files map[string]bool) (
+	map[string]map[string]int, []map[string]int) {
+
+	renames := *couples.renames
+	reducedFiles := map[string]map[string]int{}
+	for file := range files {
+		fmap := map[string]int{}
+		refmap := couples.files[file]
+		for other := range files {
+			refval := refmap[other]
+			if refval > 0 {
+				fmap[other] = refval
+			}
+		}
+		if len(fmap) > 0 {
+			reducedFiles[file] = fmap
+		}
+	}
+	// propagate renames
+	aliases := map[string]map[string]bool{}
+	pointers := map[string]string{}
+	for i := range renames {
+		rename := renames[len(renames)-i-1]
+		toName := rename.ToName
+		if newTo, exists := pointers[toName]; exists {
+			toName = newTo
+		}
+		if _, exists := reducedFiles[toName]; exists {
+			if rename.FromName != toName {
+				var set map[string]bool
+				if set, exists = aliases[toName]; !exists {
+					set = map[string]bool{}
+					aliases[toName] = set
+				}
+				set[rename.FromName] = true
+				pointers[rename.FromName] = toName
+			}
+			continue
+		}
+	}
+	adjustments := map[string]map[string]int{}
+	for final, set := range aliases {
+		adjustment := map[string]int{}
+		for alias := range set {
+			for k, v := range couples.files[alias] {
+				adjustment[k] += v
+			}
+		}
+		adjustments[final] = adjustment
+	}
+	for _, adjustment := range adjustments {
+		for final, set := range aliases {
+			for alias := range set {
+				adjustment[final] += adjustment[alias]
+				delete(adjustment, alias)
+			}
+		}
+	}
+	for final, adjustment := range adjustments {
+		for key, val := range adjustment {
+			if coocc, exists := reducedFiles[final][key]; exists {
+				reducedFiles[final][key] = coocc + val
+				reducedFiles[key][final] = coocc + val
+			}
+		}
+	}
+	people := make([]map[string]int, len(couples.people))
+	for i, counts := range couples.people {
+		reducedCounts := map[string]int{}
+		people[i] = reducedCounts
+		for file := range files {
+			count := counts[file]
+			for alias := range aliases[file] {
+				count += counts[alias]
+			}
+			if count > 0 {
+				reducedCounts[file] = count
+			}
+		}
+		for key, val := range counts {
+			if _, exists := files[key]; !exists {
+				if _, exists = pointers[key]; !exists {
+					reducedCounts[key] = val
+				}
+			}
+		}
+	}
+	return reducedFiles, people
 }
 
 func init() {

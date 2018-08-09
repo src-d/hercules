@@ -9,14 +9,15 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
-func updateStatusFile(
-	status interface{}, _ int, previousTime int, delta int) {
-	status.(map[int]int64)[previousTime] += int64(delta)
+func updateStatusFile(status map[int]int64, _, previousTime, delta int) {
+	status[previousTime] += int64(delta)
 }
 
 func fixtureFile() (*File, map[int]int64) {
 	status := map[int]int64{}
-	file := NewFile(plumbing.ZeroHash, 0, 100, NewStatus(status, updateStatusFile))
+	file := NewFile(plumbing.ZeroHash, 0, 100, func(a, b, c int) {
+		updateStatusFile(status, a, b, c)
+	})
 	return file, status
 }
 
@@ -111,7 +112,9 @@ func TestCloneFileClearStatus(t *testing.T) {
 	file.Update(4, 20, 10, 0)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
 	newStatus := map[int]int64{}
-	clone := file.Clone(true, NewStatus(newStatus, updateStatusFile))
+	clone := file.Clone(true, func(a, b, c int) {
+		updateStatusFile(newStatus, a, b, c)
+	})
 	clone.Update(5, 45, 0, 10)
 	// 0 0 | 20 4 | 30 1 | 45 0 | 120 -1        [0]: -5, [1]: -5
 	clone.Update(6, 45, 5, 0)
@@ -168,8 +171,10 @@ func TestInsertFile(t *testing.T) {
 
 func TestZeroInitializeFile(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(plumbing.ZeroHash, 0, 0, NewStatus(status, updateStatusFile))
-	assert.NotContains(t, status, 0)
+	file := NewFile(plumbing.ZeroHash, 0, 0, func(a, b, c int) {
+		updateStatusFile(status, a, b, c)
+	})
+	assert.Contains(t, status, 0)
 	dump := file.Dump()
 	// Output:
 	// 0 -1
@@ -419,7 +424,9 @@ func TestBug3File(t *testing.T) {
 
 func TestBug4File(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(plumbing.ZeroHash, 0, 10, NewStatus(status, updateStatusFile))
+	file := NewFile(plumbing.ZeroHash, 0, 10, func(a, b, c int) {
+		updateStatusFile(status, a, b, c)
+	})
 	file.Update(125, 0, 20, 9)
 	file.Update(125, 0, 20, 20)
 	file.Update(166, 12, 1, 1)
@@ -449,14 +456,18 @@ func TestBug5File(t *testing.T) {
 	status := map[int]int64{}
 	keys := []int{0, 2, 4, 7, 10}
 	vals := []int{24, 28, 24, 28, -1}
-	file := NewFileFromTree(plumbing.ZeroHash, keys, vals, NewStatus(status, updateStatusFile))
+	file := NewFileFromTree(plumbing.ZeroHash, keys, vals, func(a, b, c int) {
+		updateStatusFile(status, a, b, c)
+	})
 	file.Update(28, 0, 1, 3)
 	dump := file.Dump()
 	assert.Equal(t, "0 28\n2 24\n5 28\n8 -1\n", dump)
 
 	keys = []int{0, 1, 16, 18}
 	vals = []int{305, 0, 157, -1}
-	file = NewFileFromTree(plumbing.ZeroHash, keys, vals, NewStatus(status, updateStatusFile))
+	file = NewFileFromTree(plumbing.ZeroHash, keys, vals, func(a, b, c int) {
+		updateStatusFile(status, a, b, c)
+	})
 	file.Update(310, 0, 0, 2)
 	dump = file.Dump()
 	assert.Equal(t, "0 0\n14 157\n16 -1\n", dump)
@@ -482,12 +493,6 @@ func TestUpdatePanic(t *testing.T) {
 		file.Update(1, 0, 1, 0)
 	}()
 	assert.Contains(t, paniced, "invalid tree state")
-}
-
-func TestFileStatus(t *testing.T) {
-	f, _ := fixtureFile()
-	assert.Panics(t, func() { f.Status(1) })
-	assert.NotNil(t, f.Status(0))
 }
 
 func TestFileValidate(t *testing.T) {

@@ -362,31 +362,18 @@ func (pipeline *Pipeline) Len() int {
 	return len(pipeline.items)
 }
 
-// Commits returns the critical path in the repository's history. It starts
-// from HEAD and traces commits backwards till the root. When it encounters
-// a merge (more than one parent), it always chooses the first parent.
+// Commits returns the list of commits from the history similar to `git log` over the HEAD.
 func (pipeline *Pipeline) Commits() []*object.Commit {
-	result := []*object.Commit{}
-	repository := pipeline.repository
-	head, err := repository.Head()
+	cit, err := pipeline.repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
 	if err != nil {
-		panic(err)
+		log.Fatalf("unable to collect the commit history: %v", err)
 	}
-	commit, err := repository.CommitObject(head.Hash())
-	if err != nil {
-		panic(err)
-	}
-	// the first parent matches the head
-	for ; err != io.EOF; commit, err = commit.Parents().Next() {
-		if err != nil {
-			panic(err)
-		}
+	defer cit.Close()
+	var result []*object.Commit
+	cit.ForEach(func(commit *object.Commit) error {
 		result = append(result, commit)
-	}
-	// reverse the order
-	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
-		result[i], result[j] = result[j], result[i]
-	}
+		return nil
+	})
 	return result
 }
 
@@ -567,6 +554,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	plan := prepareRunPlan(commits)
 	progressSteps := len(plan) + 2
 	branches := map[int][]PipelineItem{0: pipeline.items}
+	var newestTime int64
 
 	for index, step := range plan {
 		onProgress(index + 1, progressSteps)
@@ -592,6 +580,10 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 					state[key] = val
 				}
 			}
+			commitTime := step.Commit.Author.When.Unix()
+			if commitTime > newestTime {
+				newestTime = commitTime
+			}
 		case runActionFork:
 			for i, clone := range cloneItems(branches[firstItem], len(step.Items)-1) {
 				branches[step.Items[i+1]] = clone
@@ -608,15 +600,15 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	}
 	onProgress(len(plan) + 1, progressSteps)
 	result := map[LeafPipelineItem]interface{}{}
-	for _, item := range getMasterBranch(branches) {
+	for index, item := range getMasterBranch(branches) {
 		if casted, ok := item.(LeafPipelineItem); ok {
-			result[casted] = casted.Finalize()
+			result[pipeline.items[index].(LeafPipelineItem)] = casted.Finalize()
 		}
 	}
 	onProgress(progressSteps, progressSteps)
 	result[nil] = &CommonAnalysisResult{
-		BeginTime:     commits[0].Author.When.Unix(),
-		EndTime:       commits[len(commits)-1].Author.When.Unix(),
+		BeginTime:     plan[0].Commit.Author.When.Unix(),
+		EndTime:       newestTime,
 		CommitsNumber: len(commits),
 		RunTime:       time.Since(startRunTime),
 	}

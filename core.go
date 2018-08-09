@@ -94,6 +94,11 @@ func ForkCopyPipelineItem(origin PipelineItem, n int) []PipelineItem {
 	return core.ForkCopyPipelineItem(origin ,n)
 }
 
+// IsMergeCommit indicates whether the commit is a merge or not.
+func IsMergeCommit(deps map[string]interface{}) bool {
+	return core.IsMergeCommit(deps)
+}
+
 // PipelineItemRegistry contains all the known PipelineItem-s.
 type PipelineItemRegistry = core.PipelineItemRegistry
 
