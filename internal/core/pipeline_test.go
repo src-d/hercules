@@ -471,6 +471,70 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 	assert.Equal(t, "a28e9064c70618dc9d68e1401b889975e0680d11", plan[9].Commit.Hash.String())
 }
 
+func TestMergeDag(t *testing.T) {
+	cit, err := test.Repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
+	if err != nil {
+		panic(err)
+	}
+	defer cit.Close()
+	var commits []*object.Commit
+	timeCutoff := time.Date(2017, 8, 12, 0, 0, 0, 0, time.FixedZone("CET", 7200))
+	cit.ForEach(func(commit *object.Commit) error {
+		reliableTime := time.Date(commit.Author.When.Year(), commit.Author.When.Month(),
+			commit.Author.When.Day(), commit.Author.When.Hour(), commit.Author.When.Minute(),
+			commit.Author.When.Second(), 0, time.FixedZone("CET", 7200))
+		if reliableTime.Before(timeCutoff) {
+			commits = append(commits, commit)
+		}
+		return nil
+	})
+	hashes, dag := buildDag(commits)
+	leaveRootComponent(hashes, dag)
+	mergedDag, _ := mergeDag(hashes, dag)
+	for key, vals := range mergedDag {
+		if key != plumbing.NewHash("a28e9064c70618dc9d68e1401b889975e0680d11") &&
+			key != plumbing.NewHash("db325a212d0bc99b470e000641d814745024bbd5") {
+			assert.Len(t, vals, len(dag[key]), key.String())
+		} else {
+			mvals := map[string]bool{}
+			for _, val := range vals {
+				mvals[val.Hash.String()] = true
+			}
+			if key == plumbing.NewHash("a28e9064c70618dc9d68e1401b889975e0680d11") {
+				assert.Contains(t, mvals, "db325a212d0bc99b470e000641d814745024bbd5")
+				assert.Contains(t, mvals, "be9b61e09b08b98e64ed461a4004c9e2412f78ee")
+			}
+			if key == plumbing.NewHash("db325a212d0bc99b470e000641d814745024bbd5") {
+				assert.Contains(t, mvals, "f30daba81ff2bf0b3ba02a1e1441e74f8a4f6fee")
+				assert.Contains(t, mvals, "8a03b5620b1caa72ec9cb847ea88332621e2950a")
+			}
+		}
+	}
+	assert.Len(t, mergedDag, 8)
+	assert.Contains(t, mergedDag, plumbing.NewHash("cce947b98a050c6d356bc6ba95030254914027b1"))
+	assert.Contains(t, mergedDag, plumbing.NewHash("a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
+	assert.Contains(t, mergedDag, plumbing.NewHash("a28e9064c70618dc9d68e1401b889975e0680d11"))
+	assert.Contains(t, mergedDag, plumbing.NewHash("be9b61e09b08b98e64ed461a4004c9e2412f78ee"))
+	assert.Contains(t, mergedDag, plumbing.NewHash("db325a212d0bc99b470e000641d814745024bbd5"))
+	assert.Contains(t, mergedDag, plumbing.NewHash("f30daba81ff2bf0b3ba02a1e1441e74f8a4f6fee"))
+	assert.Contains(t, mergedDag, plumbing.NewHash("8a03b5620b1caa72ec9cb847ea88332621e2950a"))
+	assert.Contains(t, mergedDag, plumbing.NewHash("dd9dd084d5851d7dc4399fc7dbf3d8292831ebc5"))
+	queue := []plumbing.Hash{plumbing.NewHash("cce947b98a050c6d356bc6ba95030254914027b1")}
+	visited := map[plumbing.Hash]bool{}
+	for len(queue) > 0 {
+		head := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		if visited[head] {
+			continue
+		}
+		visited[head] = true
+		for _, child := range mergedDag[head] {
+			queue = append(queue, child.Hash)
+		}
+	}
+	assert.Len(t, visited, 8)
+}
+
 func TestPrepareRunPlanBig(t *testing.T) {
 	cases := [][7]int {
 		{2017, 8, 9, 0, 0, 0, 0},
@@ -482,15 +546,15 @@ func TestPrepareRunPlanBig(t *testing.T) {
 		{2017, 12, 9, 1, 1, 1, 1},
 		{2017, 12, 10, 1, 1, 1, 1},
 		{2017, 12, 11, 2, 2, 2, 2},
-		{2017, 12, 19, 4, 4, 4, 4},
-		{2017, 12, 27, 4, 4, 4, 4},
-		{2018, 1, 10, 4, 4, 4, 4},
-		{2018, 1, 16, 4, 4, 4, 4},
-		{2018, 1, 18, 5, 6, 5, 5},
-		{2018, 1, 23, 6, 6, 6, 6},
-		{2018, 3, 12, 7, 7, 7, 7},
-		{2018, 5, 13, 7, 7, 7, 7},
-		{2018, 5, 16, 10, 9, 10, 9},
+		{2017, 12, 19, 3, 3, 3, 3},
+		{2017, 12, 27, 3, 3, 3, 3},
+		{2018, 1, 10, 3, 3, 3, 3},
+		{2018, 1, 16, 3, 3, 3, 3},
+		{2018, 1, 18, 4, 5, 4, 4},
+		{2018, 1, 23, 5, 5, 5, 5},
+		{2018, 3, 12, 6, 6, 6, 6},
+		{2018, 5, 13, 6, 6, 6, 6},
+		{2018, 5, 16, 7, 7, 7, 7},
 	}
 	for _, testCase := range cases {
 		func() {
@@ -523,11 +587,16 @@ func TestPrepareRunPlanBig(t *testing.T) {
 			numForks := 0
 			numMerges := 0
 			numDeletes := 0
-			processed := map[plumbing.Hash]bool{}
+			processed := map[plumbing.Hash]map[int]int{}
 			for _, p := range plan {
 				switch p.Action {
 				case runActionCommit:
-					processed[p.Commit.Hash] = true
+					branches := processed[p.Commit.Hash]
+					if branches == nil {
+						branches = map[int]int{}
+						processed[p.Commit.Hash] = branches
+					}
+					branches[p.Items[0]]++
 					for _, parent := range p.Commit.ParentHashes {
 						assert.Contains(t, processed, parent)
 					}
@@ -535,9 +604,21 @@ func TestPrepareRunPlanBig(t *testing.T) {
 				case runActionFork:
 					numForks++
 				case runActionMerge:
+					counts := map[int]int{}
+					for _, i := range p.Items {
+						counts[i]++
+					}
+					for x, v := range counts {
+						assert.Equal(t, 1, v, x)
+					}
 					numMerges++
 				case runActionDelete:
 					numDeletes++
+				}
+			}
+			for c, branches := range processed {
+				for b, v := range branches {
+					assert.Equal(t, 1, v, fmt.Sprint(c.String(), b))
 				}
 			}
 			assert.Equal(t, numCommits, len(commits)+testCase[3], fmt.Sprintf("commits %v", testCase))

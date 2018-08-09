@@ -131,9 +131,18 @@ func prepareRunPlan(commits []*object.Commit) []runAction {
 	hashes, dag := buildDag(commits)
 	leaveRootComponent(hashes, dag)
 	numParents := bindNumParents(hashes, dag)
-	mergedDag, mergedSeq := mergeDag(numParents, hashes, dag)
+	mergedDag, mergedSeq := mergeDag(hashes, dag)
 	orderNodes := bindOrderNodes(mergedDag)
-	collapseFastForwards(orderNodes, numParents, hashes, mergedDag, dag, mergedSeq)
+	collapseFastForwards(orderNodes, hashes, mergedDag, dag, mergedSeq)
+	/*fmt.Printf("digraph Hercules {\n")
+	for i, c := range orderNodes(false, false) {
+		commit := hashes[c]
+		fmt.Printf("  \"%s\"[label=\"[%d] %s\"]\n", commit.Hash.String(), i, commit.Hash.String()[:6])
+		for _, child := range mergedDag[commit.Hash] {
+			fmt.Printf("  \"%s\" -> \"%s\"\n", commit.Hash.String(), child.Hash.String())
+		}
+	}
+	fmt.Printf("}\n")*/
 	plan := generatePlan(orderNodes, numParents, hashes, mergedDag, dag, mergedSeq)
 	plan = optimizePlan(plan)
 	/*for _, p := range plan {
@@ -299,101 +308,66 @@ func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) orderer {
 
 // mergeDag turns sequences of consecutive commits into single nodes.
 func mergeDag(
-	numParents func(c *object.Commit) int,
 	hashes map[string]*object.Commit,
 	dag map[plumbing.Hash][]*object.Commit) (
 	mergedDag, mergedSeq map[plumbing.Hash][]*object.Commit) {
 
-	parentOf := func(c *object.Commit) plumbing.Hash {
-		var parent plumbing.Hash
-		for _, p := range c.ParentHashes {
-			if _, exists := hashes[p.String()]; exists {
-				if parent != plumbing.ZeroHash {
-					// more than one parent
-					return plumbing.ZeroHash
-				}
-				parent = p
-			}
+	parents := map[plumbing.Hash][]plumbing.Hash{}
+	for key, vals := range dag {
+		for _, val := range vals {
+			parents[val.Hash] = append(parents[val.Hash], key)
 		}
-		return parent
 	}
 	mergedDag = map[plumbing.Hash][]*object.Commit{}
 	mergedSeq = map[plumbing.Hash][]*object.Commit{}
 	visited := map[plumbing.Hash]bool{}
-	for ch := range dag {
-		c := hashes[ch.String()]
-		if visited[c.Hash] {
+	for head := range dag {
+		if visited[head] {
 			continue
 		}
+		c := head
 		for true {
-			parent := parentOf(c)
-			if parent == plumbing.ZeroHash || len(dag[parent]) != 1 {
+			next := parents[c]
+			if len(next) != 1 || len(dag[next[0]]) != 1 {
 				break
 			}
-			c = hashes[parent.String()]
+			c = next[0]
 		}
-		head := c
+		head = c
 		var seq []*object.Commit
-		children := dag[c.Hash]
 		for true {
-			visited[c.Hash] = true
-			seq = append(seq, c)
-			if len(children) != 1 {
+			visited[c] = true
+			seq = append(seq, hashes[c.String()])
+			if len(dag[c]) != 1 {
 				break
 			}
-			c = children[0]
-			children = dag[c.Hash]
-			if numParents(c) != 1 {
+			c = dag[c][0].Hash
+			if len(parents[c]) != 1 {
 				break
 			}
 		}
-		mergedSeq[head.Hash] = seq
-		mergedDag[head.Hash] = dag[seq[len(seq)-1].Hash]
+		mergedSeq[head] = seq
+		mergedDag[head] = dag[seq[len(seq)-1].Hash]
 	}
 	return
 }
 
 // collapseFastForwards removes the fast forward merges.
 func collapseFastForwards(
-	orderNodes orderer, numParents func(c *object.Commit) int,
-	hashes map[string]*object.Commit,
+	orderNodes orderer, hashes map[string]*object.Commit,
 	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit)  {
 
-	for _, strkey := range orderNodes(true, false) {
-		key := hashes[strkey].Hash
-		vals, exists := mergedDag[key]
-		if !exists {
-			continue
-		}
-		if len(vals) != 2 {
-			continue
-		}
-		grand1 := mergedDag[vals[0].Hash]
-		grand2 := mergedDag[vals[1].Hash]
-		if len(grand2) == 1 && vals[0].Hash == grand2[0].Hash && numParents(vals[1]) == 1 {
-			mergedDag[key] = mergedDag[vals[0].Hash]
-			dag[key] = vals[1:]
-			delete(mergedDag, vals[0].Hash)
-			delete(mergedDag, vals[1].Hash)
-			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[1].Hash]...)
-			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[0].Hash]...)
-			delete(mergedSeq, vals[0].Hash)
-			delete(mergedSeq, vals[1].Hash)
-		}
-		// symmetric
-		if len(grand1) == 1 && vals[1].Hash == grand1[0].Hash && numParents(vals[0]) == 1 {
-			mergedDag[key] = mergedDag[vals[1].Hash]
-			dag[key] = vals[:1]
-			delete(mergedDag, vals[0].Hash)
-			delete(mergedDag, vals[1].Hash)
-			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[0].Hash]...)
-			mergedSeq[key] = append(mergedSeq[key], mergedSeq[vals[1].Hash]...)
-			delete(mergedSeq, vals[0].Hash)
-			delete(mergedSeq, vals[1].Hash)
+	parents := map[plumbing.Hash][]plumbing.Hash{}
+	for key, vals := range mergedDag {
+		for _, val := range vals {
+			parents[val.Hash] = append(parents[val.Hash], key)
 		}
 	}
-	for _, strkey := range orderNodes(true, false) {
+	processed := map[plumbing.Hash]bool{}
+	for _, strkey := range orderNodes(false, true) {
 		key := hashes[strkey].Hash
+		processed[key] = true
+		repeat:
 		vals, exists := mergedDag[key]
 		if !exists {
 			continue
@@ -401,24 +375,63 @@ func collapseFastForwards(
 		if len(vals) < 2 {
 			continue
 		}
+		/*println()
+		println()
+		var logvals []string
+		for _, v := range vals {
+			logvals = append(logvals, v.Hash.String())
+		}
+		fmt.Println("candidate", key.String(), logvals)*/
 		toRemove := map[plumbing.Hash]bool{}
-		for x, child := range vals {
-			grands := mergedDag[child.Hash]
-			if len(grands) != 1 {
-				continue
-			}
-			grand := grands[0]
-			for y, otherChild := range vals {
-				if y == x {
-					continue
+		for _, child := range vals {
+			var queue []plumbing.Hash
+			visited := map[plumbing.Hash]bool{child.Hash: true}
+			childParents := parents[child.Hash]
+			childNumOtherParents := 0
+			for _, parent := range childParents {
+				if parent != key {
+					visited[parent] = true
+					childNumOtherParents++
+					queue = append(queue, parent)
 				}
-				if otherChild.Hash == grand.Hash {
-					toRemove[otherChild.Hash] = true
-					if numParents(child) == 1 {
-						mergedSeq[child.Hash] = append(mergedSeq[child.Hash], mergedSeq[grand.Hash]...)
-						delete(mergedSeq, grand.Hash)
-						mergedDag[child.Hash] = mergedDag[grand.Hash]
-						delete(mergedDag, grand.Hash)
+			}
+			var immediateParent plumbing.Hash
+			if childNumOtherParents == 1 {
+				immediateParent = queue[0]
+			}
+			//fmt.Println("queue", key.String(), child.Hash, queue)
+			for len(queue) > 0 {
+				head := queue[len(queue)-1]
+				queue = queue[:len(queue)-1]
+				if processed[head] {
+					//fmt.Println("processed", key.String(), head)
+					if head == key {
+						toRemove[child.Hash] = true
+						//fmt.Println("remove", key.String(), child.Hash.String(), immediateParent.String())
+						if childNumOtherParents == 1 && len(mergedDag[immediateParent]) == 1 {
+							//println("mokpyxa", key.String(), child.Hash.String(), immediateParent.String())
+							mergedSeq[immediateParent] = append(
+								mergedSeq[immediateParent], mergedSeq[child.Hash]...)
+							delete(mergedSeq, child.Hash)
+							mergedDag[immediateParent] = mergedDag[child.Hash]
+							delete(mergedDag, child.Hash)
+							parents[child.Hash] = parents[immediateParent]
+							for _, vals := range parents {
+								for i, v := range vals {
+									if v == child.Hash {
+										vals[i] = immediateParent
+										break
+									}
+								}
+							}
+						}
+					}
+					break
+				}
+				for _, parent := range parents[head] {
+					if !visited[parent] {
+						visited[head] = true
+						queue = append(queue, parent)
 					}
 				}
 			}
@@ -432,14 +445,42 @@ func collapseFastForwards(
 				newVals = append(newVals, child)
 			}
 		}
-		mergedDag[key] = newVals
+		merged := false
+		if len(newVals) == 1 {
+			onlyChild := newVals[0].Hash
+			if len(parents[onlyChild]) == 1 {
+				merged = true
+				mergedSeq[key] = append(mergedSeq[key], mergedSeq[onlyChild]...)
+				delete(mergedSeq, onlyChild)
+				mergedDag[key] = mergedDag[onlyChild]
+				delete(mergedDag, onlyChild)
+				parents[onlyChild] = parents[key]
+				for _, vals := range parents {
+					for i, v := range vals {
+						if v == onlyChild {
+							vals[i] = key
+							break
+						}
+					}
+				}
+				//fmt.Println("merge", key.String(), onlyChild.String())
+			}
+		}
+		if !merged {
+			//fmt.Println("prune", key.String(), newVals)
+			mergedDag[key] = newVals
+		}
 		newVals = []*object.Commit{}
-		for _, child := range dag[key] {
+		node := mergedSeq[key][len(mergedSeq[key])-1].Hash
+		for _, child := range dag[node] {
 			if !toRemove[child.Hash] {
 				newVals = append(newVals, child)
 			}
 		}
-		dag[key] = newVals
+		dag[node] = newVals
+		if merged {
+			goto repeat
+		}
 	}
 }
 
