@@ -319,16 +319,16 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (analyser *BurndownAnalysis) Finalize() interface{} {
-	globalHistory := analyser.groupSparseHistory(analyser.globalHistory)
+	globalHistory, lastDay := analyser.groupSparseHistory(analyser.globalHistory, -1)
 	fileHistories := map[string]DenseHistory{}
 	for key, history := range analyser.fileHistories {
-		fileHistories[key] = analyser.groupSparseHistory(history)
+		fileHistories[key], _ = analyser.groupSparseHistory(history, lastDay)
 	}
 	peopleHistories := make([]DenseHistory, analyser.PeopleNumber)
 	for i, history := range analyser.peopleHistories {
 		if len(history) > 0 {
 			// there can be people with only trivial merge commits and without own lines
-			peopleHistories[i] = analyser.groupSparseHistory(history)
+			peopleHistories[i], _ = analyser.groupSparseHistory(history, lastDay)
 		} else {
 			peopleHistories[i] = make(DenseHistory, len(globalHistory))
 			for j, gh := range globalHistory {
@@ -1136,7 +1136,9 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 	return nil
 }
 
-func (analyser *BurndownAnalysis) groupSparseHistory(history sparseHistory) DenseHistory {
+func (analyser *BurndownAnalysis) groupSparseHistory(
+	history sparseHistory, lastDay int) (DenseHistory, int) {
+
 	if len(history) == 0 {
 		panic("empty history")
 	}
@@ -1145,12 +1147,20 @@ func (analyser *BurndownAnalysis) groupSparseHistory(history sparseHistory) Dens
 		days = append(days, day)
 	}
 	sort.Ints(days)
+	if lastDay >= 0 {
+		if days[len(days)-1] < lastDay {
+			days = append(days, lastDay)
+		} else if days[len(days)-1] > lastDay {
+			panic("days corruption")
+		}
+	} else {
+		lastDay = days[len(days)-1]
+	}
 	// [y][x]
 	// y - sampling
 	// x - granularity
-	maxDay := days[len(days)-1]
-	samples := maxDay / analyser.Sampling + 1
-	bands := maxDay / analyser.Granularity + 1
+	samples := lastDay / analyser.Sampling + 1
+	bands := lastDay / analyser.Granularity + 1
 	result := make(DenseHistory, samples)
 	for i := 0; i < bands; i++ {
 		result[i] = make([]int64, bands)
@@ -1170,7 +1180,7 @@ func (analyser *BurndownAnalysis) groupSparseHistory(history sparseHistory) Dens
 			sample[bday / analyser.Granularity] += value
 		}
 	}
-	return result
+	return result, lastDay
 }
 
 func init() {
