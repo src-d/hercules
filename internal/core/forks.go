@@ -8,7 +8,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/toposort"
-		)
+)
 
 // OneShotMergeProcessor provides the convenience method to consume merges only once.
 type OneShotMergeProcessor struct {
@@ -480,11 +480,12 @@ func generatePlan(
 	var plan []runAction
 	branches := map[plumbing.Hash]int{}
 	branchers := map[plumbing.Hash]map[plumbing.Hash]int{}
-	counter := 1
-	for seqIndex, name := range orderNodes(false, true) {
+	counter := 0
+	for _, name := range orderNodes(false, true) {
 		commit := hashes[name]
-		if seqIndex == 0 {
-			branches[commit.Hash] = 0
+		if numParents(commit) == 0 {
+			branches[commit.Hash] = counter
+			counter++
 		}
 		var branch int
 		{
@@ -522,6 +523,10 @@ func generatePlan(
 				}
 				if parentBranch == -1 {
 					parentBranch = branches[parent]
+					if parentBranch == -1 {
+						log.Panicf("parent %s > %s does not have a branch assigned",
+							parent.String(), commit.Hash.String())
+					}
 				}
 				if len(dag[parent]) == 1 && minBranch > parentBranch {
 					minBranch = parentBranch
@@ -606,6 +611,10 @@ func optimizePlan(plan []runAction) []runAction {
 		case runActionCommit:
 			lives[firstItem]++
 			lastMentioned[firstItem] = i
+			if firstItem == -1 {
+				log.Panicf("commit %s does not have an assigned branch",
+					p.Commit.Hash.String())
+			}
 		case runActionFork:
 			lastMentioned[firstItem] = i
 		case runActionMerge:
