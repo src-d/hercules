@@ -240,6 +240,9 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 func (file *File) Merge(day int, others... *File) bool {
 	dirty := false
 	for _, other := range others {
+		if other == nil {
+			panic("merging File with nil")
+		}
 		if file.Hash != other.Hash {
 			dirty = true
 			break
