@@ -132,7 +132,6 @@ func getMasterBranch(branches map[int][]PipelineItem) []PipelineItem {
 func prepareRunPlan(commits []*object.Commit) []runAction {
 	hashes, dag := buildDag(commits)
 	leaveRootComponent(hashes, dag)
-	numParents := bindNumParents(hashes, dag)
 	mergedDag, mergedSeq := mergeDag(hashes, dag)
 	orderNodes := bindOrderNodes(mergedDag)
 	collapseFastForwards(orderNodes, hashes, mergedDag, dag, mergedSeq)
@@ -145,7 +144,7 @@ func prepareRunPlan(commits []*object.Commit) []runAction {
 		}
 	}
 	fmt.Printf("}\n")*/
-	plan := generatePlan(orderNodes, numParents, hashes, mergedDag, dag, mergedSeq)
+	plan := generatePlan(orderNodes, hashes, mergedDag, dag, mergedSeq)
 	plan = optimizePlan(plan)
 	/*for _, p := range plan {
 		firstItem := p.Items[0]
@@ -186,26 +185,6 @@ func buildDag(commits []*object.Commit) (
 		}
 	}
 	return hashes, dag
-}
-
-// bindNumParents returns curried "numParents" function.
-func bindNumParents(
-	hashes map[string]*object.Commit,
-	dag map[plumbing.Hash][]*object.Commit) func(c *object.Commit) int {
-	return func(c *object.Commit) int {
-		r := 0
-		for _, parent := range c.ParentHashes {
-			if p, exists := hashes[parent.String()]; exists {
-				for _, pc := range dag[p.Hash] {
-					if pc.Hash == c.Hash {
-						r++
-						break
-					}
-				}
-			}
-		}
-		return r
-	}
 }
 
 // leaveRootComponent runs connected components analysis and throws away everything
@@ -308,18 +287,24 @@ func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) orderer {
 	}
 }
 
-// mergeDag turns sequences of consecutive commits into single nodes.
-func mergeDag(
-	hashes map[string]*object.Commit,
-	dag map[plumbing.Hash][]*object.Commit) (
-	mergedDag, mergedSeq map[plumbing.Hash][]*object.Commit) {
-
+// inverts `dag`
+func buildParents(dag map[plumbing.Hash][]*object.Commit) map[plumbing.Hash][]plumbing.Hash {
 	parents := map[plumbing.Hash][]plumbing.Hash{}
 	for key, vals := range dag {
 		for _, val := range vals {
 			parents[val.Hash] = append(parents[val.Hash], key)
 		}
 	}
+	return parents
+}
+
+// mergeDag turns sequences of consecutive commits into single nodes.
+func mergeDag(
+	hashes map[string]*object.Commit,
+	dag map[plumbing.Hash][]*object.Commit) (
+	mergedDag, mergedSeq map[plumbing.Hash][]*object.Commit) {
+
+	parents := buildParents(dag)
 	mergedDag = map[plumbing.Hash][]*object.Commit{}
 	mergedSeq = map[plumbing.Hash][]*object.Commit{}
 	visited := map[plumbing.Hash]bool{}
@@ -359,12 +344,7 @@ func collapseFastForwards(
 	orderNodes orderer, hashes map[string]*object.Commit,
 	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit)  {
 
-	parents := map[plumbing.Hash][]plumbing.Hash{}
-	for key, vals := range mergedDag {
-		for _, val := range vals {
-			parents[val.Hash] = append(parents[val.Hash], key)
-		}
-	}
+	parents := buildParents(mergedDag)
 	processed := map[plumbing.Hash]bool{}
 	for _, strkey := range orderNodes(false, true) {
 		key := hashes[strkey].Hash
@@ -475,17 +455,17 @@ func collapseFastForwards(
 
 // generatePlan creates the list of actions from the commit DAG.
 func generatePlan(
-	orderNodes orderer, numParents func(c *object.Commit) int,
-	hashes map[string]*object.Commit,
+	orderNodes orderer, hashes map[string]*object.Commit,
 	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit) []runAction {
 
+	parents := buildParents(dag)
 	var plan []runAction
 	branches := map[plumbing.Hash]int{}
 	branchers := map[plumbing.Hash]map[plumbing.Hash]int{}
 	counter := 0
 	for _, name := range orderNodes(false, true) {
 		commit := hashes[name]
-		if numParents(commit) == 0 {
+		if len(parents[commit.Hash]) == 0 {
 			branches[commit.Hash] = counter
 			plan = append(plan, runAction{
 				Action: runActionEmerge,
@@ -512,16 +492,13 @@ func generatePlan(
 
 		}
 		appendMergeIfNeeded := func() {
-			if numParents(commit) < 2 {
+			if len(parents[commit.Hash]) < 2 {
 				return
 			}
 			// merge after the merge commit (the first in the sequence)
 			var items []int
 			minBranch := 1 << 31
-			for _, parent := range commit.ParentHashes {
-				if _, exists := hashes[parent.String()]; !exists {
-					continue
-				}
+			for _, parent := range parents[commit.Hash] {
 				parentBranch := -1
 				if parents, exists := branchers[commit.Hash]; exists {
 					if inheritedBranch, exists := parents[parent]; exists {
@@ -543,6 +520,7 @@ func generatePlan(
 					appendCommit(commit, parentBranch)
 				}
 			}
+			// there should be no duplicates in items
 			if minBranch < 1 << 31 {
 				branch = minBranch
 				branches[commit.Hash] = minBranch
