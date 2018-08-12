@@ -77,6 +77,8 @@ const (
 	runActionFork = iota
 	// runActionMerge merges several branches together
 	runActionMerge = iota
+	// runActionEmerge starts a root branch
+	runActionEmerge = iota
 	// runActionDelete removes the branch as it is no longer needed
 	runActionDelete = iota
 )
@@ -485,6 +487,11 @@ func generatePlan(
 		commit := hashes[name]
 		if numParents(commit) == 0 {
 			branches[commit.Hash] = counter
+			plan = append(plan, runAction{
+				Action: runActionEmerge,
+				Commit: commit,
+				Items: []int{counter},
+			})
 			counter++
 		}
 		var branch int
@@ -682,6 +689,8 @@ func optimizePlan(plan []runAction) []runAction {
 						Items:  newBranches,
 					})
 				}
+			case runActionEmerge:
+				optimizedPlan = append(optimizedPlan, p)
 			}
 		}
 		if pair[1] >= 0 {

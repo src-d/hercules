@@ -553,7 +553,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	}
 	plan := prepareRunPlan(commits)
 	progressSteps := len(plan) + 2
-	branches := map[int][]PipelineItem{0: pipeline.items}
+	branches := map[int][]PipelineItem{}
+	// we will need rootClone if there is more than one root branch
+	rootClone := cloneItems(pipeline.items, 1)[0]
 	var newestTime int64
 
 	for index, step := range plan {
@@ -594,6 +596,12 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				merged[i] = branches[b]
 			}
 			mergeItems(merged)
+		case runActionEmerge:
+			if firstItem == 0 {
+				branches[firstItem] = pipeline.items
+			} else {
+				branches[firstItem] = cloneItems(rootClone, 1)[0]
+			}
 		case runActionDelete:
 			delete(branches, firstItem)
 		}
