@@ -86,11 +86,11 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 	index := deps[core.DependencyIndex].(int)
 	if index == 0 {
 		// first iteration - initialize the file objects from the tree
-		*days.day0 = commit.Author.When
+		*days.day0 = commit.Committer.When
 		// our precision is 1 day
 		*days.day0 = days.day0.Truncate(24 * time.Hour)
 	}
-	day := int(commit.Author.When.Sub(*days.day0).Hours() / 24)
+	day := int(commit.Committer.When.Sub(*days.day0).Hours() / 24)
 	if day < days.previousDay {
 		// rebase works miracles, but we need the monotonous time
 		day = days.previousDay
