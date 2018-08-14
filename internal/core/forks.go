@@ -606,6 +606,9 @@ func optimizePlan(plan []runAction) []runAction {
 			for _, item := range p.Items {
 				lastMentioned[item] = i
 			}
+		case runActionEmerge:
+			lives[firstItem]++
+			lastMentioned[firstItem] = i
 		}
 	}
 	branchesToDelete := map[int]bool{}

@@ -156,7 +156,7 @@ func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map
 }
 
 func (item *dependingTestPipelineItem) Fork(n int) []PipelineItem {
-	return nil
+	return make([]PipelineItem, n)
 }
 
 func (item *dependingTestPipelineItem) Merge(branches []PipelineItem) {
@@ -210,14 +210,14 @@ func TestPipelineRun(t *testing.T) {
 	assert.Equal(t, 2, len(result))
 	assert.Equal(t, item, result[item].(*testPipelineItem))
 	common := result[nil].(*CommonAnalysisResult)
-	assert.Equal(t, common.BeginTime, int64(1481719092))
-	assert.Equal(t, common.EndTime, int64(1481719092))
+	assert.Equal(t, common.BeginTime, int64(1481719198))
+	assert.Equal(t, common.EndTime, int64(1481719198))
 	assert.Equal(t, common.CommitsNumber, 1)
 	assert.True(t, common.RunTime.Nanoseconds()/1e6 < 100)
 	assert.True(t, item.DepsConsumed)
 	assert.True(t, item.CommitMatches)
 	assert.True(t, item.IndexMatches)
-	assert.False(t, item.Forked)
+	assert.True(t, item.Forked)
 	assert.False(t, *item.Merged)
 	pipeline.RemoveItem(item)
 	result, err = pipeline.Run(commits)
@@ -261,13 +261,16 @@ func TestPipelineOnProgress(t *testing.T) {
 	progressOk := 0
 
 	onProgress := func(step int, total int) {
-		if step == 1 && total == 3 {
+		if step == 1 && total == 4 {
 			progressOk++
 		}
-		if step == 2 && total == 3 {
+		if step == 2 && total == 4 {
 			progressOk++
 		}
-		if step == 3 && total == 3 {
+		if step == 3 && total == 4 {
+			progressOk++
+		}
+		if step == 4 && total == 4 {
 			progressOk++
 		}
 	}
@@ -279,7 +282,7 @@ func TestPipelineOnProgress(t *testing.T) {
 	result, err := pipeline.Run(commits)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
-	assert.Equal(t, 3, progressOk)
+	assert.Equal(t, 4, progressOk)
 }
 
 func TestPipelineCommits(t *testing.T) {
@@ -427,10 +430,13 @@ func TestPrepareRunPlanTiny(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := prepareRunPlan([]*object.Commit{rootCommit})
-	assert.Len(t, plan, 1)
-	assert.Equal(t, runActionCommit, plan[0].Action)
+	assert.Len(t, plan, 2)
+	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, 0, plan[0].Items[0])
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[0].Commit.Hash.String())
+	assert.Equal(t, runActionCommit, plan[1].Action)
+	assert.Equal(t, 0, plan[1].Items[0])
+	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[1].Commit.Hash.String())
 }
 
 func TestPrepareRunPlanSmall(t *testing.T) {
@@ -459,16 +465,19 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 		}
 	}*/
 	// fork, merge and one artificial commit per branch
-	assert.Len(t, plan, len(commits))
-	assert.Equal(t, runActionCommit, plan[0].Action)
-	assert.Equal(t, 0, plan[0].Items[0])
+	assert.Len(t, plan, len(commits) + 1)
+	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[0].Commit.Hash.String())
+	assert.Equal(t, 0, plan[0].Items[0])
 	assert.Equal(t, runActionCommit, plan[1].Action)
 	assert.Equal(t, 0, plan[1].Items[0])
-	assert.Equal(t, "a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3", plan[1].Commit.Hash.String())
-	assert.Equal(t, runActionCommit, plan[9].Action)
-	assert.Equal(t, 0, plan[9].Items[0])
-	assert.Equal(t, "a28e9064c70618dc9d68e1401b889975e0680d11", plan[9].Commit.Hash.String())
+	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[1].Commit.Hash.String())
+	assert.Equal(t, runActionCommit, plan[2].Action)
+	assert.Equal(t, 0, plan[2].Items[0])
+	assert.Equal(t, "a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3", plan[2].Commit.Hash.String())
+	assert.Equal(t, runActionCommit, plan[10].Action)
+	assert.Equal(t, 0, plan[10].Items[0])
+	assert.Equal(t, "a28e9064c70618dc9d68e1401b889975e0680d11", plan[10].Commit.Hash.String())
 }
 
 func TestMergeDag(t *testing.T) {
@@ -587,6 +596,7 @@ func TestPrepareRunPlanBig(t *testing.T) {
 			numForks := 0
 			numMerges := 0
 			numDeletes := 0
+			numEmerges := 0
 			processed := map[plumbing.Hash]map[int]int{}
 			for _, p := range plan {
 				switch p.Action {
@@ -614,6 +624,8 @@ func TestPrepareRunPlanBig(t *testing.T) {
 					numMerges++
 				case runActionDelete:
 					numDeletes++
+				case runActionEmerge:
+					numEmerges++
 				}
 			}
 			for c, branches := range processed {
@@ -625,6 +637,7 @@ func TestPrepareRunPlanBig(t *testing.T) {
 			assert.Equal(t, numForks, testCase[4], fmt.Sprintf("forks %v", testCase))
 			assert.Equal(t, numMerges, testCase[5], fmt.Sprintf("merges %v", testCase))
 			assert.Equal(t, numDeletes, testCase[6], fmt.Sprintf("deletes %v", testCase))
+			assert.Equal(t, numEmerges, 1, fmt.Sprintf("emerges %v", testCase))
 		}()
 	}
 }
