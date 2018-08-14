@@ -27,6 +27,7 @@ cache:
     - $HOME/.cache/pip
     - $HOME/gopath/src
 before_cache:
+  - cd $HOME/gopath
   - rm -rf $HOME/gopath/src/gopkg.in/src-d/hercules.v4
 
 matrix:
