@@ -147,18 +147,32 @@ func CountLines(file *object.Blob) (int, error) {
 	var scanner *bufio.Scanner
 	buffer := make([]byte, bufio.MaxScanTokenSize)
 	counter := 0
+	utf8Errors := 0
 	for scanner == nil || scanner.Err() == bufio.ErrTooLong {
-		if scanner != nil && !utf8.Valid(scanner.Bytes()) {
-			return -1, errors.New("binary")
+		if scanner != nil {
+			chunk := scanner.Bytes()
+			if !utf8.Valid(chunk) {
+				utf8Errors++
+			}
+			if bytes.IndexByte(chunk, 0) >= 0 {
+				return -1, errors.New("binary")
+			}
 		}
 		scanner = bufio.NewScanner(reader)
 		scanner.Buffer(buffer, 0)
 		for scanner.Scan() {
-			if !utf8.Valid(scanner.Bytes()) {
+			chunk := scanner.Bytes()
+			if !utf8.Valid(chunk) {
+				utf8Errors++
+			}
+			if bytes.IndexByte(chunk, 0) >= 0 {
 				return -1, errors.New("binary")
 			}
 			counter++
 		}
+	}
+	if float32(utf8Errors) / float32(counter) >= 0.01 {
+		return -1, errors.New("binary")
 	}
 	return counter, nil
 }

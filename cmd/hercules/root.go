@@ -183,6 +183,7 @@ targets can be added using the --plugin system.`,
 		if commitsFile == "" {
 			// list of commits belonging to the default branch, from oldest to newest
 			// rev-list --first-parent
+			fmt.Fprint(os.Stderr, "git log...\r")
 			commits = pipeline.Commits()
 		} else {
 			var err error
@@ -192,7 +193,7 @@ targets can be added using the --plugin system.`,
 			}
 		}
 		cmdlineFacts["commits"] = commits
-		deployed := []hercules.LeafPipelineItem{}
+		var deployed []hercules.LeafPipelineItem
 		for name, valPtr := range cmdlineDeployed {
 			if *valPtr {
 				item := pipeline.DeployItem(hercules.Registry.Summon(name)[0])

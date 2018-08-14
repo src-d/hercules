@@ -643,3 +643,10 @@ func TestFileMergeNoop(t *testing.T) {
 	// because the hashes are still the same
 	assert.False(t, dirty)
 }
+
+func TestFileMergeNil(t *testing.T) {
+	file, _ := fixtureFile()
+	assert.Panics(t, func() {
+		file.Merge(1, nil)
+	})
+}

@@ -21,7 +21,7 @@ import (
 	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/yaml"
-	)
+)
 
 // BurndownAnalysis allows to gather the line burndown statistics for a Git repository.
 // It is a LeafPipelineItem.
@@ -303,9 +303,13 @@ func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
 // Merge combines several items together. We apply the special file merging logic here.
 func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 	for key, file := range analyser.files {
-		others := make([]*burndown.File, len(branches))
-		for i, branch := range branches {
-			others[i] = branch.(*BurndownAnalysis).files[key]
+		others := make([]*burndown.File, 0, len(branches))
+		for _, branch := range branches {
+			file := branch.(*BurndownAnalysis).files[key]
+			if file != nil {
+				// file can be nil if it is considered binary in the other branch
+				others = append(others, file)
+			}
 		}
 		// don't worry, we compare the hashes first before heavy-lifting
 		if file.Merge(analyser.day, others...) {

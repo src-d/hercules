@@ -553,9 +553,12 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	}
 	plan := prepareRunPlan(commits)
 	progressSteps := len(plan) + 2
-	branches := map[int][]PipelineItem{0: pipeline.items}
+	branches := map[int][]PipelineItem{}
+	// we will need rootClone if there is more than one root branch
+	rootClone := cloneItems(pipeline.items, 1)[0]
 	var newestTime int64
 
+	commitIndex := 0
 	for index, step := range plan {
 		onProgress(index + 1, progressSteps)
 		firstItem := step.Items[0]
@@ -563,13 +566,13 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 		case runActionCommit:
 			state := map[string]interface{}{
 				DependencyCommit: step.Commit,
-				DependencyIndex: index,
+				DependencyIndex: commitIndex,
 			}
 			for _, item := range branches[firstItem] {
 				update, err := item.Consume(state)
 				if err != nil {
-					log.Printf("%s failed on commit #%d %s\n",
-						item.Name(), index + 1, step.Commit.Hash.String())
+					log.Printf("%s failed on commit #%d (%d) %s\n",
+						item.Name(), commitIndex + 1, index + 1, step.Commit.Hash.String())
 					return nil, err
 				}
 				for _, key := range item.Provides() {
@@ -580,10 +583,11 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 					state[key] = val
 				}
 			}
-			commitTime := step.Commit.Author.When.Unix()
+			commitTime := step.Commit.Committer.When.Unix()
 			if commitTime > newestTime {
 				newestTime = commitTime
 			}
+			commitIndex++
 		case runActionFork:
 			for i, clone := range cloneItems(branches[firstItem], len(step.Items)-1) {
 				branches[step.Items[i+1]] = clone
@@ -594,6 +598,12 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				merged[i] = branches[b]
 			}
 			mergeItems(merged)
+		case runActionEmerge:
+			if firstItem == 0 {
+				branches[firstItem] = pipeline.items
+			} else {
+				branches[firstItem] = cloneItems(rootClone, 1)[0]
+			}
 		case runActionDelete:
 			delete(branches, firstItem)
 		}
@@ -607,7 +617,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	}
 	onProgress(progressSteps, progressSteps)
 	result[nil] = &CommonAnalysisResult{
-		BeginTime:     plan[0].Commit.Author.When.Unix(),
+		BeginTime:     plan[0].Commit.Committer.When.Unix(),
 		EndTime:       newestTime,
 		CommitsNumber: len(commits),
 		RunTime:       time.Since(startRunTime),
