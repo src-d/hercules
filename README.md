@@ -5,10 +5,11 @@ Amazingly fast and highly customizable Git repository analysis engine written in
 Powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
 
 There are two tools: `hercules` and `labours.py`. The first is the program
-written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md).
+written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md) over the full commit history.
 The second is the Python script which draws some predefined plots. These two tools are normally used together through
 a pipe. It is possible to write custom analyses using the plugin system. It is also possible
-to merge several analysis results together. There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lightning/) available.
+to merge several analysis results together. The commit history includes branches, merges, etc.
+There is a [presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lightning/) available.
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
