@@ -13,7 +13,7 @@ import (
 	"gopkg.in/src-d/hercules.v4/internal/pb"
 	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v4/yaml"
+	"gopkg.in/src-d/hercules.v4/internal/yaml"
 )
 
 // CouplesAnalysis calculates the number of common commits for files and authors.

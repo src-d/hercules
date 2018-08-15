@@ -2,7 +2,6 @@ package core
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,11 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
 	"gopkg.in/src-d/hercules.v4/internal/toposort"
+	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.
@@ -363,10 +364,29 @@ func (pipeline *Pipeline) Len() int {
 }
 
 // Commits returns the list of commits from the history similar to `git log` over the HEAD.
-func (pipeline *Pipeline) Commits() []*object.Commit {
+func (pipeline *Pipeline) Commits() ([]*object.Commit, error) {
 	cit, err := pipeline.repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
 	if err != nil {
-		log.Fatalf("unable to collect the commit history: %v", err)
+		if err == plumbing.ErrReferenceNotFound {
+			refs, errr := pipeline.repository.References()
+			if errr != nil {
+				return nil, errors.Wrap(errr, "unable to list the references")
+			}
+			var head *plumbing.Reference
+			refs.ForEach(func(ref *plumbing.Reference) error {
+				if strings.HasPrefix(ref.Name().String(), "refs/heads/HEAD/") {
+					head = ref
+					return storer.ErrStop
+				}
+				return nil
+			})
+			if head != nil {
+				cit, err = pipeline.repository.Log(&git.LogOptions{From: head.Hash()})
+			}
+		}
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to collect the commit history")
+		}
 	}
 	defer cit.Close()
 	var result []*object.Commit
@@ -374,7 +394,7 @@ func (pipeline *Pipeline) Commits() []*object.Commit {
 		result = append(result, commit)
 		return nil
 	})
-	return result
+	return result, nil
 }
 
 type sortablePipelineItems []PipelineItem
@@ -524,7 +544,11 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 		facts = map[string]interface{}{}
 	}
 	if _, exists := facts[ConfigPipelineCommits]; !exists {
-		facts[ConfigPipelineCommits] = pipeline.Commits()
+		var err error
+		facts[ConfigPipelineCommits], err = pipeline.Commits()
+		if err != nil {
+			log.Panicf("failed to list the commits: %v", err)
+		}
 	}
 	dumpPath, _ := facts[ConfigPipelineDumpPath].(string)
 	pipeline.resolve(dumpPath)
