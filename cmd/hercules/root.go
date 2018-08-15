@@ -9,6 +9,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"plugin"
 	"runtime/pprof"
 	"strings"
@@ -19,7 +20,9 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
 	progress "gopkg.in/cheggaaa/pb.v1"
+	"gopkg.in/src-d/go-billy.v4/memfs"
 	"gopkg.in/src-d/go-billy.v4/osfs"
+	"gopkg.in/src-d/go-billy-siva.v4"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage"
@@ -75,6 +78,19 @@ func loadRepository(uri string, cachePath string, disableStatus bool) *git.Repos
 		if !disableStatus {
 			fmt.Fprint(os.Stderr, strings.Repeat(" ", 80)+"\r")
 		}
+	} else if stat, err2 := os.Stat(uri); err2 == nil && !stat.IsDir() {
+		localFs := osfs.New(filepath.Dir(uri))
+		tmpFs := memfs.New()
+		basePath := filepath.Base(uri)
+		fs, err2 := sivafs.NewFilesystem(localFs, basePath, tmpFs)
+		if err2 != nil {
+			log.Panicf("unable to create a siva filesystem from %s: %v", uri, err2)
+		}
+		sivaStorage, err2 := filesystem.NewStorage(fs)
+		if err2 != nil {
+			log.Panicf("unable to create a new storage backend for siva file %s: %v", uri, err2)
+		}
+		repository, err = git.Open(sivaStorage, tmpFs)
 	} else {
 		if uri[len(uri)-1] == os.PathSeparator {
 			uri = uri[:len(uri)-1]
@@ -82,7 +98,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool) *git.Repos
 		repository, err = git.PlainOpen(uri)
 	}
 	if err != nil {
-		panic(err)
+		log.Panicf("failed to open %s: %v", uri, err)
 	}
 	return repository
 }
@@ -90,7 +106,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool) *git.Repos
 type arrayPluginFlags map[string]bool
 
 func (apf *arrayPluginFlags) String() string {
-	list := []string{}
+	var list []string
 	for key := range *apf {
 		list = append(list, key)
 	}
@@ -180,19 +196,17 @@ targets can be added using the --plugin system.`,
 		}
 
 		var commits []*object.Commit
+		var err error
 		if commitsFile == "" {
-			// list of commits belonging to the default branch, from oldest to newest
-			// rev-list --first-parent
 			fmt.Fprint(os.Stderr, "git log...\r")
-			commits = pipeline.Commits()
+			commits, err = pipeline.Commits()
 		} else {
-			var err error
 			commits, err = hercules.LoadCommitsFromFile(commitsFile, repository)
-			if err != nil {
-				panic(err)
-			}
 		}
-		cmdlineFacts["commits"] = commits
+		if err != nil {
+			log.Panicf("failed to list the commits: %v", err)
+		}
+		cmdlineFacts[hercules.ConfigPipelineCommits] = commits
 		var deployed []hercules.LeafPipelineItem
 		for name, valPtr := range cmdlineDeployed {
 			if *valPtr {

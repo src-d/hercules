@@ -8,6 +8,7 @@ import (
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/uast"
 	"gopkg.in/src-d/hercules.v4/leaves"
+	"gopkg.in/src-d/hercules.v4/internal/yaml"
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.
@@ -143,6 +144,11 @@ type FileDiffData = plumbing.FileDiffData
 // CountLines returns the number of lines in a *object.Blob.
 func CountLines(file *object.Blob) (int, error) {
 	return plumbing.CountLines(file)
+}
+
+// SafeYamlString escapes the string so that it can be reliably used in YAML.
+func SafeYamlString(str string) string {
+	return yaml.SafeString(str)
 }
 
 func init() {

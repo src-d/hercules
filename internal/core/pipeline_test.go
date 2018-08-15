@@ -287,7 +287,8 @@ func TestPipelineOnProgress(t *testing.T) {
 
 func TestPipelineCommits(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
-	commits := pipeline.Commits()
+	commits, err := pipeline.Commits()
+	assert.Nil(t, err)
 	assert.True(t, len(commits) >= 100)
 	hashMap := map[plumbing.Hash]bool{}
 	for _, c := range commits {

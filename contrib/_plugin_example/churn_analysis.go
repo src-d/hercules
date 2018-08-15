@@ -14,7 +14,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 	"gopkg.in/src-d/hercules.v4"
-	"gopkg.in/src-d/hercules.v4/yaml"
 )
 
 // ChurnAnalysis contains the intermediate state which is mutated by Consume(). It should implement
@@ -206,7 +205,7 @@ func (churn *ChurnAnalysis) serializeText(result *ChurnAnalysisResult, writer io
 	fmt.Fprintln(writer, "  global:")
 	printEdits(result.Global, writer, 4)
 	for key, val := range result.People {
-		fmt.Fprintf(writer, "  %s:\n", yaml.SafeString(key))
+		fmt.Fprintf(writer, "  %s:\n", hercules.SafeYamlString(key))
 		printEdits(val, writer, 4)
 	}
 }
