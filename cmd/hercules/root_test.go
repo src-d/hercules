@@ -42,10 +42,13 @@ func TestLoadRepository(t *testing.T) {
 	log.Println("TestLoadRepository: 2/3")
 
 	_, filename, _, _ := runtime.Caller(0)
-	sivafile := filepath.Join(filepath.Dir(filename), "test_data", "hercules.siva")
-	repo = loadRepository(sivafile, "", true)
-	assert.NotNil(t, repo)
-	log.Println("TestLoadRepository: 3/3")
+	if runtime.GOOS != "windows" {
+		// TODO(vmarkovtsev): uncomment once https://github.com/src-d/go-billy-siva/issues/29 is resolved
+		sivafile := filepath.Join(filepath.Dir(filename), "test_data", "hercules.siva")
+		repo = loadRepository(sivafile, "", true)
+		assert.NotNil(t, repo)
+		log.Println("TestLoadRepository: 3/3")
+	}
 
 	assert.Panics(t, func() { loadRepository("https://github.com/src-d/porn", "", true) })
 	assert.Panics(t, func() { loadRepository(filepath.Dir(filename), "", true) })
