@@ -243,7 +243,7 @@ func (file *File) Merge(day int, others... *File) bool {
 		if other == nil {
 			panic("merging File with nil")
 		}
-		if file.Hash != other.Hash {
+		if file.Hash != other.Hash || other.Hash == plumbing.ZeroHash {
 			dirty = true
 			break
 		}
