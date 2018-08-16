@@ -16,6 +16,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
 	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
+	file "gopkg.in/src-d/hercules.v4/internal/burndown"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/internal/test"
 	)
@@ -202,6 +203,16 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, burndown2.peopleHistories, 0)
 	assert.Len(t, burndown2.fileHistories, 0)
+
+	// check merge hashes
+	burndown3 := BurndownAnalysis{}
+	burndown3.Initialize(test.Repository)
+	deps[items.DependencyDay] = file.TreeMergeMark
+	_, err = burndown3.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, burndown3.files["cmd/hercules/main.go"].Hash, plumbing.ZeroHash)
+	assert.Equal(t, burndown3.files["analyser.go"].Hash, plumbing.ZeroHash)
+	assert.Equal(t, burndown3.files[".travis.yml"].Hash, plumbing.ZeroHash)
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665

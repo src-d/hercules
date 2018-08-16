@@ -625,8 +625,19 @@ func TestFileMergeNoop(t *testing.T) {
 	file1.Update(4, 20, 10, 0)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
 	file2 := file1.Clone(false)
+
 	dirty := file1.Merge(7, file2)
+	assert.True(t, dirty)
+	dirty = file1.Merge(7, file2)
+	assert.True(t, dirty)
+	file1.Hash = plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")
+	file2.Hash = plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")
+	dirty = file1.Merge(7, file2)
 	assert.False(t, dirty)
+	file2.Hash = plumbing.ZeroHash
+	dirty = file1.Merge(7, file2)
+	assert.True(t, dirty)
+
 	dump1 := file1.Dump()
 	dump2 := file2.Dump()
 	assert.Equal(t, dump1, dump2)
@@ -639,8 +650,10 @@ func TestFileMergeNoop(t *testing.T) {
 	file1.Update(TreeMergeMark, 60, 30, 30)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 90 0 | 130 -1
 	// [0]: 70, [1]: 20, [4]: 10
+	file1.Hash = plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")
+	file2.Hash = plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")
 	dirty = file1.Merge(7, file2)
-	// because the hashes are still the same
+	// because the hashes are the same
 	assert.False(t, dirty)
 }
 
