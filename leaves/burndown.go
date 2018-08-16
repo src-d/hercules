@@ -66,6 +66,8 @@ type BurndownAnalysis struct {
 	peopleHistories []sparseHistory
 	// files is the mapping <file path> -> *File.
 	files map[string]*burndown.File
+	// mergedFiles is used during merges to record the real file hashes
+	mergedFiles map[*burndown.File]plumbing.Hash
 	// renames is a quick and dirty solution for the "future branch renames" problem.
 	renames map[string]string
 	// matrix is the mutual deletions and self insertions.
@@ -240,6 +242,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	analyser.fileHistories = map[string]sparseHistory{}
 	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
 	analyser.files = map[string]*burndown.File{}
+	analyser.mergedFiles = map[*burndown.File]plumbing.Hash{}
 	analyser.renames = map[string]string{}
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
 	analyser.day = 0
@@ -305,14 +308,30 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 	for key, file := range analyser.files {
 		others := make([]*burndown.File, 0, len(branches))
 		for _, branch := range branches {
-			file := branch.(*BurndownAnalysis).files[key]
-			if file != nil {
-				// file can be nil if it is considered binary in the other branch
-				others = append(others, file)
+			otherFile := branch.(*BurndownAnalysis).files[key]
+			if otherFile != nil {
+				// otherFile can be nil if it is considered binary in the other branch
+				others = append(others, otherFile)
 			}
 		}
 		// don't worry, we compare the hashes first before heavy-lifting
 		if file.Merge(analyser.day, others...) {
+			hash := analyser.mergedFiles[file]
+			if hash != plumbing.ZeroHash {
+				delete(analyser.mergedFiles, file)
+			}
+			for _, branch := range branches {
+				otherAnalyser := branch.(*BurndownAnalysis)
+				otherHash := otherAnalyser.mergedFiles[otherAnalyser.files[key]]
+				if otherHash != plumbing.ZeroHash {
+					delete(otherAnalyser.mergedFiles, otherAnalyser.files[key])
+					if hash != plumbing.ZeroHash && hash != otherHash {
+						log.Panicf("merged hash mismatch: %s", key)
+					}
+					hash = otherHash
+				}
+			}
+			file.Hash = hash
 			for _, branch := range branches {
 				branch.(*BurndownAnalysis).files[key] = file.Clone(false)
 			}
@@ -976,8 +995,15 @@ func (analyser *BurndownAnalysis) handleInsertion(
 	if exists {
 		return fmt.Errorf("file %s already exists", name)
 	}
-	file, err = analyser.newFile(blob.Hash, name, author, analyser.day, lines)
+	var hash plumbing.Hash
+	if analyser.day != burndown.TreeMergeMark {
+		hash = blob.Hash
+	}
+	file, err = analyser.newFile(hash, name, author, analyser.day, lines)
 	analyser.files[name] = file
+	if analyser.day == burndown.TreeMergeMark {
+		analyser.mergedFiles[file] = blob.Hash
+	}
 	return err
 }
 
@@ -995,7 +1021,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	name := change.From.Name
 	file := analyser.files[name]
 	file.Update(analyser.packPersonWithDay(author, analyser.day), 0, 0, lines)
-	file.Hash = plumbing.ZeroHash
+	file.Hash = plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")
 	delete(analyser.files, name)
 	delete(analyser.fileHistories, name)
 	analyser.renames[name] = ""
@@ -1011,7 +1037,13 @@ func (analyser *BurndownAnalysis) handleModification(
 		// this indeed may happen
 		return analyser.handleInsertion(change, author, cache)
 	}
-	file.Hash = change.To.TreeEntry.Hash
+	var hash plumbing.Hash
+	if analyser.day != burndown.TreeMergeMark {
+		hash = change.To.TreeEntry.Hash
+	} else {
+		analyser.mergedFiles[file] = change.To.TreeEntry.Hash
+	}
+	file.Hash = hash
 
 	// possible rename
 	if change.To.Name != change.From.Name {
