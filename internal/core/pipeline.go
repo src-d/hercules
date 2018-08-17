@@ -133,8 +133,8 @@ type LeafPipelineItem interface {
 	Serialize(result interface{}, binary bool, writer io.Writer) error
 }
 
-// MergeablePipelineItem specifies the methods to combine several analysis results together.
-type MergeablePipelineItem interface {
+// ResultMergeablePipelineItem specifies the methods to combine several analysis results together.
+type ResultMergeablePipelineItem interface {
 	LeafPipelineItem
 	// Deserialize loads the result from Protocol Buffers blob.
 	Deserialize(pbmessage []byte) (interface{}, error)

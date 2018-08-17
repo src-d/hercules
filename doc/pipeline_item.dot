@@ -11,6 +11,11 @@ digraph PipelineItem {
   Initialize -> Consume
   Commits -> Consume
   Consume -> Consume
+  Consume -> Fork
+  Fork -> Consume
+  Consume -> Merge
+  Merge -> Consume
+  Merge -> "<disposal>"
   Registration [style=filled, fillcolor=dimgray, fontcolor=white]
   Resolution [style=filled, fillcolor=dimgray, fontcolor=white]
   "Command Line" [style=filled, fillcolor=dimgray, fontcolor=white]

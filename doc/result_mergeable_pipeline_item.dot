@@ -1,0 +1,13 @@
+digraph PipelineItem {
+  YAML -> Deserialize
+  "Protocol Buffers" -> Deserialize
+  Deserialize -> Result
+  Result -> MergeResults
+  MergeResults -> Result
+  Result -> Serialize
+  Serialize -> YAML
+  Serialize -> "Protocol Buffers"
+  Result [style=filled, fillcolor=gray]
+  YAML [style=filled, fillcolor=gray]
+  "Protocol Buffers" [style=filled, fillcolor=gray]
+}
