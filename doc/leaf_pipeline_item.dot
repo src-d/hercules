@@ -12,6 +12,12 @@ digraph PipelineItem {
   Initialize -> Consume
   Commits -> Consume
   Consume -> Consume
+  Consume -> Fork
+  Fork -> Consume
+  Consume -> Merge
+  Merge -> Consume
+  Merge -> "<disposal>"
+  Merge -> Finalize
   Consume -> Finalize
   Finalize -> Result
   Result -> Serialize

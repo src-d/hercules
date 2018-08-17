@@ -93,9 +93,9 @@ func loadMessage(fileName string, repos *[]string) (
 			errs = append(errs, fileName+": item not found: "+key)
 			continue
 		}
-		mpi, ok := summoned[0].(hercules.MergeablePipelineItem)
+		mpi, ok := summoned[0].(hercules.ResultMergeablePipelineItem)
 		if !ok {
-			errs = append(errs, fileName+": "+key+": MergeablePipelineItem is not implemented")
+			errs = append(errs, fileName+": "+key+": ResultMergeablePipelineItem is not implemented")
 			continue
 		}
 		msg, err := mpi.Deserialize(val)
@@ -140,7 +140,7 @@ func mergeResults(mergedResults map[string]interface{},
 			mergedResults[key] = val
 			continue
 		}
-		item := hercules.Registry.Summon(key)[0].(hercules.MergeablePipelineItem)
+		item := hercules.Registry.Summon(key)[0].(hercules.ResultMergeablePipelineItem)
 		mergedResult = item.MergeResults(mergedResult, val, mergedCommons, anotherCommons)
 		mergedResults[key] = mergedResult
 	}

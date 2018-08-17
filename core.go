@@ -39,8 +39,8 @@ type FeaturedPipelineItem = core.FeaturedPipelineItem
 // LeafPipelineItem corresponds to the top level pipeline items which produce the end results.
 type LeafPipelineItem = core.LeafPipelineItem
 
-// MergeablePipelineItem specifies the methods to combine several analysis results together.
-type MergeablePipelineItem = core.MergeablePipelineItem
+// ResultMergeablePipelineItem specifies the methods to combine several analysis results together.
+type ResultMergeablePipelineItem = core.ResultMergeablePipelineItem
 
 // CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
 type CommonAnalysisResult = core.CommonAnalysisResult

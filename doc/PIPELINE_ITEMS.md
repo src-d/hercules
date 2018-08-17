@@ -4,6 +4,7 @@ Pipeline items
 ### PipelineItem lifecycle
 
 ```go
+// PipelineItem is the interface for all the units in the Git commits analysis pipeline.
 type PipelineItem interface {
 	// Name returns the name of the analysis.
 	Name() string
@@ -25,6 +26,15 @@ type PipelineItem interface {
 	// "commit" and "index".
 	// Returns the calculated entities which match Provides().
 	Consume(deps map[string]interface{}) (map[string]interface{}, error)
+	// Fork clones the item the requested number of times. The data links between the clones
+	// are up to the implementation. Needed to handle Git branches. See also Merge().
+	// Returns a slice with `n` fresh clones. In other words, it does not include the original item.
+	Fork(n int) []PipelineItem
+	// Merge combines several branches together. Each is supposed to have been created with Fork().
+	// The result is stored in the called item, thus this function returns nothing.
+	// Merge() must update all the branches, not only self. When several branches merge, some of
+	// them may continue to live, hence this requirement.
+	Merge(branches []PipelineItem)
 }
 ```
 
@@ -33,6 +43,7 @@ type PipelineItem interface {
 ### LeafPipelineItem lifecycle
 
 ```go
+// LeafPipelineItem corresponds to the top level pipeline items which produce the end results.
 type LeafPipelineItem interface {
 	PipelineItem
 	// Flag returns the cmdline name of the item.
@@ -45,3 +56,18 @@ type LeafPipelineItem interface {
 ```
 
 ![LeafPipelineItem](leaf_pipeline_item.png)
+
+### MergeablePipelineItem ability (optional for LeafPipelineItem-s)
+
+```go
+// ResultMergeablePipelineItem specifies the methods to combine several analysis results together.
+type ResultMergeablePipelineItem interface {
+	LeafPipelineItem
+	// Deserialize loads the result from Protocol Buffers blob.
+	Deserialize(pbmessage []byte) (interface{}, error)
+	// MergeResults joins two results together. Common-s are specified as the global state.
+	MergeResults(r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{}
+}
+```
+
+![ResultMergeablePipelineItem](result_mergeable_pipeline_item.png)
