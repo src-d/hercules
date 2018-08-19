@@ -210,9 +210,9 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	deps[items.DependencyDay] = file.TreeMergeMark
 	_, err = burndown3.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, burndown3.files["cmd/hercules/main.go"].Hash, plumbing.ZeroHash)
-	assert.Equal(t, burndown3.files["analyser.go"].Hash, plumbing.ZeroHash)
-	assert.Equal(t, burndown3.files[".travis.yml"].Hash, plumbing.ZeroHash)
+	assert.True(t, burndown3.mergedFiles["cmd/hercules/main.go"])
+	assert.True(t, burndown3.mergedFiles["analyser.go"], plumbing.ZeroHash)
+	assert.True(t, burndown3.mergedFiles[".travis.yml"], plumbing.ZeroHash)
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
