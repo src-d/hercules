@@ -32,10 +32,10 @@ internal/pb/pb_pb2.py: internal/pb/pb.proto
 cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 	cd cmd/hercules && go generate
 
-${GOPATH}/src/gopkg.in/bblfsh/client-go.v2:
+${GOPATH}/src/gopkg.in/bblfsh/client-go.v2/README.md:
 	go get -d -v gopkg.in/bblfsh/client-go.v2/...
 
-${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2
+${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2/README.md
 	cd ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 && \
 	make dependencies
 
