@@ -8,15 +8,13 @@ environment:
   GOPATH: c:\gopath
 
 install:
-  - appveyor-retry choco install --allow-empty-checksums make
-  - c:\msys64\usr\bin\pacman --noconfirm --needed -S mingw-w64-x86_64-toolchain
   - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-win32.zip
   - 7z e protoc.zip
   - move protoc.exe C:\msys64\mingw64\bin
 
 build_script:
+  - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%PATH%
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
-  - set PATH=C:\msys64\mingw64\bin;%PATH%
   - cd %GOPATH%\src\gopkg.in\src-d\hercules.v3
   - set DISABLE_TENSORFLOW=1
   - make
@@ -24,7 +22,7 @@ build_script:
 
 test_script:
   - go get -v -t -d gopkg.in/src-d/hercules.v3/...
-  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v3
+  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v3/...
 
 artifacts:
   - name: hercules.win64.zip
@@ -34,7 +32,7 @@ deploy:
   release: $(APPVEYOR_REPO_TAG_NAME)
   provider: GitHub
   auth_token:
-    secure: 78zsH4q19DqcpdkwnYHQoe0BakBfv+LGu1W7mXuaBC9mS87+EuAj3+yTzJv4NEfI
+    secure: 78zsH4q19DqcpdkwnYHQoe0BakBfv+LGu1W7mXuaBC9mS87+EuAj3+yTzJv3NEfI
   artifact: hercules.win64.zip
   on:
     branch: master

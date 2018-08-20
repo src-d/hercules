@@ -22,6 +22,13 @@ go:
   - 1.9.x
   - 1.10.x
   - tip
+cache:
+  directories:
+  - $HOME/.cache/pip
+  - $HOME/gopath/src
+before_cache:
+- cd $HOME/gopath
+- rm -rf $HOME/gopath/src/gopkg.in/src-d/hercules.v3
 
 matrix:
   fast_finish: true
@@ -33,7 +40,7 @@ stages:
   - deploy
 
 env:
-  - PROTOC_VERSION=3.5.1 TENSORFLOW_VERSION=1.7.0
+  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.8.0
 
 before_install:
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
@@ -41,23 +48,28 @@ before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v github.com/golang/lint/golint
-  - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
+  - rm -rf $GOPATH/src/gopkg.in/src-d/go-git.v3
+  - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v3
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
   - export PATH=~/usr/bin:$PATH
   - make --version
   - pip3 --version
   - pip3 install --user --no-build-isolation -r requirements.txt tensorflow
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
-  - docker exec -it bblfshd bblfshctl driver install --all
+  - docker exec -it bblfshd bblfshctl driver install python bblfsh/python-driver:latest
+  - docker exec -it bblfshd bblfshctl driver install go bblfsh/go-driver:latest
+  - docker exec -it bblfshd bblfshctl driver install java bblfsh/java-driver:latest
   - curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-$TENSORFLOW_VERSION.tar.gz" | sudo tar -C /usr/local -xz
   - sudo ldconfig
 install:
+  - git clean -xfd
   - make
 script:
   - set -e
   - go vet -tags tensorflow ./...
   - golint -set_exit_status ./...
-  - go test -tags tensorflow -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3
+  - if [[ $TRAVIS_GO_VERSION != 1.9.* ]]; then go test -coverpkg=all -v -cpu=1,2 -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v3/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt; fi
+  - if [[ $TRAVIS_GO_VERSION = 1.9.* ]]; then go test -v -cpu=1,2 gopkg.in/src-d/hercules.v3/...; fi
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
@@ -77,6 +89,7 @@ jobs:
       os: osx
       osx_image: xcode9.3
       go: 1.10.x
+      go_import_path: gopkg.in/src-d/hercules.v3
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
@@ -96,16 +109,15 @@ jobs:
     - stage: deploy
       os: linux
       go: 1.10.x
+      go_import_path: gopkg.in/src-d/hercules.v3
       before_install:
         - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
         - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
-        - curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-$TENSORFLOW_VERSION.tar.gz" | sudo tar -C /usr/local -xz
-        - sudo ldconfig
       script: skip
       install:
-        - make
+        - DISABLE_TENSORFLOW=1 make
       after_success:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
       deploy:

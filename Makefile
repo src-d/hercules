@@ -22,8 +22,8 @@ pb/pb.pb.go: pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo
 	PATH=${PATH}:${GOPATH}/bin protoc --gogo_out=pb --proto_path=pb pb/pb.proto
 else
 pb/pb.pb.go: pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo.exe
-	set "PATH=${PATH};${GOPATH}\bin" && \
-	call protoc --gogo_out=pb --proto_path=pb pb/pb.proto
+	export PATH="${PATH};${GOPATH}\bin" && \
+	protoc --gogo_out=pb --proto_path=pb pb/pb.proto
 endif
 
 pb/pb_pb2.py: pb/pb.proto
