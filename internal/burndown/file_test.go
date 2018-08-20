@@ -604,7 +604,7 @@ func TestFileMerge(t *testing.T) {
 	assert.Equal(t, int64(0), status[3])
 	assert.Equal(t, int64(10), status[4])
 	assert.Equal(t, int64(20), status[5])
-	assert.Equal(t, int64(0), status[6])
+	assert.Equal(t, int64(10), status[6])
 	assert.Equal(t, int64(10), status[7])
 }
 
