@@ -451,10 +451,10 @@ func TestPrepareRunPlanTiny(t *testing.T) {
 	plan := prepareRunPlan([]*object.Commit{rootCommit})
 	assert.Len(t, plan, 2)
 	assert.Equal(t, runActionEmerge, plan[0].Action)
-	assert.Equal(t, 0, plan[0].Items[0])
+	assert.Equal(t, rootBranchIndex, plan[0].Items[0])
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[0].Commit.Hash.String())
 	assert.Equal(t, runActionCommit, plan[1].Action)
-	assert.Equal(t, 0, plan[1].Items[0])
+	assert.Equal(t, rootBranchIndex, plan[1].Items[0])
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[1].Commit.Hash.String())
 }
 
@@ -487,15 +487,15 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 	assert.Len(t, plan, len(commits) + 1)
 	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[0].Commit.Hash.String())
-	assert.Equal(t, 0, plan[0].Items[0])
+	assert.Equal(t, rootBranchIndex, plan[0].Items[0])
 	assert.Equal(t, runActionCommit, plan[1].Action)
-	assert.Equal(t, 0, plan[1].Items[0])
+	assert.Equal(t, rootBranchIndex, plan[1].Items[0])
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[1].Commit.Hash.String())
 	assert.Equal(t, runActionCommit, plan[2].Action)
-	assert.Equal(t, 0, plan[2].Items[0])
+	assert.Equal(t, rootBranchIndex, plan[2].Items[0])
 	assert.Equal(t, "a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3", plan[2].Commit.Hash.String())
 	assert.Equal(t, runActionCommit, plan[10].Action)
-	assert.Equal(t, 0, plan[10].Items[0])
+	assert.Equal(t, rootBranchIndex, plan[10].Items[0])
 	assert.Equal(t, "a28e9064c70618dc9d68e1401b889975e0680d11", plan[10].Commit.Hash.String())
 }
 
