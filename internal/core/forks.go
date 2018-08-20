@@ -288,11 +288,16 @@ func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) orderer {
 }
 
 // inverts `dag`
-func buildParents(dag map[plumbing.Hash][]*object.Commit) map[plumbing.Hash][]plumbing.Hash {
-	parents := map[plumbing.Hash][]plumbing.Hash{}
+func buildParents(dag map[plumbing.Hash][]*object.Commit) map[plumbing.Hash]map[plumbing.Hash]bool {
+	parents := map[plumbing.Hash]map[plumbing.Hash]bool{}
 	for key, vals := range dag {
 		for _, val := range vals {
-			parents[val.Hash] = append(parents[val.Hash], key)
+			myps := parents[val.Hash]
+			if myps == nil {
+				myps = map[plumbing.Hash]bool{}
+				parents[val.Hash] = myps
+			}
+			myps[key] = true
 		}
 	}
 	return parents
@@ -314,11 +319,16 @@ func mergeDag(
 		}
 		c := head
 		for true {
-			next := parents[c]
-			if len(next) != 1 || len(dag[next[0]]) != 1 {
+			nextParents := parents[c]
+			var next plumbing.Hash
+			for p := range nextParents {
+				next = p
 				break
 			}
-			c = next[0]
+			if len(nextParents) != 1 || len(dag[next]) != 1 {
+				break
+			}
+			c = next
 		}
 		head = c
 		var seq []*object.Commit
@@ -363,7 +373,7 @@ func collapseFastForwards(
 			visited := map[plumbing.Hash]bool{child.Hash: true}
 			childParents := parents[child.Hash]
 			childNumOtherParents := 0
-			for _, parent := range childParents {
+			for parent := range childParents {
 				if parent != key {
 					visited[parent] = true
 					childNumOtherParents++
@@ -388,9 +398,10 @@ func collapseFastForwards(
 							delete(mergedDag, child.Hash)
 							parents[child.Hash] = parents[immediateParent]
 							for _, vals := range parents {
-								for i, v := range vals {
+								for v := range vals {
 									if v == child.Hash {
-										vals[i] = immediateParent
+										delete(vals, v)
+										vals[immediateParent] = true
 										break
 									}
 								}
@@ -399,7 +410,7 @@ func collapseFastForwards(
 					}
 					break
 				}
-				for _, parent := range parents[head] {
+				for parent := range parents[head] {
 					if !visited[parent] {
 						visited[head] = true
 						queue = append(queue, parent)
@@ -427,9 +438,10 @@ func collapseFastForwards(
 				delete(mergedDag, onlyChild)
 				parents[onlyChild] = parents[key]
 				for _, vals := range parents {
-					for i, v := range vals {
+					for v := range vals {
 						if v == onlyChild {
-							vals[i] = key
+							delete(vals, v)
+							vals[key] = true
 							break
 						}
 					}
@@ -498,7 +510,7 @@ func generatePlan(
 			// merge after the merge commit (the first in the sequence)
 			var items []int
 			minBranch := 1 << 31
-			for _, parent := range parents[commit.Hash] {
+			for parent := range parents[commit.Hash] {
 				parentBranch := -1
 				if parents, exists := branchers[commit.Hash]; exists {
 					if inheritedBranch, exists := parents[parent]; exists {
