@@ -364,15 +364,18 @@ func (pipeline *Pipeline) Len() int {
 }
 
 // Commits returns the list of commits from the history similar to `git log` over the HEAD.
-func (pipeline *Pipeline) Commits() ([]*object.Commit, error) {
-	cit, err := pipeline.repository.Log(&git.LogOptions{From: plumbing.ZeroHash})
+// `firstParent` specifies whether to leave only the first parent after each merge
+// (`git log --first-parent`) - effectively decreasing the accuracy but increasing performance.
+func (pipeline *Pipeline) Commits(firstParent bool) ([]*object.Commit, error) {
+	var result []*object.Commit
+	repository := pipeline.repository
+	head, err := repository.Head()
 	if err != nil {
 		if err == plumbing.ErrReferenceNotFound {
-			refs, errr := pipeline.repository.References()
+			refs, errr := repository.References()
 			if errr != nil {
 				return nil, errors.Wrap(errr, "unable to list the references")
 			}
-			var head *plumbing.Reference
 			refs.ForEach(func(ref *plumbing.Reference) error {
 				if strings.HasPrefix(ref.Name().String(), "refs/heads/HEAD/") {
 					head = ref
@@ -380,16 +383,35 @@ func (pipeline *Pipeline) Commits() ([]*object.Commit, error) {
 				}
 				return nil
 			})
-			if head != nil {
-				cit, err = pipeline.repository.Log(&git.LogOptions{From: head.Hash()})
-			}
 		}
-		if err != nil {
+		if head == nil && err != nil {
 			return nil, errors.Wrap(err, "unable to collect the commit history")
 		}
 	}
+
+	if firstParent {
+		commit, err := repository.CommitObject(head.Hash())
+		if err != nil {
+			panic(err)
+		}
+		// the first parent matches the head
+		for ; err != io.EOF; commit, err = commit.Parents().Next() {
+			if err != nil {
+				panic(err)
+			}
+			result = append(result, commit)
+		}
+		// reverse the order
+		for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+			result[i], result[j] = result[j], result[i]
+		}
+		return result, nil
+	}
+	cit, err := repository.Log(&git.LogOptions{From: head.Hash()})
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to collect the commit history")
+	}
 	defer cit.Close()
-	var result []*object.Commit
 	cit.ForEach(func(commit *object.Commit) error {
 		result = append(result, commit)
 		return nil
@@ -545,7 +567,7 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 	}
 	if _, exists := facts[ConfigPipelineCommits]; !exists {
 		var err error
-		facts[ConfigPipelineCommits], err = pipeline.Commits()
+		facts[ConfigPipelineCommits], err = pipeline.Commits(false)
 		if err != nil {
 			log.Panicf("failed to list the commits: %v", err)
 		}

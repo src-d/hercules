@@ -285,9 +285,9 @@ func TestPipelineOnProgress(t *testing.T) {
 	assert.Equal(t, 4, progressOk)
 }
 
-func TestPipelineCommits(t *testing.T) {
+func TestPipelineCommitsFull(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
-	commits, err := pipeline.Commits()
+	commits, err := pipeline.Commits(false)
 	assert.Nil(t, err)
 	assert.True(t, len(commits) >= 100)
 	hashMap := map[plumbing.Hash]bool{}
@@ -297,6 +297,24 @@ func TestPipelineCommits(t *testing.T) {
 	assert.Equal(t, len(commits), len(hashMap))
 	assert.Contains(t, hashMap, plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
+	assert.Contains(t, hashMap, plumbing.NewHash(
+		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
+}
+
+func TestPipelineCommitsFirstParent(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	commits, err := pipeline.Commits(true)
+	assert.Nil(t, err)
+	assert.True(t, len(commits) >= 100)
+	hashMap := map[plumbing.Hash]bool{}
+	for _, c := range commits {
+		hashMap[c.Hash] = true
+	}
+	assert.Equal(t, len(commits), len(hashMap))
+	assert.Contains(t, hashMap, plumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1"))
+	assert.NotContains(t, hashMap, plumbing.NewHash(
+		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
 }
 
 func TestLoadCommitsFromFile(t *testing.T) {
