@@ -249,24 +249,20 @@ func (file *File) Merge(day int, others... *File) {
 			if ol & TreeMergeMark == TreeMergeMark {
 				continue
 			}
-			if l & TreeMergeMark == TreeMergeMark {
-				myself[i] = ol
-			} else if l != ol {
-				// the same line introduced in different branches
+			if l & TreeMergeMark == TreeMergeMark || l > ol {
+				// 1 - the line is merged in myself and exists in other
+				// 2 - the same line introduced in different branches,
 				// consider the oldest version as the ground truth
-				if l > ol {
-					myself[i] = ol
-					// subtract from the newer day l
-					file.updateTime(ol, l, -1)
-				} else {
-					// subtract from the newer day ol
-					file.updateTime(l, ol, -1)
-				}
+				//
+				// in case with (2) we should decrease the "future" counter,
+				// but that really poisons the analysis
+				myself[i] = ol
 			}
 		}
 	}
 	for i, l := range myself {
 		if l & TreeMergeMark == TreeMergeMark {
+			// original merge conflict resolution
 			myself[i] = day
 			file.updateTime(day, day, 1)
 		}
