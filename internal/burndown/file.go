@@ -144,10 +144,12 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	}
 	iter := tree.FindLE(pos)
 	origin := *iter.Item()
-	file.updateTime(time, time, insLength)
+	if insLength > 0 {
+		file.updateTime(time, time, insLength)
+	}
 	if delLength == 0 {
 		// simple case with insertions only
-		if origin.Key < pos || (origin.Value == time && pos == 0) {
+		if origin.Key < pos || (origin.Value == time && (pos == 0 || pos == origin.Key)) {
 			iter = iter.Next()
 		}
 		for ; !iter.Limit(); iter = iter.Next() {
@@ -188,7 +190,7 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	var previous *rbtree.Item
 	if insLength > 0 && (origin.Value != time || origin.Key == pos) {
 		// insert our new interval
-		if iter.Item().Value == time {
+		if iter.Item().Value == time && iter.Item().Key - delLength == pos {
 			prev := iter.Prev()
 			if prev.Item().Value != time {
 				iter.Item().Key = pos
@@ -249,6 +251,8 @@ func (file *File) Merge(day int, others... *File) {
 			if ol & TreeMergeMark == TreeMergeMark {
 				continue
 			}
+			// the following should happen rarely:
+			// l & TreeMergeMark != TreeMergeMark && l != ol
 			if l & TreeMergeMark == TreeMergeMark || l > ol {
 				// 1 - the line is merged in myself and exists in other
 				// 2 - the same line introduced in different branches,
