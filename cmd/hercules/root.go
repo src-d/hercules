@@ -151,6 +151,7 @@ targets can be added using the --plugin system.`,
 	Args: cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		flags := cmd.Flags()
+		firstParent, _ := flags.GetBool("first-parent")
 		commitsFile, _ := flags.GetString("commits")
 		protobuf, _ := flags.GetBool("pb")
 		profile, _ := flags.GetBool("profile")
@@ -199,7 +200,7 @@ targets can be added using the --plugin system.`,
 		var err error
 		if commitsFile == "" {
 			fmt.Fprint(os.Stderr, "git log...\r")
-			commits, err = pipeline.Commits()
+			commits, err = pipeline.Commits(firstParent)
 		} else {
 			commits, err = hercules.LoadCommitsFromFile(commitsFile, repository)
 		}
@@ -389,10 +390,12 @@ func init() {
 	rootCmd.MarkFlagFilename("plugin")
 	rootFlags := rootCmd.Flags()
 	rootFlags.String("commits", "", "Path to the text file with the "+
-		"commit history to follow instead of the default rev-list "+
-		"--first-parent. The format is the list of hashes, each hash on a "+
+		"commit history to follow instead of the default `git log`. " +
+		"The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
 	rootCmd.MarkFlagFilename("commits")
+	rootFlags.Bool("first-parent", false, "Follow only the first parent in the commit history - " +
+		"\"git log --first-parent\".")
 	rootFlags.Bool("pb", false, "The output format will be Protocol Buffers instead of YAML.")
 	rootFlags.Bool("quiet", !terminal.IsTerminal(int(os.Stdin.Fd())),
 		"Do not print status updates to stderr.")

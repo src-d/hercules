@@ -29,7 +29,7 @@ Then add the required analysis:
 This call will add all the needed intermediate pipeline items. Then link and execute the analysis tree:
 
   pipeline.Initialize(nil)
-  result, err := pipeline.Run(pipeline.Commits())
+  result, err := pipeline.Run(pipeline.Commits(false))
 
 Finally extract the result:
 
