@@ -81,6 +81,9 @@ const (
 	runActionEmerge = iota
 	// runActionDelete removes the branch as it is no longer needed
 	runActionDelete = iota
+
+	// rootBranchIndex is the minimum branch index in the plan
+	rootBranchIndex = 1
 )
 
 type runAction struct {
@@ -421,7 +424,18 @@ func collapseFastForwards(
 		if len(toRemove) == 0 {
 			continue
 		}
+		// update dag
 		var newVals []*object.Commit
+		node := mergedSeq[key][len(mergedSeq[key])-1].Hash
+		for _, child := range dag[node] {
+			if !toRemove[child.Hash] {
+				newVals = append(newVals, child)
+			}
+		}
+		dag[node] = newVals
+
+		// update mergedDag
+		newVals = []*object.Commit{}
 		for _, child := range vals {
 			if !toRemove[child.Hash] {
 				newVals = append(newVals, child)
@@ -450,16 +464,7 @@ func collapseFastForwards(
 		}
 		if !merged {
 			mergedDag[key] = newVals
-		}
-		newVals = []*object.Commit{}
-		node := mergedSeq[key][len(mergedSeq[key])-1].Hash
-		for _, child := range dag[node] {
-			if !toRemove[child.Hash] {
-				newVals = append(newVals, child)
-			}
-		}
-		dag[node] = newVals
-		if merged {
+		} else {
 			goto repeat
 		}
 	}
@@ -474,7 +479,7 @@ func generatePlan(
 	var plan []runAction
 	branches := map[plumbing.Hash]int{}
 	branchers := map[plumbing.Hash]map[plumbing.Hash]int{}
-	counter := 0
+	counter := rootBranchIndex
 	for _, name := range orderNodes(false, true) {
 		commit := hashes[name]
 		if len(parents[commit.Hash]) == 0 {
@@ -496,12 +501,14 @@ func generatePlan(
 		}
 		branchExists := func() bool { return branch >= 0 }
 		appendCommit := func(c *object.Commit, branch int) {
+			if branch == 0 {
+				log.Panicf("setting a zero branch for %s", c.Hash.String())
+			}
 			plan = append(plan, runAction{
 				Action: runActionCommit,
 				Commit: c,
 				Items: []int{branch},
 			})
-
 		}
 		appendMergeIfNeeded := func() {
 			if len(parents[commit.Hash]) < 2 {
@@ -519,7 +526,7 @@ func generatePlan(
 				}
 				if parentBranch == -1 {
 					parentBranch = branches[parent]
-					if parentBranch == -1 {
+					if parentBranch <= 0 {
 						log.Panicf("parent %s > %s does not have a branch assigned",
 							parent.String(), commit.Hash.String())
 					}
@@ -581,7 +588,7 @@ func generatePlan(
 			}
 			plan = append(plan, runAction{
 				Action: runActionFork,
-				Commit: nil,
+				Commit: hashes[head.String()],
 				Items:  children,
 			})
 		}

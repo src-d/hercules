@@ -645,7 +645,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			}
 			mergeItems(merged)
 		case runActionEmerge:
-			if firstItem == 0 {
+			if firstItem == rootBranchIndex {
 				branches[firstItem] = pipeline.items
 			} else {
 				branches[firstItem] = cloneItems(rootClone, 1)[0]
