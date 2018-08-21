@@ -526,7 +526,7 @@ func generatePlan(
 				}
 				if parentBranch == -1 {
 					parentBranch = branches[parent]
-					if parentBranch <= 0 {
+					if parentBranch < rootBranchIndex {
 						log.Panicf("parent %s > %s does not have a branch assigned",
 							parent.String(), commit.Hash.String())
 					}
