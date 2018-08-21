@@ -68,6 +68,8 @@ type BurndownAnalysis struct {
 	files map[string]*burndown.File
 	// mergedFiles is used during merges to record the real file hashes
 	mergedFiles map[string]bool
+	// author of the processed merge commit
+	mergedAuthor int
 	// renames is a quick and dirty solution for the "future branch renames" problem.
 	renames map[string]string
 	// matrix is the mutual deletions and self insertions.
@@ -243,6 +245,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
 	analyser.files = map[string]*burndown.File{}
 	analyser.mergedFiles = map[string]bool{}
+	analyser.mergedAuthor = identity.AuthorMissing
 	analyser.renames = map[string]string{}
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
 	analyser.day = 0
@@ -265,6 +268,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 		// we will analyse the conflicts resolution in Merge()
 		analyser.day = burndown.TreeMergeMark
 		analyser.mergedFiles = map[string]bool{}
+		analyser.mergedAuthor = author
 	}
 	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
 	treeDiffs := deps[items.DependencyTreeChanges].(object.Changes)
@@ -342,7 +346,7 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 			continue
 		}
 		if len(files) > 1 {
-			files[0].Merge(analyser.day, files[1:]...)
+			files[0].Merge(analyser.packPersonWithDay(analyser.mergedAuthor, analyser.day), files[1:]...)
 		}
 		for _, burn := range all {
 			if burn.files[key] != files[0] {
@@ -900,6 +904,7 @@ func (analyser *BurndownAnalysis) onNewDay() {
 	if analyser.day > analyser.previousDay {
 		analyser.previousDay = analyser.day
 	}
+	analyser.mergedAuthor = identity.AuthorMissing
 }
 
 func (analyser *BurndownAnalysis) updateGlobal(currentTime, previousTime, delta int) {
