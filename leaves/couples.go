@@ -114,7 +114,7 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 // in Provides(). If there was an error, nil is returned.
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	firstMerge := couples.ShouldConsumeCommit(deps)
-	mergeMode := core.IsMergeCommit(deps)
+	mergeMode := deps[core.DependencyIsMerge].(bool)
 	couples.lastCommit = deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
 	if author == identity.AuthorMissing {

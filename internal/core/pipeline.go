@@ -52,7 +52,8 @@ func (opt ConfigurationOptionType) String() string {
 	case StringsConfigurationOption:
 		return "string"
 	}
-	panic(fmt.Sprintf("Invalid ConfigurationOptionType value %d", opt))
+	log.Panicf("Invalid ConfigurationOptionType value %d", opt)
+	return ""
 }
 
 // ConfigurationOption allows for the unified, retrospective way to setup PipelineItem-s.
@@ -237,12 +238,16 @@ const (
 	// ConfigPipelineCommits is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which allows to specify the custom commit sequence. By default, Pipeline.Commits() is used.
 	ConfigPipelineCommits = "commits"
-	// DependencyCommit is the name of one of the two items in `deps` supplied to PipelineItem.Consume()
+	// DependencyCommit is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
 	// which always exists. It corresponds to the currently analyzed commit.
 	DependencyCommit = "commit"
-	// DependencyIndex is the name of one of the two items in `deps` supplied to PipelineItem.Consume()
+	// DependencyIndex is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
 	// which always exists. It corresponds to the currently analyzed commit's index.
 	DependencyIndex = "index"
+	// DependencyIsMerge is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
+	// which always exists. It indicates whether the analyzed commit is a merge commit.
+	// Checking the number of parents is not correct - we remove the back edges during the DAG simplification.
+	DependencyIsMerge = "is_merge"
 )
 
 // NewPipeline initializes a new instance of Pipeline struct.
@@ -488,13 +493,13 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 		for _, key := range item.Requires() {
 			key = "[" + key + "]"
 			if graph.AddEdge(key, name) == 0 {
-				panic(fmt.Sprintf("Unsatisfied dependency: %s -> %s", key, item.Name()))
+				log.Panicf("Unsatisfied dependency: %s -> %s", key, item.Name())
 			}
 		}
 	}
 	// Try to break the cycles in some known scenarios.
 	if len(ambiguousMap) > 0 {
-		ambiguous := []string{}
+		var ambiguous []string
 		for key := range ambiguousMap {
 			ambiguous = append(ambiguous, key)
 		}
@@ -613,6 +618,13 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			state := map[string]interface{}{
 				DependencyCommit: step.Commit,
 				DependencyIndex: commitIndex,
+				DependencyIsMerge:
+					(index > 0 &&
+					plan[index-1].Action == runActionCommit &&
+					plan[index-1].Commit.Hash == step.Commit.Hash) ||
+					(index < (len(plan)-1) &&
+					plan[index+1].Action == runActionCommit &&
+					plan[index+1].Commit.Hash == step.Commit.Hash),
 			}
 			for _, item := range branches[firstItem] {
 				update, err := item.Consume(state)
@@ -624,7 +636,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				for _, key := range item.Provides() {
 					val, ok := update[key]
 					if !ok {
-						panic(fmt.Sprintf("%s: Consume() did not return %s", item.Name(), key))
+						log.Panicf("%s: Consume() did not return %s", item.Name(), key)
 					}
 					state[key] = val
 				}

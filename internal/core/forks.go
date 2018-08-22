@@ -34,11 +34,6 @@ func (proc *OneShotMergeProcessor) ShouldConsumeCommit(deps map[string]interface
 	return false
 }
 
-// IsMergeCommit indicates whether the commit is a merge or not.
-func IsMergeCommit(deps map[string]interface{}) bool {
-	return deps[DependencyCommit].(*object.Commit).NumParents() > 1
-}
-
 // NoopMerger provides an empty Merge() method suitable for PipelineItem.
 type NoopMerger struct {
 }
