@@ -607,7 +607,9 @@ def apply_plot_style(figure, axes, legend, style, text_size, axes_size):
     for axis in (axes.xaxis, axes.yaxis):
         axis.label.update(dict(fontsize=text_size, color=style))
     for axis in ("x", "y"):
+        getattr(axes, axis + "axis").get_offset_text().set_size(text_size)
         axes.tick_params(axis=axis, colors=style, labelsize=text_size)
+    axes.ticklabel_format(axis="y", style="sci", scilimits=(0, 3))
     if legend is not None:
         frame = legend.get_frame()
         for setter in (frame.set_facecolor, frame.set_edgecolor):
