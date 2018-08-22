@@ -95,11 +95,6 @@ func ForkCopyPipelineItem(origin PipelineItem, n int) []PipelineItem {
 	return core.ForkCopyPipelineItem(origin ,n)
 }
 
-// IsMergeCommit indicates whether the commit is a merge or not.
-func IsMergeCommit(deps map[string]interface{}) bool {
-	return core.IsMergeCommit(deps)
-}
-
 // PipelineItemRegistry contains all the known PipelineItem-s.
 type PipelineItemRegistry = core.PipelineItemRegistry
 
@@ -107,6 +102,16 @@ type PipelineItemRegistry = core.PipelineItemRegistry
 var Registry = core.Registry
 
 const (
+	// DependencyCommit is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
+	// which always exists. It corresponds to the currently analyzed commit.
+	DependencyCommit = core.DependencyCommit
+	// DependencyIndex is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
+	// which always exists. It corresponds to the currently analyzed commit's index.
+	DependencyIndex = core.DependencyIndex
+	// DependencyIsMerge is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
+	// which always exists. It indicates whether the analyzed commit is a merge commit.
+	// Checking the number of parents is not correct - we remove the back edges during the DAG simplification.
+	DependencyIsMerge = core.DependencyIsMerge
 	// DependencyAuthor is the name of the dependency provided by identity.Detector.
 	DependencyAuthor = identity.DependencyAuthor
 	// DependencyBlobCache identifies the dependency provided by BlobCache.

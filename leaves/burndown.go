@@ -68,7 +68,7 @@ type BurndownAnalysis struct {
 	files map[string]*burndown.File
 	// mergedFiles is used during merges to record the real file hashes
 	mergedFiles map[string]bool
-	// author of the processed merge commit
+	// mergedAuthor of the processed merge commit
 	mergedAuthor int
 	// renames is a quick and dirty solution for the "future branch renames" problem.
 	renames map[string]string
@@ -260,7 +260,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	author := deps[identity.DependencyAuthor].(int)
 	day := deps[items.DependencyDay].(int)
-	if !core.IsMergeCommit(deps) {
+	if !deps[core.DependencyIsMerge].(bool) {
 		analyser.day = day
 		analyser.onNewDay()
 	} else {
@@ -655,12 +655,12 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, daily [][
 	}
 	neededRows := len(matrix)*sampling + offset
 	if len(daily) < neededRows {
-		panic(fmt.Sprintf("merge bug: too few daily rows: required %d, have %d",
-			neededRows, len(daily)))
+		log.Panicf("merge bug: too few daily rows: required %d, have %d",
+			neededRows, len(daily))
 	}
 	if len(daily[0]) < maxCols {
-		panic(fmt.Sprintf("merge bug: too few daily cols: required %d, have %d",
-			maxCols, len(daily[0])))
+		log.Panicf("merge bug: too few daily cols: required %d, have %d",
+			maxCols, len(daily[0]))
 	}
 	for x := 0; x < maxCols; x++ {
 		for y := 0; y < len(matrix); y++ {

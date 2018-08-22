@@ -24,6 +24,7 @@ type testPipelineItem struct {
 	Merged        *bool
 	CommitMatches bool
 	IndexMatches  bool
+	MergeState    *int
 	TestError     bool
 }
 
@@ -65,6 +66,8 @@ func (item *testPipelineItem) Features() []string {
 
 func (item *testPipelineItem) Initialize(repository *git.Repository) {
 	item.Initialized = repository != nil
+	item.Merged = new(bool)
+	item.MergeState = new(int)
 }
 
 func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -82,13 +85,20 @@ func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]i
 			item.IndexMatches = obj.(int) == 0
 		}
 	}
+	obj, exists = deps[DependencyIsMerge]
+	if exists {
+		*item.MergeState++
+		if obj.(bool) {
+			*item.MergeState++
+		}
+	}
 	return map[string]interface{}{"test": item}, nil
 }
 
 func (item *testPipelineItem) Fork(n int) []PipelineItem {
 	result := make([]PipelineItem, n)
 	for i := 0; i < n; i++ {
-		result[i] = &testPipelineItem{Merged: item.Merged}
+		result[i] = &testPipelineItem{Merged: item.Merged, MergeState: item.MergeState}
 	}
 	item.Forked = true
 	return result
@@ -198,7 +208,7 @@ func TestPipelineFeatures(t *testing.T) {
 
 func TestPipelineRun(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
-	item := &testPipelineItem{Merged: new(bool)}
+	item := &testPipelineItem{}
 	pipeline.AddItem(item)
 	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
@@ -217,6 +227,7 @@ func TestPipelineRun(t *testing.T) {
 	assert.True(t, item.DepsConsumed)
 	assert.True(t, item.CommitMatches)
 	assert.True(t, item.IndexMatches)
+	assert.Equal(t, 1, *item.MergeState)
 	assert.True(t, item.Forked)
 	assert.False(t, *item.Merged)
 	pipeline.RemoveItem(item)
@@ -227,7 +238,7 @@ func TestPipelineRun(t *testing.T) {
 
 func TestPipelineRunBranches(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
-	item := &testPipelineItem{Merged: new(bool)}
+	item := &testPipelineItem{}
 	pipeline.AddItem(item)
 	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
@@ -254,6 +265,7 @@ func TestPipelineRunBranches(t *testing.T) {
 	assert.Equal(t, item, result[item].(*testPipelineItem))
 	common := result[nil].(*CommonAnalysisResult)
 	assert.Equal(t, common.CommitsNumber, 5)
+	assert.Equal(t, *item.MergeState, 8)
 }
 
 func TestPipelineOnProgress(t *testing.T) {

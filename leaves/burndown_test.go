@@ -16,10 +16,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
 	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
-	file "gopkg.in/src-d/hercules.v4/internal/burndown"
 	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v4/internal/test"
-	)
+)
 
 func TestBurndownMeta(t *testing.T) {
 	burndown := BurndownAnalysis{}
@@ -181,6 +180,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
+	deps[core.DependencyIsMerge] = false
 	result, err = burndown.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -207,16 +207,18 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	// check merge hashes
 	burndown3 := BurndownAnalysis{}
 	burndown3.Initialize(test.Repository)
-	deps[items.DependencyDay] = file.TreeMergeMark
+	deps[identity.DependencyAuthor] = 1
+	deps[core.DependencyIsMerge] = true
 	_, err = burndown3.Consume(deps)
 	assert.Nil(t, err)
+	assert.Equal(t, 1, burndown3.mergedAuthor)
 	assert.True(t, burndown3.mergedFiles["cmd/hercules/main.go"])
 	assert.True(t, burndown3.mergedFiles["analyser.go"], plumbing.ZeroHash)
 	assert.True(t, burndown3.mergedFiles[".travis.yml"], plumbing.ZeroHash)
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	deps[identity.DependencyAuthor] = 1
+	deps[core.DependencyIsMerge] = false
 	deps[items.DependencyDay] = 30
 	cache = map[plumbing.Hash]*object.Blob{}
 	hash = plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
@@ -406,6 +408,7 @@ func TestBurndownSerialize(t *testing.T) {
 	deps[items.DependencyTreeChanges] = changes
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
+	deps[core.DependencyIsMerge] = false
 	fd := fixtures.FileDiff()
 	result, _ := fd.Consume(deps)
 	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]

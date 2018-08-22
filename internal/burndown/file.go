@@ -36,12 +36,15 @@ const TreeMaxBinPower = 14
 const TreeMergeMark = (1 << TreeMaxBinPower) - 1
 
 func (file *File) updateTime(currentTime, previousTime, delta int) {
-	if currentTime & TreeMergeMark == TreeMergeMark {
-		// merge mode
-		return
-	}
 	if previousTime & TreeMergeMark == TreeMergeMark {
-		previousTime = currentTime
+		if currentTime == previousTime {
+			return
+		}
+		panic("previousTime cannot be TreeMergeMark")
+	}
+	if currentTime & TreeMergeMark == TreeMergeMark {
+		// merge mode - `delta` is negative and we have already applied it in a branch
+		return
 	}
 	for _, update := range file.updaters {
 		update(currentTime, previousTime, delta)
@@ -304,16 +307,19 @@ func (file *File) Dump() string {
 // 3. Node keys must monotonically increase and never duplicate.
 func (file *File) Validate() {
 	if file.tree.Min().Item().Key != 0 {
-		panic("the tree must start with key 0")
+		log.Panic("the tree must start with key 0")
 	}
 	if file.tree.Max().Item().Value != TreeEnd {
-		panic(fmt.Sprintf("the last value in the tree must be %d", TreeEnd))
+		log.Panicf("the last value in the tree must be %d", TreeEnd)
 	}
 	prevKey := -1
 	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
 		node := iter.Item()
 		if node.Key == prevKey {
-			panic(fmt.Sprintf("duplicate tree key: %d", node.Key))
+			log.Panicf("duplicate tree key: %d", node.Key)
+		}
+		if node.Value == TreeMergeMark {
+			log.Panicf("unmerged lines left: %d", node.Key)
 		}
 		prevKey = node.Key
 	}
