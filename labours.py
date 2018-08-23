@@ -609,7 +609,10 @@ def apply_plot_style(figure, axes, legend, style, text_size, axes_size):
     for axis in ("x", "y"):
         getattr(axes, axis + "axis").get_offset_text().set_size(text_size)
         axes.tick_params(axis=axis, colors=style, labelsize=text_size)
-    axes.ticklabel_format(axis="y", style="sci", scilimits=(0, 3))
+    try:
+        axes.ticklabel_format(axis="y", style="sci", scilimits=(0, 3))
+    except AttributeError:
+        pass
     if legend is not None:
         frame = legend.get_frame()
         for setter in (frame.set_facecolor, frame.set_edgecolor):
@@ -771,15 +774,16 @@ def plot_churn_matrix(args, repo, people, matrix):
     ax.matshow(matrix, cmap=pyplot.cm.OrRd)
     ax.set_xticks(numpy.arange(0, matrix.shape[1]))
     ax.set_yticks(numpy.arange(0, matrix.shape[0]))
-    ax.set_xticklabels(["Unidentified"] + people, rotation=90, ha="center")
     ax.set_yticklabels(people, va="center")
     ax.set_xticks(numpy.arange(0.5, matrix.shape[1] + 0.5), minor=True)
+    ax.set_xticklabels(["Unidentified"] + people, rotation=45, ha="left",
+                       va="bottom", rotation_mode="anchor")
     ax.set_yticks(numpy.arange(0.5, matrix.shape[0] + 0.5), minor=True)
     ax.grid(which="minor")
     apply_plot_style(fig, ax, None, args.style, args.text_size, args.size)
     if not args.output:
         pos1 = ax.get_position()
-        pos2 = (pos1.x0 + 0.245, pos1.y0 - 0.1, pos1.width * 0.9, pos1.height * 0.9)
+        pos2 = (pos1.x0 + 0.15, pos1.y0 - 0.1, pos1.width * 0.9, pos1.height * 0.9)
         ax.set_position(pos2)
     if args.mode == "all":
         output = get_plot_path(args.output, "matrix")
