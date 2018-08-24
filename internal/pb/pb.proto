@@ -15,6 +15,8 @@ message Metadata {
     int32 commits = 6;
     // duration of the analysis in milliseconds
     int64 run_time = 7;
+    // time taken by each pipeline item in seconds
+    map<string, double> run_time_per_item = 8;
 }
 
 message BurndownSparseMatrixRow {
