@@ -226,7 +226,7 @@ func TestPipelineRun(t *testing.T) {
 	assert.True(t, common.RunTime.Nanoseconds()/1e6 < 100)
 	assert.Len(t, common.RunTimePerItem, 1)
 	for key, val := range common.RunTimePerItem {
-		assert.True(t, val > 0, key)
+		assert.True(t, val >= 0, key)
 	}
 	assert.True(t, item.DepsConsumed)
 	assert.True(t, item.CommitMatches)
