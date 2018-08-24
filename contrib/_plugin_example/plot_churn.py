@@ -59,7 +59,8 @@ def plot_churn(name, data, url, beginTime, endTime, output, fmt, tick_interval):
         spine.set_visible(False)
     pyplot.gca().xaxis.set_major_locator(mdates.DayLocator(interval=tick_interval))
     pyplot.gca().xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-    pyplot.tick_params(top="off", bottom="off", left="off", right="off", labelleft="off", labelbottom="on")
+    pyplot.tick_params(top="off", bottom="off", left="off", right="off",
+                       labelleft="off", labelbottom="on")
     pyplot.bar(df.index, df["additions"], label="additions")
     pyplot.bar(df.index, df["removals"], label="removals")
     pyplot.plot(df.index, effective, "black", label="effective")

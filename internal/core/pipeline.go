@@ -145,14 +145,16 @@ type ResultMergeablePipelineItem interface {
 
 // CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
 type CommonAnalysisResult struct {
-	// Time of the first commit in the analysed sequence.
+	// BeginTime is the time of the first commit in the analysed sequence.
 	BeginTime int64
-	// Time of the last commit in the analysed sequence.
+	// EndTime is the time of the last commit in the analysed sequence.
 	EndTime int64
-	// The number of commits in the analysed sequence.
+	// CommitsNumber is the number of commits in the analysed sequence.
 	CommitsNumber int
-	// The duration of Pipeline.Run().
+	// RunTime is the duration of Pipeline.Run().
 	RunTime time.Duration
+	// RunTimePerItem is the time elapsed by each PipelineItem.
+	RunTimePerItem map[string]float64
 }
 
 // BeginTimeAsTime converts the UNIX timestamp of the beginning to Go time.
@@ -180,6 +182,9 @@ func (car *CommonAnalysisResult) Merge(other *CommonAnalysisResult) {
 	}
 	car.CommitsNumber += other.CommitsNumber
 	car.RunTime += other.RunTime
+	for key, val := range other.RunTimePerItem {
+		car.RunTimePerItem[key] += val
+	}
 }
 
 // FillMetadata copies the data to a Protobuf message.
@@ -188,6 +193,7 @@ func (car *CommonAnalysisResult) FillMetadata(meta *pb.Metadata) *pb.Metadata {
 	meta.EndUnixTime = car.EndTime
 	meta.Commits = int32(car.CommitsNumber)
 	meta.RunTime = car.RunTime.Nanoseconds() / 1e6
+	meta.RunTimePerItem = car.RunTimePerItem
 	return meta
 }
 
@@ -197,10 +203,11 @@ type Metadata = pb.Metadata
 // MetadataToCommonAnalysisResult copies the data from a Protobuf message.
 func MetadataToCommonAnalysisResult(meta *Metadata) *CommonAnalysisResult {
 	return &CommonAnalysisResult{
-		BeginTime:     meta.BeginUnixTime,
-		EndTime:       meta.EndUnixTime,
-		CommitsNumber: int(meta.Commits),
-		RunTime:       time.Duration(meta.RunTime * 1e6),
+		BeginTime:      meta.BeginUnixTime,
+		EndTime:        meta.EndUnixTime,
+		CommitsNumber:  int(meta.Commits),
+		RunTime:        time.Duration(meta.RunTime * 1e6),
+		RunTimePerItem: meta.RunTimePerItem,
 	}
 }
 
@@ -608,6 +615,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	// we will need rootClone if there is more than one root branch
 	rootClone := cloneItems(pipeline.items, 1)[0]
 	var newestTime int64
+	runTimePerItem := map[string]float64{}
 
 	commitIndex := 0
 	for index, step := range plan {
@@ -627,7 +635,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 					plan[index+1].Commit.Hash == step.Commit.Hash),
 			}
 			for _, item := range branches[firstItem] {
+				startTime := time.Now()
 				update, err := item.Consume(state)
+				runTimePerItem[item.Name()] += time.Now().Sub(startTime).Seconds()
 				if err != nil {
 					log.Printf("%s failed on commit #%d (%d) %s\n",
 						item.Name(), commitIndex + 1, index + 1, step.Commit.Hash.String())
@@ -675,10 +685,11 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	}
 	onProgress(progressSteps, progressSteps)
 	result[nil] = &CommonAnalysisResult{
-		BeginTime:     plan[0].Commit.Committer.When.Unix(),
-		EndTime:       newestTime,
-		CommitsNumber: len(commits),
-		RunTime:       time.Since(startRunTime),
+		BeginTime:      plan[0].Commit.Committer.When.Unix(),
+		EndTime:        newestTime,
+		CommitsNumber:  len(commits),
+		RunTime:        time.Since(startRunTime),
+		RunTimePerItem: runTimePerItem,
 	}
 	return result, nil
 }

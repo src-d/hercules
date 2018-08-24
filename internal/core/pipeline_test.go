@@ -224,6 +224,10 @@ func TestPipelineRun(t *testing.T) {
 	assert.Equal(t, common.EndTime, int64(1481719198))
 	assert.Equal(t, common.CommitsNumber, 1)
 	assert.True(t, common.RunTime.Nanoseconds()/1e6 < 100)
+	assert.Len(t, common.RunTimePerItem, 1)
+	for key, val := range common.RunTimePerItem {
+		assert.True(t, val >= 0, key)
+	}
 	assert.True(t, item.DepsConsumed)
 	assert.True(t, item.CommitMatches)
 	assert.True(t, item.IndexMatches)
@@ -405,27 +409,32 @@ func TestPipelineError(t *testing.T) {
 
 func TestCommonAnalysisResultMerge(t *testing.T) {
 	c1 := CommonAnalysisResult{
-		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100}
+		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100,
+	    RunTimePerItem: map[string]float64{"one": 1, "two": 2}}
 	assert.Equal(t, c1.BeginTimeAsTime().Unix(), int64(1513620635))
 	assert.Equal(t, c1.EndTimeAsTime().Unix(), int64(1513720635))
 	c2 := CommonAnalysisResult{
-		BeginTime: 1513620535, EndTime: 1513730635, CommitsNumber: 2, RunTime: 200}
+		BeginTime: 1513620535, EndTime: 1513730635, CommitsNumber: 2, RunTime: 200,
+		RunTimePerItem: map[string]float64{"two": 4, "three": 8}}
 	c1.Merge(&c2)
 	assert.Equal(t, c1.BeginTime, int64(1513620535))
 	assert.Equal(t, c1.EndTime, int64(1513730635))
 	assert.Equal(t, c1.CommitsNumber, 3)
 	assert.Equal(t, c1.RunTime.Nanoseconds(), int64(300))
+	assert.Equal(t, c1.RunTimePerItem, map[string]float64{"one": 1, "two": 6, "three": 8})
 }
 
 func TestCommonAnalysisResultMetadata(t *testing.T) {
 	c1 := &CommonAnalysisResult{
-		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100 * 1e6}
+		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100 * 1e6,
+		RunTimePerItem: map[string]float64{"one": 1, "two": 2}}
 	meta := &pb.Metadata{}
 	c1 = MetadataToCommonAnalysisResult(c1.FillMetadata(meta))
 	assert.Equal(t, c1.BeginTimeAsTime().Unix(), int64(1513620635))
 	assert.Equal(t, c1.EndTimeAsTime().Unix(), int64(1513720635))
 	assert.Equal(t, c1.CommitsNumber, 1)
 	assert.Equal(t, c1.RunTime.Nanoseconds(), int64(100*1e6))
+	assert.Equal(t, c1.RunTimePerItem, map[string]float64{"one": 1, "two": 2})
 }
 
 func TestConfigurationOptionTypeString(t *testing.T) {

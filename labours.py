@@ -24,7 +24,7 @@ import yaml
 
 if sys.version_info[0] < 3:
     # OK, ancients, I will support Python 2, but you owe me a beer
-    input = raw_input
+    input = raw_input  # noqa: F821
 
 
 PB_MESSAGES = {
@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
                         choices=["project", "file", "person", "churn_matrix", "ownership",
-                                 "couples", "shotness", "sentiment", "all"],
+                                 "couples", "shotness", "sentiment", "all", "run_times"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -130,6 +130,9 @@ class YamlReader(Reader):
                   "fix_yaml_unicode.py" % e)
             sys.exit(1)
         self.data = data
+
+    def get_run_times(self):
+        return {}
 
     def get_name(self):
         return self.data["hercules"]["repository"]
@@ -248,6 +251,9 @@ class ProtobufReader(Reader):
             cls = getattr(import_module(mod), name)
             self.contents[key] = msg = cls()
             msg.ParseFromString(val)
+
+    def get_run_times(self):
+        return {key: val for key, val in self.data.header.run_time_per_item.items()}
 
     def get_name(self):
         return self.data.header.repository
@@ -495,6 +501,7 @@ def load_burndown(header, name, matrix, resample):
     print(name, "lifetime index:", calculate_average_lifetime(matrix))
     finish = start + timedelta(days=matrix.shape[1] * sampling)
     if resample not in ("no", "raw"):
+        print("resampling to %s, please wait..." % resample)
         # Interpolate the day x day matrix.
         # Each day brings equal weight in the granularity.
         # Sampling's interpolation is linear.
@@ -641,7 +648,7 @@ def deploy_plot(title, output, style):
             pyplot.title(title, color=style)
         try:
             pyplot.tight_layout()
-        except:
+        except:  # noqa: E722
             print("Warning: failed to set the tight layout")
         pyplot.savefig(output, transparent=True)
     pyplot.clf()
@@ -831,6 +838,7 @@ def plot_ownership(args, repo, names, people, date_range, last):
         output = args.output
     deploy_plot("%s code ownership through time" % repo, output, args.style)
 
+
 IDEAL_SHARD_SIZE = 4096
 
 
@@ -965,7 +973,7 @@ class CORSWebServer(object):
 
         try:
             from http.server import HTTPServer, SimpleHTTPRequestHandler, test
-        except ImportError: # Python 2
+        except ImportError:  # Python 2
             from BaseHTTPServer import HTTPServer, test
             from SimpleHTTPServer import SimpleHTTPRequestHandler
 
@@ -974,9 +982,8 @@ class CORSWebServer(object):
                 HTTPServer.__init__(self, *args, **kwargs)
                 outer.server = self
 
-
         class CORSRequestHandler(SimpleHTTPRequestHandler):
-            def end_headers (self):
+            def end_headers(self):
                 self.send_header("Access-Control-Allow-Origin", "*")
                 SimpleHTTPRequestHandler.end_headers(self)
 
@@ -1118,7 +1125,6 @@ def show_sentiment_stats(args, name, resample, start, data):
     overall_neg = sum(2 * (d[1].Value - 0.5) for d in data if d[1].Value > 0.5)
     title = "%s sentiment +%.1f -%.1f δ=%.1f" % (
         name, overall_pos, overall_neg, overall_pos - overall_neg)
-    output = args.output
     deploy_plot(title, args.output, args.style)
 
 
@@ -1139,6 +1145,11 @@ def main():
     shotness_warning = "Structural hotness stats were not collected. Re-run hercules with " \
                        "--shotness. Also check --languages - the output may be empty."
     sentiment_warning = "Sentiment stats were not collected. Re-run hercules with --sentiment."
+
+    def run_times():
+        rt = reader.get_run_times()
+        import pandas
+        print(pandas.to_timedelta(pandas.Series(rt).sort_values(ascending=False), unit="s"))
 
     def project_burndown():
         try:
@@ -1224,7 +1235,9 @@ def main():
             return
         show_sentiment_stats(args, reader.get_name(), args.resample, reader.get_header()[0], data)
 
-    if args.mode == "project":
+    if args.mode == "run_times":
+        run_times()
+    elif args.mode == "project":
         project_burndown()
     elif args.mode == "file":
         files_burndown()
@@ -1259,6 +1272,7 @@ def main():
         except KeyboardInterrupt:
             pass
         web_server.stop()
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -254,16 +254,12 @@ func (file *File) Merge(day int, others... *File) {
 			if ol & TreeMergeMark == TreeMergeMark {
 				continue
 			}
-			// the following should happen rarely:
-			// l & TreeMergeMark != TreeMergeMark && l != ol
-			if l & TreeMergeMark == TreeMergeMark || l > ol {
-				// 1 - the line is merged in myself and exists in other
-				// 2 - the same line introduced in different branches,
-				// consider the oldest version as the ground truth
-				//
-				// in case with (2) we should decrease the "future" counter,
-				// but that really poisons the analysis
+			if l & TreeMergeMark == TreeMergeMark || l & TreeMergeMark > ol & TreeMergeMark {
+				// the line is merged in myself and exists in other
+				// OR the same line introduced in different branches
+				// consider the oldest version as the ground truth in that case
 				myself[i] = ol
+				continue
 			}
 		}
 	}
