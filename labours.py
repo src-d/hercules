@@ -495,6 +495,7 @@ def load_burndown(header, name, matrix, resample):
     print(name, "lifetime index:", calculate_average_lifetime(matrix))
     finish = start + timedelta(days=matrix.shape[1] * sampling)
     if resample not in ("no", "raw"):
+        print("resampling to %s, please wait..." % resample)
         # Interpolate the day x day matrix.
         # Each day brings equal weight in the granularity.
         # Sampling's interpolation is linear.
