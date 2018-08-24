@@ -24,7 +24,7 @@ import yaml
 
 if sys.version_info[0] < 3:
     # OK, ancients, I will support Python 2, but you owe me a beer
-    input = raw_input
+    input = raw_input  # noqa: F821
 
 
 PB_MESSAGES = {
@@ -648,7 +648,7 @@ def deploy_plot(title, output, style):
             pyplot.title(title, color=style)
         try:
             pyplot.tight_layout()
-        except:
+        except:  # noqa: E722
             print("Warning: failed to set the tight layout")
         pyplot.savefig(output, transparent=True)
     pyplot.clf()
@@ -838,6 +838,7 @@ def plot_ownership(args, repo, names, people, date_range, last):
         output = args.output
     deploy_plot("%s code ownership through time" % repo, output, args.style)
 
+
 IDEAL_SHARD_SIZE = 4096
 
 
@@ -972,7 +973,7 @@ class CORSWebServer(object):
 
         try:
             from http.server import HTTPServer, SimpleHTTPRequestHandler, test
-        except ImportError: # Python 2
+        except ImportError:  # Python 2
             from BaseHTTPServer import HTTPServer, test
             from SimpleHTTPServer import SimpleHTTPRequestHandler
 
@@ -981,9 +982,8 @@ class CORSWebServer(object):
                 HTTPServer.__init__(self, *args, **kwargs)
                 outer.server = self
 
-
         class CORSRequestHandler(SimpleHTTPRequestHandler):
-            def end_headers (self):
+            def end_headers(self):
                 self.send_header("Access-Control-Allow-Origin", "*")
                 SimpleHTTPRequestHandler.end_headers(self)
 
