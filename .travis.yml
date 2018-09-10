@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial
 
 git:
   depth: 9999999
@@ -10,17 +10,14 @@ services:
 
 addons:
   apt:
-    sources:
-    - ubuntu-toolchain-r-test
     packages:
     - libxml2-dev
-    - gcc-6
-    - g++-6
 
 go_import_path: gopkg.in/src-d/hercules.v4
 go:
   - 1.9.x
   - 1.10.x
+  - 1.11.x
   - tip
 cache:
   directories:
@@ -34,22 +31,21 @@ matrix:
   fast_finish: true
   allow_failures:
     - go: tip
+    - go: 1.11.x
 
 stages:
   - test
   - deploy
 
 env:
-  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.8.0
+  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.8.0 GOGIT_TAG=v4.7.0
 
 before_install:
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v github.com/golang/lint/golint
   - rm -rf $GOPATH/src/gopkg.in/src-d/go-git.v4
-  - git clone --depth 1 https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
+  - git clone --depth 1 --single-branch --branch $GOGIT_TAG https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user && rm get-pip.py
   - export PATH=~/usr/bin:$PATH
   - make --version
@@ -81,15 +77,14 @@ script:
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
   - $GOPATH/bin/hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules
   - set +e
-after_success:
-  - bash <(curl -s https://codecov.io/bash)
+  - if [[ $TRAVIS_GO_VERSION = 1.10.* ]]; then bash <(curl -s https://codecov.io/bash); fi
 
 jobs:
   include:
     - stage: deploy
       os: osx
       osx_image: xcode9.3
-      go: 1.10.x
+      go: 1.11.x
       go_import_path: gopkg.in/src-d/hercules.v4
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
@@ -109,11 +104,9 @@ jobs:
           tags: true
     - stage: deploy
       os: linux
-      go: 1.10.x
+      go: 1.11.x
       go_import_path: gopkg.in/src-d/hercules.v4
       before_install:
-        - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
-        - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 90
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
       script: skip

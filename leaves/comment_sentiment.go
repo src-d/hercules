@@ -180,7 +180,7 @@ func (sent *CommentSentimentAnalysis) Finalize() interface{} {
 		days = append(days, day)
 	}
 	sort.Ints(days)
-	texts := []string{}
+	var texts []string
 	for _, key := range days {
 		texts = append(texts, sent.commentsByDay[key]...)
 	}
@@ -290,7 +290,7 @@ func (sent *CommentSentimentAnalysis) serializeBinary(
 }
 
 func (sent *CommentSentimentAnalysis) mergeComments(nodes []*uast.Node) []string {
-	mergedComments := []string{}
+	var mergedComments []string
 	lines := map[int][]*uast.Node{}
 	for _, node := range nodes {
 		if node.StartPosition == nil {
