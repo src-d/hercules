@@ -362,8 +362,11 @@ def calculate_average_lifetime(matrix):
                 continue
             lifetimes[i - start] = band[i - 1] - line
         lifetimes[i - start] = band[i - 1]
-    return (lifetimes.dot(numpy.arange(1, matrix.shape[1], 1))
-            / (lifetimes.sum() * matrix.shape[1]))
+    lsum = lifetimes.sum()
+    if lsum != 0:
+        return (lifetimes.dot(numpy.arange(1, matrix.shape[1], 1))
+                / (lsum * matrix.shape[1]))
+    return numpy.nan
 
 
 def interpolate_burndown_matrix(matrix, granularity, sampling):
