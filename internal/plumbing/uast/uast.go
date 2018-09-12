@@ -510,6 +510,11 @@ func (saver *ChangesSaver) Flag() string {
 	return "dump-uast-changes"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func (saver *ChangesSaver) Description() string {
+	return "Saves UASTs and file contents on disk for each commit."
+}
+
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (saver *ChangesSaver) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigUASTChangesSaverOutputPath]; exists {

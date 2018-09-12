@@ -221,6 +221,12 @@ func (analyser *BurndownAnalysis) Flag() string {
 	return "burndown"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func (analyser *BurndownAnalysis) Description() string {
+	return "Line burndown stats indicate the numbers of lines which were last edited within " +
+		"specific time intervals through time. Search for \"git-of-theseus\" in the internet."
+}
+
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {

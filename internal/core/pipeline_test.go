@@ -59,6 +59,10 @@ func (item *testPipelineItem) Flag() string {
 	return "mytest"
 }
 
+func (item *testPipelineItem) Description() string {
+	return "description!"
+}
+
 func (item *testPipelineItem) Features() []string {
 	f := [...]string{"power"}
 	return f[:]
@@ -154,6 +158,10 @@ func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) {
 
 func (item *dependingTestPipelineItem) Flag() string {
 	return "depflag"
+}
+
+func (item *dependingTestPipelineItem) Description() string {
+	return "another description"
 }
 
 func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {

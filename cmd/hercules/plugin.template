@@ -74,6 +74,11 @@ func ({{.varname}} *{{.name}}) Flag() string {
   return "{{.flag}}"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func ({{.varname}} *{{.name}}) Description() string {
+  return "TODO: explain what this analysis is doing."
+}
+
 // Configure applies the parameters specified in the command line. Map keys correspond to "Name".
 func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) {
 }
