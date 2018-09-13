@@ -94,6 +94,13 @@ func (couples *CouplesAnalysis) Flag() string {
 	return "couples"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func (couples *CouplesAnalysis) Description() string {
+	return "The result is a square matrix, the value in each cell corresponds to the number " +
+		"of times the pair of files appeared in the same commit or pair of developers " +
+		"committed to the same file."
+}
+
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {

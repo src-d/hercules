@@ -126,8 +126,12 @@ type FeaturedPipelineItem interface {
 // LeafPipelineItem corresponds to the top level pipeline items which produce the end results.
 type LeafPipelineItem interface {
 	PipelineItem
-	// Flag returns the cmdline name of the item.
+	// Flag returns the cmdline switch to run the analysis. Should be dash-lower-case
+	// without the leading dashes.
 	Flag() string
+	// Description returns the text which explains what the analysis is doing.
+	// Should start with a capital letter and end with a dot.
+	Description() string
 	// Finalize returns the result of the analysis.
 	Finalize() interface{}
 	// Serialize encodes the object returned by Finalize() to YAML or Protocol Buffers.

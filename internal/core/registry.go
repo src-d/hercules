@@ -206,7 +206,7 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 		iface = interface{}(true)
 		ptr2 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
 		*ptr2 = flagSet.Bool("dry-run", false, "Do not run any analyses - only resolve the DAG. "+
-			"Useful for -dump-dag.")
+			"Useful for --dump-dag.")
 		flags[ConfigPipelineDryRun] = iface
 	}
 	features := []string{}

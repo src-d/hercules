@@ -16,13 +16,14 @@ import (
 	_ "unsafe" // for go:linkname
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/Masterminds/sprig"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
 	progress "gopkg.in/cheggaaa/pb.v1"
+	"gopkg.in/src-d/go-billy-siva.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
 	"gopkg.in/src-d/go-billy.v4/osfs"
-	"gopkg.in/src-d/go-billy-siva.v4"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage"
@@ -326,6 +327,7 @@ func formatUsage(c *cobra.Command) error {
 		"plumbing": plumbing,
 		"features": features,
 	}
+	cobra.AddTemplateFuncs(sprig.TxtFuncMap())
 
 	template := `Usage:{{if .c.Runnable}}
   {{.c.UseLine}}{{end}}{{if .c.HasAvailableSubCommands}}
@@ -341,17 +343,34 @@ Available Commands:{{range .c.Commands}}{{if (or .IsAvailableCommand (eq .Name "
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .c.HasAvailableLocalFlags}}
 
 Flags:
-{{.c.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}
+{{range $line := .c.LocalFlags.FlagUsages | trimTrailingWhitespaces | split "\n"}}
+{{- $desc := splitList "   " $line | last}}
+{{- $offset := sub ($desc | len) ($desc | trim | len)}}
+{{- $indent := splitList "   " $line | initial | join "   " | len | add 3 | add $offset | int}}
+{{- $wrap := sub 120 $indent | int}}
+{{- splitList "   " $line | initial | join "   "}}   {{cat "!" $desc | wrap $wrap | indent $indent | substr $indent -1 | substr 2 -1}}
+{{end}}{{end}}
 
 Analysis Targets:{{range .leaves}}
-      --{{rpad .Flag 40 }}Runs {{.Name}} analysis.{{range .ListConfigurationOptions}}
-          --{{if .Type.String}}{{rpad (print .Flag " " .Type.String) 40}}{{else}}{{rpad .Flag 40}}{{end}}{{.Description}}{{if .Default}} The default value is {{.FormatDefault}}.{{end}}{{end}}{{end}}
+      --{{rpad .Flag 40}}Runs {{.Name}} analysis.{{wrap 72 .Description | nindent 48}}{{range .ListConfigurationOptions}}
+          --{{if .Type.String}}{{rpad (print .Flag " " .Type.String) 40}}{{else}}{{rpad .Flag 40}}{{end}}
+          {{- $desc := dict "desc" .Description}}
+          {{- if .Default}}{{$_ := set $desc "desc" (print .Description " The default value is " .FormatDefault ".")}}
+          {{- end}}
+          {{- $desc := pluck "desc" $desc | first}}
+          {{- $desc | wrap 68 | indent 52 | substr 52 -1}}{{end}}
+{{end}}
 
 Plumbing Options:{{range .plumbing}}{{$name := .Name}}{{range .ListConfigurationOptions}}
-      --{{if .Type.String}}{{rpad (print .Flag " " .Type.String " [" $name "]") 40}}{{else}}{{rpad (print .Flag " [" $name "]") 40}}{{end}}{{.Description}}{{if .Default}} The default value is {{.FormatDefault}}.{{end}}{{end}}{{end}}
+      --{{if .Type.String}}{{rpad (print .Flag " " .Type.String " [" $name "]") 40}}{{else}}{{rpad (print .Flag " [" $name "]") 40}}
+        {{- end}}
+        {{- $desc := dict "desc" .Description}}
+        {{- if .Default}}{{$_ := set $desc "desc" (print .Description " The default value is " .FormatDefault ".")}}
+        {{- end}}
+        {{- $desc := pluck "desc" $desc | first}}{{$desc | wrap 72 | indent 48 | substr 48 -1}}{{end}}{{end}}
 
 --feature:{{range $key, $value := .features}}
-      {{rpad $key 40}}Enables {{range $index, $item := $value}}{{if $index}}, {{end}}{{$item.Name}}{{end}}.{{end}}{{if .c.HasAvailableInheritedFlags}}
+      {{rpad $key 42}}Enables {{range $index, $item := $value}}{{if $index}}, {{end}}{{$item.Name}}{{end}}.{{end}}{{if .c.HasAvailableInheritedFlags}}
 
 Global Flags:
 {{.c.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .c.HasHelpSubCommands}}

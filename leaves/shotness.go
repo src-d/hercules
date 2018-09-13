@@ -121,6 +121,14 @@ func (shotness *ShotnessAnalysis) Flag() string {
 	return "shotness"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func (shotness *ShotnessAnalysis) Description() string {
+	return "Structural hotness - the granular alternative to --couples. " +
+		"Given an XPath over UASTs - selecting functions by default - we build the square " +
+		"co-occurrence matrix. The value in each cell equals to the number of times the pair " +
+		"of selected UAST units appeared in the same commit."
+}
+
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigShotnessXpathStruct]; exists {

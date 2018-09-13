@@ -112,6 +112,13 @@ func (sent *CommentSentimentAnalysis) Flag() string {
 	return "sentiment"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func (sent *CommentSentimentAnalysis) Description() string {
+	return "Classifies each new or changed comment per commit as containing positive or " +
+		"negative emotions. The classifier outputs a real number between 0 and 1," +
+		"1 is the most positive and 0 is the most negative."
+}
+
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigCommentSentimentGap]; exists {

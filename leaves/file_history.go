@@ -59,6 +59,11 @@ func (history *FileHistory) Flag() string {
 	return "file-history"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func (history *FileHistory) Description() string {
+	return "Each file path is mapped to the list of commits which involve that file."
+}
+
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (history *FileHistory) Configure(facts map[string]interface{}) {
 }

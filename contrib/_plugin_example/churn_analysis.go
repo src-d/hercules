@@ -98,6 +98,11 @@ func (churn *ChurnAnalysis) Flag() string {
 	return "churn"
 }
 
+// Description returns the text which explains what the analysis is doing.
+func (churn *ChurnAnalysis) Description() string {
+	return "Collects the daily numbers of inserted and removed lines."
+}
+
 // Configure applies the parameters specified in the command line. Map keys correspond to "Name".
 func (churn *ChurnAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigChurnTrackPeople].(bool); exists {
