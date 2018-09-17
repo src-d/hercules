@@ -25,7 +25,7 @@ func TestTreeDiffMeta(t *testing.T) {
 	assert.Equal(t, len(td.Provides()), 1)
 	assert.Equal(t, td.Provides()[0], DependencyTreeChanges)
 	opts := td.ListConfigurationOptions()
-	assert.Len(t, opts, 2)
+	assert.Len(t, opts, 3)
 }
 
 func TestTreeDiffRegistration(t *testing.T) {
@@ -115,6 +115,7 @@ func TestTreeDiffBadCommit(t *testing.T) {
 func TestTreeDiffConsumeSkip(t *testing.T) {
 	// consume without skiping
 	td := fixtureTreeDiff()
+	assert.Contains(t, td.Languages, allLanguages)
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"aefdedf7cafa6ee110bae9a3910bf5088fdeb5a9"))
 	deps := map[string]interface{}{}
@@ -140,6 +141,47 @@ func TestTreeDiffConsumeSkip(t *testing.T) {
 	assert.Equal(t, len(res), 1)
 	changes = res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, 31, len(changes))
+}
+
+func TestTreeDiffConsumeLanguageFilterFirst(t *testing.T) {
+	td := fixtureTreeDiff()
+	td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: "Go"})
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
+		"fbe766ffdc3f87f6affddc051c6f8b419beea6a2"))
+	deps := map[string]interface{}{}
+	deps[core.DependencyCommit] = commit
+	res, err := td.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res), 1)
+	changes := res[DependencyTreeChanges].(object.Changes)
+	assert.Equal(t, len(changes), 6)
+	assert.Equal(t, changes[0].To.Name, "analyser.go")
+	assert.Equal(t, changes[1].To.Name, "cmd/hercules/main.go")
+	assert.Equal(t, changes[2].To.Name, "doc.go")
+	assert.Equal(t, changes[3].To.Name, "file.go")
+	assert.Equal(t, changes[4].To.Name, "file_test.go")
+	assert.Equal(t, changes[5].To.Name, "rbtree.go")
+}
+
+func TestTreeDiffConsumeLanguageFilter(t *testing.T) {
+	td := fixtureTreeDiff()
+	td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: "Python"})
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
+		"e89c1d10fb31e32668ad905eb59dc44d7a4a021e"))
+	deps := map[string]interface{}{}
+	deps[core.DependencyCommit] = commit
+	res, err := td.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res), 1)
+	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
+		"fbe766ffdc3f87f6affddc051c6f8b419beea6a2"))
+	deps[core.DependencyCommit] = commit
+	res, err = td.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res), 1)
+	changes := res[DependencyTreeChanges].(object.Changes)
+	assert.Equal(t, len(changes), 1)
+	assert.Equal(t, changes[0].To.Name, "labours.py")
 }
 
 func TestTreeDiffFork(t *testing.T) {

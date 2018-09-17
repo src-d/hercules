@@ -19,7 +19,6 @@ import (
 	"gopkg.in/bblfsh/client-go.v2"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/uast"
-	"gopkg.in/src-d/enry.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -37,7 +36,6 @@ type Extractor struct {
 	Endpoint       string
 	Context        func() (context.Context, context.CancelFunc)
 	PoolSize       int
-	Languages      map[string]bool
 	FailOnErrors   bool
 	ProcessedFiles map[string]int
 
@@ -60,11 +58,6 @@ const (
 	// ConfigUASTFailOnErrors is the name of the configuration option (Extractor.Configure())
 	// which enables early exit in case of any Babelfish UAST parsing errors.
 	ConfigUASTFailOnErrors = "ConfigUASTFailOnErrors"
-	// ConfigUASTLanguages is the name of the configuration option (Extractor.Configure())
-	// which sets the list of languages to parse. Language names are at
-	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
-	ConfigUASTLanguages = "ConfigUASTLanguages"
-
 	// FeatureUast is the name of the Pipeline feature which activates all the items related to UAST.
 	FeatureUast = "uast"
 	// DependencyUasts is the name of the dependency provided by Extractor.
@@ -140,12 +133,7 @@ func (exr *Extractor) ListConfigurationOptions() []core.ConfigurationOption {
 		Description: "Panic if there is a UAST extraction error.",
 		Flag:        "bblfsh-fail-on-error",
 		Type:        core.BoolConfigurationOption,
-		Default:     false}, {
-		Name:        ConfigUASTLanguages,
-		Description: "Programming languages from which to extract UASTs. Separated by comma \",\".",
-		Flag:        "languages",
-		Type:        core.StringConfigurationOption,
-		Default:     "Python,Java,Go,JavaScript,Ruby,PHP"},
+		Default:     false},
 	}
 	return options[:]
 }
@@ -163,12 +151,6 @@ func (exr *Extractor) Configure(facts map[string]interface{}) {
 	}
 	if val, exists := facts[ConfigUASTPoolSize].(int); exists {
 		exr.PoolSize = val
-	}
-	if val, exists := facts[ConfigUASTLanguages].(string); exists {
-		exr.Languages = map[string]bool{}
-		for _, lang := range strings.Split(val, ",") {
-			exr.Languages[strings.TrimSpace(lang)] = true
-		}
 	}
 	if val, exists := facts[ConfigUASTFailOnErrors].(bool); exists {
 		exr.FailOnErrors = val
@@ -210,9 +192,6 @@ func (exr *Extractor) Initialize(repository *git.Repository) {
 		panic("UAST goroutine pool was not created")
 	}
 	exr.ProcessedFiles = map[string]int{}
-	if exr.Languages == nil {
-		exr.Languages = map[string]bool{}
-	}
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -235,15 +214,9 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 				return
 			}
 			defer ioutil.CheckClose(reader, &err)
-
 			buf := new(bytes.Buffer)
 			if _, err := buf.ReadFrom(reader); err != nil {
 				errs = append(errs, err)
-				return
-			}
-			lang := enry.GetLanguage(change.To.Name, buf.Bytes())
-			if _, exists := exr.Languages[lang]; !exists {
-				exr.ProcessedFiles[change.To.Name] = uastExtractionSkipped
 				return
 			}
 			exr.ProcessedFiles[change.To.Name]++

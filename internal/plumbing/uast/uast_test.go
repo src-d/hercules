@@ -25,7 +25,6 @@ import (
 func fixtureUASTExtractor() *Extractor {
 	exr := Extractor{Endpoint: "0.0.0.0:9432"}
 	exr.Initialize(test.Repository)
-	exr.Languages["Python"] = true
 	return &exr
 }
 
@@ -38,12 +37,11 @@ func TestUASTExtractorMeta(t *testing.T) {
 	assert.Equal(t, exr.Requires()[0], items.DependencyTreeChanges)
 	assert.Equal(t, exr.Requires()[1], items.DependencyBlobCache)
 	opts := exr.ListConfigurationOptions()
-	assert.Len(t, opts, 5)
+	assert.Len(t, opts, 4)
 	assert.Equal(t, opts[0].Name, ConfigUASTEndpoint)
 	assert.Equal(t, opts[1].Name, ConfigUASTTimeout)
 	assert.Equal(t, opts[2].Name, ConfigUASTPoolSize)
 	assert.Equal(t, opts[3].Name, ConfigUASTFailOnErrors)
-	assert.Equal(t, opts[4].Name, ConfigUASTLanguages)
 	feats := exr.Features()
 	assert.Len(t, feats, 1)
 	assert.Equal(t, feats[0], FeatureUast)
@@ -56,15 +54,11 @@ func TestUASTExtractorConfiguration(t *testing.T) {
 	facts[ConfigUASTEndpoint] = "localhost:9432"
 	facts[ConfigUASTTimeout] = 15
 	facts[ConfigUASTPoolSize] = 7
-	facts[ConfigUASTLanguages] = "C, Go"
 	facts[ConfigUASTFailOnErrors] = true
 	exr.Configure(facts)
 	assert.Equal(t, exr.Endpoint, facts[ConfigUASTEndpoint])
 	assert.NotNil(t, exr.Context)
 	assert.Equal(t, exr.PoolSize, facts[ConfigUASTPoolSize])
-	assert.True(t, exr.Languages["C"])
-	assert.True(t, exr.Languages["Go"])
-	assert.False(t, exr.Languages["Python"])
 	assert.Equal(t, exr.FailOnErrors, true)
 }
 
@@ -79,7 +73,7 @@ func TestUASTExtractorRegistration(t *testing.T) {
 
 func TestUASTExtractorConsume(t *testing.T) {
 	exr := fixtureUASTExtractor()
-	changes := make(object.Changes, 2)
+	changes := make(object.Changes, 3)
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
@@ -113,31 +107,39 @@ func TestUASTExtractorConsume(t *testing.T) {
 		},
 	},
 	}
+	changes[2] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: "linux.png",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "linux.png",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("81f2b6d1fa5357f90e9dead150cd515720897545"),
+		},
+	},
+	}
 	cache := map[plumbing.Hash]*object.Blob{}
-	hash := plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = test.Repository.BlobObject(hash)
+	for _, hash := range []string{
+		"baa64828831d174f40140e4b3cfa77d1e917a2c1",
+		"5d78f57d732aed825764347ec6f3ab74d50d0619",
+		"c29112dbd697ad9b401333b80c18a63951bc18d9",
+		"f7d918ec500e2f925ecde79b51cc007bac27de72",
+		"81f2b6d1fa5357f90e9dead150cd515720897545",
+	} {
+		cache[plumbing.NewHash(hash)], _ = test.Repository.BlobObject(plumbing.NewHash(hash))
+	}
 	deps := map[string]interface{}{}
 	deps[items.DependencyBlobCache] = cache
 	deps[items.DependencyTreeChanges] = changes
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(
 		plumbing.NewHash("2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	res, err := exr.Consume(deps)
-	// Language not enabled
-	assert.Len(t, res[DependencyUasts], 0)
+	assert.Len(t, res[DependencyUasts], 1)
 	assert.Nil(t, err)
-	exr.Languages["Go3000"] = true
 	res, err = exr.Consume(deps)
-	// No Go driver
-	assert.Len(t, res[DependencyUasts], 0)
+	assert.Len(t, res[DependencyUasts], 1)
 	assert.Nil(t, err)
 
-	hash = plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619")
+	hash := plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619")
 	changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
 		Name: "labours.py",
 		Tree: treeTo,
@@ -148,6 +150,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 		},
 	},
 	}
+	deps[items.DependencyTreeChanges] = changes[:2]
 
 	res, err = exr.Consume(deps)
 	assert.Nil(t, err)
@@ -201,7 +204,7 @@ func TestUASTChangesRegistration(t *testing.T) {
 }
 
 func TestUASTChangesConsume(t *testing.T) {
-	uastsArray := []*uast.Node{}
+	var uastsArray []*uast.Node
 	uasts := map[plumbing.Hash]*uast.Node{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	uasts[hash] = &uast.Node{}
@@ -304,6 +307,7 @@ func fixtureUASTChangesSaver() *ChangesSaver {
 func TestUASTChangesSaverMeta(t *testing.T) {
 	chs := fixtureUASTChangesSaver()
 	assert.Equal(t, chs.Name(), "UASTChangesSaver")
+	assert.True(t, len(chs.Description()) > 0)
 	assert.Equal(t, len(chs.Provides()), 0)
 	assert.Equal(t, len(chs.Requires()), 1)
 	assert.Equal(t, chs.Requires()[0], DependencyUastChanges)
