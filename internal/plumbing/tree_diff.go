@@ -1,6 +1,8 @@
 package plumbing
 
 import (
+	"fmt"
+	"gopkg.in/src-d/enry.v1"
 	"io"
 	"log"
 	"strings"
@@ -18,8 +20,11 @@ import (
 type TreeDiff struct {
 	core.NoopMerger
 	SkipDirs     []string
+	Languages    map[string]bool
+
 	previousTree *object.Tree
 	previousCommit plumbing.Hash
+	repository *git.Repository
 }
 
 const (
@@ -31,6 +36,13 @@ const (
 	// ConfigTreeDiffBlacklistedDirs s the name of the configuration option
 	// (TreeDiff.Configure()) which allows to set blacklisted directories.
 	ConfigTreeDiffBlacklistedDirs = "TreeDiff.BlacklistedDirs"
+	// ConfigTreeDiffLanguages is the name of the configuration option (TreeDiff.Configure())
+	// which sets the list of programming languages to analyze. Language names are at
+	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
+	// "all" is the special name which disables this filter.
+	ConfigTreeDiffLanguages = "TreeDiff.Languages"
+	// allLanguages denotes passing all files in.
+	allLanguages = "all"
 )
 
 var defaultBlacklistedDirs = []string{"vendor/", "vendors/", "node_modules/"}
@@ -67,7 +79,15 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Description: "List of blacklisted directories. Separated by comma \",\".",
 		Flag:        "blacklisted-dirs",
 		Type:        core.StringsConfigurationOption,
-		Default:     defaultBlacklistedDirs},
+		Default:     defaultBlacklistedDirs}, {
+		Name:        ConfigTreeDiffLanguages,
+		Description: fmt.Sprintf(
+			"List of programming languages to analyze. Separated by comma \",\". " +
+			"Names are at https://doc.bblf.sh/languages.html \"%s\" is the special name " +
+			"which disables this filter and lets all the files through.", allLanguages),
+		Flag:        "languages",
+		Type:        core.StringsConfigurationOption,
+		Default:     []string{allLanguages}},
 	}
 	return options[:]
 }
@@ -77,12 +97,26 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 	if val, exist := facts[ConfigTreeDiffEnableBlacklist]; exist && val.(bool) {
 		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedDirs].([]string)
 	}
+	if val, exists := facts[ConfigTreeDiffLanguages].(string); exists {
+		treediff.Languages = map[string]bool{}
+		for _, lang := range strings.Split(val, ",") {
+			treediff.Languages[strings.TrimSpace(lang)] = true
+		}
+	} else if treediff.Languages == nil {
+		treediff.Languages = map[string]bool{}
+		treediff.Languages[allLanguages] = true
+	}
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (treediff *TreeDiff) Initialize(repository *git.Repository) {
 	treediff.previousTree = nil
+	treediff.repository = repository
+	if treediff.Languages == nil {
+		treediff.Languages = map[string]bool{}
+		treediff.Languages[allLanguages] = true
+	}
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -124,6 +158,13 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 					}
 					return err
 				}
+				pass, err := treediff.checkLanguage(file.Name, file.Hash)
+				if err != nil {
+					return err
+				}
+				if !pass {
+					continue
+				}
 				diff = append(diff, &object.Change{
 					To: object.ChangeEntry{Name: file.Name, Tree: tree, TreeEntry: object.TreeEntry{
 						Name: file.Name, Mode: file.Mode, Hash: file.Hash}}})
@@ -137,27 +178,57 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 	treediff.previousTree = tree
 	treediff.previousCommit = commit.Hash
 
-	if len(treediff.SkipDirs) > 0 {
-		// filter without allocation
-		filteredDiff := make([]*object.Change, 0, len(diff))
-	OUTER:
-		for _, change := range diff {
-			for _, dir := range treediff.SkipDirs {
-				if strings.HasPrefix(change.To.Name, dir) || strings.HasPrefix(change.From.Name, dir) {
-					continue OUTER
-				}
+	// filter without allocation
+	filteredDiff := make([]*object.Change, 0, len(diff))
+OUTER:
+	for _, change := range diff {
+		for _, dir := range treediff.SkipDirs {
+			if strings.HasPrefix(change.To.Name, dir) || strings.HasPrefix(change.From.Name, dir) {
+				continue OUTER
 			}
-			filteredDiff = append(filteredDiff, change)
 		}
-
-		diff = filteredDiff
+		var changeEntry object.ChangeEntry
+		if change.To.Tree == nil {
+			changeEntry = change.From
+		} else {
+			changeEntry = change.To
+		}
+		pass, _ := treediff.checkLanguage(changeEntry.Name, changeEntry.TreeEntry.Hash)
+		if !pass {
+			continue
+		}
+		filteredDiff = append(filteredDiff, change)
 	}
+
+	diff = filteredDiff
 	return map[string]interface{}{DependencyTreeChanges: diff}, nil
 }
 
 // Fork clones this PipelineItem.
 func (treediff *TreeDiff) Fork(n int) []core.PipelineItem {
 	return core.ForkCopyPipelineItem(treediff, n)
+}
+
+// checkLanguage returns whether the blob corresponds to the list of required languages.
+func (treediff *TreeDiff) checkLanguage(name string, blobHash plumbing.Hash) (bool, error) {
+	if treediff.Languages[allLanguages] {
+		return true, nil
+	}
+	blob, err := treediff.repository.BlobObject(blobHash)
+	if err != nil {
+		return false, err
+	}
+	reader, err := blob.Reader()
+	if err != nil {
+		return false, err
+	}
+	buffer := make([]byte, 1024)
+	_, err = reader.Read(buffer)
+	if err != nil {
+		return false, err
+	}
+	lang := enry.GetLanguage(name, buffer)
+	return treediff.Languages[lang], nil
 }
 
 func init() {
