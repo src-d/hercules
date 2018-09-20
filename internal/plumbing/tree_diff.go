@@ -45,7 +45,7 @@ const (
 	allLanguages = "all"
 )
 
-var defaultBlacklistedDirs = []string{"vendor/", "vendors/", "node_modules/"}
+var defaultBlacklistedDirs = []string{"vendor/", "vendors/", "node_modules/", "package-lock.json"}
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (treediff *TreeDiff) Name() string {
