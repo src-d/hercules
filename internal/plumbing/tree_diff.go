@@ -33,9 +33,10 @@ const (
 	// ConfigTreeDiffEnableBlacklist is the name of the configuration option
 	// (TreeDiff.Configure()) which allows to skip blacklisted directories.
 	ConfigTreeDiffEnableBlacklist = "TreeDiff.EnableBlacklist"
-	// ConfigTreeDiffBlacklistedDirs s the name of the configuration option
-	// (TreeDiff.Configure()) which allows to set blacklisted directories.
-	ConfigTreeDiffBlacklistedDirs = "TreeDiff.BlacklistedDirs"
+	// ConfigTreeDiffBlacklistedPrefixes s the name of the configuration option
+	// (TreeDiff.Configure()) which allows to set blacklisted path prefixes -
+	// directories or complete file names.
+	ConfigTreeDiffBlacklistedPrefixes = "TreeDiff.BlacklistedPrefixes"
 	// ConfigTreeDiffLanguages is the name of the configuration option (TreeDiff.Configure())
 	// which sets the list of programming languages to analyze. Language names are at
 	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
@@ -45,7 +46,13 @@ const (
 	allLanguages = "all"
 )
 
-var defaultBlacklistedDirs = []string{"vendor/", "vendors/", "node_modules/", "package-lock.json"}
+// defaultBlacklistedPrefixes is the list of file path prefixes which should be skipped by default.
+var defaultBlacklistedPrefixes = []string{
+	"vendor/",
+	"vendors/",
+	"node_modules/",
+	"package-lock.json",
+}
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (treediff *TreeDiff) Name() string {
@@ -75,11 +82,13 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Flag:        "skip-blacklist",
 		Type:        core.BoolConfigurationOption,
 		Default:     false}, {
-		Name:        ConfigTreeDiffBlacklistedDirs,
-		Description: "List of blacklisted directories. Separated by comma \",\".",
-		Flag:        "blacklisted-dirs",
+		Name:        ConfigTreeDiffBlacklistedPrefixes,
+		Description: "List of blacklisted path prefixes (e.g. directories or specific files). " +
+			"Values are in the UNIX format (\"path/to/x\"). Values should *not* start with \"/\". " +
+			"Separated with commas \",\".",
+		Flag:        "blacklisted-prefixes",
 		Type:        core.StringsConfigurationOption,
-		Default:     defaultBlacklistedDirs}, {
+		Default:     defaultBlacklistedPrefixes}, {
 		Name:        ConfigTreeDiffLanguages,
 		Description: fmt.Sprintf(
 			"List of programming languages to analyze. Separated by comma \",\". " +
@@ -95,7 +104,7 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 	if val, exist := facts[ConfigTreeDiffEnableBlacklist]; exist && val.(bool) {
-		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedDirs].([]string)
+		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedPrefixes].([]string)
 	}
 	if val, exists := facts[ConfigTreeDiffLanguages].(string); exists {
 		treediff.Languages = map[string]bool{}

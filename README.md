@@ -48,6 +48,15 @@ Replace `$GOPATH` with `%GOPATH%` on Windows.
 [Apache 2.0](LICENSE.md)
 
 ### Usage
+
+The most useful and reliably up-to-date command line reference:
+
+```
+hercules --help
+```
+
+Some examples:
+
 ```
 # Use "memory" go-git backend and display the burndown plot. "memory" is the fastest but the repository's git data must fit into RAM.
 hercules --burndown https://github.com/src-d/go-git | python3 labours.py -m project --resample month
@@ -307,6 +316,8 @@ contain `"type"` which reflects the plot kind.
 
 ### Caveats
 
+1. Processing all the commits may fail in some rare cases. If you get an error similar to https://github.com/src-d/hercules/issues/106
+please report there and specify `--first-parent` as a workaround.
 1. Currently, go-git's file system storage backend is considerably slower than the in-memory one,
 so you should clone repos instead of reading them from disk whenever possible. Please note that the
 in-memory storage may require much RAM, for example, the Linux kernel takes over 200GB in 2017.
