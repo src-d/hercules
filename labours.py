@@ -1152,7 +1152,10 @@ def main():
     def run_times():
         rt = reader.get_run_times()
         import pandas
-        print(pandas.to_timedelta(pandas.Series(rt).sort_values(ascending=False), unit="s"))
+        series = pandas.to_timedelta(pandas.Series(rt).sort_values(ascending=False), unit="s")
+        df = pandas.concat([series, series / series.sum()], axis=1)
+        df.columns = ["time", "ratio"]
+        print(df)
 
     def project_burndown():
         try:
