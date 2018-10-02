@@ -11,7 +11,7 @@ a pipe. It is possible to write custom analyses using the plugin system. It is a
 to merge several analysis results together. The commit history includes branches, merges, etc.
 
 Blog posts: [1](https://blog.sourced.tech/post/hercules.v4), [2](https://blog.sourced.tech/post/hercules).
-[Presentation](http://vmarkovtsev.github.io/techtalks-2017-moscow-lightning/).
+[Presentation](http://vmarkovtsev.github.io/gowayfest-2018-minsk/).
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
