@@ -1080,7 +1080,7 @@ func (analyser *BurndownAnalysis) handleModification(
 	// Check for binary changes
 	blobFrom := cache[change.From.TreeEntry.Hash]
 	_, errFrom := blobFrom.CountLines()
-	blobTo := cache[change.From.TreeEntry.Hash]
+	blobTo := cache[change.To.TreeEntry.Hash]
 	_, errTo := blobTo.CountLines()
 	if errFrom != errTo {
 		if errFrom != nil {
@@ -1174,8 +1174,9 @@ func (analyser *BurndownAnalysis) handleModification(
 		pending.Text = ""
 	}
 	if file.Len() != thisDiffs.NewLinesOfCode {
-		return fmt.Errorf("%s: internal integrity error dst %d != %d",
-			change.To.Name, thisDiffs.NewLinesOfCode, file.Len())
+		return fmt.Errorf("%s: internal integrity error dst %d != %d %s -> %s",
+			change.To.Name, thisDiffs.NewLinesOfCode, file.Len(),
+			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String())
 	}
 	return nil
 }
