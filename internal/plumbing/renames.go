@@ -211,8 +211,8 @@ func (ra *RenameAnalysis) Fork(n int) []core.PipelineItem {
 }
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
-	return (internal.Abs64(size1-size2)*100)/internal.Max64(size1, size2) <=
-		int64(100-ra.SimilarityThreshold)
+	size := internal.Max64(1, internal.Max64(size1, size2))
+	return (internal.Abs64(size1-size2)*100)/size <= int64(100-ra.SimilarityThreshold)
 }
 
 func (ra *RenameAnalysis) blobsAreClose(
@@ -262,7 +262,8 @@ func (ra *RenameAnalysis) blobsAreClose(
 			}
 		}
 	}
-	similarity := (common*100)/internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst))
+	size := internal.Max(1, internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst)))
+	similarity := (common*100) / size
 	return similarity >= ra.SimilarityThreshold, nil
 }
 
