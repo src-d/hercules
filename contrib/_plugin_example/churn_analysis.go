@@ -126,7 +126,7 @@ func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]int
 	}
 	fileDiffs := deps[hercules.DependencyFileDiff].(map[string]hercules.FileDiffData)
 	treeDiffs := deps[hercules.DependencyTreeChanges].(object.Changes)
-	cache := deps[hercules.DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	cache := deps[hercules.DependencyBlobCache].(map[plumbing.Hash]*hercules.CachedBlob)
 	day := deps[hercules.DependencyDay].(int)
 	author := deps[hercules.DependencyAuthor].(int)
 	for _, change := range treeDiffs {
@@ -138,15 +138,9 @@ func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]int
 		removed := 0
 		switch action {
 		case merkletrie.Insert:
-			added, err = hercules.CountLines(cache[change.To.TreeEntry.Hash])
-			if err != nil && err.Error() == "binary" {
-				err = nil
-			}
+			added, _ = cache[change.To.TreeEntry.Hash].CountLines()
 		case merkletrie.Delete:
-			removed, err = hercules.CountLines(cache[change.From.TreeEntry.Hash])
-			if err != nil && err.Error() == "binary" {
-				err = nil
-			}
+			removed, _ = cache[change.From.TreeEntry.Hash].CountLines()
 		case merkletrie.Modify:
 			diffs := fileDiffs[change.To.Name]
 			for _, edit := range diffs.Diffs {

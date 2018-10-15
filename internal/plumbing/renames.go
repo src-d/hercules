@@ -21,7 +21,7 @@ type RenameAnalysis struct {
 	core.NoopMerger
 	// SimilarityThreshold adjusts the heuristic to determine file renames.
 	// It has the same units as cgit's -X rename-threshold or -M. Better to
-	// set it to the default value of 90 (90%).
+	// set it to the default value of 50 (50%).
 	SimilarityThreshold int
 
 	repository *git.Repository
@@ -30,7 +30,8 @@ type RenameAnalysis struct {
 const (
 	// RenameAnalysisDefaultThreshold specifies the default percentage of common lines in a pair
 	// of files to consider them linked. The exact code of the decision is sizesAreClose().
-	RenameAnalysisDefaultThreshold = 90
+	// This defaults to CGit's 50%.
+	RenameAnalysisDefaultThreshold = 50
 
 	// ConfigRenameAnalysisSimilarityThreshold is the name of the configuration option
 	// (RenameAnalysis.Configure()) which sets the similarity threshold.
@@ -95,7 +96,7 @@ func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
 // in Provides(). If there was an error, nil is returned.
 func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	changes := deps[DependencyTreeChanges].(object.Changes)
-	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*CachedBlob)
 
 	reducedChanges := make(object.Changes, 0, changes.Len())
 
@@ -210,30 +211,58 @@ func (ra *RenameAnalysis) Fork(n int) []core.PipelineItem {
 }
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
-	return internal.Abs64(size1-size2)*100/internal.Max64(1, internal.Min64(size1, size2)) <=
+	return (internal.Abs64(size1-size2)*100)/internal.Max64(size1, size2) <=
 		int64(100-ra.SimilarityThreshold)
 }
 
 func (ra *RenameAnalysis) blobsAreClose(
-	blob1 *object.Blob, blob2 *object.Blob) (bool, error) {
-	strFrom, err := BlobToString(blob1)
-	if err != nil {
-		return false, err
-	}
-	strTo, err := BlobToString(blob2)
-	if err != nil {
-		return false, err
-	}
+	blob1 *CachedBlob, blob2 *CachedBlob) (bool, error) {
+	src, dst := string(blob1.Data), string(blob2.Data)
+
+	// compute the line-by-line diff, then the char-level diffs of the del-ins blocks
+	// yes, this algorithm is greedy and not exact
 	dmp := diffmatchpatch.New()
-	src, dst, _ := dmp.DiffLinesToRunes(strFrom, strTo)
-	diffs := dmp.DiffMainRunes(src, dst, false)
-	common := 0
+	srcLines, dstLines, lines := dmp.DiffLinesToRunes(src, dst)
+	diffs := dmp.DiffMainRunes(srcLines, dstLines, false)
+	var common, posSrc, prevPosSrc, posDst int
+	possibleDelInsBlock := false
 	for _, edit := range diffs {
-		if edit.Type == diffmatchpatch.DiffEqual {
-			common += utf8.RuneCountInString(edit.Text)
+		switch edit.Type {
+		case diffmatchpatch.DiffDelete:
+			possibleDelInsBlock = true
+			prevPosSrc = posSrc
+			for _, lineno := range edit.Text {
+				posSrc += len(lines[lineno])
+			}
+		case diffmatchpatch.DiffInsert:
+			nextPosDst := posDst
+			for _, lineno := range edit.Text {
+				nextPosDst += len(lines[lineno])
+			}
+			if possibleDelInsBlock {
+				possibleDelInsBlock = false
+				localDmp := diffmatchpatch.New()
+				localSrc := src[prevPosSrc:posSrc]
+				localDst := dst[posDst:nextPosDst]
+				localDiffs := localDmp.DiffMainRunes([]rune(localSrc), []rune(localDst), false)
+				for _, localEdit := range localDiffs {
+					if localEdit.Type == diffmatchpatch.DiffEqual {
+						common += utf8.RuneCountInString(localEdit.Text)
+					}
+				}
+			}
+			posDst = nextPosDst
+		case diffmatchpatch.DiffEqual:
+			possibleDelInsBlock = false
+			for _, lineno := range edit.Text {
+				common += utf8.RuneCountInString(lines[lineno])
+				step := len(lines[lineno])
+				posSrc += step
+				posDst += step
+			}
 		}
 	}
-	similarity := common * 100 / internal.Max(1, internal.Min(len(src), len(dst)))
+	similarity := (common*100)/internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst))
 	return similarity >= ra.SimilarityThreshold, nil
 }
 

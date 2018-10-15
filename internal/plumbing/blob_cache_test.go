@@ -17,6 +17,16 @@ func fixtureBlobCache() *BlobCache {
 	return cache
 }
 
+func AddHash(t *testing.T, cache map[plumbing.Hash]*CachedBlob, hash string) {
+	objhash := plumbing.NewHash(hash)
+	blob, err := test.Repository.BlobObject(objhash)
+	assert.Nil(t, err)
+	cb := &CachedBlob{Blob: *blob}
+	err = cb.Cache()
+	assert.Nil(t, err)
+	cache[objhash] = cb
+}
+
 func TestBlobCacheConfigureInitialize(t *testing.T) {
 	cache := fixtureBlobCache()
 	assert.Equal(t, test.Repository, cache.repository)
@@ -85,7 +95,7 @@ func TestBlobCacheConsumeModification(t *testing.T) {
 	assert.Equal(t, len(result), 1)
 	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
-	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
+	cache := cacheIface.(map[plumbing.Hash]*CachedBlob)
 	assert.Equal(t, len(cache), 2)
 	blobFrom, exists := cache[plumbing.NewHash("1cacfc1bf0f048eb2f31973750983ae5d8de647a")]
 	assert.True(t, exists)
@@ -131,7 +141,7 @@ func TestBlobCacheConsumeInsertionDeletion(t *testing.T) {
 	assert.Equal(t, len(result), 1)
 	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
-	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
+	cache := cacheIface.(map[plumbing.Hash]*CachedBlob)
 	assert.Equal(t, len(cache), 2)
 	blobFrom, exists := cache[plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")]
 	assert.True(t, exists)
@@ -301,7 +311,7 @@ func TestBlobCacheDeleteInvalidBlob(t *testing.T) {
 	assert.Equal(t, len(result), 1)
 	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
-	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
+	cache := cacheIface.(map[plumbing.Hash]*CachedBlob)
 	assert.Equal(t, len(cache), 1)
 	blobFrom, exists := cache[plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")]
 	assert.True(t, exists)

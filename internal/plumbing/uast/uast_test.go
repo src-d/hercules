@@ -28,6 +28,16 @@ func fixtureUASTExtractor() *Extractor {
 	return &exr
 }
 
+func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash string) {
+	objhash := plumbing.NewHash(hash)
+	blob, err := test.Repository.BlobObject(objhash)
+	assert.Nil(t, err)
+	cb := &items.CachedBlob{Blob: *blob}
+	err = cb.Cache()
+	assert.Nil(t, err)
+	cache[objhash] = cb
+}
+
 func TestUASTExtractorMeta(t *testing.T) {
 	exr := fixtureUASTExtractor()
 	assert.Equal(t, exr.Name(), "UAST")
@@ -117,7 +127,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 		},
 	},
 	}
-	cache := map[plumbing.Hash]*object.Blob{}
+	cache := map[plumbing.Hash]*items.CachedBlob{}
 	for _, hash := range []string{
 		"baa64828831d174f40140e4b3cfa77d1e917a2c1",
 		"5d78f57d732aed825764347ec6f3ab74d50d0619",
@@ -125,7 +135,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 		"f7d918ec500e2f925ecde79b51cc007bac27de72",
 		"81f2b6d1fa5357f90e9dead150cd515720897545",
 	} {
-		cache[plumbing.NewHash(hash)], _ = test.Repository.BlobObject(plumbing.NewHash(hash))
+		AddHash(t, cache, hash)
 	}
 	deps := map[string]interface{}{}
 	deps[items.DependencyBlobCache] = cache

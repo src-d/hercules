@@ -1,12 +1,11 @@
 package uast
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	goioutil "io/ioutil"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -22,7 +21,6 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/utils/ioutil"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 	"gopkg.in/src-d/hercules.v4/internal/core"
 	"gopkg.in/src-d/hercules.v4/internal/pb"
@@ -44,8 +42,6 @@ type Extractor struct {
 }
 
 const (
-	uastExtractionSkipped = -(1 << 31)
-
 	// ConfigUASTEndpoint is the name of the configuration option (Extractor.Configure())
 	// which sets the Babelfish server address.
 	ConfigUASTEndpoint = "ConfigUASTEndpoint"
@@ -67,7 +63,9 @@ const (
 type uastTask struct {
 	Lock   *sync.RWMutex
 	Dest   map[plumbing.Hash]*uast.Node
-	File   *object.File
+	Name   string
+	Hash   plumbing.Hash
+	Data   []byte
 	Errors *[]error
 }
 
@@ -200,27 +198,14 @@ func (exr *Extractor) Initialize(repository *git.Repository) {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*items.CachedBlob)
 	treeDiffs := deps[items.DependencyTreeChanges].(object.Changes)
 	uasts := map[plumbing.Hash]*uast.Node{}
 	lock := sync.RWMutex{}
 	errs := make([]error, 0)
 	wg := sync.WaitGroup{}
 	submit := func(change *object.Change) {
-		{
-			reader, err := cache[change.To.TreeEntry.Hash].Reader()
-			if err != nil {
-				errs = append(errs, err)
-				return
-			}
-			defer ioutil.CheckClose(reader, &err)
-			buf := new(bytes.Buffer)
-			if _, err := buf.ReadFrom(reader); err != nil {
-				errs = append(errs, err)
-				return
-			}
-			exr.ProcessedFiles[change.To.Name]++
-		}
+		exr.ProcessedFiles[change.To.Name]++
 		wg.Add(1)
 		go func(task interface{}) {
 			exr.pool.Process(task)
@@ -228,7 +213,9 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 		}(uastTask{
 			Lock:   &lock,
 			Dest:   uasts,
-			File:   &object.File{Name: change.To.Name, Blob: *cache[change.To.TreeEntry.Hash]},
+			Name:   change.To.Name,
+			Hash:   change.To.TreeEntry.Hash,
+			Data:   cache[change.To.TreeEntry.Hash].Data,
 			Errors: &errs,
 		})
 	}
@@ -267,14 +254,10 @@ func (exr *Extractor) Fork(n int) []core.PipelineItem {
 }
 
 func (exr *Extractor) extractUAST(
-	client *bblfsh.Client, file *object.File) (*uast.Node, error) {
+	client *bblfsh.Client, name string, data []byte) (*uast.Node, error) {
 	request := client.NewParseRequest()
-	contents, err := file.Contents()
-	if err != nil {
-		return nil, err
-	}
-	request.Content(contents)
-	request.Filename(file.Name)
+	request.Content(string(data))
+	request.Filename(name)
 	ctx, cancel := exr.Context()
 	if cancel != nil {
 		defer cancel()
@@ -297,16 +280,16 @@ func (exr *Extractor) extractUAST(
 
 func (exr *Extractor) extractTask(client *bblfsh.Client, data interface{}) interface{} {
 	task := data.(uastTask)
-	node, err := exr.extractUAST(client, task.File)
+	node, err := exr.extractUAST(client, task.Name, task.Data)
 	task.Lock.Lock()
 	defer task.Lock.Unlock()
 	if err != nil {
 		*task.Errors = append(*task.Errors,
-			fmt.Errorf("\nfile %s, blob %s: %v", task.File.Name, task.File.Hash.String(), err))
+			fmt.Errorf("\nfile %s, blob %s: %v", task.Name, task.Hash.String(), err))
 		return nil
 	}
 	if node != nil {
-		task.Dest[task.File.Hash] = node
+		task.Dest[task.Hash] = node
 	}
 	return nil
 }
@@ -550,21 +533,21 @@ func (saver *ChangesSaver) dumpFiles(result [][]Change) []*pb.UASTChange {
 			bs, _ := change.Before.Marshal()
 			record.UastBefore = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_before_%s.pb", i, j, change.Change.From.TreeEntry.Hash.String()))
-			goioutil.WriteFile(record.UastBefore, bs, 0666)
+			ioutil.WriteFile(record.UastBefore, bs, 0666)
 			blob, _ := saver.repository.BlobObject(change.Change.From.TreeEntry.Hash)
 			s, _ := (&object.File{Blob: *blob}).Contents()
 			record.SrcBefore = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_before_%s.src", i, j, change.Change.From.TreeEntry.Hash.String()))
-			goioutil.WriteFile(record.SrcBefore, []byte(s), 0666)
+			ioutil.WriteFile(record.SrcBefore, []byte(s), 0666)
 			bs, _ = change.After.Marshal()
 			record.UastAfter = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_after_%s.pb", i, j, change.Change.To.TreeEntry.Hash.String()))
-			goioutil.WriteFile(record.UastAfter, bs, 0666)
+			ioutil.WriteFile(record.UastAfter, bs, 0666)
 			blob, _ = saver.repository.BlobObject(change.Change.To.TreeEntry.Hash)
 			s, _ = (&object.File{Blob: *blob}).Contents()
 			record.SrcAfter = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_after_%s.src", i, j, change.Change.To.TreeEntry.Hash.String()))
-			goioutil.WriteFile(record.SrcAfter, []byte(s), 0666)
+			ioutil.WriteFile(record.SrcAfter, []byte(s), 0666)
 			fileNames = append(fileNames, record)
 		}
 	}

@@ -42,7 +42,7 @@ func (registry *PipelineItemRegistry) Summon(providesOrName string) []PipelineIt
 		return []PipelineItem{}
 	}
 	ts := registry.provided[providesOrName]
-	items := []PipelineItem{}
+	var items []PipelineItem
 	for _, t := range ts {
 		items = append(items, reflect.New(t.Elem()).Interface().(PipelineItem))
 	}
@@ -209,7 +209,7 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 			"Useful for --dump-dag.")
 		flags[ConfigPipelineDryRun] = iface
 	}
-	features := []string{}
+	var features []string
 	for f := range registry.featureFlags.Choices {
 		features = append(features, f)
 	}

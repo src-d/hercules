@@ -1,12 +1,6 @@
 package plumbing
 
 import (
-	"bufio"
-	"bytes"
-	"errors"
-	"io"
-	"unicode/utf8"
-
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -90,7 +84,7 @@ func (diff *FileDiff) Initialize(repository *git.Repository) {}
 // in Provides(). If there was an error, nil is returned.
 func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	result := map[string]FileDiffData{}
-	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*CachedBlob)
 	treeDiff := deps[DependencyTreeChanges].(object.Changes)
 	for _, change := range treeDiff {
 		action, err := change.Action()
@@ -103,14 +97,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			blobTo := cache[change.To.TreeEntry.Hash]
 			// we are not validating UTF-8 here because for example
 			// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
-			strFrom, err := BlobToString(blobFrom)
-			if err != nil {
-				return nil, err
-			}
-			strTo, err := BlobToString(blobTo)
-			if err != nil {
-				return nil, err
-			}
+			strFrom, strTo := string(blobFrom.Data), string(blobTo.Data)
 			dmp := diffmatchpatch.New()
 			src, dst, _ := dmp.DiffLinesToRunes(strFrom, strTo)
 			diffs := dmp.DiffMainRunes(src, dst, false)
@@ -132,70 +119,6 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 // Fork clones this PipelineItem.
 func (diff *FileDiff) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(diff, n)
-}
-
-// CountLines returns the number of lines in a *object.Blob.
-func CountLines(file *object.Blob) (int, error) {
-	if file == nil {
-		return -1, errors.New("blob is nil: probably not cached")
-	}
-	reader, err := file.Reader()
-	if err != nil {
-		return -1, err
-	}
-	defer checkClose(reader)
-	var scanner *bufio.Scanner
-	buffer := make([]byte, bufio.MaxScanTokenSize)
-	counter := 0
-	utf8Errors := 0
-	for scanner == nil || scanner.Err() == bufio.ErrTooLong {
-		if scanner != nil {
-			chunk := scanner.Bytes()
-			if !utf8.Valid(chunk) {
-				utf8Errors++
-			}
-			if bytes.IndexByte(chunk, 0) >= 0 {
-				return -1, errors.New("binary")
-			}
-		}
-		scanner = bufio.NewScanner(reader)
-		scanner.Buffer(buffer, 0)
-		for scanner.Scan() {
-			chunk := scanner.Bytes()
-			if !utf8.Valid(chunk) {
-				utf8Errors++
-			}
-			if bytes.IndexByte(chunk, 0) >= 0 {
-				return -1, errors.New("binary")
-			}
-			counter++
-		}
-	}
-	if float32(utf8Errors) / float32(counter) >= 0.01 {
-		return -1, errors.New("binary")
-	}
-	return counter, nil
-}
-
-// BlobToString reads *object.Blob and returns its contents as a string.
-func BlobToString(file *object.Blob) (string, error) {
-	if file == nil {
-		return "", errors.New("blob is nil: probably not cached")
-	}
-	reader, err := file.Reader()
-	if err != nil {
-		return "", err
-	}
-	defer checkClose(reader)
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
-	return buf.String(), nil
-}
-
-func checkClose(c io.Closer) {
-	if err := c.Close(); err != nil {
-		panic(err)
-	}
 }
 
 func init() {

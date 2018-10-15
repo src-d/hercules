@@ -1,8 +1,13 @@
 package plumbing
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 
+	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -11,6 +16,55 @@ import (
 	"gopkg.in/src-d/hercules.v4/internal"
 	"gopkg.in/src-d/hercules.v4/internal/core"
 )
+
+
+var ErrorBinary = errors.New("binary")
+
+// CachedBlob allows to explicitly cache the binary data associated with the Blob object.
+type CachedBlob struct {
+	object.Blob
+	Data []byte
+}
+
+// Reader returns a reader allow the access to the content of the blob
+func (b *CachedBlob) Reader() (io.ReadCloser, error) {
+	return ioutil.NopCloser(bytes.NewReader(b.Data)), nil
+}
+
+func (b *CachedBlob) Cache() error {
+	reader, err := b.Blob.Reader()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	buf := new(bytes.Buffer)
+	buf.Grow(int(b.Size))
+	size, err := buf.ReadFrom(reader)
+	if err != nil {
+		return err
+	}
+	if size != b.Size {
+		return fmt.Errorf("incomplete read of %s: %d while the declared size is %d",
+			b.Hash.String(), size, b.Size)
+	}
+	b.Data = buf.Bytes()
+	return nil
+}
+
+// CountLines returns the number of lines in the blob or (0, ErrorBinary) if it is binary.
+func (b *CachedBlob) CountLines() (int, error) {
+	if len(b.Data) == 0 {
+		return 0, nil
+	}
+	if bytes.IndexByte(b.Data, 0) >= 0 {
+		return 0, ErrorBinary
+	}
+	lines := bytes.Count(b.Data, []byte{'\n'})
+	if b.Data[len(b.Data)-1] != '\n' {
+		lines++
+	}
+	return lines, nil
+}
 
 // BlobCache loads the blobs which correspond to the changed files in a commit.
 // It is a PipelineItem.
@@ -24,7 +78,7 @@ type BlobCache struct {
 	FailOnMissingSubmodules bool
 
 	repository *git.Repository
-	cache      map[plumbing.Hash]*object.Blob
+	cache      map[plumbing.Hash]*CachedBlob
 }
 
 const (
@@ -80,7 +134,7 @@ func (blobCache *BlobCache) Configure(facts map[string]interface{}) {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (blobCache *BlobCache) Initialize(repository *git.Repository) {
 	blobCache.repository = repository
-	blobCache.cache = map[plumbing.Hash]*object.Blob{}
+	blobCache.cache = map[plumbing.Hash]*CachedBlob{}
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -92,8 +146,8 @@ func (blobCache *BlobCache) Initialize(repository *git.Repository) {
 func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps[core.DependencyCommit].(*object.Commit)
 	changes := deps[DependencyTreeChanges].(object.Changes)
-	cache := map[plumbing.Hash]*object.Blob{}
-	newCache := map[plumbing.Hash]*object.Blob{}
+	cache := map[plumbing.Hash]*CachedBlob{}
+	newCache := map[plumbing.Hash]*CachedBlob{}
 	for _, change := range changes {
 		action, err := change.Action()
 		if err != nil {
@@ -104,45 +158,77 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 		var blob *object.Blob
 		switch action {
 		case merkletrie.Insert:
+			cache[change.To.TreeEntry.Hash] = &CachedBlob{}
+			newCache[change.To.TreeEntry.Hash] = &CachedBlob{}
 			blob, err = blobCache.getBlob(&change.To, commit.File)
 			if err != nil {
-				log.Printf("file to %s %s\n",
-					change.To.Name, change.To.TreeEntry.Hash)
+				log.Printf("file to %s %s: %v\n", change.To.Name, change.To.TreeEntry.Hash, err)
 			} else {
-				cache[change.To.TreeEntry.Hash] = blob
-				newCache[change.To.TreeEntry.Hash] = blob
+				cb := &CachedBlob{Blob: *blob}
+				err = cb.Cache()
+				if err == nil {
+					cache[change.To.TreeEntry.Hash] = cb
+					newCache[change.To.TreeEntry.Hash] = cb
+				} else {
+					log.Printf("file to %s %s: %v\n", change.To.Name, change.To.TreeEntry.Hash, err)
+				}
 			}
 		case merkletrie.Delete:
 			cache[change.From.TreeEntry.Hash], exists =
 				blobCache.cache[change.From.TreeEntry.Hash]
 			if !exists {
-				cache[change.From.TreeEntry.Hash], err =
-					blobCache.getBlob(&change.From, commit.File)
+				cache[change.From.TreeEntry.Hash] = &CachedBlob{}
+				blob, err = blobCache.getBlob(&change.From, commit.File)
 				if err != nil {
 					if err.Error() != plumbing.ErrObjectNotFound.Error() {
-						log.Printf("file from %s %s\n", change.From.Name,
-							change.From.TreeEntry.Hash)
+						log.Printf("file from %s %s: %v\n", change.From.Name,
+							change.From.TreeEntry.Hash, err)
 					} else {
-						cache[change.From.TreeEntry.Hash], err =
-							internal.CreateDummyBlob(change.From.TreeEntry.Hash)
+						blob, err = internal.CreateDummyBlob(change.From.TreeEntry.Hash)
+						cache[change.From.TreeEntry.Hash] = &CachedBlob{Blob: *blob}
+					}
+				} else {
+					cb := &CachedBlob{Blob: *blob}
+					err = cb.Cache()
+					if err == nil {
+						cache[change.From.TreeEntry.Hash] = cb
+					} else {
+						log.Printf("file from %s %s: %v\n", change.From.Name,
+							change.From.TreeEntry.Hash, err)
 					}
 				}
 			}
 		case merkletrie.Modify:
 			blob, err = blobCache.getBlob(&change.To, commit.File)
+			cache[change.To.TreeEntry.Hash] = &CachedBlob{}
+			newCache[change.To.TreeEntry.Hash] = &CachedBlob{}
 			if err != nil {
-				log.Printf("file to %s\n", change.To.Name)
+				log.Printf("file to %s: %v\n", change.To.Name, err)
 			} else {
-				cache[change.To.TreeEntry.Hash] = blob
-				newCache[change.To.TreeEntry.Hash] = blob
+				cb := &CachedBlob{Blob: *blob}
+				err = cb.Cache()
+				if err == nil {
+					cache[change.To.TreeEntry.Hash] = cb
+					newCache[change.To.TreeEntry.Hash] = cb
+				} else {
+					log.Printf("file to %s: %v\n", change.To.Name, err)
+				}
 			}
 			cache[change.From.TreeEntry.Hash], exists =
 				blobCache.cache[change.From.TreeEntry.Hash]
 			if !exists {
-				cache[change.From.TreeEntry.Hash], err =
-					blobCache.getBlob(&change.From, commit.File)
+				cache[change.From.TreeEntry.Hash] = &CachedBlob{}
+				blob, err = blobCache.getBlob(&change.From, commit.File)
 				if err != nil {
-					log.Printf("file from %s\n", change.From.Name)
+					log.Printf("file from %s: %v\n", change.From.Name, err)
+				} else {
+					cb := &CachedBlob{Blob: *blob}
+					err = cb.Cache()
+					if err == nil {
+						cache[change.From.TreeEntry.Hash] = cb
+					} else {
+						log.Printf("file from %s: %v\n", change.From.Name, err)
+					}
 				}
 			}
 		}
@@ -158,7 +244,7 @@ func (blobCache *BlobCache) Consume(deps map[string]interface{}) (map[string]int
 func (blobCache *BlobCache) Fork(n int) []core.PipelineItem {
 	caches := make([]core.PipelineItem, n)
 	for i := 0; i < n; i++ {
-		cache := map[plumbing.Hash]*object.Blob{}
+		cache := map[plumbing.Hash]*CachedBlob{}
 		for k, v := range blobCache.cache {
 			cache[k] = v
 		}
@@ -180,6 +266,7 @@ type FileGetter func(path string) (*object.File, error)
 func (blobCache *BlobCache) getBlob(entry *object.ChangeEntry, fileGetter FileGetter) (
 	*object.Blob, error) {
 	blob, err := blobCache.repository.BlobObject(entry.TreeEntry.Hash)
+
 	if err != nil {
 		if err.Error() != plumbing.ErrObjectNotFound.Error() {
 			log.Printf("getBlob(%s)\n", entry.TreeEntry.Hash.String())
