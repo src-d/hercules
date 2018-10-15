@@ -15,12 +15,12 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v4/internal/burndown"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/pb"
-	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v4/internal/yaml"
+	"gopkg.in/src-d/hercules.v5/internal/burndown"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/pb"
+	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v5/internal/yaml"
 )
 
 // BurndownAnalysis allows to gather the line burndown statistics for a Git repository.
@@ -276,11 +276,14 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 		analyser.mergedFiles = map[string]bool{}
 		analyser.mergedAuthor = author
 	}
-	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*object.Blob)
+	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*items.CachedBlob)
 	treeDiffs := deps[items.DependencyTreeChanges].(object.Changes)
 	fileDiffs := deps[items.DependencyFileDiff].(map[string]items.FileDiffData)
 	for _, change := range treeDiffs {
 		action, _ := change.Action()
+		if deps["commit"].(*object.Commit).Hash.String() == "a6667d96c5e4aca92612295d549541146dd6e74a" {
+			fmt.Println("a6667d96c5e4aca92612295d549541146dd6e74a", action, change)
+		}
 		var err error
 		switch action {
 		case merkletrie.Insert:
@@ -1005,18 +1008,17 @@ func (analyser *BurndownAnalysis) newFile(
 }
 
 func (analyser *BurndownAnalysis) handleInsertion(
-	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob) error {
+	change *object.Change, author int, cache map[plumbing.Hash]*items.CachedBlob) error {
 	blob := cache[change.To.TreeEntry.Hash]
-	lines, err := items.CountLines(blob)
+	lines, err := blob.CountLines()
 	if err != nil {
-		if err.Error() == "binary" {
-			return nil
-		}
-		return err
+		// binary
+		return nil
 	}
 	name := change.To.Name
 	file, exists := analyser.files[name]
 	if exists {
+		println("\n", analyser, "error")
 		return fmt.Errorf("file %s already exists", name)
 	}
 	var hash plumbing.Hash
@@ -1032,18 +1034,18 @@ func (analyser *BurndownAnalysis) handleInsertion(
 }
 
 func (analyser *BurndownAnalysis) handleDeletion(
-	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob) error {
+	change *object.Change, author int, cache map[plumbing.Hash]*items.CachedBlob) error {
 
-	blob := cache[change.From.TreeEntry.Hash]
-	lines, err := items.CountLines(blob)
-	if err != nil {
-		if err.Error() == "binary" {
-			return nil
-		}
-		return err
-	}
 	name := change.From.Name
-	file := analyser.files[name]
+	file, exists := analyser.files[name]
+	blob := cache[change.From.TreeEntry.Hash]
+	lines, err := blob.CountLines()
+	if exists && err != nil {
+		return fmt.Errorf("file %s unexpectedly became binary", name)
+	}
+	if !exists {
+		return nil
+	}
 	file.Update(analyser.packPersonWithDay(author, analyser.day), 0, 0, lines)
 	delete(analyser.files, name)
 	delete(analyser.fileHistories, name)
@@ -1055,7 +1057,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 }
 
 func (analyser *BurndownAnalysis) handleModification(
-	change *object.Change, author int, cache map[plumbing.Hash]*object.Blob,
+	change *object.Change, author int, cache map[plumbing.Hash]*items.CachedBlob,
 	diffs map[string]items.FileDiffData) error {
 
 	if analyser.day == burndown.TreeMergeMark {
@@ -1073,6 +1075,23 @@ func (analyser *BurndownAnalysis) handleModification(
 		if err != nil {
 			return err
 		}
+	}
+
+	// Check for binary changes
+	blobFrom := cache[change.From.TreeEntry.Hash]
+	_, errFrom := blobFrom.CountLines()
+	blobTo := cache[change.To.TreeEntry.Hash]
+	_, errTo := blobTo.CountLines()
+	if errFrom != errTo {
+		if errFrom != nil {
+			// the file is no longer binary
+			return analyser.handleInsertion(change, author, cache)
+		}
+		// the file became binary
+		return analyser.handleDeletion(change, author, cache)
+	} else if errFrom != nil {
+		// what are we doing here?!
+		return nil
 	}
 
 	thisDiffs := diffs[change.To.Name]
@@ -1155,8 +1174,9 @@ func (analyser *BurndownAnalysis) handleModification(
 		pending.Text = ""
 	}
 	if file.Len() != thisDiffs.NewLinesOfCode {
-		return fmt.Errorf("%s: internal integrity error dst %d != %d",
-			change.To.Name, thisDiffs.NewLinesOfCode, file.Len())
+		return fmt.Errorf("%s: internal integrity error dst %d != %d %s -> %s",
+			change.To.Name, thisDiffs.NewLinesOfCode, file.Len(),
+			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String())
 	}
 	return nil
 }

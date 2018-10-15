@@ -6,7 +6,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/core"
 )
 
 // DaysSinceStart provides the relative date information for every commit.

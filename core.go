@@ -1,14 +1,14 @@
 package hercules
 
 import (
-	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v4/leaves"
-	"gopkg.in/src-d/hercules.v4/internal/yaml"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v5/internal/yaml"
+	"gopkg.in/src-d/hercules.v5/leaves"
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.
@@ -146,10 +146,9 @@ const (
 // FileDiffData is the type of the dependency provided by plumbing.FileDiff.
 type FileDiffData = plumbing.FileDiffData
 
-// CountLines returns the number of lines in a *object.Blob.
-func CountLines(file *object.Blob) (int, error) {
-	return plumbing.CountLines(file)
-}
+// CachedBlob allows to explicitly cache the binary data associated with the Blob object.
+// Such structs are returned by DependencyBlobCache.
+type CachedBlob = plumbing.CachedBlob
 
 // SafeYamlString escapes the string so that it can be reliably used in YAML.
 func SafeYamlString(str string) string {

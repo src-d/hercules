@@ -2,7 +2,7 @@ version: "{build}"
 platform: x64
 image: Visual Studio 2017
 
-clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v4
+clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v5
 
 environment:
   GOPATH: c:\gopath
@@ -17,14 +17,14 @@ build_script:
   - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%PATH%
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
   - git clone --depth 1 --single-branch --branch %GOGIT_TAG% https://github.com/src-d/go-git %GOPATH%/src/gopkg.in/src-d/go-git.v4
-  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v4
+  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v5
   - set DISABLE_TENSORFLOW=1
   - make
-  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v4\hercules.win64.zip %GOPATH%\bin\hercules.exe
+  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v5\hercules.win64.zip %GOPATH%\bin\hercules.exe
 
 test_script:
-  - go get -v -t -d gopkg.in/src-d/hercules.v4/...
-  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v4/...
+  - go get -v -t -d gopkg.in/src-d/hercules.v5/...
+  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v5/...
 
 artifacts:
   - name: hercules.win64.zip

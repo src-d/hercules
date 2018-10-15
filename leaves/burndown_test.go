@@ -7,18 +7,28 @@ import (
 	"path"
 	"testing"
 
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/test/fixtures"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/test/fixtures"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v4/internal/pb"
-	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v5/internal/pb"
+	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v5/internal/test"
 )
+
+func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash string) {
+	objhash := plumbing.NewHash(hash)
+	blob, err := test.Repository.BlobObject(objhash)
+	assert.Nil(t, err)
+	cb := &items.CachedBlob{Blob: *blob}
+	err = cb.Cache()
+	assert.Nil(t, err)
+	cache[objhash] = cb
+}
 
 func TestBurndownMeta(t *testing.T) {
 	burndown := BurndownAnalysis{}
@@ -121,15 +131,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	// stage 1
 	deps[identity.DependencyAuthor] = 0
 	deps[items.DependencyDay] = 0
-	cache := map[plumbing.Hash]*object.Blob{}
-	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
+	cache := map[plumbing.Hash]*items.CachedBlob{}
+	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
+	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
+	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
+	AddHash(t, cache, "dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	deps[items.DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
@@ -220,17 +226,12 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
 	deps[core.DependencyIsMerge] = false
 	deps[items.DependencyDay] = 30
-	cache = map[plumbing.Hash]*object.Blob{}
-	hash = plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = test.Repository.BlobObject(hash)
+	cache = map[plumbing.Hash]*items.CachedBlob{}
+	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
+	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
+	AddHash(t, cache, "29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
+	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
+	AddHash(t, cache, "f7d918ec500e2f925ecde79b51cc007bac27de72")
 	deps[items.DependencyBlobCache] = cache
 	changes = make(object.Changes, 3)
 	treeFrom, _ = test.Repository.TreeObject(plumbing.NewHash(
@@ -353,15 +354,11 @@ func TestBurndownSerialize(t *testing.T) {
 	// stage 1
 	deps[identity.DependencyAuthor] = 0
 	deps[items.DependencyDay] = 0
-	cache := map[plumbing.Hash]*object.Blob{}
-	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
+	cache := map[plumbing.Hash]*items.CachedBlob{}
+	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
+	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
+	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
+	AddHash(t, cache, "dc248ba2b22048cc730c571a748e8ffcf7085ab9")
 	deps[items.DependencyBlobCache] = cache
 	changes := make(object.Changes, 3)
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
@@ -418,17 +415,12 @@ func TestBurndownSerialize(t *testing.T) {
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
 	deps[identity.DependencyAuthor] = 1
 	deps[items.DependencyDay] = 30
-	cache = map[plumbing.Hash]*object.Blob{}
-	hash = plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = test.Repository.BlobObject(hash)
+	cache = map[plumbing.Hash]*items.CachedBlob{}
+	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
+	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
+	AddHash(t, cache, "29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
+	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
+	AddHash(t, cache, "f7d918ec500e2f925ecde79b51cc007bac27de72")
 	deps[items.DependencyBlobCache] = cache
 	changes = make(object.Changes, 3)
 	treeFrom, _ = test.Repository.TreeObject(plumbing.NewHash(

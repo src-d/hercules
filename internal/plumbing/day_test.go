@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/test"
 )
 
 func fixtureDaysSinceStart() *DaysSinceStart {

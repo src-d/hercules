@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v5/internal/test"
 )
 
 func getRegistry() *PipelineItemRegistry {

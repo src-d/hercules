@@ -6,15 +6,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v4/internal"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v5/internal"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/test"
 )
 
 func fixtureBlobCache() *BlobCache {
 	cache := &BlobCache{}
 	cache.Initialize(test.Repository)
 	return cache
+}
+
+func AddHash(t *testing.T, cache map[plumbing.Hash]*CachedBlob, hash string) {
+	objhash := plumbing.NewHash(hash)
+	blob, err := test.Repository.BlobObject(objhash)
+	assert.Nil(t, err)
+	cb := &CachedBlob{Blob: *blob}
+	err = cb.Cache()
+	assert.Nil(t, err)
+	cache[objhash] = cb
 }
 
 func TestBlobCacheConfigureInitialize(t *testing.T) {
@@ -85,7 +95,7 @@ func TestBlobCacheConsumeModification(t *testing.T) {
 	assert.Equal(t, len(result), 1)
 	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
-	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
+	cache := cacheIface.(map[plumbing.Hash]*CachedBlob)
 	assert.Equal(t, len(cache), 2)
 	blobFrom, exists := cache[plumbing.NewHash("1cacfc1bf0f048eb2f31973750983ae5d8de647a")]
 	assert.True(t, exists)
@@ -131,7 +141,7 @@ func TestBlobCacheConsumeInsertionDeletion(t *testing.T) {
 	assert.Equal(t, len(result), 1)
 	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
-	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
+	cache := cacheIface.(map[plumbing.Hash]*CachedBlob)
 	assert.Equal(t, len(cache), 2)
 	blobFrom, exists := cache[plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")]
 	assert.True(t, exists)
@@ -301,7 +311,7 @@ func TestBlobCacheDeleteInvalidBlob(t *testing.T) {
 	assert.Equal(t, len(result), 1)
 	cacheIface, exists := result[DependencyBlobCache]
 	assert.True(t, exists)
-	cache := cacheIface.(map[plumbing.Hash]*object.Blob)
+	cache := cacheIface.(map[plumbing.Hash]*CachedBlob)
 	assert.Equal(t, len(cache), 1)
 	blobFrom, exists := cache[plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff")]
 	assert.True(t, exists)

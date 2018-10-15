@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/pb"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/pb"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v5/internal/test"
 	)
 
 func fixtureCouples() *CouplesAnalysis {

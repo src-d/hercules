@@ -4,28 +4,37 @@ package uast
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
-	"testing"
-
-	"fmt"
 	"path"
+	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/pb"
-	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/pb"
+	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v5/internal/test"
 )
 
 func fixtureUASTExtractor() *Extractor {
 	exr := Extractor{Endpoint: "0.0.0.0:9432"}
 	exr.Initialize(test.Repository)
 	return &exr
+}
+
+func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash string) {
+	objhash := plumbing.NewHash(hash)
+	blob, err := test.Repository.BlobObject(objhash)
+	assert.Nil(t, err)
+	cb := &items.CachedBlob{Blob: *blob}
+	err = cb.Cache()
+	assert.Nil(t, err)
+	cache[objhash] = cb
 }
 
 func TestUASTExtractorMeta(t *testing.T) {
@@ -117,7 +126,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 		},
 	},
 	}
-	cache := map[plumbing.Hash]*object.Blob{}
+	cache := map[plumbing.Hash]*items.CachedBlob{}
 	for _, hash := range []string{
 		"baa64828831d174f40140e4b3cfa77d1e917a2c1",
 		"5d78f57d732aed825764347ec6f3ab74d50d0619",
@@ -125,7 +134,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 		"f7d918ec500e2f925ecde79b51cc007bac27de72",
 		"81f2b6d1fa5357f90e9dead150cd515720897545",
 	} {
-		cache[plumbing.NewHash(hash)], _ = test.Repository.BlobObject(plumbing.NewHash(hash))
+		AddHash(t, cache, hash)
 	}
 	deps := map[string]interface{}{}
 	deps[items.DependencyBlobCache] = cache

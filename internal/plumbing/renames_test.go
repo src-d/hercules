@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/test"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/test"
 )
 
 func fixtureRenameAnalysis() *RenameAnalysis {
@@ -109,24 +109,20 @@ func TestRenameAnalysisConsume(t *testing.T) {
 		},
 	},
 	}
-	cache := map[plumbing.Hash]*object.Blob{}
-	hash := plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	cache[hash], _ = test.Repository.BlobObject(hash)
-	hash = plumbing.NewHash("f7d918ec500e2f925ecde79b51cc007bac27de72")
-	cache[hash], _ = test.Repository.BlobObject(hash)
+	cache := map[plumbing.Hash]*CachedBlob{}
+	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
+	AddHash(t, cache, "29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2")
+	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
+	AddHash(t, cache, "f7d918ec500e2f925ecde79b51cc007bac27de72")
 	deps := map[string]interface{}{}
 	deps[DependencyBlobCache] = cache
 	deps[DependencyTreeChanges] = changes
-	ra.SimilarityThreshold = 33
+	ra.SimilarityThreshold = 37
 	res, err := ra.Consume(deps)
 	assert.Nil(t, err)
 	renamed := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(renamed), 2)
-	ra.SimilarityThreshold = 35
+	ra.SimilarityThreshold = 38
 	res, err = ra.Consume(deps)
 	assert.Nil(t, err)
 	renamed = res[DependencyTreeChanges].(object.Changes)
