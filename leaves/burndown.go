@@ -281,9 +281,6 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	fileDiffs := deps[items.DependencyFileDiff].(map[string]items.FileDiffData)
 	for _, change := range treeDiffs {
 		action, _ := change.Action()
-		if deps["commit"].(*object.Commit).Hash.String() == "a6667d96c5e4aca92612295d549541146dd6e74a" {
-			fmt.Println("a6667d96c5e4aca92612295d549541146dd6e74a", action, change)
-		}
 		var err error
 		switch action {
 		case merkletrie.Insert:
