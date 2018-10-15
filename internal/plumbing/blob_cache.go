@@ -17,12 +17,13 @@ import (
 	"gopkg.in/src-d/hercules.v5/internal/core"
 )
 
-
+// ErrorBinary is raised in CachedBlob.CountLines() if the file is binary.
 var ErrorBinary = errors.New("binary")
 
 // CachedBlob allows to explicitly cache the binary data associated with the Blob object.
 type CachedBlob struct {
 	object.Blob
+	// Data is the read contents of the blob object.
 	Data []byte
 }
 
@@ -31,6 +32,7 @@ func (b *CachedBlob) Reader() (io.ReadCloser, error) {
 	return ioutil.NopCloser(bytes.NewReader(b.Data)), nil
 }
 
+// Cache reads the underlying blob object and sets CachedBlob.Data.
 func (b *CachedBlob) Cache() error {
 	reader, err := b.Blob.Reader()
 	if err != nil {
