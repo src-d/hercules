@@ -10,8 +10,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v4/internal"
-	"gopkg.in/src-d/hercules.v4/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal"
+	"gopkg.in/src-d/hercules.v5/internal/core"
 )
 
 // RenameAnalysis improves TreeDiff's results by searching for changed blobs under different

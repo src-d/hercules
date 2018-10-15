@@ -15,12 +15,12 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v4/internal/burndown"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/pb"
-	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
-	"gopkg.in/src-d/hercules.v4/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v4/internal/yaml"
+	"gopkg.in/src-d/hercules.v5/internal/burndown"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/pb"
+	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v5/internal/yaml"
 )
 
 // BurndownAnalysis allows to gather the line burndown statistics for a Git repository.

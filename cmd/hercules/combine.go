@@ -12,8 +12,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
-	"gopkg.in/src-d/hercules.v4"
-	"gopkg.in/src-d/hercules.v4/internal/pb"
+	"gopkg.in/src-d/hercules.v5"
+	"gopkg.in/src-d/hercules.v5/internal/pb"
 )
 
 // combineCmd represents the combine command

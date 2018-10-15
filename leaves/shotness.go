@@ -13,10 +13,10 @@ import (
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v4/internal/core"
-	"gopkg.in/src-d/hercules.v4/internal/pb"
-	items "gopkg.in/src-d/hercules.v4/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v4/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v5/internal/pb"
+	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v5/internal/plumbing/uast"
 )
 
 // ShotnessAnalysis contains the intermediate state which is mutated by Consume(). It should implement

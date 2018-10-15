@@ -1,11 +1,11 @@
 package burndown
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/hercules.v4/internal/rbtree"
-	"fmt"
+	"gopkg.in/src-d/hercules.v5/internal/rbtree"
 )
 
 func updateStatusFile(status map[int]int64, _, previousTime, delta int) {
