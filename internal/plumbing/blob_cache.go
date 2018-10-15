@@ -56,7 +56,13 @@ func (b *CachedBlob) CountLines() (int, error) {
 	if len(b.Data) == 0 {
 		return 0, nil
 	}
-	if bytes.IndexByte(b.Data, 0) >= 0 {
+	// 8000 was taken from go-git's utils/binary.IsBinary()
+	sniffLen := 8000
+	sniff := b.Data
+	if len(sniff) > sniffLen {
+		sniff = sniff[:sniffLen]
+	}
+	if bytes.IndexByte(sniff, 0) >= 0 {
 		return 0, ErrorBinary
 	}
 	lines := bytes.Count(b.Data, []byte{'\n'})
