@@ -1,4 +1,4 @@
-Hercules [![GoDoc](https://godoc.org/gopkg.in/src-d/hercules.v4?status.svg)](http://godoc.org/gopkg.in/src-d/hercules.v4) [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules) [![Build status](https://ci.appveyor.com/api/projects/status/49f0lm3v2y6xyph3?svg=true)](https://ci.appveyor.com/project/vmarkovtsev/hercules) [![Docker Build Status](https://img.shields.io/docker/build/srcd/hercules.svg)](https://hub.docker.com/r/srcd/hercules) [![codecov](https://codecov.io/github/src-d/hercules/coverage.svg)](https://codecov.io/gh/src-d/hercules) [![Go Report Card](https://goreportcard.com/badge/github.com/src-d/hercules)](https://goreportcard.com/report/github.com/src-d/hercules)
+Hercules [![GoDoc](https://godoc.org/gopkg.in/src-d/hercules.v5?status.svg)](http://godoc.org/gopkg.in/src-d/hercules.v5) [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules) [![Build status](https://ci.appveyor.com/api/projects/status/49f0lm3v2y6xyph3?svg=true)](https://ci.appveyor.com/project/vmarkovtsev/hercules) [![Docker Build Status](https://img.shields.io/docker/build/srcd/hercules.svg)](https://hub.docker.com/r/srcd/hercules) [![codecov](https://codecov.io/github/src-d/hercules/coverage.svg)](https://codecov.io/gh/src-d/hercules) [![Go Report Card](https://goreportcard.com/badge/github.com/src-d/hercules)](https://goreportcard.com/report/github.com/src-d/hercules)
 --------
 
 Amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries included.
@@ -33,8 +33,8 @@ Linux releases require [`libtensorflow`](https://www.tensorflow.org/install/inst
 ### Build from source
 You are going to need Go (>= v1.8), [`protoc`](https://github.com/google/protobuf/releases) and Python 2 or 3.
 ```
-go get -d gopkg.in/src-d/hercules.v4/cmd/hercules
-cd $GOPATH/src/gopkg.in/src-d/hercules.v4
+go get -d gopkg.in/src-d/hercules.v5/cmd/hercules
+cd $GOPATH/src/gopkg.in/src-d/hercules.v5
 make
 ```
 
