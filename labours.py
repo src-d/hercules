@@ -942,6 +942,9 @@ def train_embeddings(index, matrix, tmpdir, shard_size=IDEAL_SHARD_SIZE):
         else:
             embedding_size = 300
             num_epochs = 300
+        if os.getenv("CI"):
+            # Travis, AppVeyor etc. during the integration tests
+            num_epochs /= 10
         swivel.FLAGS.embedding_size = embedding_size
         swivel.FLAGS.input_base_path = tmproot
         swivel.FLAGS.output_base_path = tmproot
