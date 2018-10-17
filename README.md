@@ -1,10 +1,32 @@
-Hercules [![GoDoc](https://godoc.org/gopkg.in/src-d/hercules.v5?status.svg)](http://godoc.org/gopkg.in/src-d/hercules.v5) [![Build Status](https://travis-ci.org/src-d/hercules.svg?branch=master)](https://travis-ci.org/src-d/hercules) [![Build status](https://ci.appveyor.com/api/projects/status/49f0lm3v2y6xyph3?svg=true)](https://ci.appveyor.com/project/vmarkovtsev/hercules) [![Docker Build Status](https://img.shields.io/docker/build/srcd/hercules.svg)](https://hub.docker.com/r/srcd/hercules) [![codecov](https://codecov.io/github/src-d/hercules/coverage.svg)](https://codecov.io/gh/src-d/hercules) [![Go Report Card](https://goreportcard.com/badge/github.com/src-d/hercules)](https://goreportcard.com/report/github.com/src-d/hercules)
+<p align="center">
+
+</p>
+<h1 align="center">Hercules</h1>
+<p align="center">
+      Fast, insightful and highly customizable Git history analysis.<br><br>
+      <a href="http://godoc.org/gopkg.in/src-d/hercules.v5"><img src="https://godoc.org/gopkg.in/src-d/hercules.v5?status.svg" alt="GoDoc"></a>
+      <a href="https://travis-ci.org/src-d/hercules"><img src="https://travis-ci.org/src-d/hercules.svg?branch=master" alt="Travis build Status"></a>
+      <a href="https://ci.appveyor.com/project/vmarkovtsev/hercules"><img src="https://ci.appveyor.com/api/projects/status/49f0lm3v2y6xyph3?svg=true" alt="AppVeyor build status"></a>
+      <a href="https://hub.docker.com/r/srcd/hercules"><img src="https://img.shields.io/docker/build/srcd/hercules.svg" alt="Docker build status"></a>
+      <a href="https://codecov.io/gh/src-d/hercules"><img src="https://codecov.io/github/src-d/hercules/coverage.svg" alt="Code coverage"></a>
+      <a href="https://goreportcard.com/report/github.com/src-d/hercules"><img src="https://goreportcard.com/badge/github.com/src-d/hercules" alt="Go Report Card"></a>
+      <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="Apache 2.0 license"></a>
+</p>
+<p align="center">
+  <a href="#overview">Overview</a> •
+  <a href="#usage">How To Use</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#contributions">Contributions</a>
+</p>
+
 --------
 
-Amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries included.
-Powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
+## Overview
 
-There are two tools: `hercules` and `labours.py`. The first is the program
+Hercules is an amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries are included.
+It is powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
+
+There are two command-line tools: `hercules` and `labours.py`. The first is the program
 written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md) over the full commit history.
 The second is the Python script which draws some predefined plots. These two tools are normally used together through
 a pipe. It is possible to write custom analyses using the plugin system. It is also possible
@@ -19,7 +41,7 @@ Blog posts: [1](https://blog.sourced.tech/post/hercules.v4), [2](https://blog.so
 ![git/git image](doc/linux.png)
 <p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m project</code></p>
 
-### Installation
+## Installation
 
 Grab `hercules` binary from the [Releases page](https://github.com/src-d/hercules/releases). `labours.py` requires the Python packages listed in [requirements.txt](requirements.txt):
 
@@ -40,14 +62,14 @@ make
 
 Replace `$GOPATH` with `%GOPATH%` on Windows.
 
-### Contributions
+## Contributions
 
 ...are welcome! See [CONTRIBUTING](CONTRIBUTING.md) and [code of conduct](CODE_OF_CONDUCT.md).
 
-### License
+## License
 [Apache 2.0](LICENSE.md)
 
-### Usage
+## Usage
 
 The most useful and reliably up-to-date command line reference:
 
