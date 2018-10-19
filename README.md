@@ -40,7 +40,7 @@ Blog posts: [1](https://blog.sourced.tech/post/hercules.v4), [2](https://blog.so
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
 
 ![git/git image](doc/linux.png)
-<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m project</code></p>
+<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --first-parent --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m project</code></p>
 
 ## Installation
 
