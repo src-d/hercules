@@ -24,10 +24,12 @@ const (
 	// the human interpretability of diffs.
 	ConfigFileDiffDisableCleanup = "FileDiff.NoCleanup"
 
-	ConfigFileWhitespaceCleanup = "FileDiff.NoWhitespace"
-
 	// DependencyFileDiff is the name of the dependency provided by FileDiff.
 	DependencyFileDiff = "file_diff"
+
+	// ConfigFileWhitespaceCleanup is the name of the configuration option (FileDiff.Configure())
+	// to suppress whitespace which can lead to detecting formatting changes versus core code changes
+	ConfigFileWhitespaceCleanup = "FileDiff.NoWhitespace"
 )
 
 // FileDiffData is the type of the dependency provided by FileDiff.

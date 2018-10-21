@@ -24,12 +24,15 @@ func TestFileDiffMeta(t *testing.T) {
 	assert.Equal(t, len(fd.Requires()), 2)
 	assert.Equal(t, fd.Requires()[0], items.DependencyTreeChanges)
 	assert.Equal(t, fd.Requires()[1], items.DependencyBlobCache)
-	assert.Len(t, fd.ListConfigurationOptions(), 1)
+	assert.Len(t, fd.ListConfigurationOptions(), 2)
 	assert.Equal(t, fd.ListConfigurationOptions()[0].Name, items.ConfigFileDiffDisableCleanup)
+	assert.Equal(t, fd.ListConfigurationOptions()[1].Name, items.ConfigFileWhitespaceCleanup)
 	facts := map[string]interface{}{}
 	facts[items.ConfigFileDiffDisableCleanup] = true
+	facts[items.ConfigFileWhitespaceCleanup] = true
 	fd.Configure(facts)
 	assert.True(t, fd.CleanupDisabled)
+	assert.True(t, fd.WhitespaceIgnore)
 }
 
 func TestFileDiffRegistration(t *testing.T) {
@@ -264,6 +267,48 @@ func TestFileDiffDarkMagic(t *testing.T) {
 	assert.Nil(t, err)
 	magicDiffs := res[items.DependencyFileDiff].(map[string]items.FileDiffData)["test.java"]
 	fd.CleanupDisabled = true
+	res, err = fd.Consume(deps)
+	assert.Nil(t, err)
+	plainDiffs := res[items.DependencyFileDiff].(map[string]items.FileDiffData)["test.java"]
+	assert.NotEqual(t, magicDiffs.Diffs, plainDiffs.Diffs)
+	assert.Equal(t, magicDiffs.OldLinesOfCode, plainDiffs.OldLinesOfCode)
+	assert.Equal(t, magicDiffs.NewLinesOfCode, plainDiffs.NewLinesOfCode)
+}
+
+func TestFileDiffWhitespaceDarkMagic(t *testing.T) {
+	fd := fixtures.FileDiff()
+	deps := map[string]interface{}{}
+	cache := map[plumbing.Hash]*items.CachedBlob{}
+	items.AddHash(t, cache, "448eb3f312849b0ca766063d06b09481c987b309") // 1.java
+	items.AddHash(t, cache, "3312c92f3e8bdfbbdb30bccb6acd1b85bc338dfc") // 2.java
+	deps[items.DependencyBlobCache] = cache
+	changes := make(object.Changes, 1)
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
+		"f02289bfe843388a1bb3c7dea210374082dd86b9"))
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
+		"eca91acf1fd828f20dcb653a061d8c97d965bc6c"))
+	changes[0] = &object.Change{From: object.ChangeEntry{
+		Name: "test.java",
+		Tree: treeFrom,
+		TreeEntry: object.TreeEntry{
+			Name: "test.java",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("448eb3f312849b0ca766063d06b09481c987b309"),
+		},
+	}, To: object.ChangeEntry{
+		Name: "test.java",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "test.java",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("3312c92f3e8bdfbbdb30bccb6acd1b85bc338dfc"),
+		},
+	}}
+	deps[items.DependencyTreeChanges] = changes
+	res, err := fd.Consume(deps)
+	assert.Nil(t, err)
+	magicDiffs := res[items.DependencyFileDiff].(map[string]items.FileDiffData)["test.java"]
+	fd.WhitespaceIgnore = true
 	res, err = fd.Consume(deps)
 	assert.Nil(t, err)
 	plainDiffs := res[items.DependencyFileDiff].(map[string]items.FileDiffData)["test.java"]
