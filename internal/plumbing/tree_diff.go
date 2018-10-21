@@ -21,7 +21,7 @@ import (
 type TreeDiff struct {
 	core.NoopMerger
 	SkipDirs     []string
-	WhitelistDirs [] string
+	Filter       string
 	Languages    map[string]bool
 
 	previousTree *object.Tree
@@ -47,10 +47,10 @@ const (
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
 
-	// ConfigTreeDiffWhitelistedPrefixes is the name of the configuration option
+	// ConfigTreeDiffFilteredRegexes is the name of the configuration option
 	// (TreeDiff.Configure()) which allows to set whitelisted path prefixes -
 	// directories or complete file names.
-	ConfigTreeDiffWhitelistPrefixes = "TreeDiff.WhitelistedPrefixes"
+	ConfigTreeDiffFilterRegex = "TreeDiff.FilteredRegexes"
 )
 
 // defaultBlacklistedPrefixes is the list of file path prefixes which should be skipped by default.
@@ -104,13 +104,11 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Flag:        "languages",
 		Type:        core.StringsConfigurationOption,
 		Default:     []string{allLanguages} }, {
-	  Name:       ConfigTreeDiffWhitelistPrefixes,
-		Description: "List of whitelisted path prefixes (e.g. directories or specific files). " +
-			"Values are in the UNIX format (\"path/to/x\"). Values should *not* start with \"/\". " +
-			"Separated with commas \",\".",
-		Flag:        "whitelisted-prefixes",
+	  Name:       ConfigTreeDiffFilterRegex,
+    Description: "Will filter which files to analyze based on this Regex",
+		Flag:        "filter",
 		Type:        core.StringsConfigurationOption,
-		Default:     []string{}},
+		},
 	}
 	return options[:]
 }
@@ -130,8 +128,8 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 		treediff.Languages[allLanguages] = true
 	}
 
-	if val, exists := facts[ConfigTreeDiffWhitelistPrefixes].([]string); exists {
-		treediff.WhitelistDirs = val
+	if val, exists := facts[ConfigTreeDiffFilterRegex].(string); exists {
+		treediff.Filter = val
 	}
 }
 
@@ -214,9 +212,13 @@ OUTER:
 				continue OUTER
 			}
 		}
-    for _, dir := range treediff.WhitelistDirs {
-			matchedTo, _ := regexp.MatchString(dir, change.To.Name)
-			matchedFrom, _ := regexp.MatchString(dir, change.From.Name)
+		if treediff.Filter != "" {
+			matchedTo, err := regexp.MatchString(treediff.Filter, change.To.Name)
+			matchedFrom, _ := regexp.MatchString(treediff.Filter, change.From.Name)
+			if err != nil {
+				panic(err)
+			}
+
 			if !matchedTo && !matchedFrom {
 				continue OUTER
 			}
