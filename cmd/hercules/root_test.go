@@ -15,7 +15,7 @@ import (
 )
 
 func TestLoadRepository(t *testing.T) {
-	repo := loadRepository("https://github.com/src-d/hercules", "", true)
+	repo := loadRepository("https://github.com/src-d/hercules", "", true, "")
 	assert.NotNil(t, repo)
 	log.Println("TestLoadRepository: 1/3")
 
@@ -37,7 +37,8 @@ func TestLoadRepository(t *testing.T) {
 		assert.FailNow(t, "filesystem.NewStorage")
 	}
 
-	repo = loadRepository(tempdir, "", true)
+
+	repo = loadRepository(tempdir, "", true, "")
 	assert.NotNil(t, repo)
 	log.Println("TestLoadRepository: 2/3")
 
@@ -45,12 +46,12 @@ func TestLoadRepository(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		// TODO(vmarkovtsev): uncomment once https://github.com/src-d/go-billy-siva/issues/29 is resolved
 		sivafile := filepath.Join(filepath.Dir(filename), "test_data", "hercules.siva")
-		repo = loadRepository(sivafile, "", true)
+		repo = loadRepository(sivafile, "", true, "")
 		assert.NotNil(t, repo)
 		log.Println("TestLoadRepository: 3/3")
 	}
 
-	assert.Panics(t, func() { loadRepository("https://github.com/src-d/porn", "", true) })
-	assert.Panics(t, func() { loadRepository(filepath.Dir(filename), "", true) })
-	assert.Panics(t, func() { loadRepository("/xxx", "", true) })
+	assert.Panics(t, func() { loadRepository("https://github.com/src-d/porn", "", true, "") })
+	assert.Panics(t, func() { loadRepository(filepath.Dir(filename), "", true, "") })
+	assert.Panics(t, func() { loadRepository("/xxx", "", true, "") })
 }
