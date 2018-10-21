@@ -95,7 +95,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 		}
 
 		if sshIdentity != "" {
-			auth := loadSshIdentity(sshIdentity);
+			auth := loadSSHIdentity(sshIdentity);
 			if auth != nil {
 				cloneOptions.Auth = auth
 			}
