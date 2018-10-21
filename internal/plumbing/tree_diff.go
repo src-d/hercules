@@ -47,9 +47,8 @@ const (
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
 
-	// ConfigTreeDiffFilteredRegexes is the name of the configuration option
-	// (TreeDiff.Configure()) which allows to set whitelisted path prefixes -
-	// directories or complete file names.
+	// ConfigTreeDiffFilteredRegex is the name of the configuration option
+	// (TreeDiff.Configure()) which will only compute differences based on matching this regex
 	ConfigTreeDiffFilterRegex = "TreeDiff.FilteredRegexes"
 )
 

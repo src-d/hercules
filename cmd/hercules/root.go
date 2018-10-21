@@ -54,7 +54,7 @@ func (writer oneLineWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func loadSshIdentity(sshIdentity string) *ssh2.PublicKeys {
+func loadSSHIdentity(sshIdentity string) *ssh2.PublicKeys {
 	fmt.Fprint(os.Stderr, "using identifiy file...\r")
 	pem, err := ioutil.ReadFile(sshIdentity)
 	if err != nil {
