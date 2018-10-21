@@ -2,6 +2,7 @@ package plumbing
 
 import (
 	"fmt"
+	"regexp"
 	"gopkg.in/src-d/enry.v1"
 	"io"
 	"log"
@@ -20,6 +21,7 @@ import (
 type TreeDiff struct {
 	core.NoopMerger
 	SkipDirs     []string
+	WhitelistDirs [] string
 	Languages    map[string]bool
 
 	previousTree *object.Tree
@@ -44,6 +46,11 @@ const (
 	ConfigTreeDiffLanguages = "TreeDiff.Languages"
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
+
+	// ConfigTreeDiffWhitelistedPrefixes is the name of the configuration option
+	// (TreeDiff.Configure()) which allows to set whitelisted path prefixes -
+	// directories or complete file names.
+	ConfigTreeDiffWhitelistPrefixes = "TreeDiff.WhitelistedPrefixes"
 )
 
 // defaultBlacklistedPrefixes is the list of file path prefixes which should be skipped by default.
@@ -96,7 +103,14 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 			"which disables this filter and lets all the files through.", allLanguages),
 		Flag:        "languages",
 		Type:        core.StringsConfigurationOption,
-		Default:     []string{allLanguages}},
+		Default:     []string{allLanguages} }, {
+	  Name:       ConfigTreeDiffWhitelistPrefixes,
+		Description: "List of whitelisted path prefixes (e.g. directories or specific files). " +
+			"Values are in the UNIX format (\"path/to/x\"). Values should *not* start with \"/\". " +
+			"Separated with commas \",\".",
+		Flag:        "whitelisted-prefixes",
+		Type:        core.StringsConfigurationOption,
+		Default:     []string{}},
 	}
 	return options[:]
 }
@@ -114,6 +128,10 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 	} else if treediff.Languages == nil {
 		treediff.Languages = map[string]bool{}
 		treediff.Languages[allLanguages] = true
+	}
+
+	if val, exists := facts[ConfigTreeDiffWhitelistPrefixes].([]string); exists {
+		treediff.WhitelistDirs = val
 	}
 }
 
@@ -193,6 +211,13 @@ OUTER:
 	for _, change := range diff {
 		for _, dir := range treediff.SkipDirs {
 			if strings.HasPrefix(change.To.Name, dir) || strings.HasPrefix(change.From.Name, dir) {
+				continue OUTER
+			}
+		}
+    for _, dir := range treediff.WhitelistDirs {
+			matchedTo, _ := regexp.MatchString(dir, change.To.Name)
+			matchedFrom, _ := regexp.MatchString(dir, change.From.Name)
+			if !matchedTo && !matchedFrom {
 				continue OUTER
 			}
 		}
