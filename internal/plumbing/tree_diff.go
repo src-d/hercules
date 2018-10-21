@@ -107,8 +107,8 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 	  Name:       ConfigTreeDiffFilterRegex,
     Description: "Will filter which files to analyze based on this Regex",
 		Flag:        "filter",
-		Type:        core.StringsConfigurationOption,
-		},
+		Type:        core.StringConfigurationOption,
+		Default: ""},
 	}
 	return options[:]
 }
