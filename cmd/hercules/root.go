@@ -446,7 +446,7 @@ func init() {
 	rootFlags.Bool("quiet", !terminal.IsTerminal(int(os.Stdin.Fd())),
 		"Do not print status updates to stderr.")
 	rootFlags.Bool("profile", false, "Collect the profile to hercules.pprof.")
-	rootFlags.String("ssh-identity", "", "Specify ssh identity file for cloning with ssh options")
+	rootFlags.String("ssh-identity", "", "Specify ssh identity file for cloning with ssh options.  This cannot contain useful shortcuts like \"~\"")
 	cmdlineFacts, cmdlineDeployed = hercules.Registry.AddFlags(rootFlags)
 	rootCmd.SetUsageFunc(formatUsage)
 	rootCmd.AddCommand(versionCmd)
