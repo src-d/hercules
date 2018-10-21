@@ -1,6 +1,7 @@
 package plumbing
 
 import (
+	"strings"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -77,6 +78,12 @@ func (diff *FileDiff) Configure(facts map[string]interface{}) {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (diff *FileDiff) Initialize(repository *git.Repository) {}
 
+func stripWhitespace(str string) string {
+//	response := strings.Join(strings.Fields(str),"")
+  response := strings.Replace(str, " ", "", -1)
+	return response
+}
+
 // Consume runs this PipelineItem on the next commit data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
 // Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
@@ -99,8 +106,9 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
 			strFrom, strTo := string(blobFrom.Data), string(blobTo.Data)
 			dmp := diffmatchpatch.New()
-			src, dst, _ := dmp.DiffLinesToRunes(strFrom, strTo)
+			src, dst, _ := dmp.DiffLinesToRunes(stripWhitespace(strFrom), stripWhitespace(strTo))
 			diffs := dmp.DiffMainRunes(src, dst, false)
+
 			if !diff.CleanupDisabled {
 				diffs = dmp.DiffCleanupMerge(dmp.DiffCleanupSemanticLossless(diffs))
 			}
