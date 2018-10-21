@@ -15,6 +15,7 @@ import (
 type FileDiff struct {
 	core.NoopMerger
 	CleanupDisabled bool
+	WhitespaceIgnore bool
 }
 
 const (
@@ -22,6 +23,8 @@ const (
 	// to suppress diffmatchpatch.DiffCleanupSemanticLossless() which is supposed to improve
 	// the human interpretability of diffs.
 	ConfigFileDiffDisableCleanup = "FileDiff.NoCleanup"
+
+	ConfigFileWhitespaceCleanup = "FileDiff.NoWhitespace"
 
 	// DependencyFileDiff is the name of the dependency provided by FileDiff.
 	DependencyFileDiff = "file_diff"
@@ -57,13 +60,21 @@ func (diff *FileDiff) Requires() []string {
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (diff *FileDiff) ListConfigurationOptions() []core.ConfigurationOption {
-	options := [...]core.ConfigurationOption{{
-		Name:        ConfigFileDiffDisableCleanup,
-		Description: "Do not apply additional heuristics to improve diffs.",
-		Flag:        "no-diff-cleanup",
-		Type:        core.BoolConfigurationOption,
-		Default:     false},
+	options := [...]core.ConfigurationOption{
+		{
+			Name:        ConfigFileDiffDisableCleanup,
+			Description: "Do not apply additional heuristics to improve diffs.",
+			Flag:        "no-diff-cleanup",
+			Type:        core.BoolConfigurationOption,
+			Default:     false},
+		{
+			Name:        ConfigFileWhitespaceCleanup,
+			Description: "Ignore whitespace when computing differences.",
+			Flag:        "no-whitespace",
+			Type:        core.BoolConfigurationOption,
+			Default:     false},
 	}
+
 	return options[:]
 }
 
@@ -72,16 +83,21 @@ func (diff *FileDiff) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigFileDiffDisableCleanup].(bool); exists {
 		diff.CleanupDisabled = val
 	}
+	if val, exists := facts[ConfigFileWhitespaceCleanup].(bool); exists {
+		diff.WhitespaceIgnore = val
+	}
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (diff *FileDiff) Initialize(repository *git.Repository) {}
 
-func stripWhitespace(str string) string {
-//	response := strings.Join(strings.Fields(str),"")
-  response := strings.Replace(str, " ", "", -1)
-	return response
+func stripWhitespace(str string, ignoreWhitespace bool) string {
+	if ignoreWhitespace {
+		response := strings.Replace(str, " ", "", -1)
+		return response
+	}
+	return str
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -106,7 +122,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
 			strFrom, strTo := string(blobFrom.Data), string(blobTo.Data)
 			dmp := diffmatchpatch.New()
-			src, dst, _ := dmp.DiffLinesToRunes(stripWhitespace(strFrom), stripWhitespace(strTo))
+			src, dst, _ := dmp.DiffLinesToRunes(stripWhitespace(strFrom, diff.WhitespaceIgnore), stripWhitespace(strTo, diff.WhitespaceIgnore))
 			diffs := dmp.DiffMainRunes(src, dst, false)
 
 			if !diff.CleanupDisabled {
