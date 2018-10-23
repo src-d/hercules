@@ -600,7 +600,6 @@ func TestFileMergeMark(t *testing.T) {
 	assert.NotContains(t, status, TreeMergeMark)
 }
 
-
 func TestFileMerge(t *testing.T) {
 	file1, status := fixtureFile()
 	// 0 0 | 100 -1                             [0]: 100

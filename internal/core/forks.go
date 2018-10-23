@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"sort"
 
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v5/internal/toposort"
 )
 
@@ -84,7 +84,7 @@ const (
 type runAction struct {
 	Action int
 	Commit *object.Commit
-	Items []int
+	Items  []int
 }
 
 type orderer = func(reverse, direction bool) []string
@@ -104,7 +104,7 @@ func cloneItems(origin []PipelineItem, n int) [][]PipelineItem {
 }
 
 func mergeItems(branches [][]PipelineItem) {
-	buffer := make([]PipelineItem, len(branches) - 1)
+	buffer := make([]PipelineItem, len(branches)-1)
 	for i, item := range branches[0] {
 		for j := 0; j < len(branches)-1; j++ {
 			buffer[j] = branches[j+1][i]
@@ -350,14 +350,14 @@ func mergeDag(
 // collapseFastForwards removes the fast forward merges.
 func collapseFastForwards(
 	orderNodes orderer, hashes map[string]*object.Commit,
-	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit)  {
+	mergedDag, dag, mergedSeq map[plumbing.Hash][]*object.Commit) {
 
 	parents := buildParents(mergedDag)
 	processed := map[plumbing.Hash]bool{}
 	for _, strkey := range orderNodes(false, true) {
 		key := hashes[strkey].Hash
 		processed[key] = true
-		repeat:
+	repeat:
 		vals, exists := mergedDag[key]
 		if !exists {
 			continue
@@ -482,7 +482,7 @@ func generatePlan(
 			plan = append(plan, runAction{
 				Action: runActionEmerge,
 				Commit: commit,
-				Items: []int{counter},
+				Items:  []int{counter},
 			})
 			counter++
 		}
@@ -502,7 +502,7 @@ func generatePlan(
 			plan = append(plan, runAction{
 				Action: runActionCommit,
 				Commit: c,
-				Items: []int{branch},
+				Items:  []int{branch},
 			})
 		}
 		appendMergeIfNeeded := func() {
@@ -535,7 +535,7 @@ func generatePlan(
 				}
 			}
 			// there should be no duplicates in items
-			if minBranch < 1 << 31 {
+			if minBranch < 1<<31 {
 				branch = minBranch
 				branches[commit.Hash] = minBranch
 			} else if !branchExists() {
@@ -544,7 +544,7 @@ func generatePlan(
 			plan = append(plan, runAction{
 				Action: runActionMerge,
 				Commit: nil,
-				Items: items,
+				Items:  items,
 			})
 		}
 		var head plumbing.Hash
@@ -615,9 +615,9 @@ func collectGarbage(plan []runAction) []runAction {
 		}
 	}
 	var garbageCollectedPlan []runAction
-	lastMentionedArr := make([][2]int, 0, len(lastMentioned) + 1)
+	lastMentionedArr := make([][2]int, 0, len(lastMentioned)+1)
 	for key, val := range lastMentioned {
-		if val != len(plan) - 1 {
+		if val != len(plan)-1 {
 			lastMentionedArr = append(lastMentionedArr, [2]int{val, key})
 		}
 	}
@@ -628,7 +628,7 @@ func collectGarbage(plan []runAction) []runAction {
 	sort.Slice(lastMentionedArr, func(i, j int) bool {
 		return lastMentionedArr[i][0] < lastMentionedArr[j][0]
 	})
-	lastMentionedArr = append(lastMentionedArr, [2]int{len(plan)-1, -1})
+	lastMentionedArr = append(lastMentionedArr, [2]int{len(plan) - 1, -1})
 	prevpi := -1
 	for _, pair := range lastMentionedArr {
 		for pi := prevpi + 1; pi <= pair[0]; pi++ {

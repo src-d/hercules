@@ -623,20 +623,19 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 
 	commitIndex := 0
 	for index, step := range plan {
-		onProgress(index + 1, progressSteps)
+		onProgress(index+1, progressSteps)
 		firstItem := step.Items[0]
 		switch step.Action {
 		case runActionCommit:
 			state := map[string]interface{}{
 				DependencyCommit: step.Commit,
-				DependencyIndex: commitIndex,
-				DependencyIsMerge:
-					(index > 0 &&
+				DependencyIndex:  commitIndex,
+				DependencyIsMerge: (index > 0 &&
 					plan[index-1].Action == runActionCommit &&
 					plan[index-1].Commit.Hash == step.Commit.Hash) ||
 					(index < (len(plan)-1) &&
-					plan[index+1].Action == runActionCommit &&
-					plan[index+1].Commit.Hash == step.Commit.Hash),
+						plan[index+1].Action == runActionCommit &&
+						plan[index+1].Commit.Hash == step.Commit.Hash),
 			}
 			for _, item := range branches[firstItem] {
 				startTime := time.Now()
@@ -644,7 +643,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				runTimePerItem[item.Name()] += time.Now().Sub(startTime).Seconds()
 				if err != nil {
 					log.Printf("%s failed on commit #%d (%d) %s\n",
-						item.Name(), commitIndex + 1, index + 1, step.Commit.Hash.String())
+						item.Name(), commitIndex+1, index+1, step.Commit.Hash.String())
 					return nil, err
 				}
 				for _, key := range item.Provides() {
@@ -680,7 +679,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			delete(branches, firstItem)
 		}
 	}
-	onProgress(len(plan) + 1, progressSteps)
+	onProgress(len(plan)+1, progressSteps)
 	result := map[LeafPipelineItem]interface{}{}
 	for index, item := range getMasterBranch(branches) {
 		if casted, ok := item.(LeafPipelineItem); ok {

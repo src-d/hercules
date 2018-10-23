@@ -1,14 +1,14 @@
 package core
 
 import (
-	"testing"
-	"gopkg.in/src-d/go-git.v4"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/src-d/go-git.v4"
+	"testing"
 )
 
 type testForkPipelineItem struct {
 	NoopMerger
-	Mutable map[int]bool
+	Mutable   map[int]bool
 	Immutable string
 }
 

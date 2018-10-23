@@ -87,12 +87,12 @@ func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Com
 
 // ForkSamePipelineItem clones items by referencing the same origin.
 func ForkSamePipelineItem(origin PipelineItem, n int) []PipelineItem {
-	return core.ForkSamePipelineItem(origin ,n)
+	return core.ForkSamePipelineItem(origin, n)
 }
 
 // ForkCopyPipelineItem clones items by copying them by value from the origin.
 func ForkCopyPipelineItem(origin PipelineItem, n int) []PipelineItem {
-	return core.ForkCopyPipelineItem(origin ,n)
+	return core.ForkCopyPipelineItem(origin, n)
 }
 
 // PipelineItemRegistry contains all the known PipelineItem-s.

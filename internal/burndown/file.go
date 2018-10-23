@@ -29,20 +29,22 @@ type File struct {
 
 // TreeEnd denotes the value of the last leaf in the tree.
 const TreeEnd = -1
+
 // TreeMaxBinPower is the binary power value which corresponds to the maximum day which
 // can be stored in the tree.
 const TreeMaxBinPower = 14
+
 // TreeMergeMark is the special day which disables the status updates and is used in File.Merge().
 const TreeMergeMark = (1 << TreeMaxBinPower) - 1
 
 func (file *File) updateTime(currentTime, previousTime, delta int) {
-	if previousTime & TreeMergeMark == TreeMergeMark {
+	if previousTime&TreeMergeMark == TreeMergeMark {
 		if currentTime == previousTime {
 			return
 		}
 		panic("previousTime cannot be TreeMergeMark")
 	}
-	if currentTime & TreeMergeMark == TreeMergeMark {
+	if currentTime&TreeMergeMark == TreeMergeMark {
 		// merge mode - `delta` is negative and we have already applied it in a branch
 		return
 	}
@@ -193,7 +195,7 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	var previous *rbtree.Item
 	if insLength > 0 && (origin.Value != time || origin.Key == pos) {
 		// insert our new interval
-		if iter.Item().Value == time && iter.Item().Key - delLength == pos {
+		if iter.Item().Value == time && iter.Item().Key-delLength == pos {
 			prev := iter.Prev()
 			if prev.Item().Value != time {
 				iter.Item().Key = pos
@@ -238,7 +240,7 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 }
 
 // Merge combines several prepared File-s together.
-func (file *File) Merge(day int, others... *File) {
+func (file *File) Merge(day int, others ...*File) {
 	myself := file.flatten()
 	for _, other := range others {
 		if other == nil {
@@ -251,10 +253,10 @@ func (file *File) Merge(day int, others... *File) {
 		}
 		for i, l := range myself {
 			ol := lines[i]
-			if ol & TreeMergeMark == TreeMergeMark {
+			if ol&TreeMergeMark == TreeMergeMark {
 				continue
 			}
-			if l & TreeMergeMark == TreeMergeMark || l & TreeMergeMark > ol & TreeMergeMark {
+			if l&TreeMergeMark == TreeMergeMark || l&TreeMergeMark > ol&TreeMergeMark {
 				// the line is merged in myself and exists in other
 				// OR the same line introduced in different branches
 				// consider the oldest version as the ground truth in that case
@@ -264,7 +266,7 @@ func (file *File) Merge(day int, others... *File) {
 		}
 	}
 	for i, l := range myself {
-		if l & TreeMergeMark == TreeMergeMark {
+		if l&TreeMergeMark == TreeMergeMark {
 			// original merge conflict resolution
 			myself[i] = day
 			file.updateTime(day, day, 1)
@@ -273,7 +275,7 @@ func (file *File) Merge(day int, others... *File) {
 	// now we need to reconstruct the tree from the discrete values
 	tree := &rbtree.RBTree{}
 	for i, v := range myself {
-		if i == 0 || v != myself[i - 1] {
+		if i == 0 || v != myself[i-1] {
 			tree.Insert(rbtree.Item{Key: i, Value: v})
 		}
 	}

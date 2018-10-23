@@ -40,7 +40,7 @@ env:
 before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
-  - go get -v github.com/golang/lint/golint
+  - go get -v golang.org/x/lint/golint
   - rm -rf $GOPATH/src/gopkg.in/src-d/go-git.v4
   - git clone --depth 1 --single-branch --branch $GOGIT_TAG https://github.com/src-d/go-git $GOPATH/src/gopkg.in/src-d/go-git.v4
   - (wget https://bootstrap.pypa.io/get-pip.py || wget https://raw.githubusercontent.com/pypa/get-pip/master/get-pip.py) && python3 get-pip.py --user && rm get-pip.py
@@ -59,6 +59,7 @@ install:
   - make
 script:
   - set -e
+  - test -z "$(gofmt -s -l .)"
   - go vet -tags tensorflow ./...
   - golint -set_exit_status ./...
   - flake8
