@@ -316,7 +316,7 @@ func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
 
 // Merge combines several items together. We apply the special file merging logic here.
 func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
-	all := make([]*BurndownAnalysis, len(branches) + 1)
+	all := make([]*BurndownAnalysis, len(branches)+1)
 	all[0] = analyser
 	for i, branch := range branches {
 		all[i+1] = branch.(*BurndownAnalysis)
@@ -927,7 +927,7 @@ func (analyser *BurndownAnalysis) updateGlobal(currentTime, previousTime, delta 
 // updateFile is bound to the specific `history` in the closure.
 func (analyser *BurndownAnalysis) updateFile(
 	history sparseHistory, currentTime, previousTime, delta int) {
-		
+
 	_, currentDay := analyser.unpackPersonWithDay(currentTime)
 	_, previousDay := analyser.unpackPersonWithDay(previousTime)
 
@@ -1237,8 +1237,8 @@ func (analyser *BurndownAnalysis) groupSparseHistory(
 	// [y][x]
 	// y - sampling
 	// x - granularity
-	samples := lastDay / analyser.Sampling + 1
-	bands := lastDay / analyser.Granularity + 1
+	samples := lastDay/analyser.Sampling + 1
+	bands := lastDay/analyser.Granularity + 1
 	result := make(DenseHistory, samples)
 	for i := 0; i < bands; i++ {
 		result[i] = make([]int64, bands)
@@ -1255,7 +1255,7 @@ func (analyser *BurndownAnalysis) groupSparseHistory(
 		}
 		sample := result[si]
 		for bday, value := range history[day] {
-			sample[bday / analyser.Granularity] += value
+			sample[bday/analyser.Granularity] += value
 		}
 	}
 	return result, lastDay

@@ -16,8 +16,9 @@ import (
 	"strings"
 	_ "unsafe" // for go:linkname
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/Masterminds/sprig"
+	"github.com/gogo/protobuf/proto"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
@@ -27,13 +28,12 @@ import (
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v5"
 	"gopkg.in/src-d/hercules.v5/internal/pb"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	"github.com/mitchellh/go-homedir"
 )
 
 // oneLineWriter splits the output data by lines and outputs one on top of another using '\r'.
@@ -56,9 +56,9 @@ func (writer oneLineWriter) Write(p []byte) (n int, err error) {
 }
 
 func loadSSHIdentity(sshIdentity string) (*ssh.PublicKeys, error) {
-	actual, err := homedir.Expand(sshIdentity);
+	actual, err := homedir.Expand(sshIdentity)
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return ssh.NewPublicKeysFromFile("git", actual, "")
 }
@@ -88,7 +88,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 		}
 
 		if sshIdentity != "" {
-			auth, err := loadSSHIdentity(sshIdentity);
+			auth, err := loadSSHIdentity(sshIdentity)
 			if err != nil {
 				log.Printf("Failed loading SSH Identity %s\n", err)
 			}
@@ -209,7 +209,7 @@ targets can be added using the --plugin system.`,
 					bar.SetMaxWidth(80)
 					bar.Start()
 				}
-				if commit == length - 1 {
+				if commit == length-1 {
 					bar.Finish()
 					fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\rfinalizing...")
 				} else {
@@ -430,11 +430,11 @@ func init() {
 	rootCmd.MarkFlagFilename("plugin")
 	rootFlags := rootCmd.Flags()
 	rootFlags.String("commits", "", "Path to the text file with the "+
-		"commit history to follow instead of the default `git log`. " +
+		"commit history to follow instead of the default `git log`. "+
 		"The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
 	rootCmd.MarkFlagFilename("commits")
-	rootFlags.Bool("first-parent", false, "Follow only the first parent in the commit history - " +
+	rootFlags.Bool("first-parent", false, "Follow only the first parent in the commit history - "+
 		"\"git log --first-parent\".")
 	rootFlags.Bool("pb", false, "The output format will be Protocol Buffers instead of YAML.")
 	rootFlags.Bool("quiet", !terminal.IsTerminal(int(os.Stdin.Fd())),

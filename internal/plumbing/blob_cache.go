@@ -258,8 +258,8 @@ func (blobCache *BlobCache) Fork(n int) []core.PipelineItem {
 		}
 		caches[i] = &BlobCache{
 			FailOnMissingSubmodules: blobCache.FailOnMissingSubmodules,
-			repository: blobCache.repository,
-			cache: cache,
+			repository:              blobCache.repository,
+			cache:                   cache,
 		}
 	}
 	return caches

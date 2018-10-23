@@ -263,7 +263,7 @@ func (ra *RenameAnalysis) blobsAreClose(
 		}
 	}
 	size := internal.Max(1, internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst)))
-	similarity := (common*100) / size
+	similarity := (common * 100) / size
 	return similarity >= ra.SimilarityThreshold, nil
 }
 

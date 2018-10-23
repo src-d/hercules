@@ -9,7 +9,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v5/internal/core"
-	)
+)
 
 // Detector determines the author of a commit. Same person can commit under different
 // signatures, and we apply some heuristics to merge those together.

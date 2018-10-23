@@ -3,7 +3,7 @@ package leaves
 import (
 	"fmt"
 	"io"
-		"sort"
+	"sort"
 
 	"github.com/gogo/protobuf/proto"
 	"gopkg.in/src-d/go-git.v4"
@@ -53,7 +53,7 @@ type CouplesResult struct {
 
 type rename struct {
 	FromName string
-	ToName string
+	ToName   string
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.

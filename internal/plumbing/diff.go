@@ -1,20 +1,20 @@
 package plumbing
 
 import (
-	"strings"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 	"gopkg.in/src-d/hercules.v5/internal/core"
+	"strings"
 )
 
 // FileDiff calculates the difference of files which were modified.
 // It is a PipelineItem.
 type FileDiff struct {
 	core.NoopMerger
-	CleanupDisabled bool
+	CleanupDisabled  bool
 	WhitespaceIgnore bool
 }
 

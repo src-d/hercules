@@ -255,7 +255,7 @@ func TestPipelineRunBranches(t *testing.T) {
 	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
 	commits := make([]*object.Commit, 5)
-	hashes := []string {
+	hashes := []string{
 		"6db8065cdb9bb0758f36a7e75fc72ab95f9e8145",
 		"f30daba81ff2bf0b3ba02a1e1441e74f8a4f6fee",
 		"8a03b5620b1caa72ec9cb847ea88332621e2950a",
@@ -418,7 +418,7 @@ func TestPipelineError(t *testing.T) {
 func TestCommonAnalysisResultMerge(t *testing.T) {
 	c1 := CommonAnalysisResult{
 		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100,
-	    RunTimePerItem: map[string]float64{"one": 1, "two": 2}}
+		RunTimePerItem: map[string]float64{"one": 1, "two": 2}}
 	assert.Equal(t, c1.BeginTimeAsTime().Unix(), int64(1513620635))
 	assert.Equal(t, c1.EndTimeAsTime().Unix(), int64(1513720635))
 	c2 := CommonAnalysisResult{
@@ -513,7 +513,7 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 		}
 	}*/
 	// fork, merge and one artificial commit per branch
-	assert.Len(t, plan, len(commits) + 1)
+	assert.Len(t, plan, len(commits)+1)
 	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", plan[0].Commit.Hash.String())
 	assert.Equal(t, rootBranchIndex, plan[0].Items[0])
@@ -593,12 +593,12 @@ func TestMergeDag(t *testing.T) {
 }
 
 func TestPrepareRunPlanBig(t *testing.T) {
-	cases := [][7]int {
+	cases := [][7]int{
 		{2017, 8, 9, 0, 0, 0, 0},
 		{2017, 8, 10, 0, 0, 0, 0},
 		{2017, 8, 24, 1, 1, 1, 1},
-		{2017, 9, 19, 1-2, 1, 1, 1},
-		{2017, 9, 23, 1-2, 1, 1, 1},
+		{2017, 9, 19, 1 - 2, 1, 1, 1},
+		{2017, 9, 23, 1 - 2, 1, 1, 1},
 		{2017, 12, 8, 1, 1, 1, 1},
 		{2017, 12, 9, 1, 1, 1, 1},
 		{2017, 12, 10, 1, 1, 1, 1},

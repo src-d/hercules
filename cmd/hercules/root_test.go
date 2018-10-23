@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-billy.v4/osfs"
-	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 )
 
 func TestLoadRepository(t *testing.T) {
@@ -36,7 +36,6 @@ func TestLoadRepository(t *testing.T) {
 	if err != nil {
 		assert.FailNow(t, "filesystem.NewStorage")
 	}
-
 
 	repo = loadRepository(tempdir, "", true, "")
 	assert.NotNil(t, repo)

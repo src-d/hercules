@@ -9,14 +9,14 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v5/internal/core"
 	"gopkg.in/src-d/hercules.v5/internal/pb"
 	"gopkg.in/src-d/hercules.v5/internal/plumbing"
 	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v5/internal/test"
-	)
+)
 
 func fixtureCouples() *CouplesAnalysis {
 	c := CouplesAnalysis{PeopleNumber: 3}
@@ -118,34 +118,34 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, c.people[2]["file_test.go"], 1)
 	assert.Equal(t, len(c.files["README.md"]), 3)
 	assert.Equal(t, c.files["README.md"], map[string]int{
-		"README.md": 2,
-		"analyser.go": 2,
+		"README.md":    2,
+		"analyser.go":  2,
 		"file_test.go": 1,
 	})
 	assert.Equal(t, c.files["LICENSE2"], map[string]int{
-		"LICENSE2": 1,
-		"file2.go": 1,
+		"LICENSE2":   1,
+		"file2.go":   1,
 		"rbtree2.go": 1,
 	})
 	assert.Equal(t, c.files["file2.go"], map[string]int{
-		"LICENSE2": 1,
-		"file2.go": 1,
+		"LICENSE2":   1,
+		"file2.go":   1,
 		"rbtree2.go": 1,
 	})
 	assert.Equal(t, c.files["rbtree2.go"], map[string]int{
-		"LICENSE2": 1,
-		"file2.go": 1,
+		"LICENSE2":   1,
+		"file2.go":   1,
 		"rbtree2.go": 1,
 	})
 	assert.Equal(t, c.files["analyser.go"], map[string]int{
-		"analyser.go": 2,
-		"README.md": 2,
+		"analyser.go":  2,
+		"README.md":    2,
 		"file_test.go": 1,
 	})
 	assert.Equal(t, c.files["file_test.go"], map[string]int{
 		"file_test.go": 2,
-		"README.md": 1,
-		"analyser.go": 1,
+		"README.md":    1,
+		"analyser.go":  1,
 	})
 	assert.Equal(t, c.peopleCommits[0], 2)
 	assert.Equal(t, c.peopleCommits[1], 1)
@@ -201,17 +201,17 @@ func TestCouplesFork(t *testing.T) {
 
 func TestCouplesSerialize(t *testing.T) {
 	c := fixtureCouples()
-	result := CouplesResult {
+	result := CouplesResult{
 		PeopleMatrix: []map[int]int64{
-			{0:7, 1:3, 2:1}, {0:3, 1:3}, {0:1, 2:1}, {},
+			{0: 7, 1: 3, 2: 1}, {0: 3, 1: 3}, {0: 1, 2: 1}, {},
 		},
 		PeopleFiles: [][]int{
 			{0, 1, 2}, {1, 2}, {0}, {},
 		},
 		FilesMatrix: []map[int]int64{
-			{1:1, 2:1, 0:3}, {1:2, 2:2, 0:1}, {2:2, 0:1, 1:2},
+			{1: 1, 2: 1, 0: 3}, {1: 2, 2: 2, 0: 1}, {2: 2, 0: 1, 1: 2},
 		},
-		Files: []string{"five", "one", "three"},
+		Files:              []string{"five", "one", "three"},
 		reversedPeopleDict: []string{"p1", "p2", "p3"},
 	}
 	buffer := &bytes.Buffer{}
@@ -372,26 +372,26 @@ func TestCouplesCurrentFiles(t *testing.T) {
 func TestCouplesPropagateRenames(t *testing.T) {
 	c := fixtureCouples()
 	c.files["one"] = map[string]int{
-		"one": 1,
-		"two": 2,
+		"one":   1,
+		"two":   2,
 		"three": 3,
 	}
 	c.files["two"] = map[string]int{
-		"one": 2,
-		"two": 10,
+		"one":   2,
+		"two":   10,
 		"three": 1,
-		"four": 7,
+		"four":  7,
 	}
 	c.files["three"] = map[string]int{
-		"one": 3,
-		"two": 1,
+		"one":   3,
+		"two":   1,
 		"three": 3,
-		"four": 2,
+		"four":  2,
 	}
 	c.files["four"] = map[string]int{
-		"two": 7,
+		"two":   7,
 		"three": 3,
-		"four": 1,
+		"four":  1,
 	}
 	c.PeopleNumber = 1
 	c.people = make([]map[string]int, 1)
