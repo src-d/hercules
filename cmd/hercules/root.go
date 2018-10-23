@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"plugin"
+	"regexp"
 	"runtime/pprof"
 	"strings"
 	_ "unsafe" // for go:linkname
@@ -31,6 +32,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v5"
 	"gopkg.in/src-d/hercules.v5/internal/pb"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+	"github.com/mitchellh/go-homedir"
 )
 
 // oneLineWriter splits the output data by lines and outputs one on top of another using '\r'.
@@ -52,11 +55,19 @@ func (writer oneLineWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func loadRepository(uri string, cachePath string, disableStatus bool) *git.Repository {
+func loadSSHIdentity(sshIdentity string) (*ssh.PublicKeys, error) {
+	actual, err := homedir.Expand(sshIdentity);
+	if err != nil {
+		return nil, err;
+	}
+	return ssh.NewPublicKeysFromFile("git", actual, "")
+}
+
+func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentity string) *git.Repository {
 	var repository *git.Repository
 	var backend storage.Storer
 	var err error
-	if strings.Contains(uri, "://") {
+	if strings.Contains(uri, "://") || regexp.MustCompile("^[A-Za-z]\\w*@[A-Za-z0-9][\\w.]*:").MatchString(uri) {
 		if cachePath != "" {
 			backend, err = filesystem.NewStorage(osfs.New(cachePath))
 			if err != nil {
@@ -75,6 +86,15 @@ func loadRepository(uri string, cachePath string, disableStatus bool) *git.Repos
 			fmt.Fprint(os.Stderr, "connecting...\r")
 			cloneOptions.Progress = oneLineWriter{Writer: os.Stderr}
 		}
+
+		if sshIdentity != "" {
+			auth, err := loadSSHIdentity(sshIdentity);
+			if err != nil {
+				log.Printf("Failed loading SSH Identity %s\n", err)
+			}
+			cloneOptions.Auth = auth
+		}
+
 		repository, err = git.Clone(backend, nil, cloneOptions)
 		if !disableStatus {
 			fmt.Fprint(os.Stderr, strings.Repeat(" ", 80)+"\r")
@@ -157,6 +177,7 @@ targets can be added using the --plugin system.`,
 		protobuf, _ := flags.GetBool("pb")
 		profile, _ := flags.GetBool("profile")
 		disableStatus, _ := flags.GetBool("quiet")
+		sshIdentity, _ := flags.GetString("ssh-identity")
 
 		if profile {
 			go http.ListenAndServe("localhost:6060", nil)
@@ -169,7 +190,7 @@ targets can be added using the --plugin system.`,
 		if len(args) == 2 {
 			cachePath = args[1]
 		}
-		repository := loadRepository(uri, cachePath, disableStatus)
+		repository := loadRepository(uri, cachePath, disableStatus, sshIdentity)
 
 		// core logic
 		pipeline := hercules.NewPipeline(repository)
@@ -419,6 +440,7 @@ func init() {
 	rootFlags.Bool("quiet", !terminal.IsTerminal(int(os.Stdin.Fd())),
 		"Do not print status updates to stderr.")
 	rootFlags.Bool("profile", false, "Collect the profile to hercules.pprof.")
+	rootFlags.String("ssh-identity", "", "Path to SSH identity file (e.g., ~/.ssh/id_rsa) to clone from an SSH remote.")
 	cmdlineFacts, cmdlineDeployed = hercules.Registry.AddFlags(rootFlags)
 	rootCmd.SetUsageFunc(formatUsage)
 	rootCmd.AddCommand(versionCmd)

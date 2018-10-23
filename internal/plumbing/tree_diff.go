@@ -5,12 +5,13 @@ import (
 	"gopkg.in/src-d/enry.v1"
 	"io"
 	"log"
+	"regexp"
 	"strings"
 
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 // TreeDiff generates the list of changes for a commit. A change can be either one or two blobs
@@ -19,12 +20,13 @@ import (
 // TreeDiff is a PipelineItem.
 type TreeDiff struct {
 	core.NoopMerger
-	SkipDirs     []string
-	Languages    map[string]bool
+	SkipDirs   []string
+	NameFilter *regexp.Regexp
+	Languages  map[string]bool
 
-	previousTree *object.Tree
+	previousTree   *object.Tree
 	previousCommit plumbing.Hash
-	repository *git.Repository
+	repository     *git.Repository
 }
 
 const (
@@ -44,6 +46,10 @@ const (
 	ConfigTreeDiffLanguages = "TreeDiff.Languages"
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
+
+	// ConfigTreeDiffFilterRegex is the name of the configuration option
+	// (TreeDiff.Configure()) which makes FileDiff consider only those files which have names matching this regexp.
+	ConfigTreeDiffFilterRegex = "TreeDiff.FilteredRegexes"
 )
 
 // defaultBlacklistedPrefixes is the list of file path prefixes which should be skipped by default.
@@ -82,21 +88,29 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Flag:        "skip-blacklist",
 		Type:        core.BoolConfigurationOption,
 		Default:     false}, {
-		Name:        ConfigTreeDiffBlacklistedPrefixes,
+
+		Name: ConfigTreeDiffBlacklistedPrefixes,
 		Description: "List of blacklisted path prefixes (e.g. directories or specific files). " +
 			"Values are in the UNIX format (\"path/to/x\"). Values should *not* start with \"/\". " +
 			"Separated with commas \",\".",
-		Flag:        "blacklisted-prefixes",
-		Type:        core.StringsConfigurationOption,
-		Default:     defaultBlacklistedPrefixes}, {
-		Name:        ConfigTreeDiffLanguages,
+		Flag:    "blacklisted-prefixes",
+		Type:    core.StringsConfigurationOption,
+		Default: defaultBlacklistedPrefixes}, {
+
+		Name: ConfigTreeDiffLanguages,
 		Description: fmt.Sprintf(
-			"List of programming languages to analyze. Separated by comma \",\". " +
-			"Names are at https://doc.bblf.sh/languages.html \"%s\" is the special name " +
-			"which disables this filter and lets all the files through.", allLanguages),
-		Flag:        "languages",
-		Type:        core.StringsConfigurationOption,
-		Default:     []string{allLanguages}},
+			"List of programming languages to analyze. Separated by comma \",\". "+
+				"Names are at https://doc.bblf.sh/languages.html \"%s\" is the special name "+
+				"which disables this filter and lets all the files through.", allLanguages),
+		Flag:    "languages",
+		Type:    core.StringsConfigurationOption,
+		Default: []string{allLanguages}}, {
+
+		Name:        ConfigTreeDiffFilterRegex,
+		Description: "Whitelist Regex to determine which files to analyze",
+		Flag:        "whitelist",
+		Type:        core.StringConfigurationOption,
+		Default:     ""},
 	}
 	return options[:]
 }
@@ -114,6 +128,10 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 	} else if treediff.Languages == nil {
 		treediff.Languages = map[string]bool{}
 		treediff.Languages[allLanguages] = true
+	}
+
+	if val, exists := facts[ConfigTreeDiffFilterRegex].(string); exists {
+		treediff.NameFilter = regexp.MustCompile(val)
 	}
 }
 
@@ -193,6 +211,14 @@ OUTER:
 	for _, change := range diff {
 		for _, dir := range treediff.SkipDirs {
 			if strings.HasPrefix(change.To.Name, dir) || strings.HasPrefix(change.From.Name, dir) {
+				continue OUTER
+			}
+		}
+		if treediff.NameFilter != nil {
+			matchedTo := treediff.NameFilter.MatchString(change.To.Name)
+			matchedFrom := treediff.NameFilter.MatchString(change.From.Name)
+
+			if !matchedTo && !matchedFrom {
 				continue OUTER
 			}
 		}
