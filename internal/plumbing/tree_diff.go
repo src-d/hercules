@@ -2,10 +2,10 @@ package plumbing
 
 import (
 	"fmt"
-	"regexp"
 	"gopkg.in/src-d/enry.v1"
 	"io"
 	"log"
+	"regexp"
 	"strings"
 
 	"gopkg.in/src-d/go-git.v4"
@@ -21,7 +21,7 @@ import (
 type TreeDiff struct {
 	core.NoopMerger
 	SkipDirs     []string
-	Filter       string
+	NameFilter   *regexp.Regexp
 	Languages    map[string]bool
 
 	previousTree *object.Tree
@@ -48,7 +48,7 @@ const (
 	allLanguages = "all"
 
 	// ConfigTreeDiffFilteredRegex is the name of the configuration option
-	// (TreeDiff.Configure()) which will only compute differences based on matching this regex
+	// (TreeDiff.Configure()) which makes FileDiff consider only those files which have names matching this regexp.
 	ConfigTreeDiffFilterRegex = "TreeDiff.FilteredRegexes"
 )
 
@@ -104,8 +104,8 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Type:        core.StringsConfigurationOption,
 		Default:     []string{allLanguages} }, {
 	  Name:       ConfigTreeDiffFilterRegex,
-    Description: "Will filter which files to analyze based on this Regex",
-		Flag:        "filter",
+    Description: "Whitelist Regex to determine which files to analyze",
+		Flag:        "whitelist",
 		Type:        core.StringConfigurationOption,
 		Default: ""},
 	}
@@ -128,7 +128,7 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 	}
 
 	if val, exists := facts[ConfigTreeDiffFilterRegex].(string); exists {
-		treediff.Filter = val
+		treediff.NameFilter = regexp.MustCompile(val)
 	}
 }
 
@@ -211,12 +211,9 @@ OUTER:
 				continue OUTER
 			}
 		}
-		if treediff.Filter != "" {
-			matchedTo, err := regexp.MatchString(treediff.Filter, change.To.Name)
-			matchedFrom, _ := regexp.MatchString(treediff.Filter, change.From.Name)
-			if err != nil {
-				panic(err)
-			}
+		if treediff.NameFilter != nil {
+			matchedTo := treediff.NameFilter.MatchString(change.To.Name)
+			matchedFrom := treediff.NameFilter.MatchString(change.From.Name)
 
 			if !matchedTo && !matchedFrom {
 				continue OUTER
