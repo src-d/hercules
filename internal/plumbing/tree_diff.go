@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 // TreeDiff generates the list of changes for a commit. A change can be either one or two blobs
@@ -20,13 +20,13 @@ import (
 // TreeDiff is a PipelineItem.
 type TreeDiff struct {
 	core.NoopMerger
-	SkipDirs     []string
-	NameFilter   *regexp.Regexp
-	Languages    map[string]bool
+	SkipDirs   []string
+	NameFilter *regexp.Regexp
+	Languages  map[string]bool
 
-	previousTree *object.Tree
+	previousTree   *object.Tree
 	previousCommit plumbing.Hash
-	repository *git.Repository
+	repository     *git.Repository
 }
 
 const (
@@ -88,26 +88,29 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Flag:        "skip-blacklist",
 		Type:        core.BoolConfigurationOption,
 		Default:     false}, {
-		Name:        ConfigTreeDiffBlacklistedPrefixes,
+
+		Name: ConfigTreeDiffBlacklistedPrefixes,
 		Description: "List of blacklisted path prefixes (e.g. directories or specific files). " +
 			"Values are in the UNIX format (\"path/to/x\"). Values should *not* start with \"/\". " +
 			"Separated with commas \",\".",
-		Flag:        "blacklisted-prefixes",
-		Type:        core.StringsConfigurationOption,
-		Default:     defaultBlacklistedPrefixes}, {
-		Name:        ConfigTreeDiffLanguages,
+		Flag:    "blacklisted-prefixes",
+		Type:    core.StringsConfigurationOption,
+		Default: defaultBlacklistedPrefixes}, {
+
+		Name: ConfigTreeDiffLanguages,
 		Description: fmt.Sprintf(
-			"List of programming languages to analyze. Separated by comma \",\". " +
-			"Names are at https://doc.bblf.sh/languages.html \"%s\" is the special name " +
-			"which disables this filter and lets all the files through.", allLanguages),
-		Flag:        "languages",
-		Type:        core.StringsConfigurationOption,
-		Default:     []string{allLanguages} }, {
-	  Name:       ConfigTreeDiffFilterRegex,
-    Description: "Whitelist Regex to determine which files to analyze",
+			"List of programming languages to analyze. Separated by comma \",\". "+
+				"Names are at https://doc.bblf.sh/languages.html \"%s\" is the special name "+
+				"which disables this filter and lets all the files through.", allLanguages),
+		Flag:    "languages",
+		Type:    core.StringsConfigurationOption,
+		Default: []string{allLanguages}}, {
+
+		Name:        ConfigTreeDiffFilterRegex,
+		Description: "Whitelist Regex to determine which files to analyze",
 		Flag:        "whitelist",
 		Type:        core.StringConfigurationOption,
-		Default: ""},
+		Default:     ""},
 	}
 	return options[:]
 }
