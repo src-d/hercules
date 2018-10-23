@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"plugin"
+	"regexp"
 	"runtime/pprof"
 	"strings"
 	_ "unsafe" // for go:linkname
@@ -31,8 +32,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/hercules.v5"
 	"gopkg.in/src-d/hercules.v5/internal/pb"
-	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-  "golang.org/x/crypto/ssh"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+	"github.com/mitchellh/go-homedir"
 )
 
 // oneLineWriter splits the output data by lines and outputs one on top of another using '\r'.
@@ -54,27 +55,19 @@ func (writer oneLineWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func loadSSHIdentity(sshIdentity string) *ssh2.PublicKeys {
-	fmt.Fprint(os.Stderr, "using identifiy file...\r")
-	pem, err := ioutil.ReadFile(sshIdentity)
+func loadSSHIdentity(sshIdentity string) (*ssh.PublicKeys, error) {
+	actual, err := homedir.Expand(sshIdentity);
 	if err != nil {
-		fmt.Fprint(os.Stderr, "couldn't read identify file...")
-		return nil
+		return nil, err;
 	}
-
-	signer, err := ssh.ParsePrivateKey(pem)
-	if err != nil {
-		return nil
-	}
-
-	return &ssh2.PublicKeys{User: "git", Signer: signer}
+	return ssh.NewPublicKeysFromFile("git", actual, "")
 }
 
 func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentity string) *git.Repository {
 	var repository *git.Repository
 	var backend storage.Storer
 	var err error
-	if strings.Contains(uri, "://") || strings.Contains(uri, "git@") {
+	if strings.Contains(uri, "://") || regexp.MustCompile("^[A-Za-z]\\w*@[A-Za-z0-9][\\w.]*:").MatchString(uri) {
 		if cachePath != "" {
 			backend, err = filesystem.NewStorage(osfs.New(cachePath))
 			if err != nil {
@@ -95,10 +88,11 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 		}
 
 		if sshIdentity != "" {
-			auth := loadSSHIdentity(sshIdentity);
-			if auth != nil {
-				cloneOptions.Auth = auth
+			auth, err := loadSSHIdentity(sshIdentity);
+			if err != nil {
+				log.Printf("Failed loading SSH Identity %s\n", err)
 			}
+			cloneOptions.Auth = auth
 		}
 
 		repository, err = git.Clone(backend, nil, cloneOptions)
@@ -446,7 +440,7 @@ func init() {
 	rootFlags.Bool("quiet", !terminal.IsTerminal(int(os.Stdin.Fd())),
 		"Do not print status updates to stderr.")
 	rootFlags.Bool("profile", false, "Collect the profile to hercules.pprof.")
-	rootFlags.String("ssh-identity", "", "Specify ssh identity file for cloning with ssh options.  This cannot contain useful shortcuts like \"~\"")
+	rootFlags.String("ssh-identity", "", "Path to SSH identity file (e.g., ~/.ssh/id_rsa) to clone from an SSH remote.")
 	cmdlineFacts, cmdlineDeployed = hercules.Registry.AddFlags(rootFlags)
 	rootCmd.SetUsageFunc(formatUsage)
 	rootCmd.AddCommand(versionCmd)
