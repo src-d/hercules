@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-from datetime import datetime, timedelta
-from importlib import import_module
 import io
 import json
 import os
@@ -12,6 +10,8 @@ import tempfile
 import threading
 import time
 import warnings
+from datetime import datetime, timedelta
+from importlib import import_module
 
 try:
     from clint.textui import progress
@@ -128,6 +128,9 @@ class YamlReader(Reader):
         except (UnicodeEncodeError, yaml.reader.ReaderError) as e:
             print("\nInvalid unicode in the input: %s\nPlease filter it through "
                   "fix_yaml_unicode.py" % e)
+            sys.exit(1)
+        if data is None:
+            print("\nNo data has been read - has Hercules crashed?")
             sys.exit(1)
         self.data = data
 
