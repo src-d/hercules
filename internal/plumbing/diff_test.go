@@ -26,10 +26,10 @@ func TestFileDiffMeta(t *testing.T) {
 	assert.Equal(t, fd.Requires()[1], items.DependencyBlobCache)
 	assert.Len(t, fd.ListConfigurationOptions(), 2)
 	assert.Equal(t, fd.ListConfigurationOptions()[0].Name, items.ConfigFileDiffDisableCleanup)
-	assert.Equal(t, fd.ListConfigurationOptions()[1].Name, items.ConfigFileWhitespaceCleanup)
+	assert.Equal(t, fd.ListConfigurationOptions()[1].Name, items.ConfigFileWhitespaceIgnore)
 	facts := map[string]interface{}{}
 	facts[items.ConfigFileDiffDisableCleanup] = true
-	facts[items.ConfigFileWhitespaceCleanup] = true
+	facts[items.ConfigFileWhitespaceIgnore] = true
 	fd.Configure(facts)
 	assert.True(t, fd.CleanupDisabled)
 	assert.True(t, fd.WhitespaceIgnore)

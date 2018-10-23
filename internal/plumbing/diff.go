@@ -27,9 +27,9 @@ const (
 	// DependencyFileDiff is the name of the dependency provided by FileDiff.
 	DependencyFileDiff = "file_diff"
 
-	// ConfigFileWhitespaceCleanup is the name of the configuration option (FileDiff.Configure())
-	// to suppress whitespace which can lead to detecting formatting changes versus core code changes
-	ConfigFileWhitespaceCleanup = "FileDiff.NoWhitespace"
+	// ConfigFileWhitespaceIgnore is the name of the configuration option (FileDiff.Configure())
+	// to suppress whitespace changes which can pollute the core diff of the files
+	ConfigFileWhitespaceIgnore = "FileDiff.WhitespaceIgnore"
 )
 
 // FileDiffData is the type of the dependency provided by FileDiff.
@@ -70,9 +70,9 @@ func (diff *FileDiff) ListConfigurationOptions() []core.ConfigurationOption {
 			Type:        core.BoolConfigurationOption,
 			Default:     false},
 		{
-			Name:        ConfigFileWhitespaceCleanup,
-			Description: "Ignore whitespace when computing differences.",
-			Flag:        "no-whitespace",
+			Name:        ConfigFileWhitespaceIgnore,
+			Description: "Ignore whitespace when computing diffs.",
+			Flag:        "no-diff-whitespace",
 			Type:        core.BoolConfigurationOption,
 			Default:     false},
 	}
@@ -85,7 +85,7 @@ func (diff *FileDiff) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigFileDiffDisableCleanup].(bool); exists {
 		diff.CleanupDisabled = val
 	}
-	if val, exists := facts[ConfigFileWhitespaceCleanup].(bool); exists {
+	if val, exists := facts[ConfigFileWhitespaceIgnore].(bool); exists {
 		diff.WhitespaceIgnore = val
 	}
 }
