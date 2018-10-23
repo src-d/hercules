@@ -47,7 +47,7 @@ const (
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
 
-	// ConfigTreeDiffFilteredRegex is the name of the configuration option
+	// ConfigTreeDiffFilterRegex is the name of the configuration option
 	// (TreeDiff.Configure()) which makes FileDiff consider only those files which have names matching this regexp.
 	ConfigTreeDiffFilterRegex = "TreeDiff.FilteredRegexes"
 )
