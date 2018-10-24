@@ -247,7 +247,7 @@ can be visualized with t-SNE implemented in TF Projector.
 ```
 
 Thanks to Babelfish, hercules is able to measure how many times each structural unit has been modified.
-By default, it looks at functions; refer to [UAST XPath](https://doc.bblf.sh/user/uast-querying.html)
+By default, it looks at functions; refer to [UAST XPath](https://doc.bblf.sh/using-babelfish/uast-querying.html)
 manual to set an other query.
 
 ```
