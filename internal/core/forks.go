@@ -366,6 +366,7 @@ func collapseFastForwards(
 			continue
 		}
 		toRemove := map[plumbing.Hash]bool{}
+		sort.Slice(vals, func(i, j int) bool { return vals[i].Hash.String() < vals[j].Hash.String() })
 		for _, child := range vals {
 			var queue []plumbing.Hash
 			visited := map[plumbing.Hash]bool{child.Hash: true}
@@ -405,13 +406,14 @@ func collapseFastForwards(
 								}
 							}
 						}
+						break
 					}
-					break
-				}
-				for parent := range parents[head] {
-					if !visited[parent] {
-						visited[head] = true
-						queue = append(queue, parent)
+				} else {
+					for parent := range parents[head] {
+						if !visited[parent] {
+							visited[head] = true
+							queue = append(queue, parent)
+						}
 					}
 				}
 			}
@@ -419,6 +421,7 @@ func collapseFastForwards(
 		if len(toRemove) == 0 {
 			continue
 		}
+
 		// update dag
 		var newVals []*object.Commit
 		node := mergedSeq[key][len(mergedSeq[key])-1].Hash
@@ -457,6 +460,12 @@ func collapseFastForwards(
 				}
 			}
 		}
+
+		// update parents
+		for rm := range toRemove {
+			delete(parents[rm], key)
+		}
+
 		if !merged {
 			mergedDag[key] = newVals
 		} else {
@@ -494,7 +503,7 @@ func generatePlan(
 				branch = -1
 			}
 		}
-		branchExists := func() bool { return branch >= 0 }
+		branchExists := func() bool { return branch >= rootBranchIndex }
 		appendCommit := func(c *object.Commit, branch int) {
 			if branch == 0 {
 				log.Panicf("setting a zero branch for %s", c.Hash.String())
@@ -505,9 +514,9 @@ func generatePlan(
 				Items:  []int{branch},
 			})
 		}
-		appendMergeIfNeeded := func() {
+		appendMergeIfNeeded := func() bool {
 			if len(parents[commit.Hash]) < 2 {
-				return
+				return false
 			}
 			// merge after the merge commit (the first in the sequence)
 			var items []int
@@ -539,13 +548,14 @@ func generatePlan(
 				branch = minBranch
 				branches[commit.Hash] = minBranch
 			} else if !branchExists() {
-				log.Panicf("!branchExists(%s)", commit.Hash.String())
+				log.Panicf("failed to assign the branch to merge %s", commit.Hash.String())
 			}
 			plan = append(plan, runAction{
 				Action: runActionMerge,
 				Commit: nil,
 				Items:  items,
 			})
+			return true
 		}
 		var head plumbing.Hash
 		if subseq, exists := mergedSeq[commit.Hash]; exists {
@@ -554,7 +564,10 @@ func generatePlan(
 					appendCommit(offspring, branch)
 				}
 				if subseqIndex == 0 {
-					appendMergeIfNeeded()
+					if !appendMergeIfNeeded() && !branchExists() {
+						log.Panicf("head of the sequence does not have an assigned branch: %s",
+							commit.Hash.String())
+					}
 				}
 			}
 			head = subseq[len(subseq)-1].Hash
