@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/cache"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 )
 
@@ -25,11 +26,7 @@ func TestLoadRepository(t *testing.T) {
 		assert.FailNow(t, "ioutil.TempDir")
 	}
 	defer os.RemoveAll(tempdir)
-	backend, err := filesystem.NewStorage(osfs.New(tempdir))
-	assert.Nil(t, err)
-	if err != nil {
-		assert.FailNow(t, "filesystem.NewStorage")
-	}
+	backend := filesystem.NewStorage(osfs.New(tempdir), cache.NewObjectLRUDefault())
 	cloneOptions := &git.CloneOptions{URL: "https://github.com/src-d/hercules"}
 	_, err = git.Clone(backend, nil, cloneOptions)
 	assert.Nil(t, err)

@@ -35,7 +35,7 @@ stages:
   - deploy
 
 env:
-  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.8.0 GOGIT_TAG=v4.7.0
+  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.8.0 GOGIT_TAG=v4.7.1
 
 before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip

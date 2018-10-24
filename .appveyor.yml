@@ -6,7 +6,7 @@ clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v5
 
 environment:
   GOPATH: c:\gopath
-  GOGIT_TAG: v4.7.0
+  GOGIT_TAG: v4.7.1
 
 install:
   - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-win32.zip
