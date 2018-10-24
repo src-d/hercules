@@ -80,6 +80,7 @@ script:
 jobs:
   include:
     - stage: test
+      addons: false
       language: generic
       env: DOCKER_BUILD=1
       before_install: skip

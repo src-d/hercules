@@ -14,6 +14,7 @@ install:
   - move protoc.exe C:\msys64\mingw64\bin
 
 build_script:
+  - go version
   - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%PATH%
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
   - git clone --depth 1 --single-branch --branch %GOGIT_TAG% https://github.com/src-d/go-git %GOPATH%/src/gopkg.in/src-d/go-git.v4
