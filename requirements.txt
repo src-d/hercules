@@ -1,5 +1,5 @@
 clint>=0.5.1,<1.0
-matplotlib>=2.0,<3.0
+matplotlib>=2.0,<4.0
 numpy>=1.13.1,<2.0
 pandas>=0.20.0,<1.0
 PyYAML>=3.12,<4.0

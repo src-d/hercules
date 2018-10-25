@@ -317,7 +317,8 @@ These options affects all plots:
 python3 labours.py [--style=white|black] [--backend=] [--size=Y,X]
 ```
 
-`--style` changes the background to be either white ("black" foreground) or black ("white" foreground).
+`--style` sets the general style of the plot (see `labours.py --help`).
+`--background` changes the plot background to be either white or black.
 `--backend` chooses the Matplotlib backend.
 `--size` sets the size of the figure in inches. The default is `12,9`.
 
