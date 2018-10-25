@@ -2,14 +2,15 @@ package uast
 
 import (
 	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 	"unicode/utf8"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v7/internal/core"
 	"gopkg.in/src-d/hercules.v7/internal/plumbing"
@@ -50,6 +51,19 @@ func TestFileDiffRefinerRegistration(t *testing.T) {
 	assert.True(t, matched)
 }
 
+func loadUast(t *testing.T, name string) nodes.Node {
+	filename := path.Join("..", "..", "test_data", name)
+	reader, err := os.Open(filename)
+	if err != nil {
+		assert.Failf(t, "cannot load %s: %v", filename, err)
+	}
+	node, err := nodesproto.ReadTree(reader)
+	if err != nil {
+		assert.Failf(t, "cannot load %s: %v", filename, err)
+	}
+	return node
+}
+
 func TestFileDiffRefinerConsume(t *testing.T) {
 	bytes1, err := ioutil.ReadFile(path.Join("..", "..", "test_data", "1.java"))
 	assert.Nil(t, err)
@@ -67,19 +81,12 @@ func TestFileDiffRefinerConsume(t *testing.T) {
 	}
 	state[plumbing.DependencyFileDiff] = fileDiffs
 	uastChanges := make([]Change, 1)
-	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("..", "..", "test_data", name))
-		assert.Nil(t, err)
-		node := uast.Node{}
-		proto.Unmarshal(bytes, &node)
-		return &node
-	}
 	state[DependencyUastChanges] = uastChanges
 	uastChanges[0] = Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
-		Before: loadUast("uast1.pb"), After: loadUast("uast2.pb"),
+		Before: loadUast(t, "uast1.pb"), After: loadUast(t, "uast2.pb"),
 	}
 	fd := fixtureFileDiffRefiner()
 	iresult, err := fd.Consume(state)
@@ -116,19 +123,12 @@ func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
 	}
 	state[plumbing.DependencyFileDiff] = fileDiffs
 	uastChanges := make([]Change, 1)
-	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("..", "..", "test_data", name))
-		assert.Nil(t, err)
-		node := uast.Node{}
-		proto.Unmarshal(bytes, &node)
-		return &node
-	}
 	state[DependencyUastChanges] = uastChanges
 	uastChanges[0] = Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
-		Before: loadUast("uast1.pb"), After: nil,
+		Before: loadUast(t, "uast1.pb"), After: nil,
 	}
 	fd := fixtureFileDiffRefiner()
 	iresult, err := fd.Consume(state)
@@ -145,7 +145,7 @@ func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
-		Before: loadUast("uast1.pb"), After: loadUast("uast2.pb"),
+		Before: loadUast(t, "uast1.pb"), After: loadUast(t, "uast2.pb"),
 	}
 	iresult, err = fd.Consume(state)
 	assert.Nil(t, err)

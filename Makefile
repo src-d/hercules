@@ -6,7 +6,6 @@ EXE = .exe
 endif
 PKG = $(shell go env GOOS)_$(shell go env GOARCH)
 TAGS ?=
-BBLFSH_DEP =
 
 all: ${GOPATH}/bin/hercules${EXE}
 
@@ -34,12 +33,5 @@ cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 vendor:
 	dep ensure -v
 
-ifeq ($(OS),Windows_NT)
-BBLFSH_DEP = vendor/gopkg.in/bblfsh/client-go.v2/tools/include
-
-vendor/gopkg.in/bblfsh/client-go.v2/tools/include:
-	cd vendor/gopkg.in/bblfsh/client-go.v2 && make cgo-dependencies
-endif
-
-${GOPATH}/bin/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go ${BBLFSH_DEP}
+${GOPATH}/bin/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go
 	go get -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v7.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v7/cmd/hercules

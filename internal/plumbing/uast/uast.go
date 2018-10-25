@@ -16,9 +16,9 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/jeffail/tunny"
-	"gopkg.in/bblfsh/client-go.v2"
-	"gopkg.in/bblfsh/sdk.v1/protocol"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/client-go.v3"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -63,7 +63,7 @@ const (
 
 type uastTask struct {
 	Lock   *sync.RWMutex
-	Dest   map[plumbing.Hash]*uast.Node
+	Dest   map[plumbing.Hash]nodes.Node
 	Name   string
 	Hash   plumbing.Hash
 	Data   []byte
@@ -207,7 +207,7 @@ func (exr *Extractor) Initialize(repository *git.Repository) error {
 func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*items.CachedBlob)
 	treeDiffs := deps[items.DependencyTreeChanges].(object.Changes)
-	uasts := map[plumbing.Hash]*uast.Node{}
+	uasts := map[plumbing.Hash]nodes.Node{}
 	lock := sync.RWMutex{}
 	errs := make([]error, 0)
 	wg := sync.WaitGroup{}
@@ -261,28 +261,21 @@ func (exr *Extractor) Fork(n int) []core.PipelineItem {
 }
 
 func (exr *Extractor) extractUAST(
-	client *bblfsh.Client, name string, data []byte) (*uast.Node, error) {
-	request := client.NewParseRequest()
-	request.Content(string(data))
-	request.Filename(name)
+	client *bblfsh.Client, name string, data []byte) (nodes.Node, error) {
 	ctx, cancel := exr.Context()
 	if cancel != nil {
 		defer cancel()
 	}
-	response, err := request.DoWithContext(ctx)
+	request := client.NewParseRequest().
+		Content(string(data)).Filename(name).Mode(bblfsh.Annotated).Context(ctx)
+	response, _, err := request.UAST()
 	if err != nil {
 		if strings.Contains("missing driver", err.Error()) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	if response.Status != protocol.Ok {
-		return nil, errors.New(strings.Join(response.Errors, "\n"))
-	}
-	if err != nil {
-		return nil, err
-	}
-	return response.UAST, nil
+	return response, nil
 }
 
 func (exr *Extractor) extractTask(client *bblfsh.Client, data interface{}) interface{} {
@@ -303,8 +296,8 @@ func (exr *Extractor) extractTask(client *bblfsh.Client, data interface{}) inter
 
 // Change is the type of the items in the list of changes which is provided by Changes.
 type Change struct {
-	Before *uast.Node
-	After  *uast.Node
+	Before nodes.Node
+	After  nodes.Node
 	Change *object.Change
 }
 
@@ -317,7 +310,7 @@ const (
 // in a commit. It is a PipelineItem.
 type Changes struct {
 	core.NoopMerger
-	cache map[plumbing.Hash]*uast.Node
+	cache map[plumbing.Hash]nodes.Node
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -360,7 +353,7 @@ func (uc *Changes) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (uc *Changes) Initialize(repository *git.Repository) error {
-	uc.cache = map[plumbing.Hash]*uast.Node{}
+	uc.cache = map[plumbing.Hash]nodes.Node{}
 	return nil
 }
 
@@ -370,7 +363,7 @@ func (uc *Changes) Initialize(repository *git.Repository) error {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (uc *Changes) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	uasts := deps[DependencyUasts].(map[plumbing.Hash]*uast.Node)
+	uasts := deps[DependencyUasts].(map[plumbing.Hash]nodes.Node)
 	treeDiffs := deps[items.DependencyTreeChanges].(object.Changes)
 	commit := make([]Change, 0, len(treeDiffs))
 	for _, change := range treeDiffs {
@@ -405,7 +398,7 @@ func (uc *Changes) Fork(n int) []core.PipelineItem {
 	ucs := make([]core.PipelineItem, n)
 	for i := 0; i < n; i++ {
 		clone := &Changes{
-			cache: map[plumbing.Hash]*uast.Node{},
+			cache: map[plumbing.Hash]nodes.Node{},
 		}
 		for key, val := range uc.cache {
 			clone.cache[key] = val
@@ -535,31 +528,46 @@ func (saver *ChangesSaver) Serialize(result interface{}, binary bool, writer io.
 }
 
 func (saver *ChangesSaver) dumpFiles(result [][]Change) []*pb.UASTChange {
-	fileNames := []*pb.UASTChange{}
+	var fileNames []*pb.UASTChange
+	dumpUast := func(uast nodes.Node, path string) {
+		f, err := os.Create(path)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		err = nodesproto.WriteTo(f, uast)
+		if err != nil {
+			panic(err)
+		}
+	}
 	for i, changes := range result {
 		for j, change := range changes {
 			if change.Before == nil || change.After == nil {
 				continue
 			}
 			record := &pb.UASTChange{FileName: change.Change.To.Name}
-			bs, _ := change.Before.Marshal()
 			record.UastBefore = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_before_%s.pb", i, j, change.Change.From.TreeEntry.Hash.String()))
-			ioutil.WriteFile(record.UastBefore, bs, 0666)
+			dumpUast(change.Before, record.UastBefore)
 			blob, _ := saver.repository.BlobObject(change.Change.From.TreeEntry.Hash)
 			s, _ := (&object.File{Blob: *blob}).Contents()
 			record.SrcBefore = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_before_%s.src", i, j, change.Change.From.TreeEntry.Hash.String()))
-			ioutil.WriteFile(record.SrcBefore, []byte(s), 0666)
-			bs, _ = change.After.Marshal()
+			err := ioutil.WriteFile(record.SrcBefore, []byte(s), 0666)
+			if err != nil {
+				panic(err)
+			}
 			record.UastAfter = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_after_%s.pb", i, j, change.Change.To.TreeEntry.Hash.String()))
-			ioutil.WriteFile(record.UastAfter, bs, 0666)
+			dumpUast(change.After, record.UastAfter)
 			blob, _ = saver.repository.BlobObject(change.Change.To.TreeEntry.Hash)
 			s, _ = (&object.File{Blob: *blob}).Contents()
 			record.SrcAfter = path.Join(saver.OutputPath, fmt.Sprintf(
 				"%d_%d_after_%s.src", i, j, change.Change.To.TreeEntry.Hash.String()))
-			ioutil.WriteFile(record.SrcAfter, []byte(s), 0666)
+			err = ioutil.WriteFile(record.SrcAfter, []byte(s), 0666)
+			if err != nil {
+				panic(err)
+			}
 			fileNames = append(fileNames, record)
 		}
 	}

@@ -110,6 +110,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:1a1206efd03a54d336dce7bb8719e74f2f8932f661cb9f57d5813a1d99c083d8"
+  name = "github.com/grpc-ecosystem/grpc-opentracing"
+  packages = ["go/otgrpc"]
+  pruneopts = "UT"
+  revision = "8e809c8a86450a29b90dcc9efbf062d0fe6d9746"
+
+[[projects]]
+  branch = "master"
   digest = "1:82ae4a01ab513802a68d4094e0eca6c5aaa9445633560e2c0491263e37361620"
   name = "github.com/huandu/xstrings"
   packages = ["."]
@@ -195,6 +203,18 @@
   pruneopts = "UT"
   revision = "cb849acea6148000db8a55743f71476b0897ea41"
   version = "6.3.107"
+
+[[projects]]
+  digest = "1:450b7623b185031f3a456801155c8320209f75d0d4c4e633c6b1e59d44d6e392"
+  name = "github.com/opentracing/opentracing-go"
+  packages = [
+    ".",
+    "ext",
+    "log",
+  ]
+  pruneopts = "UT"
+  revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
+  version = "v1.0.2"
 
 [[projects]]
   branch = "master"
@@ -418,6 +438,17 @@
   version = "v2.8.8"
 
 [[projects]]
+  digest = "1:fafaec170283195ece36f81308d93913f10d5b650302d686ba28789cf70b6d01"
+  name = "gopkg.in/bblfsh/client-go.v3"
+  packages = [
+    ".",
+    "tools",
+  ]
+  pruneopts = "UT"
+  revision = "f1bb4239c6001f5f0b1f370b7d4a64866464c07b"
+  version = "v3.2.0"
+
+[[projects]]
   digest = "1:861bb28098fdd02360af9d9a1c246cce4e255c94d6a75661e74dd60144d72105"
   name = "gopkg.in/bblfsh/sdk.v1"
   packages = [
@@ -430,10 +461,11 @@
   version = "v1.16.1"
 
 [[projects]]
-  digest = "1:6346689fd052f5857391860ca459e3e8a53db2fe5da5165d8be8ec17735bd4c0"
+  digest = "1:54b8e8f6199fa36245d5bb3f96cb72b4e2d463258256c3a0e34857df45d03890"
   name = "gopkg.in/bblfsh/sdk.v2"
   packages = [
     "driver",
+    "driver/errors",
     "driver/manifest",
     "protocol",
     "protocol/v1",
@@ -447,8 +479,8 @@
     "uast/transformer",
   ]
   pruneopts = "UT"
-  revision = "73dccf5b138866d38733c4b371fcd597e4240516"
-  version = "v2.3.0"
+  revision = "e39a01efecd8a8670471352b3276c17d5e0dd7a8"
+  version = "v2.14.1"
 
 [[projects]]
   branch = "master"
@@ -615,8 +647,14 @@
     "golang.org/x/crypto/ssh/terminal",
     "gopkg.in/bblfsh/client-go.v2",
     "gopkg.in/bblfsh/client-go.v2/tools",
-    "gopkg.in/bblfsh/sdk.v1/protocol",
+    "gopkg.in/bblfsh/client-go.v3",
+    "gopkg.in/bblfsh/client-go.v3/tools",
     "gopkg.in/bblfsh/sdk.v1/uast",
+    "gopkg.in/bblfsh/sdk.v2/uast",
+    "gopkg.in/bblfsh/sdk.v2/uast/nodes",
+    "gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto",
+    "gopkg.in/bblfsh/sdk.v2/uast/query",
+    "gopkg.in/bblfsh/sdk.v2/uast/role",
     "gopkg.in/cheggaaa/pb.v1",
     "gopkg.in/src-d/enry.v1",
     "gopkg.in/src-d/go-billy-siva.v4",

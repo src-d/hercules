@@ -3,13 +3,16 @@ package leaves
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v7/internal/core"
 	"gopkg.in/src-d/hercules.v7/internal/pb"
@@ -67,6 +70,19 @@ func TestShotnessRegistration(t *testing.T) {
 	assert.True(t, matched)
 }
 
+func loadUast(t *testing.T, name string) nodes.Node {
+	filename := path.Join("..", "internal", "test_data", name)
+	reader, err := os.Open(filename)
+	if err != nil {
+		assert.Failf(t, "cannot load %s: %v", filename, err)
+	}
+	node, err := nodesproto.ReadTree(reader)
+	if err != nil {
+		assert.Failf(t, "cannot load %s: %v", filename, err)
+	}
+	return node
+}
+
 func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, ShotnessResult) {
 	sh := fixtureShotness()
 	bytes1, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "1.java"))
@@ -86,24 +102,25 @@ func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, Shotn
 	}
 	state[items.DependencyFileDiff] = fileDiffs
 	uastChanges := make([]uast_items.Change, 1)
-	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", name))
-		assert.Nil(t, err)
-		node := uast.Node{}
-		proto.Unmarshal(bytes, &node)
+	myLoadUast := func(name string) nodes.Node {
+		node := loadUast(t, name)
 		if eraseEndPosition {
-			uast_items.VisitEachNode(&node, func(child *uast.Node) {
-				child.EndPosition = nil
+			uast_items.VisitEachNode(node, func(child nodes.Node) {
+				obj, _ := child.(nodes.Object)[uast.KeyPos].(nodes.Object)
+				if len(obj) == 0 {
+					return
+				}
+				obj[uast.KeyEnd] = nil
 			})
 		}
-		return &node
+		return node
 	}
 	state[uast_items.DependencyUastChanges] = uastChanges
 	uastChanges[0] = uast_items.Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{},
 			To:   object.ChangeEntry{Name: fileName}},
-		Before: nil, After: loadUast("uast1.pb"),
+		Before: nil, After: myLoadUast("uast1.pb"),
 	}
 	iresult, err := sh.Consume(state)
 	assert.Nil(t, err)
@@ -112,7 +129,7 @@ func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, Shotn
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: fileName}},
-		Before: loadUast("uast1.pb"), After: loadUast("uast2.pb"),
+		Before: myLoadUast("uast1.pb"), After: myLoadUast("uast2.pb"),
 	}
 	iresult, err = sh.Consume(state)
 	assert.Nil(t, err)
@@ -140,19 +157,12 @@ func TestShotnessConsume(t *testing.T) {
 	}
 	state[items.DependencyFileDiff] = fileDiffs
 	uastChanges := make([]uast_items.Change, 1)
-	loadUast := func(name string) *uast.Node {
-		bytes, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", name))
-		assert.Nil(t, err)
-		node := uast.Node{}
-		proto.Unmarshal(bytes, &node)
-		return &node
-	}
 	state[uast_items.DependencyUastChanges] = uastChanges
 	uastChanges[0] = uast_items.Change{
 		Change: &object.Change{
 			From: object.ChangeEntry{},
 			To:   object.ChangeEntry{Name: fileName}},
-		Before: nil, After: loadUast("uast1.pb"),
+		Before: nil, After: loadUast(t, "uast1.pb"),
 	}
 	iresult, err := sh.Consume(state)
 	assert.Nil(t, err)
@@ -161,7 +171,7 @@ func TestShotnessConsume(t *testing.T) {
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: fileName},
 			To:   object.ChangeEntry{Name: newfileName}},
-		Before: loadUast("uast1.pb"), After: loadUast("uast2.pb"),
+		Before: loadUast(t, "uast1.pb"), After: loadUast(t, "uast2.pb"),
 	}
 	fileDiffs[newfileName] = fileDiffs[fileName]
 	delete(fileDiffs, fileName)
@@ -188,6 +198,9 @@ func TestShotnessConsume(t *testing.T) {
 	result := sh.Finalize().(ShotnessResult)
 	assert.Len(t, result.Nodes, 18)
 	assert.Len(t, result.Counters, 18)
+	if len(result.Nodes) != 18 || len(result.Counters) != 18 {
+		t.FailNow()
+	}
 	assert.Equal(t, result.Nodes[14].String(),
 		"MethodDeclaration_testUnpackEntryFromStreamToFile_"+newfileName)
 	assert.Equal(t, result.Counters[14], map[int]int{14: 1, 13: 1})
@@ -199,7 +212,7 @@ func TestShotnessConsume(t *testing.T) {
 		Change: &object.Change{
 			From: object.ChangeEntry{Name: newfileName},
 			To:   object.ChangeEntry{}},
-		Before: loadUast("uast2.pb"), After: nil,
+		Before: loadUast(t, "uast2.pb"), After: nil,
 	}
 	iresult, err = sh.Consume(state)
 	assert.Nil(t, err)

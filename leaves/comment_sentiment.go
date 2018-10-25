@@ -12,7 +12,8 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -149,7 +150,7 @@ func (sent *CommentSentimentAnalysis) validate() {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) error {
 	sent.commentsByDay = map[int][]string{}
-	sent.xpather = &uast_items.ChangesXPather{XPath: "//*[@roleComment]"}
+	sent.xpather = &uast_items.ChangesXPather{XPath: "//*[@role='Comment']"}
 	sent.validate()
 	sent.OneShotMergeProcessor.Initialize()
 	return nil
@@ -298,20 +299,16 @@ func (sent *CommentSentimentAnalysis) serializeBinary(
 	return nil
 }
 
-func (sent *CommentSentimentAnalysis) mergeComments(nodes []*uast.Node) []string {
+func (sent *CommentSentimentAnalysis) mergeComments(extracted []nodes.Node) []string {
 	var mergedComments []string
-	lines := map[int][]*uast.Node{}
-	for _, node := range nodes {
-		if node.StartPosition == nil {
+	lines := map[int][]nodes.Node{}
+	for _, node := range extracted {
+		pos := uast.PositionsOf(node.(nodes.Object))
+		if pos.Start() == nil {
 			continue
 		}
-		lineno := int(node.StartPosition.Line)
-		subnodes := lines[lineno]
-		if subnodes == nil {
-			subnodes = []*uast.Node{}
-		}
-		subnodes = append(subnodes, node)
-		lines[lineno] = subnodes
+		lineno := int(pos.Start().Line)
+		lines[lineno] = append(lines[lineno], node)
 	}
 	lineNums := make([]int, 0, len(lines))
 	for line := range lines {
@@ -323,10 +320,15 @@ func (sent *CommentSentimentAnalysis) mergeComments(nodes []*uast.Node) []string
 		lineNodes := lines[line]
 		maxEnd := line
 		for _, node := range lineNodes {
-			if node.EndPosition != nil && maxEnd < int(node.EndPosition.Line) {
-				maxEnd = int(node.EndPosition.Line)
+			pos := uast.PositionsOf(node.(nodes.Object))
+			if pos.End() != nil && maxEnd < int(pos.End().Line) {
+				maxEnd = int(pos.End().Line)
 			}
-			token := strings.TrimSpace(node.Token)
+			token := strings.TrimSpace(uast.TokenOf(node.(nodes.Object)))
+			// FIXME(vmarkovtsev): remove this hack when https://github.com/bblfsh/go-driver/issues/39 is fixed
+			if len(token) > 0 && token[0] == '#' {
+				token = token[1:]
+			}
 			if token != "" {
 				buffer = append(buffer, token)
 			}

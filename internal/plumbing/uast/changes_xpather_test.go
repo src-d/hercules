@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/bblfsh/client-go.v2"
+	"gopkg.in/bblfsh/client-go.v3"
 	uast_test "gopkg.in/src-d/hercules.v7/internal/plumbing/uast/test"
 	"gopkg.in/src-d/hercules.v7/internal/test"
 )
@@ -27,7 +27,7 @@ func TestChangesXPatherExtractChanged(t *testing.T) {
 		{Before: nil, After: root2, Change: gitChange},
 		{Before: root1, After: nil, Change: gitChange},
 	}
-	xpather := ChangesXPather{XPath: "//*[@roleComment]"}
+	xpather := ChangesXPather{XPath: "//*[@role='Comment']"}
 	nodes := xpather.Extract(uastChanges)
 	assert.True(t, len(nodes) > 0)
 }

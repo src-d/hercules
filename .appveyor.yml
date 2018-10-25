@@ -8,7 +8,7 @@ environment:
   GOPATH: c:\gopath
 
 install:
-  - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-win32.zip
+  - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.6.0/protoc-3.6.0-win32.zip
   - 7z e protoc.zip
   - move protoc.exe C:\msys64\mingw64\bin
 

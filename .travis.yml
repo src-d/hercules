@@ -13,11 +13,6 @@ go:
 services:
   - docker
 
-addons:
-  apt:
-    packages:
-    - libxml2-dev
-
 cache:
   directories:
     - $HOME/.cache/pip
