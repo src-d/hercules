@@ -44,17 +44,20 @@ Blog posts: [1](https://blog.sourced.tech/post/hercules.v4), [2](https://blog.so
 
 ## Installation
 
-Grab `hercules` binary from the [Releases page](https://github.com/src-d/hercules/releases). `labours.py` requires the Python packages listed in [requirements.txt](requirements.txt):
+Grab `hercules` binary from the [Releases page](https://github.com/src-d/hercules/releases).
+`labours.py` requires the Python packages listed in [requirements.txt](requirements.txt):
 
 ```
 pip3 install -r requirements.txt
 ```
 
+[`pip3`](https://pip.pypa.io/en/stable/installing/) is the Python package manager.
+
 Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke/pythonlibs/
-Linux releases require [`libtensorflow`](https://www.tensorflow.org/install/install_go).
 
 ### Build from source
-You are going to need Go (>= v1.8), [`protoc`](https://github.com/google/protobuf/releases) and Python 2 or 3.
+You are going to need Go (>= v1.10), [`protoc`](https://github.com/google/protobuf/releases),
+and [`dep`](https://github.com/golang/dep).
 ```
 go get -d gopkg.in/src-d/hercules.v5/cmd/hercules
 cd $GOPATH/src/gopkg.in/src-d/hercules.v5
@@ -62,6 +65,8 @@ make
 ```
 
 Replace `$GOPATH` with `%GOPATH%` on Windows.
+By default the build requires [`libtensorflow`](https://www.tensorflow.org/install/install_go).
+Disable the analyses which require Tensorflow with `DISABLE_TENSORFLOW=1 make`.
 
 ## Contributions
 

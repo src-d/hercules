@@ -8,6 +8,7 @@ PKG = $(shell go env GOOS)_$(shell go env GOARCH)
 ifneq (${DISABLE_TENSORFLOW},1)
 TAGS ?= tensorflow
 endif
+BBLFSH_DEP =
 
 all: ${GOPATH}/bin/hercules${EXE}
 
@@ -32,12 +33,15 @@ internal/pb/pb_pb2.py: internal/pb/pb.proto
 cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 	cd cmd/hercules && go generate
 
-${GOPATH}/src/gopkg.in/bblfsh/client-go.v2/README.md:
-	go get -d -v gopkg.in/bblfsh/client-go.v2/...
+vendor:
+	dep ensure -v
 
-${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2: ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2/README.md
-	cd ${GOPATH}/src/gopkg.in/bblfsh/client-go.v2 && \
-	make dependencies
+ifeq ($(OS),Windows_NT)
+BBLFSH_DEP = vendor/gopkg.in/bblfsh/client-go.v2/tools/include
 
-${GOPATH}/bin/hercules${EXE}: *.go */*.go */*/*.go */*/*/*.go ${GOPATH}/pkg/$(PKG)/gopkg.in/bblfsh/client-go.v2 internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go
+vendor/gopkg.in/bblfsh/client-go.v2/tools/include:
+	cd vendor/gopkg.in/bblfsh/client-go.v2 && make cgo-dependencies
+endif
+
+${GOPATH}/bin/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go ${BBLFSH_DEP}
 	go get -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v5.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v5/cmd/hercules

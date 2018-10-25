@@ -6,7 +6,6 @@ clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v5
 
 environment:
   GOPATH: c:\gopath
-  GOGIT_TAG: v4.7.1
 
 install:
   - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-win32.zip
@@ -15,10 +14,10 @@ install:
 
 build_script:
   - go version
-  - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%PATH%
+  - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%GOPATH%\bin;%PATH%
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
-  - git clone --depth 1 --single-branch --branch %GOGIT_TAG% https://github.com/src-d/go-git %GOPATH%/src/gopkg.in/src-d/go-git.v4
   - cd %GOPATH%\src\gopkg.in\src-d\hercules.v5
+  - go get -v github.com/golang/dep/cmd/dep
   - set DISABLE_TENSORFLOW=1
   - make
   - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v5\hercules.win64.zip %GOPATH%\bin\hercules.exe
