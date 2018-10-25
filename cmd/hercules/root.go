@@ -14,7 +14,8 @@ import (
 	"regexp"
 	"runtime/pprof"
 	"strings"
-	_ "unsafe" // for go:linkname
+	"text/template"
+	"unicode"
 
 	"github.com/Masterminds/sprig"
 	"github.com/gogo/protobuf/proto"
@@ -27,6 +28,7 @@ import (
 	"gopkg.in/src-d/go-billy.v4/memfs"
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/cache"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage"
@@ -69,10 +71,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 	var err error
 	if strings.Contains(uri, "://") || regexp.MustCompile("^[A-Za-z]\\w*@[A-Za-z0-9][\\w.]*:").MatchString(uri) {
 		if cachePath != "" {
-			backend, err = filesystem.NewStorage(osfs.New(cachePath))
-			if err != nil {
-				panic(err)
-			}
+			backend = filesystem.NewStorage(osfs.New(cachePath), cache.NewObjectLRUDefault())
 			_, err = os.Stat(cachePath)
 			if !os.IsNotExist(err) {
 				log.Printf("warning: deleted %s\n", cachePath)
@@ -107,10 +106,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 		if err2 != nil {
 			log.Panicf("unable to create a siva filesystem from %s: %v", uri, err2)
 		}
-		sivaStorage, err2 := filesystem.NewStorage(fs)
-		if err2 != nil {
-			log.Panicf("unable to create a new storage backend for siva file %s: %v", uri, err2)
-		}
+		sivaStorage := filesystem.NewStorage(fs, cache.NewObjectLRUDefault())
 		repository, err = git.Open(sivaStorage, tmpFs)
 	} else {
 		if uri[len(uri)-1] == os.PathSeparator {
@@ -315,9 +311,34 @@ func protobufResults(
 	os.Stdout.Write(serialized)
 }
 
-// animate the private function defined in Cobra
-//go:linkname tmpl github.com/spf13/cobra.tmpl
-func tmpl(w io.Writer, text string, data interface{}) error
+// trimRightSpace removes the trailing whitespace characters.
+func trimRightSpace(s string) string {
+	return strings.TrimRightFunc(s, unicode.IsSpace)
+}
+
+// rpad adds padding to the right of a string.
+func rpad(s string, padding int) string {
+	return fmt.Sprintf(fmt.Sprintf("%%-%ds", padding), s)
+}
+
+// tmpl was adapted from cobra/cobra.go
+func tmpl(w io.Writer, text string, data interface{}) error {
+	var templateFuncs = template.FuncMap{
+		"trim":                    strings.TrimSpace,
+		"trimRightSpace":          trimRightSpace,
+		"trimTrailingWhitespaces": trimRightSpace,
+		"rpad":                    rpad,
+		"gt":                      cobra.Gt,
+		"eq":                      cobra.Eq,
+	}
+	for k, v := range sprig.TxtFuncMap() {
+		templateFuncs[k] = v
+	}
+	t := template.New("top")
+	t.Funcs(templateFuncs)
+	template.Must(t.Parse(text))
+	return t.Execute(w, data)
+}
 
 func formatUsage(c *cobra.Command) error {
 	// the default UsageFunc() does some private magic c.mergePersistentFlags()
@@ -348,9 +369,8 @@ func formatUsage(c *cobra.Command) error {
 		"plumbing": plumbing,
 		"features": features,
 	}
-	cobra.AddTemplateFuncs(sprig.TxtFuncMap())
 
-	template := `Usage:{{if .c.Runnable}}
+	helpTemplate := `Usage:{{if .c.Runnable}}
   {{.c.UseLine}}{{end}}{{if .c.HasAvailableSubCommands}}
   {{.c.CommandPath}} [command]{{end}}{{if gt (len .c.Aliases) 0}}
 
@@ -401,7 +421,7 @@ Additional help topics:{{range .c.Commands}}{{if .IsAdditionalHelpTopicCommand}}
 
 Use "{{.c.CommandPath}} [command] --help" for more information about a command.{{end}}
 `
-	err := tmpl(c.OutOrStderr(), template, args)
+	err := tmpl(c.OutOrStderr(), helpTemplate, args)
 	for key := range filter {
 		localFlags.Lookup(key).Hidden = false
 	}

@@ -3,6 +3,7 @@ FROM ubuntu:18.04
 ENV GOPATH /root
 ENV PROTOBUF_VERSION 3.5.1
 
+COPY . /root/src/gopkg.in/src-d/hercules.v5
 RUN apt-get update && \
     apt-get install -y --no-install-suggests --no-install-recommends software-properties-common && \
     add-apt-repository -y ppa:gophers/archive && \
@@ -11,9 +12,8 @@ RUN apt-get update && \
     curl -SLo protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOBUF_VERSION/protoc-$PROTOBUF_VERSION-linux-x86_64.zip && \
     unzip -d /usr/local protoc.zip && rm protoc.zip && \
     locale-gen en_US.UTF-8 && \
-    export PATH=/usr/lib/go-1.10/bin:$PATH && \
-    git clone --single-branch --branch v4.7.0 --depth 1 https://github.com/src-d/go-git /root/src/gopkg.in/src-d/go-git.v4 && \
-    go get -v -d gopkg.in/src-d/hercules.v5/... && \
+    export PATH=/usr/lib/go-1.10/bin:/root/bin:$PATH && \
+    go get -v github.com/golang/dep/cmd/dep && \
     cd /root/src/gopkg.in/src-d/hercules.v5 && \
     export CGO_CXXFLAGS=-std=c++14 && \
     curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-$(go env GOOS)-x86_64-1.7.0.tar.gz" | tar -C /usr/local -xz && \

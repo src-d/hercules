@@ -328,6 +328,10 @@ func (strr fakeEncodedObjectStorer) IterEncodedObjects(plumbing.ObjectType) (sto
 	return nil, nil
 }
 
+func (strr fakeEncodedObjectStorer) EncodedObjectSize(plumbing.Hash) (int64, error) {
+	return 0, nil
+}
+
 func getFakeCommitWithFile(name string, contents string) *object.Commit {
 	c := object.Commit{
 		Hash: plumbing.NewHash("ffffffffffffffffffffffffffffffffffffffff"),

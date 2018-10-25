@@ -164,7 +164,7 @@ func TestTreeDiffConsumeOnlyFilesThatMatchFilter(t *testing.T) {
 	td = fixtureTreeDiff()
 	td.previousTree, _ = prevCommit.Tree()
 	td.Configure(map[string]interface{}{
-		ConfigTreeDiffFilterRegex: ".*go",
+		ConfigTreeDiffFilterRegexp: ".*go",
 	})
 	res, err = td.Consume(deps)
 	assert.Nil(t, err)

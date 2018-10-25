@@ -2,11 +2,12 @@ package plumbing
 
 import (
 	"fmt"
-	"gopkg.in/src-d/enry.v1"
 	"io"
 	"log"
 	"regexp"
 	"strings"
+
+	"gopkg.in/src-d/enry.v1"
 
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -47,9 +48,9 @@ const (
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
 
-	// ConfigTreeDiffFilterRegex is the name of the configuration option
+	// ConfigTreeDiffFilterRegexp is the name of the configuration option
 	// (TreeDiff.Configure()) which makes FileDiff consider only those files which have names matching this regexp.
-	ConfigTreeDiffFilterRegex = "TreeDiff.FilteredRegexes"
+	ConfigTreeDiffFilterRegexp = "TreeDiff.FilteredRegexes"
 )
 
 // defaultBlacklistedPrefixes is the list of file path prefixes which should be skipped by default.
@@ -106,8 +107,8 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Type:    core.StringsConfigurationOption,
 		Default: []string{allLanguages}}, {
 
-		Name:        ConfigTreeDiffFilterRegex,
-		Description: "Whitelist Regex to determine which files to analyze",
+		Name:        ConfigTreeDiffFilterRegexp,
+		Description: "Whitelist regexp to determine which files to analyze.",
 		Flag:        "whitelist",
 		Type:        core.StringConfigurationOption,
 		Default:     ""},
@@ -130,7 +131,7 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 		treediff.Languages[allLanguages] = true
 	}
 
-	if val, exists := facts[ConfigTreeDiffFilterRegex].(string); exists {
+	if val, exists := facts[ConfigTreeDiffFilterRegexp].(string); exists {
 		treediff.NameFilter = regexp.MustCompile(val)
 	}
 }
