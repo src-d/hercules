@@ -21,7 +21,7 @@ type RenameAnalysis struct {
 	core.NoopMerger
 	// SimilarityThreshold adjusts the heuristic to determine file renames.
 	// It has the same units as cgit's -X rename-threshold or -M. Better to
-	// set it to the default value of 50 (50%).
+	// set it to the default value of 80 (80%).
 	SimilarityThreshold int
 
 	repository *git.Repository
@@ -30,8 +30,8 @@ type RenameAnalysis struct {
 const (
 	// RenameAnalysisDefaultThreshold specifies the default percentage of common lines in a pair
 	// of files to consider them linked. The exact code of the decision is sizesAreClose().
-	// This defaults to CGit's 50%.
-	RenameAnalysisDefaultThreshold = 50
+	// CGit's default is 50%. Ours is 80% because 50% can be too computationally expensive.
+	RenameAnalysisDefaultThreshold = 80
 
 	// ConfigRenameAnalysisSimilarityThreshold is the name of the configuration option
 	// (RenameAnalysis.Configure()) which sets the similarity threshold.
@@ -218,6 +218,7 @@ func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 func (ra *RenameAnalysis) blobsAreClose(
 	blob1 *CachedBlob, blob2 *CachedBlob) (bool, error) {
 	src, dst := string(blob1.Data), string(blob2.Data)
+	maxSize := internal.Max(1, internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst)))
 
 	// compute the line-by-line diff, then the char-level diffs of the del-ins blocks
 	// yes, this algorithm is greedy and not exact
@@ -261,10 +262,19 @@ func (ra *RenameAnalysis) blobsAreClose(
 				posDst += step
 			}
 		}
+		// supposing that the rest of the lines are the same (they are not - too optimistic),
+		// estimate the maximum similarity and exit the loop if it lower than our threshold
+		maxCommon := common + internal.Min(
+			utf8.RuneCountInString(src[posSrc:]),
+			utf8.RuneCountInString(dst[posDst:]))
+		similarity := (maxCommon * 100) / maxSize
+		if similarity < ra.SimilarityThreshold {
+			return false, nil
+		}
 	}
-	size := internal.Max(1, internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst)))
-	similarity := (common * 100) / size
-	return similarity >= ra.SimilarityThreshold, nil
+	// the very last "overly optimistic" estimate was actually precise, so since we are still here
+	// the blobs are similar
+	return true, nil
 }
 
 type sortableChange struct {
