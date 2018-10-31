@@ -33,7 +33,7 @@ The second is the Python script which draws some predefined plots. These two too
 a pipe. It is possible to write custom analyses using the plugin system. It is also possible
 to merge several analysis results together. The commit history includes branches, merges, etc.
 
-Blog posts: [1](https://blog.sourced.tech/post/hercules.v4), [2](https://blog.sourced.tech/post/hercules).
+Blog posts: [1](https://blog.sourced.tech/post/hercules.v4), [2](https://blog.sourced.tech/post/hercules),
 [Presentation](http://vmarkovtsev.github.io/gowayfest-2018-minsk/).
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
