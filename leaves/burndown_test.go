@@ -342,7 +342,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	}
 }
 
-func TestBurndownSerialize(t *testing.T) {
+func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) BurndownResult {
 	burndown := BurndownAnalysis{
 		Granularity:  30,
 		Sampling:     30,
@@ -352,7 +352,7 @@ func TestBurndownSerialize(t *testing.T) {
 	burndown.Initialize(test.Repository)
 	deps := map[string]interface{}{}
 	// stage 1
-	deps[identity.DependencyAuthor] = 0
+	deps[identity.DependencyAuthor] = firstAuthor
 	deps[items.DependencyDay] = 0
 	cache := map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
@@ -413,7 +413,7 @@ func TestBurndownSerialize(t *testing.T) {
 
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
-	deps[identity.DependencyAuthor] = 1
+	deps[identity.DependencyAuthor] = secondAuthor
 	deps[items.DependencyDay] = 30
 	cache = map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
@@ -481,6 +481,12 @@ func TestBurndownSerialize(t *testing.T) {
 	burndown.reversedPeopleDict = people[:]
 	burndown.Consume(deps)
 	out := burndown.Finalize().(BurndownResult)
+	return out
+}
+
+func TestBurndownSerialize(t *testing.T) {
+	out := bakeBurndownForSerialization(t, 0, 1)
+	burndown := &BurndownAnalysis{}
 
 	buffer := &bytes.Buffer{}
 	burndown.Serialize(out, false, buffer)
@@ -554,6 +560,83 @@ func TestBurndownSerialize(t *testing.T) {
 	indices := [...]int32{0, 3, 0}
 	assert.Equal(t, msg.PeopleInteraction.Indices, indices[:])
 	indptr := [...]int64{0, 2, 3}
+	assert.Equal(t, msg.PeopleInteraction.Indptr, indptr[:])
+}
+
+func TestBurndownSerializeAuthorMissing(t *testing.T) {
+	out := bakeBurndownForSerialization(t, 0, identity.AuthorMissing)
+	burndown := &BurndownAnalysis{}
+
+	buffer := &bytes.Buffer{}
+	burndown.Serialize(out, false, buffer)
+	assert.Equal(t, buffer.String(), `  granularity: 30
+  sampling: 30
+  "project": |-
+    1145    0
+     464  369
+  files:
+    "burndown.go": |-
+      926   0
+      293 250
+    "cmd/hercules/main.go": |-
+      207   0
+      171 119
+  people_sequence:
+    - "one@srcd"
+    - "two@srcd"
+  people:
+    "one@srcd": |-
+      1145    0
+       464    0
+    "two@srcd": |-
+      0 0
+      0 0
+  people_interaction: |-
+    1145 -681    0    0
+       0    0    0    0
+`)
+	buffer = &bytes.Buffer{}
+	burndown.Serialize(out, true, buffer)
+	msg := pb.BurndownAnalysisResults{}
+	proto.Unmarshal(buffer.Bytes(), &msg)
+	assert.Equal(t, msg.Granularity, int32(30))
+	assert.Equal(t, msg.Sampling, int32(30))
+	assert.Equal(t, msg.Project.Name, "project")
+	assert.Equal(t, msg.Project.NumberOfRows, int32(2))
+	assert.Equal(t, msg.Project.NumberOfColumns, int32(2))
+	assert.Len(t, msg.Project.Rows, 2)
+	assert.Len(t, msg.Project.Rows[0].Columns, 1)
+	assert.Equal(t, msg.Project.Rows[0].Columns[0], uint32(1145))
+	assert.Len(t, msg.Project.Rows[1].Columns, 2)
+	assert.Equal(t, msg.Project.Rows[1].Columns[0], uint32(464))
+	assert.Equal(t, msg.Project.Rows[1].Columns[1], uint32(369))
+	assert.Len(t, msg.Files, 2)
+	assert.Equal(t, msg.Files[0].Name, "burndown.go")
+	assert.Equal(t, msg.Files[1].Name, "cmd/hercules/main.go")
+	assert.Len(t, msg.Files[0].Rows, 2)
+	assert.Len(t, msg.Files[0].Rows[0].Columns, 1)
+	assert.Equal(t, msg.Files[0].Rows[0].Columns[0], uint32(926))
+	assert.Len(t, msg.Files[0].Rows[1].Columns, 2)
+	assert.Equal(t, msg.Files[0].Rows[1].Columns[0], uint32(293))
+	assert.Equal(t, msg.Files[0].Rows[1].Columns[1], uint32(250))
+	assert.Len(t, msg.People, 2)
+	assert.Equal(t, msg.People[0].Name, "one@srcd")
+	assert.Equal(t, msg.People[1].Name, "two@srcd")
+	assert.Len(t, msg.People[0].Rows, 2)
+	assert.Len(t, msg.People[0].Rows[0].Columns, 1)
+	assert.Len(t, msg.People[0].Rows[1].Columns, 1)
+	assert.Equal(t, msg.People[0].Rows[0].Columns[0], uint32(1145))
+	assert.Equal(t, msg.People[0].Rows[1].Columns[0], uint32(464))
+	assert.Len(t, msg.People[1].Rows, 2)
+	assert.Len(t, msg.People[1].Rows[0].Columns, 0)
+	assert.Len(t, msg.People[1].Rows[1].Columns, 0)
+	assert.Equal(t, msg.PeopleInteraction.NumberOfRows, int32(2))
+	assert.Equal(t, msg.PeopleInteraction.NumberOfColumns, int32(4))
+	data := [...]int64{1145, -681}
+	assert.Equal(t, msg.PeopleInteraction.Data, data[:])
+	indices := [...]int32{0, 1}
+	assert.Equal(t, msg.PeopleInteraction.Indices, indices[:])
+	indptr := [...]int64{0, 2, 2}
 	assert.Equal(t, msg.PeopleInteraction.Indptr, indptr[:])
 }
 
