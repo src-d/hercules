@@ -107,6 +107,22 @@ message FileHistoryResultMessage {
     map<string, FileHistory> files = 1;
 }
 
+message DevDay {
+    int32 commits = 1;
+    int32 added = 2;
+    int32 removed = 3;
+    int32 changed = 4;
+}
+
+message DayDevs {
+    map<int32, DevDay> devs = 1;
+}
+
+message DevsAnalysisResult {
+    map<int32, DayDevs> days = 1;
+    repeated string dev_index = 2;
+}
+
 message Sentiment {
     float value = 1;
     repeated string comments = 2;

@@ -33,7 +33,9 @@ matrix:
 
 stages:
   - test
-  - deploy
+  - name: deploy
+    # require any tag name to deploy
+    if: tag =~ .*
 
 env:
   - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.8.0
