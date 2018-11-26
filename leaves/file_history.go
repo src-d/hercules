@@ -163,8 +163,8 @@ func (history *FileHistory) serializeBinary(result *FileHistoryResult, writer io
 	if err != nil {
 		return err
 	}
-	writer.Write(serialized)
-	return nil
+	_, err = writer.Write(serialized)
+	return err
 }
 
 func init() {

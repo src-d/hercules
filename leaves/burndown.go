@@ -865,8 +865,8 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	if err != nil {
 		return err
 	}
-	writer.Write(serialized)
-	return nil
+	_, err = writer.Write(serialized)
+	return err
 }
 
 func sortedKeys(m map[string]DenseHistory) []string {
