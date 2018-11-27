@@ -478,8 +478,8 @@ func (couples *CouplesAnalysis) serializeBinary(result *CouplesResult, writer io
 	if err != nil {
 		return err
 	}
-	writer.Write(serialized)
-	return nil
+	_, err = writer.Write(serialized)
+	return err
 }
 
 // currentFiles return the list of files in the last consumed commit.

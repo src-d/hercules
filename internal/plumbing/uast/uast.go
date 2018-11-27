@@ -571,8 +571,8 @@ func (saver *ChangesSaver) serializeBinary(result []*pb.UASTChange, writer io.Wr
 	if err != nil {
 		return err
 	}
-	writer.Write(serialized)
-	return nil
+	_, err = writer.Write(serialized)
+	return err
 }
 
 func init() {

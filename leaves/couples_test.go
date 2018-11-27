@@ -189,6 +189,105 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, cr.FilesMatrix[2][2], int64(3))
 }
 
+func TestCouplesConsumeFinalizeAuthorMissing(t *testing.T) {
+	c := fixtureCouples()
+	deps := map[string]interface{}{}
+	deps[identity.DependencyAuthor] = 0
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
+		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
+	deps[core.DependencyIsMerge] = false
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+LICENSE2", "+file2.go", "+rbtree2.go")
+	c.Consume(deps)
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+README.md", "-LICENSE2", "=analyser.go", ">file2.go>file_test.go")
+	c.Consume(deps)
+	deps[identity.DependencyAuthor] = 1
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=README.md", "=analyser.go", "-rbtree2.go")
+	c.Consume(deps)
+	deps[identity.DependencyAuthor] = identity.AuthorMissing
+	deps[plumbing.DependencyTreeChanges] = generateChanges("=file_test.go")
+	c.Consume(deps)
+	assert.Equal(t, len(c.people[0]), 6)
+	assert.Equal(t, c.people[0]["README.md"], 1)
+	assert.Equal(t, c.people[0]["LICENSE2"], 2)
+	assert.Equal(t, c.people[0]["analyser.go"], 1)
+	assert.Equal(t, c.people[0]["file2.go"], 1)
+	assert.Equal(t, c.people[0]["file_test.go"], 1)
+	assert.Equal(t, c.people[0]["rbtree2.go"], 1)
+	assert.Equal(t, len(c.people[1]), 3)
+	assert.Equal(t, c.people[1]["README.md"], 1)
+	assert.Equal(t, c.people[1]["analyser.go"], 1)
+	assert.Equal(t, c.people[1]["rbtree2.go"], 1)
+	assert.Equal(t, len(c.people[2]), 0)
+	assert.Equal(t, len(c.files["README.md"]), 3)
+	assert.Equal(t, c.files["README.md"], map[string]int{
+		"README.md":    2,
+		"analyser.go":  2,
+		"file_test.go": 1,
+	})
+	assert.Equal(t, c.files["LICENSE2"], map[string]int{
+		"LICENSE2":   1,
+		"file2.go":   1,
+		"rbtree2.go": 1,
+	})
+	assert.Equal(t, c.files["file2.go"], map[string]int{
+		"LICENSE2":   1,
+		"file2.go":   1,
+		"rbtree2.go": 1,
+	})
+	assert.Equal(t, c.files["rbtree2.go"], map[string]int{
+		"LICENSE2":   1,
+		"file2.go":   1,
+		"rbtree2.go": 1,
+	})
+	assert.Equal(t, c.files["analyser.go"], map[string]int{
+		"analyser.go":  2,
+		"README.md":    2,
+		"file_test.go": 1,
+	})
+	assert.Equal(t, c.files["file_test.go"], map[string]int{
+		"file_test.go": 2,
+		"README.md":    1,
+		"analyser.go":  1,
+	})
+	assert.Equal(t, c.peopleCommits[0], 2)
+	assert.Equal(t, c.peopleCommits[1], 1)
+	assert.Equal(t, c.peopleCommits[2], 0)
+	cr := c.Finalize().(CouplesResult)
+	assert.Equal(t, len(cr.Files), 3)
+	assert.Equal(t, cr.Files[0], "README.md")
+	assert.Equal(t, cr.Files[1], "analyser.go")
+	assert.Equal(t, cr.Files[2], "file_test.go")
+	assert.Equal(t, len(cr.PeopleFiles[0]), 3)
+	assert.Equal(t, cr.PeopleFiles[0][0], 0)
+	assert.Equal(t, cr.PeopleFiles[0][1], 1)
+	assert.Equal(t, cr.PeopleFiles[0][2], 2)
+	assert.Equal(t, len(cr.PeopleFiles[1]), 2)
+	assert.Equal(t, cr.PeopleFiles[1][0], 0)
+	assert.Equal(t, cr.PeopleFiles[1][1], 1)
+	assert.Equal(t, len(cr.PeopleFiles[2]), 0)
+	assert.Equal(t, len(cr.PeopleMatrix[0]), 3)
+	assert.Equal(t, cr.PeopleMatrix[0][0], int64(7))
+	assert.Equal(t, cr.PeopleMatrix[0][1], int64(3))
+	assert.Equal(t, cr.PeopleMatrix[0][2], int64(0))
+	assert.Equal(t, len(cr.PeopleMatrix[1]), 2)
+	assert.Equal(t, cr.PeopleMatrix[1][0], int64(3))
+	assert.Equal(t, cr.PeopleMatrix[1][1], int64(3))
+	assert.Equal(t, len(cr.PeopleMatrix[2]), 0)
+	assert.Equal(t, len(cr.FilesMatrix), 3)
+	assert.Equal(t, len(cr.FilesMatrix[0]), 3)
+	assert.Equal(t, cr.FilesMatrix[0][2], int64(1))
+	assert.Equal(t, cr.FilesMatrix[0][0], int64(2))
+	assert.Equal(t, cr.FilesMatrix[0][1], int64(2))
+	assert.Equal(t, len(cr.FilesMatrix[1]), 3)
+	assert.Equal(t, cr.FilesMatrix[1][2], int64(1))
+	assert.Equal(t, cr.FilesMatrix[1][0], int64(2))
+	assert.Equal(t, cr.FilesMatrix[1][1], int64(2))
+	assert.Equal(t, len(cr.FilesMatrix[2]), 3)
+	assert.Equal(t, cr.FilesMatrix[2][0], int64(1))
+	assert.Equal(t, cr.FilesMatrix[2][1], int64(1))
+	assert.Equal(t, cr.FilesMatrix[2][2], int64(3))
+}
+
 func TestCouplesFork(t *testing.T) {
 	couples1 := fixtureCouples()
 	clones := couples1.Fork(1)

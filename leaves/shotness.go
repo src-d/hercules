@@ -437,8 +437,8 @@ func (shotness *ShotnessAnalysis) serializeBinary(result *ShotnessResult, writer
 	if err != nil {
 		return err
 	}
-	writer.Write(serialized)
-	return nil
+	_, err = writer.Write(serialized)
+	return err
 }
 
 func (shotness *ShotnessAnalysis) extractNodes(root *uast.Node) (map[string]*uast.Node, error) {

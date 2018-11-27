@@ -5,9 +5,7 @@ else
 EXE = .exe
 endif
 PKG = $(shell go env GOOS)_$(shell go env GOARCH)
-ifneq (${DISABLE_TENSORFLOW},1)
-TAGS ?= tensorflow
-endif
+TAGS ?=
 BBLFSH_DEP =
 
 all: ${GOPATH}/bin/hercules${EXE}
