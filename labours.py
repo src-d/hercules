@@ -1355,6 +1355,9 @@ def show_devs(args, name, start_date, end_date, data):
 
 
 def _format_number(n):
+    if n == 0:
+        return "0"
+    assert n > 0
     power = int(numpy.log10(abs(n)))
     if power >= 6:
         n = n / 1000000
