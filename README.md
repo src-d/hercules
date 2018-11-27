@@ -40,7 +40,7 @@ Blog posts: [1](https://blog.sourced.tech/post/hercules.v4), [2](https://blog.so
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
 
 ![git/git image](doc/linux.png)
-<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --first-parent --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m project</code></p>
+<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --first-parent --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m burndown-project</code></p>
 
 ## Installation
 
@@ -85,18 +85,18 @@ Some examples:
 
 ```
 # Use "memory" go-git backend and display the burndown plot. "memory" is the fastest but the repository's git data must fit into RAM.
-hercules --burndown https://github.com/src-d/go-git | python3 labours.py -m project --resample month
+hercules --burndown https://github.com/src-d/go-git | python3 labours.py -m burndown-project --resample month
 # Use "file system" go-git backend and print some basic information about the repository.
 hercules /path/to/cloned/go-git
 # Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache, use Protocol Buffers and display the burndown plot without resampling.
-hercules --burndown --pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -m project -f pb --resample raw
+hercules --burndown --pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -m burndown-project -f pb --resample raw
 
 # Now something fun
 # Get the linear history from git rev-list, reverse it
 # Pipe to hercules, produce burndown snapshots for every 30 days grouped by 30 days
 # Save the raw data to cache.yaml, so that later is possible to python3 labours.py -i cache.yaml
 # Pipe the raw data to labours.py, set text font size to 16pt, use Agg matplotlib backend and save the plot to output.png
-git rev-list HEAD | tac | hercules --commits - --burndown https://github.com/git/git | tee cache.yaml | python3 labours.py -m project --font-size 16 --backend Agg --output git.png
+git rev-list HEAD | tac | hercules --commits - --burndown https://github.com/git/git | tee cache.yaml | python3 labours.py -m burndown-project --font-size 16 --backend Agg --output git.png
 ```
 
 `labours.py -i /path/to/yaml` allows to read the output from `hercules` which was saved on disk.
@@ -117,7 +117,7 @@ hercules --some-analysis /tmp/repo-cache
 #### Docker image
 
 ```
-docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -m project -o /io/git_git.png
+docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -m burndown-project -o /io/git_git.png
 ```
 
 ### Built-in analyses
@@ -126,7 +126,7 @@ docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/gi
 
 ```
 hercules --burndown
-python3 labours.py -m project
+python3 labours.py -m burndown-project
 ```
 
 Line burndown statistics for the whole repository.
@@ -148,7 +148,7 @@ Unresampled bands are apparently not aligned and start from the project's birth 
 
 ```
 hercules --burndown --burndown-files
-python3 labours.py -m file
+python3 labours.py -m burndown-file
 ```
 
 Burndown statistics for every file in the repository which is alive in the latest revision.
@@ -159,7 +159,7 @@ Note: it will generate separate graph for every file. You might don't want to ru
 
 ```
 hercules --burndown --burndown-people [-people-dict=/path/to/identities]
-python3 labours.py -m person
+python3 labours.py -m burndown-person
 ```
 
 Burndown statistics for the repository's contributors. If `-people-dict` is not specified, the identities are
@@ -183,7 +183,7 @@ by `|`. The case is ignored.
 
 ```
 hercules --burndown --burndown-people [-people-dict=/path/to/identities]
-python3 labours.py -m churn_matrix
+python3 labours.py -m churn-matrix
 ```
 
 Besides the burndown information, `-people` collects the added and deleted line statistics per
@@ -287,7 +287,7 @@ Such a build requires [`libtensorflow`](https://www.tensorflow.org/install/insta
 #### Everything in a single pass
 
 ```
-hercules --burndown --burndown-files --burndown-people --couples --shotness [-people-dict=/path/to/identities]
+hercules --burndown --burndown-files --burndown-people --couples --shotness --devs [-people-dict=/path/to/identities]
 python3 labours.py -m all
 ```
 
@@ -302,7 +302,7 @@ Hercules has a plugin system and allows to run custom analyses. See [PLUGINS.md]
 ```
 hercules --burndown --pb https://github.com/src-d/go-git > go-git.pb
 hercules --burndown --pb https://github.com/src-d/hercules > hercules.pb
-hercules combine go-git.pb hercules.pb | python3 labours.py -f pb -m project --resample M
+hercules combine go-git.pb hercules.pb | python3 labours.py -f pb -m burndown-project --resample M
 ```
 
 ### Bad unicode errors

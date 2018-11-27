@@ -49,6 +49,7 @@ before_install:
   - export PATH=~/usr/bin:$GOPATH/bin:$PATH
   - make --version
   - pip3 --version
+  - pip3 install --user cython
   - pip3 install --user --no-build-isolation -r requirements.txt tensorflow flake8
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
   - docker exec -it bblfshd bblfshctl driver install python bblfsh/python-driver:latest
@@ -67,13 +68,13 @@ script:
   - flake8
   - go test -coverpkg=all -v -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v5/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt
   - $GOPATH/bin/hercules version
-  - $GOPATH/bin/hercules --burndown --couples --quiet --pb https://github.com/src-d/hercules > 1.pb
+  - $GOPATH/bin/hercules --burndown --couples --devs --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
   - $GOPATH/bin/hercules combine 1.pb 2.pb > 12.pb
   - ($GOPATH/bin/hercules generate-plugin -n MyPlug -o myplug && cd myplug && make)
   - (cd contrib/_plugin_example && make)
-  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
-  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
   - # $GOPATH/bin/hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules > /dev/null
   - set +e
   - if [ $TRAVIS_GO_VERSION = "1.11.*" ]; then bash <(curl -s https://codecov.io/bash); fi

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 import argparse
+from collections import defaultdict, namedtuple
+from datetime import datetime, timedelta
+from importlib import import_module
 import io
 import json
 import os
@@ -11,8 +14,7 @@ import tempfile
 import threading
 import time
 import warnings
-from datetime import datetime, timedelta
-from importlib import import_module
+
 
 try:
     from clint.textui import progress
@@ -26,13 +28,6 @@ import yaml
 if sys.version_info[0] < 3:
     # OK, ancients, I will support Python 2, but you owe me a beer
     input = raw_input  # noqa: F821
-
-
-PB_MESSAGES = {
-    "Burndown": "internal.pb.pb_pb2.BurndownAnalysisResults",
-    "Couples": "internal.pb.pb_pb2.CouplesAnalysisResults",
-    "Shotness": "internal.pb.pb_pb2.ShotnessAnalysisResults",
-}
 
 
 def list_matplotlib_styles():
@@ -64,8 +59,9 @@ def parse_args():
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
-                        choices=["project", "file", "person", "churn_matrix", "ownership",
-                                 "couples", "shotness", "sentiment", "all", "run_times"],
+                        choices=["burndown-project", "burndown-file", "burndown-person",
+                                 "churn-matrix", "ownership", "couples", "shotness", "sentiment",
+                                 "devs", "all", "run-times"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -119,6 +115,12 @@ class Reader(object):
         raise NotImplementedError
 
     def get_shotness(self):
+        raise NotImplementedError
+
+    def get_sentiment(self):
+        raise NotImplementedError
+
+    def get_devs(self):
         raise NotImplementedError
 
 
@@ -223,6 +225,12 @@ class YamlReader(Reader):
             "Commits": vals[1],
             "Value": float(vals[0])
         } for key, vals in self.data["Sentiment"].items()})
+
+    def get_devs(self):
+        people = self.data["Devs"]["people"]
+        days = {int(d): {int(dev): DevDay(*(int(x) for x in day)) for dev, day in devs.items()}
+                for d, devs in self.data["Devs"]["days"].items()}
+        return days, people
 
     def _parse_burndown_matrix(self, matrix):
         return numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
@@ -336,6 +344,13 @@ class ProtobufReader(Reader):
             raise KeyError
         return byday
 
+    def get_devs(self):
+        people = list(self.contents["Devs"].dev_index)
+        days = {d: {dev: DevDay(stats.commits, stats.added, stats.removed, stats.changed)
+                    for dev, stats in day.devs.items()}
+                for d, day in self.contents["Devs"].days.items()}
+        return days, people
+
     def _parse_burndown_matrix(self, matrix):
         dense = numpy.zeros((matrix.number_of_rows, matrix.number_of_columns), dtype=int)
         for y, row in enumerate(matrix.rows):
@@ -350,6 +365,12 @@ class ProtobufReader(Reader):
 
 
 READERS = {"yaml": YamlReader, "yml": YamlReader, "pb": ProtobufReader}
+PB_MESSAGES = {
+    "Burndown": "internal.pb.pb_pb2.BurndownAnalysisResults",
+    "Couples": "internal.pb.pb_pb2.CouplesAnalysisResults",
+    "Shotness": "internal.pb.pb_pb2.ShotnessAnalysisResults",
+    "Devs": "internal.pb.pb_pb2.DevsAnalysisResults",
+}
 
 
 def read_input(args):
@@ -364,6 +385,9 @@ def read_input(args):
     reader.read(args.input)
     print("done")
     return reader
+
+
+DevDay = namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed"))
 
 
 def calculate_average_lifetime(matrix):
@@ -717,7 +741,6 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
         legend_loc = 3
     else:
         legend_loc = 2
-    pyplot.style.use("ggplot")
     legend = pyplot.legend(loc=legend_loc, fontsize=args.font_size)
     pyplot.ylabel("Lines of code")
     pyplot.xlabel("Time")
@@ -1086,12 +1109,12 @@ def show_shotness_stats(data):
         print("%8d  %s:%s [%s]" % (count, r.file, r.name, r.internal_role))
 
 
-def show_sentiment_stats(args, name, resample, start, data):
+def show_sentiment_stats(args, name, resample, start_date, data):
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
 
-    start = datetime.fromtimestamp(start)
+    start_date = datetime.fromtimestamp(start_date)
     data = sorted(data.items())
-    xdates = [start + timedelta(days=d[0]) for d in data]
+    xdates = [start_date + timedelta(days=d[0]) for d in data]
     xpos = []
     ypos = []
     xneg = []
@@ -1152,6 +1175,168 @@ def show_sentiment_stats(args, name, resample, start, data):
     deploy_plot(title, args.output, args.style)
 
 
+def show_devs(args, name, start_date, end_date, data):
+    try:
+        from fastdtw import fastdtw
+    except ImportError as e:
+        print("Cannot import fastdtw: %s\nInstall it from https://github.com/slaypni/fastdtw" % e)
+        sys.exit(1)
+    try:
+        from ortools.constraint_solver import pywrapcp, routing_enums_pb2
+    except ImportError as e:
+        print("Cannot import ortools: %s\nInstall it from "
+              "https://developers.google.com/optimization/install/python/" % e)
+        sys.exit(1)
+    try:
+        from hdbscan import HDBSCAN
+    except ImportError as e:
+        print("Cannot import ortools: %s\nInstall it from "
+              "https://developers.google.com/optimization/install/python/" % e)
+        sys.exit(1)
+    from scipy.signal import convolve, slepian
+
+    days, people = data
+    max_people = 50
+    if len(people) > max_people:
+        print("Picking top 100 developers by commit count")
+        # pick top N developers by commit count
+        commits = defaultdict(int)
+        for devs in days.values():
+            for dev, stats in devs.items():
+                commits[dev] += stats.Commits
+        commits = sorted(((v, k) for k, v in commits.items()), reverse=True)
+        chosen_people = {people[k] for _, k in commits[:max_people]}
+    else:
+        chosen_people = set(people)
+    devseries = defaultdict(list)
+    for day, devs in sorted(days.items()):
+        for dev, stats in devs.items():
+            if people[dev] in chosen_people:
+                devseries[dev].append((day, stats.Commits))
+    print("Calculating the distance matrix")
+    # max-normalize the time series using a sliding window
+    keys = list(devseries.keys())
+    series = list(devseries.values())
+    for i, s in enumerate(series):
+        arr = numpy.array(s).transpose().astype(numpy.float32)
+        commits = arr[1]
+        if len(commits) < 7:
+            commits /= commits.max()
+        else:
+            # 4 is sizeof(float32)
+            windows = numpy.lib.stride_tricks.as_strided(commits, [len(commits) - 6, 7], [4, 4])
+            commits = numpy.concatenate((
+                [windows[0, 0] / windows[0].max(),
+                 windows[0, 1] / windows[0].max(),
+                 windows[0, 2] / windows[0].max()],
+                windows[:, 3] / windows.max(axis=1),
+                [windows[-1, 4] / windows[-1].max(),
+                 windows[-1, 5] / windows[-1].max(),
+                 windows[-1, 6] / windows[-1].max()]
+            ))
+        arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to window size
+        series[i] = list(arr.transpose())
+    # calculate the distance matrix using dynamic time warping metric
+    dists = numpy.full((len(series)+1, len(series)+1), -100500, dtype=numpy.float32)
+    for x in range(len(series)):
+        dists[x, x] = 0
+        for y in range(x + 1, len(series)):
+            # L1 norm
+            dist, _ = fastdtw(series[x], series[y], radius=5, dist=1)
+            dists[x, y] = dists[y, x] = dist
+    # preparation for seriation ordering
+    dists[len(series), :] = 0
+    dists[:, len(series)] = 0
+    assert (dists >= 0).all()
+    print("Ordering the series")
+    # solve the TSP on the distance matrix
+    routing = pywrapcp.RoutingModel(dists.shape[0], 1, len(series))
+
+    def dist_callback(x, y):
+        # ortools wants integers, so we approximate here
+        return int(dists[x][y] * 1000)
+
+    routing.SetArcCostEvaluatorOfAllVehicles(dist_callback)
+    search_parameters = pywrapcp.RoutingModel.DefaultSearchParameters()
+    search_parameters.local_search_metaheuristic = (
+        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
+    search_parameters.time_limit_ms = 2000
+    assignment = routing.SolveWithParameters(search_parameters)
+    index = routing.Start(0)
+    route = []
+    while not routing.IsEnd(index):
+        node = routing.IndexToNode(index)
+        if node < len(keys):
+            route.append(node)
+        index = assignment.Value(routing.NextVar(index))
+    route_map = {v: i for i, v in enumerate(route)}
+
+    # determine clusters
+    opt_dist_chain = numpy.cumsum(numpy.array(
+        [0] + [dists[route[i], route[i + 1]] for i in range(len(route)-1)]))
+    clusters = HDBSCAN(min_cluster_size=2).fit_predict(opt_dist_chain[:, numpy.newaxis])
+    route = [keys[node] for node in route]
+
+    print("Plotting")
+    # smooth time series
+    start_date = datetime.fromtimestamp(start_date)
+    start_date = datetime(start_date.year, start_date.month, start_date.day)
+    end_date = datetime.fromtimestamp(end_date)
+    end_date = datetime(end_date.year, end_date.month, end_date.day)
+    size = (end_date - start_date).days + 1
+    plot_x = [start_date + timedelta(days=i) for i in range(size)]
+    resolution = 64
+    window = slepian(size // resolution, 0.5)
+    series = list(devseries.values())
+    final = numpy.zeros((len(devseries), size), dtype=numpy.float32)
+    for i, s in enumerate(series):
+        arr = numpy.array(s).transpose()
+        full_history = numpy.zeros(size, dtype=numpy.float32)
+        full_history[arr[0]] = arr[1]
+        final[route_map[i]] = convolve(full_history, window, "same")
+
+    matplotlib, pyplot = import_pyplot(args.backend, args.style)
+    prop_cycle = pyplot.rcParams["axes.prop_cycle"]
+    colors = prop_cycle.by_key()["color"]
+    fig, axes = pyplot.subplots(final.shape[0], 1)
+    for ax, series, cluster, dev_i in zip(axes, final, clusters, route):
+        if cluster >= 0:
+            color = colors[cluster % len(colors)]
+        else:
+            # outlier
+            color = "grey"
+        ax.plot(plot_x, series, color=color)
+        ax.set_axis_off()
+        author = people[dev_i]
+        ax.text(0.03, 0.5, author[:36] + (author[36:] and "..."),
+                horizontalalignment="right", verticalalignment="center",
+                transform=ax.transAxes, fontsize=14)
+        ax.text(0.97, 0.5, sum(p[1] for p in devseries[dev_i]),
+                horizontalalignment="left", verticalalignment="center",
+                transform=ax.transAxes, fontsize=14)
+    axes[-1].set_axis_on()
+    target_num_labels = 12
+    num_months = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month
+    interval = int(numpy.ceil(num_months / target_num_labels))
+    if interval >= 8:
+        interval = int(numpy.ceil(num_months / (12 * target_num_labels)))
+        axes[-1].xaxis.set_major_locator(matplotlib.dates.YearLocator(interval=interval))
+        axes[-1].xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%Y"))
+    else:
+        axes[-1].xaxis.set_major_locator(matplotlib.dates.MonthLocator(interval=interval))
+        axes[-1].xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%Y-%m"))
+    for tick in axes[-1].xaxis.get_major_ticks():
+        tick.label.set_fontsize(16)
+    axes[-1].spines["left"].set_visible(False)
+    axes[-1].spines["right"].set_visible(False)
+    axes[-1].spines["top"].set_visible(False)
+    axes[-1].get_yaxis().set_visible(False)
+    axes[-1].set_facecolor((1.0,) * 3 + (0.0,))
+
+    title = "%s commits" % name
+    deploy_plot(title, args.output, args.style)
+
+
 def main():
     args = parse_args()
     reader = read_input(args)
@@ -1169,6 +1354,7 @@ def main():
     shotness_warning = "Structural hotness stats were not collected. Re-run hercules with " \
                        "--shotness. Also check --languages - the output may be empty."
     sentiment_warning = "Sentiment stats were not collected. Re-run hercules with --sentiment."
+    devs_warning = "Devs stats were not collected. Re-run hercules with --devs."
 
     def run_times():
         rt = reader.get_run_times()
@@ -1262,26 +1448,31 @@ def main():
             return
         show_sentiment_stats(args, reader.get_name(), args.resample, reader.get_header()[0], data)
 
-    if args.mode == "run_times":
-        run_times()
-    elif args.mode == "project":
+    def devs():
+        try:
+            data = reader.get_devs()
+        except KeyError:
+            print(devs_warning)
+            return
+        show_devs(args, reader.get_name(), *reader.get_header(), data)
+
+    modes = {
+        "run-times": run_times,
+        "burndown-project": project_burndown,
+        "burndown-file": files_burndown,
+        "burndown-person": people_burndown,
+        "churn-matrix": churn_matrix,
+        "ownership": ownership_burndown,
+        "couples": couples,
+        "shotness": shotness,
+        "sentiment": sentiment,
+        "devs": devs,
+    }
+    try:
+        modes[args.mode]()
+    except KeyError:
+        assert args.mode == "all"
         project_burndown()
-    elif args.mode == "file":
-        files_burndown()
-    elif args.mode == "person":
-        people_burndown()
-    elif args.mode == "churn_matrix":
-        churn_matrix()
-    elif args.mode == "ownership":
-        ownership_burndown()
-    elif args.mode == "couples":
-        couples()
-    elif args.mode == "shotness":
-        shotness()
-    elif args.mode == "sentiment":
-        sentiment()
-    elif args.mode == "all":
-        project_burndown()
         files_burndown()
         people_burndown()
         churn_matrix()
@@ -1289,6 +1480,7 @@ def main():
         couples()
         shotness()
         sentiment()
+        devs()
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
