@@ -387,7 +387,12 @@ def read_input(args):
     return reader
 
 
-DevDay = namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed"))
+class DevDay(namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed"))):
+    def add(self, dd):
+        return DevDay(Commits=self.Commits + dd.Commits,
+                      Added=self.Added + dd.Added,
+                      Removed=self.Removed + dd.Removed,
+                      Changed=self.Changed + dd.Changed)
 
 
 def calculate_average_lifetime(matrix):
@@ -1209,10 +1214,12 @@ def show_devs(args, name, start_date, end_date, data):
     else:
         chosen_people = set(people)
     devseries = defaultdict(list)
+    devstats = defaultdict(lambda: DevDay(0, 0, 0, 0))
     for day, devs in sorted(days.items()):
         for dev, stats in devs.items():
             if people[dev] in chosen_people:
                 devseries[dev].append((day, stats.Commits))
+                devstats[dev] = devstats[dev].add(stats)
     print("Calculating the distance matrix")
     # max-normalize the time series using a sliding window
     keys = list(devseries.keys())
@@ -1299,6 +1306,7 @@ def show_devs(args, name, start_date, end_date, data):
     prop_cycle = pyplot.rcParams["axes.prop_cycle"]
     colors = prop_cycle.by_key()["color"]
     fig, axes = pyplot.subplots(final.shape[0], 1)
+    backgrounds = ("#C4FFDB", "#FFD0CD") if args.background == "white" else ("#05401C", "#40110E")
     for ax, series, cluster, dev_i in zip(axes, final, clusters, route):
         if cluster >= 0:
             color = colors[cluster % len(colors)]
@@ -1310,10 +1318,19 @@ def show_devs(args, name, start_date, end_date, data):
         author = people[dev_i]
         ax.text(0.03, 0.5, author[:36] + (author[36:] and "..."),
                 horizontalalignment="right", verticalalignment="center",
-                transform=ax.transAxes, fontsize=14)
-        ax.text(0.97, 0.5, sum(p[1] for p in devseries[dev_i]),
+                transform=ax.transAxes, fontsize=14,
+                color="black" if args.background == "white" else "white")
+        ds = devstats[dev_i]
+        stats = "%5d %8s %8s" % (ds[0], _format_number(ds[1] - ds[2]), _format_number(ds[3]))
+        ax.text(0.97, 0.5, stats,
                 horizontalalignment="left", verticalalignment="center",
-                transform=ax.transAxes, fontsize=14)
+                transform=ax.transAxes, fontsize=14, family="monospace",
+                backgroundcolor=backgrounds[ds[1] <= ds[2]],
+                color="black" if args.background == "white" else "white")
+    axes[0].text(0.97, 1.75, " cmts    delta  changed",
+                 horizontalalignment="left", verticalalignment="center",
+                 transform=axes[0].transAxes, fontsize=14, family="monospace",
+                 color="black" if args.background == "white" else "white")
     axes[-1].set_axis_on()
     target_num_labels = 12
     num_months = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month
@@ -1335,6 +1352,32 @@ def show_devs(args, name, start_date, end_date, data):
 
     title = "%s commits" % name
     deploy_plot(title, args.output, args.style)
+
+
+def _format_number(n):
+    power = int(numpy.log10(abs(n)))
+    if power >= 6:
+        n = n / 1000000
+        if n >= 10:
+            n = str(int(n))
+        else:
+            n = "%.1f" % n
+            if n.endswith("0"):
+                n = n[:-2]
+        suffix = "M"
+    elif power >= 3:
+        n = n / 1000
+        if n >= 10:
+            n = str(int(n))
+        else:
+            n = "%.1f" % n
+            if n.endswith("0"):
+                n = n[:-2]
+        suffix = "K"
+    else:
+        n = str(n)
+        suffix = ""
+    return n + suffix
 
 
 def main():
