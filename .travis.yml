@@ -38,7 +38,7 @@ stages:
     if: tag =~ .*
 
 env:
-  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.8.0
+  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.11.0
 
 before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
@@ -58,7 +58,7 @@ before_install:
   - sudo ldconfig
 install:
   - git clean -xfd
-  - make
+  - make TAGS=tensorflow
 script:
   - set -e
   - if [ $TRAVIS_GO_VERSION = "1.11.*" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
@@ -101,7 +101,7 @@ jobs:
         - gzip -S .darwin_amd64.gz $GOPATH/bin/hercules
       script: skip
       install:
-        - DISABLE_TENSORFLOW=1 make
+        - make
       deploy:
         provider: releases
         api_key:
@@ -121,7 +121,7 @@ jobs:
         - export PATH=$GOPATH/bin:$PATH
       script: skip
       install:
-        - DISABLE_TENSORFLOW=1 make
+        - make
       after_success:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
       deploy:

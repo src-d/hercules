@@ -18,7 +18,6 @@ build_script:
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
   - cd %GOPATH%\src\gopkg.in\src-d\hercules.v5
   - go get -v github.com/golang/dep/cmd/dep
-  - set DISABLE_TENSORFLOW=1
   - make
   - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v5\hercules.win64.zip %GOPATH%\bin\hercules.exe
 

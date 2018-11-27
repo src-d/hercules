@@ -65,8 +65,6 @@ make
 ```
 
 Replace `$GOPATH` with `%GOPATH%` on Windows.
-By default the build requires [`libtensorflow`](https://www.tensorflow.org/install/install_go).
-Disable the analyses which require Tensorflow with `DISABLE_TENSORFLOW=1 make`.
 
 ## Contributions
 
@@ -277,6 +275,14 @@ E.g. [`sadly, we need to hide the rect from the documentation finder for now`](h
 [`Theano has a built-in optimization for logsumexp (...) so we can just write the expression directly`](https://github.com/keras-team/keras/commit/7d52af64c03e71bcd23112a7086dc8aab1b37ed2#diff-ff634bb5c5441d7052449f20018872b8R549)
 is positive. Don't expect too much though - as was written, the sentiment model is
 general purpose and the code comments have different nature, so there is no magic (for now).
+
+Hercules must be built with "tensorflow" tag - it is not by default:
+
+```
+make TAGS=tensorflow
+```
+
+Such a build requires [`libtensorflow`](https://www.tensorflow.org/install/install_go).
 
 #### Everything in a single pass
 
