@@ -24,7 +24,10 @@ cache:
     - $HOME/gopath/src
 before_cache:
   - cd $HOME/gopath
+  - mv $HOME/gopath/src/gopkg.in/src-d/hercules.v5/vendor $HOME/gopath/src/gopkg.in/src-d/.vendor
   - rm -rf $HOME/gopath/src/gopkg.in/src-d/hercules.v5
+  - mkdir $HOME/gopath/src/gopkg.in/src-d/hercules.v5
+  - mv $HOME/gopath/src/gopkg.in/src-d/.vendor $HOME/gopath/src/gopkg.in/src-d/hercules.v5/vendor
 
 matrix:
   fast_finish: true
