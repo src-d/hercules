@@ -263,12 +263,47 @@ Couples analysis automatically loads "shotness" data if available.
 ![Jinja2 functions grouped by structural hotness](doc/jinja.png)
 <p align="center"><code>hercules --shotness --pb https://github.com/pallets/jinja | python3 labours.py -m couples -f pb</code></p>
 
+#### Aligned commit series
+
+![tensorflow/tensorflow](doc/devs_tensorflow.png)
+<p align="center">tensorflow/tensorflow aligned commit series of top 50 developers by commit number.</p>
+
+```
+hercules --devs [-people-dict=/path/to/identities]
+python3 labours.py -m devs -o <name>
+```
+
+We record how many commits made, as well as lines added, removed and changed per day for each developer.
+We plot the resulting commit time series using a few tricks to show the temporal grouping. In other words,
+two adjacent commit series should look similar after normalization.
+
+1. We compute the distance matrix of the commit series. Our distance metric is
+[Dynamic Time Warping](https://en.wikipedia.org/wiki/Dynamic_time_warping).
+We use [FastDTW](https://cs.fit.edu/~pkc/papers/tdm04.pdf) algorithm which has linear complexity
+proportional to the length of time series. Thus the overall complexity of computing the matrix is quadratic.
+2. We compile the linear list of commit series with
+[Seriation](http://nicolas.kruchten.com/content/2018/02/seriation/) technique.
+Particularly, we solve the [Travelling Salesman Problem](https://en.wikipedia.org/wiki/Travelling_salesman_problem) which is NP-complete.
+However, given the typical number of developers which is less than 1,000, there is a good chance that
+the solution does not take much time. We use [Google or-tools](https://developers.google.com/optimization/routing/tsp) solver.
+3. We find 1-dimensional clusters in the resulting path with [HDBSCAN](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html)
+algorithm and assign colors accordingly.
+4. Time series are smoothed by convolving with the [Slepian window](https://en.wikipedia.org/wiki/Window_function#DPSS_or_Slepian_window).
+
+This plot allows to discover how the development team evolved through time. It also shows "commit flashmobs"
+such as [Hacktoberfest](https://hacktoberfest.digitalocean.com/). For example, here are the revealed
+insights from the `tensorflow/tensorflow` plot above:
+
+1. "Tensorflow Gardener" is classified as the only outlier.
+2. The "blue" group of developers covers the global maintainers and a few people who left (at the top).
+3. The "red" group shows how core developers join the project or become less active.
+
 #### Sentiment (positive and negative code)
 
 ![Django sentiment](doc/sentiment.png)
 <p align="center"><code>hercules --sentiment --pb https://github.com/django/django | python3 labours.py -m sentiment -f pb</code></p>
 
-We extract new or changed comments from source code on every commit, apply [BiDiSentiment]()
+We extract new or changed comments from source code on every commit, apply [BiDiSentiment](https://github.com/vmarkovtsev/bidisentiment)
 general purpose sentiment recurrent neural network and plot the results. Requires
 [libtensorflow](https://www.tensorflow.org/install/install_go).
 E.g. [`sadly, we need to hide the rect from the documentation finder for now`](https://github.com/pygame/pygame/commit/b6091d38c8a5639d311858660b38841d96598509#diff-eae59f175858fcef57cb17e733981c73R27) is negative and
