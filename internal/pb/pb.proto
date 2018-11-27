@@ -118,7 +118,7 @@ message DayDevs {
     map<int32, DevDay> devs = 1;
 }
 
-message DevsAnalysisResult {
+message DevsAnalysisResults {
     map<int32, DayDevs> days = 1;
     repeated string dev_index = 2;
 }

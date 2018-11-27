@@ -229,7 +229,7 @@ func (devs *DevsAnalysis) Serialize(result interface{}, binary bool, writer io.W
 
 // Deserialize converts the specified protobuf bytes to DevsResult.
 func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
-	message := pb.DevsAnalysisResult{}
+	message := pb.DevsAnalysisResults{}
 	err := proto.Unmarshal(pbmessage, &message)
 	if err != nil {
 		return nil, err
@@ -382,7 +382,7 @@ func (devs *DevsAnalysis) serializeText(result *DevsResult, writer io.Writer) {
 }
 
 func (devs *DevsAnalysis) serializeBinary(result *DevsResult, writer io.Writer) error {
-	message := pb.DevsAnalysisResult{}
+	message := pb.DevsAnalysisResults{}
 	message.DevIndex = result.reversedPeopleDict
 	message.Days = map[int32]*pb.DayDevs{}
 	for day, devs := range result.Days {

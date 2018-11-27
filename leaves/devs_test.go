@@ -246,7 +246,7 @@ func TestDevsSerialize(t *testing.T) {
 	buffer = &bytes.Buffer{}
 	err = devs.Serialize(res, true, buffer)
 	assert.Nil(t, err)
-	msg := pb.DevsAnalysisResult{}
+	msg := pb.DevsAnalysisResults{}
 	proto.Unmarshal(buffer.Bytes(), &msg)
 	assert.Equal(t, msg.DevIndex, devs.reversedPeopleDict)
 	assert.Len(t, msg.Days, 2)
