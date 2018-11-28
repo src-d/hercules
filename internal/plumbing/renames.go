@@ -2,7 +2,9 @@ package plumbing
 
 import (
 	"log"
+	"path/filepath"
 	"sort"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -36,6 +38,12 @@ const (
 	// ConfigRenameAnalysisSimilarityThreshold is the name of the configuration option
 	// (RenameAnalysis.Configure()) which sets the similarity threshold.
 	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
+
+	// RenameAnalysisMinimumSize is the minimum size of a blob to be considered.
+	RenameAnalysisMinimumSize = 32
+
+	// RenameAnalysisMaxCandidates is the maximum number of rename candidates to consider per file.
+	RenameAnalysisMaxCandidates = 50
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -122,30 +130,32 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	}
 	sort.Sort(deleted)
 	sort.Sort(added)
-	a := 0
-	d := 0
 	stillDeleted := make(object.Changes, 0, deleted.Len())
 	stillAdded := make(object.Changes, 0, added.Len())
-	for a < added.Len() && d < deleted.Len() {
-		if added[a].hash == deleted[d].hash {
-			reducedChanges = append(
-				reducedChanges,
-				&object.Change{From: deleted[d].change.From, To: added[a].change.To})
-			a++
-			d++
-		} else if added[a].Less(&deleted[d]) {
-			stillAdded = append(stillAdded, added[a].change)
-			a++
-		} else {
-			stillDeleted = append(stillDeleted, deleted[d].change)
-			d++
+	{
+		a := 0
+		d := 0
+		for a < added.Len() && d < deleted.Len() {
+			if added[a].hash == deleted[d].hash {
+				reducedChanges = append(
+					reducedChanges,
+					&object.Change{From: deleted[d].change.From, To: added[a].change.To})
+				a++
+				d++
+			} else if added[a].Less(&deleted[d]) {
+				stillAdded = append(stillAdded, added[a].change)
+				a++
+			} else {
+				stillDeleted = append(stillDeleted, deleted[d].change)
+				d++
+			}
 		}
-	}
-	for ; a < added.Len(); a++ {
-		stillAdded = append(stillAdded, added[a].change)
-	}
-	for ; d < deleted.Len(); d++ {
-		stillDeleted = append(stillDeleted, deleted[d].change)
+		for ; a < added.Len(); a++ {
+			stillAdded = append(stillAdded, added[a].change)
+		}
+		for ; d < deleted.Len(); d++ {
+			stillDeleted = append(stillDeleted, deleted[d].change)
+		}
 	}
 
 	// Stage 2 - apply the similarity threshold
@@ -153,54 +163,185 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	// We sort the blobs by size and do the single linear scan.
 	addedBlobs := make(sortableBlobs, 0, stillAdded.Len())
 	deletedBlobs := make(sortableBlobs, 0, stillDeleted.Len())
+	var smallChanges []*object.Change
 	for _, change := range stillAdded {
 		blob := cache[change.To.TreeEntry.Hash]
-		addedBlobs = append(
-			addedBlobs, sortableBlob{change: change, size: blob.Size})
+		if blob.Size < RenameAnalysisMinimumSize {
+			smallChanges = append(smallChanges, change)
+		} else {
+			addedBlobs = append(
+				addedBlobs, sortableBlob{change: change, size: blob.Size})
+		}
 	}
 	for _, change := range stillDeleted {
 		blob := cache[change.From.TreeEntry.Hash]
-		deletedBlobs = append(
-			deletedBlobs, sortableBlob{change: change, size: blob.Size})
+		if blob.Size < RenameAnalysisMinimumSize {
+			smallChanges = append(smallChanges, change)
+		} else {
+			deletedBlobs = append(
+				deletedBlobs, sortableBlob{change: change, size: blob.Size})
+		}
 	}
 	sort.Sort(addedBlobs)
 	sort.Sort(deletedBlobs)
-	dStart := 0
-	for a = 0; a < addedBlobs.Len(); a++ {
-		myBlob := cache[addedBlobs[a].change.To.TreeEntry.Hash]
-		mySize := addedBlobs[a].size
-		for d = dStart; d < deletedBlobs.Len() && !ra.sizesAreClose(mySize, deletedBlobs[d].size); d++ {
-		}
-		dStart = d
-		foundMatch := false
-		for d = dStart; d < deletedBlobs.Len() && ra.sizesAreClose(mySize, deletedBlobs[d].size); d++ {
-			blobsAreClose, err := ra.blobsAreClose(
-				myBlob, cache[deletedBlobs[d].change.From.TreeEntry.Hash])
-			if err != nil {
-				return nil, err
+
+	var finished, finishedA, finishedB bool
+	matchesA := make(object.Changes, 0, changes.Len())
+	matchesB := make(object.Changes, 0, changes.Len())
+	addedBlobsA := addedBlobs
+	addedBlobsB := make(sortableBlobs, len(addedBlobs))
+	copy(addedBlobsB, addedBlobs)
+	deletedBlobsA := deletedBlobs
+	deletedBlobsB := make(sortableBlobs, len(deletedBlobs))
+	copy(deletedBlobsB, deletedBlobs)
+	wg := sync.WaitGroup{}
+	matchA := func() error {
+		defer func() {
+			finished = true
+			wg.Done()
+		}()
+		aStart := 0
+		// we will try to find a matching added blob for each deleted blob
+		for d := 0; d < deletedBlobsA.Len(); d++ {
+			myBlob := cache[deletedBlobsA[d].change.From.TreeEntry.Hash]
+			mySize := deletedBlobsA[d].size
+			myName := filepath.Base(deletedBlobsA[d].change.From.Name)
+			var a int
+			for a = aStart; a < addedBlobsA.Len() && !ra.sizesAreClose(mySize, addedBlobsA[a].size); a++ {
 			}
-			if blobsAreClose {
-				foundMatch = true
-				reducedChanges = append(
-					reducedChanges,
-					&object.Change{From: deletedBlobs[d].change.From,
-						To: addedBlobs[a].change.To})
-				break
+			aStart = a
+			foundMatch := false
+			// get the list of possible candidates and sort by file name similarity
+			var candidates []int
+			for a = aStart; a < addedBlobsA.Len() && ra.sizesAreClose(mySize, addedBlobsA[a].size); a++ {
+				candidates = append(candidates, a)
+			}
+			sortRenameCandidates(candidates, myName, func(a int) string {
+				return addedBlobsA[a].change.To.Name
+			})
+			var ci int
+			for ci, a = range candidates {
+				if finished {
+					return nil
+				}
+				if ci > RenameAnalysisMaxCandidates {
+					break
+				}
+				blobsAreClose, err := ra.blobsAreClose(
+					myBlob, cache[addedBlobsA[a].change.To.TreeEntry.Hash])
+				if err != nil {
+					return err
+				}
+				if blobsAreClose {
+					foundMatch = true
+					matchesA = append(
+						matchesA,
+						&object.Change{
+							From: deletedBlobsA[d].change.From,
+							To:   addedBlobsA[a].change.To})
+					break
+				}
+			}
+			if foundMatch {
+				deletedBlobsA = append(deletedBlobsA[:d], deletedBlobsA[d+1:]...)
+				d--
+				addedBlobsA = append(addedBlobsA[:a], addedBlobsA[a+1:]...)
 			}
 		}
-		if foundMatch {
-			addedBlobs = append(addedBlobs[:a], addedBlobs[a+1:]...)
-			a--
-			deletedBlobs = append(deletedBlobs[:d], deletedBlobs[d+1:]...)
+		finishedA = true
+		return nil
+	}
+	matchB := func() error {
+		defer func() {
+			finished = true
+			wg.Done()
+		}()
+		dStart := 0
+		for a := 0; a < addedBlobsB.Len(); a++ {
+			myBlob := cache[addedBlobsB[a].change.To.TreeEntry.Hash]
+			mySize := addedBlobsB[a].size
+			myName := filepath.Base(addedBlobsB[a].change.To.Name)
+			var d int
+			for d = dStart; d < deletedBlobsB.Len() && !ra.sizesAreClose(mySize, deletedBlobsB[d].size); d++ {
+			}
+			dStart = d
+			foundMatch := false
+			// get the list of possible candidates and sort by file name similarity
+			var candidates []int
+			for d = dStart; d < deletedBlobsB.Len() && ra.sizesAreClose(mySize, deletedBlobsB[d].size); d++ {
+				candidates = append(candidates, d)
+			}
+			sortRenameCandidates(candidates, myName, func(d int) string {
+				return deletedBlobsB[d].change.From.Name
+			})
+			var ci int
+			for ci, d = range candidates {
+				if finished {
+					return nil
+				}
+				if ci > RenameAnalysisMaxCandidates {
+					break
+				}
+				blobsAreClose, err := ra.blobsAreClose(
+					myBlob, cache[deletedBlobsB[d].change.From.TreeEntry.Hash])
+				if err != nil {
+					return err
+				}
+				if blobsAreClose {
+					foundMatch = true
+					matchesB = append(
+						matchesB,
+						&object.Change{
+							From: deletedBlobsB[d].change.From,
+							To: addedBlobsB[a].change.To})
+					break
+				}
+			}
+			if foundMatch {
+				addedBlobsB = append(addedBlobsB[:a], addedBlobsB[a+1:]...)
+				a--
+				deletedBlobsB = append(deletedBlobsB[:d], deletedBlobsB[d+1:]...)
+			}
 		}
+		finishedB = true
+		return nil
+	}
+	// run two functions in parallel, and take the result from the one which finished earlier
+	wg.Add(2)
+	var err error
+	go func() { err = matchA() }()
+	go func() { err = matchB() }()
+	wg.Wait()
+	if err != nil {
+		return nil, err
+	}
+	var matches object.Changes
+	if finishedA {
+		addedBlobs = addedBlobsA
+		deletedBlobs = deletedBlobsA
+		matches = matchesA
+	} else {
+		if !finishedB {
+			panic("Impossible happened: two functions returned without an error " +
+				"but no results from both")
+		}
+		addedBlobs = addedBlobsB
+		deletedBlobs = deletedBlobsB
+		matches = matchesB
 	}
 
 	// Stage 3 - we give up, everything left are independent additions and deletions
+	for _, change := range matches {
+		reducedChanges = append(reducedChanges, change)
+	}
 	for _, blob := range addedBlobs {
 		reducedChanges = append(reducedChanges, blob.change)
 	}
 	for _, blob := range deletedBlobs {
 		reducedChanges = append(reducedChanges, blob.change)
+	}
+	for _, change := range smallChanges {
+		reducedChanges = append(reducedChanges, change)
 	}
 	return map[string]interface{}{DependencyTreeChanges: reducedChanges}, nil
 }
@@ -212,7 +353,7 @@ func (ra *RenameAnalysis) Fork(n int) []core.PipelineItem {
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 	size := internal.Max64(1, internal.Max64(size1, size2))
-	return (internal.Abs64(size1-size2)*100)/size <= int64(100-ra.SimilarityThreshold)
+	return (internal.Abs64(size1-size2)*10000)/size <= int64(100-ra.SimilarityThreshold) * 100
 }
 
 func (ra *RenameAnalysis) blobsAreClose(
@@ -326,6 +467,26 @@ func (slice sortableBlobs) Less(i, j int) bool {
 
 func (slice sortableBlobs) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
+}
+
+type candidateDistance struct {
+	Candidate int
+	Distance  int
+}
+
+func sortRenameCandidates(candidates []int, origin string, nameGetter func(int) string) {
+	distances := make([]candidateDistance, len(candidates))
+	ctx := LevenshteinContext{}
+	for i, x := range candidates {
+		name := filepath.Base(nameGetter(x))
+		distances[i] = candidateDistance{x, ctx.Distance(origin, name)}
+	}
+	sort.Slice(distances, func(i, j int) bool {
+		return distances[i].Distance < distances[j].Distance
+	})
+	for i, cd := range distances {
+		candidates[i]  = cd.Candidate
+	}
 }
 
 func init() {
