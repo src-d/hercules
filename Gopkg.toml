@@ -31,7 +31,7 @@
   name = "github.com/pkg/errors"
 
 [[constraint]]
-  branch = "master"
+  revision = "da645544ed44df016359bd4c0e3dc60ee3a0da43"
   name = "github.com/sergi/go-diff"
 
 [[constraint]]
