@@ -122,7 +122,7 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	assert.Nil(t, err)
 	renamed := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(renamed), 2)
-	ra.SimilarityThreshold = 38
+	ra.SimilarityThreshold = 39
 	res, err = ra.Consume(deps)
 	assert.Nil(t, err)
 	renamed = res[DependencyTreeChanges].(object.Changes)
@@ -168,4 +168,21 @@ func TestRenameAnalysisFork(t *testing.T) {
 	ra2 := clones[0].(*RenameAnalysis)
 	assert.True(t, ra1 == ra2)
 	ra1.Merge([]core.PipelineItem{ra2})
+}
+
+func TestRenameAnalysisSizesAreClose(t *testing.T) {
+	ra := fixtureRenameAnalysis()
+	assert.True(t, ra.sizesAreClose(941, 963))
+	assert.True(t, ra.sizesAreClose(941, 1150))
+	assert.True(t, ra.sizesAreClose(941, 803))
+	assert.False(t, ra.sizesAreClose(1320, 1668))
+}
+
+func TestRenameAnalysisSortRenameCandidates(t *testing.T) {
+	candidates := []int{0, 1, 2, 3}
+	sortRenameCandidates(candidates, "test_regression.py", func(i int) string {
+		return []string{"gather_nd_op.h", "test.py", "test_file_system.cc", "regression.py"}[i]
+	})
+	assert.Equal(t, candidates[0], 3)
+	assert.Equal(t, candidates[1], 1)
 }

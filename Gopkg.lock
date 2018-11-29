@@ -214,11 +214,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:11847ffa6c699272c5eec9a987a6a50e81fcab8e9379857a1c6998150bad7d72"
+  digest = "1:d0d418e1c02e6fc00259ef09d0d4f5135fc6aedac356ff0a11f4e5ef0c447270"
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
   pruneopts = "UT"
-  revision = "feef008d51ad2b3778f85d387ccf91735543008d"
+  revision = "da645544ed44df016359bd4c0e3dc60ee3a0da43"
 
 [[projects]]
   digest = "1:645cabccbb4fa8aab25a956cbcbdf6a6845ca736b2c64e197ca7cbb9d210b939"
