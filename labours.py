@@ -1294,12 +1294,12 @@ def show_devs(args, name, start_date, end_date, data):
     plot_x = [start_date + timedelta(days=i) for i in range(size)]
     resolution = 64
     window = slepian(size // resolution, 0.5)
-    series = list(devseries.values())
     final = numpy.zeros((len(devseries), size), dtype=numpy.float32)
-    for i, s in enumerate(series):
+    for i, s in enumerate(devseries.values()):
         arr = numpy.array(s).transpose()
         full_history = numpy.zeros(size, dtype=numpy.float32)
-        full_history[arr[0]] = arr[1]
+        mask = arr[0] < size
+        full_history[arr[0][mask]] = arr[1][mask]
         final[route_map[i]] = convolve(full_history, window, "same")
 
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
@@ -1357,7 +1357,6 @@ def show_devs(args, name, start_date, end_date, data):
 def _format_number(n):
     if n == 0:
         return "0"
-    assert n > 0
     power = int(numpy.log10(abs(n)))
     if power >= 6:
         n = n / 1000000
