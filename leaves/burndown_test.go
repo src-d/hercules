@@ -1170,3 +1170,18 @@ func TestBurndownDeserialize(t *testing.T) {
 	assert.Equal(t, result.granularity, 30)
 	assert.Equal(t, result.sampling, 30)
 }
+
+func TestBurndownEmptyFileHistory(t *testing.T) {
+	burndown := &BurndownAnalysis{
+		Sampling: 30,
+		Granularity: 30,
+		globalHistory: sparseHistory{0: map[int]int64{0: 10}},
+		fileHistories: map[string]sparseHistory{"test.go": {}},
+	}
+	res := burndown.Finalize().(BurndownResult)
+	assert.Len(t, res.GlobalHistory, 1)
+	assert.Len(t, res.FileHistories, 0)
+	assert.NotNil(t, res.FileHistories)
+	assert.Len(t, res.PeopleHistories, 0)
+	assert.NotNil(t, res.PeopleHistories)
+}

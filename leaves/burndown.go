@@ -368,7 +368,9 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 	globalHistory, lastDay := analyser.groupSparseHistory(analyser.globalHistory, -1)
 	fileHistories := map[string]DenseHistory{}
 	for key, history := range analyser.fileHistories {
-		fileHistories[key], _ = analyser.groupSparseHistory(history, lastDay)
+		if len(history) > 0 {
+			fileHistories[key], _ = analyser.groupSparseHistory(history, lastDay)
+		}
 	}
 	peopleHistories := make([]DenseHistory, analyser.PeopleNumber)
 	for i, history := range analyser.peopleHistories {
