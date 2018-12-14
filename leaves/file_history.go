@@ -11,9 +11,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
 )
 
 // FileHistory contains the intermediate state which is mutated by Consume(). It should implement
@@ -65,14 +65,16 @@ func (history *FileHistory) Description() string {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (history *FileHistory) Configure(facts map[string]interface{}) {
+func (history *FileHistory) Configure(facts map[string]interface{}) error {
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (history *FileHistory) Initialize(repository *git.Repository) {
+func (history *FileHistory) Initialize(repository *git.Repository) error {
 	history.files = map[string][]plumbing.Hash{}
 	history.OneShotMergeProcessor.Initialize()
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

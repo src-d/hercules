@@ -12,11 +12,11 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v5/internal/yaml"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v6/internal/yaml"
 )
 
 // DevsAnalysis calculates the number of commits through time per developer.
@@ -95,13 +95,14 @@ func (devs *DevsAnalysis) ListConfigurationOptions() []core.ConfigurationOption 
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (devs *DevsAnalysis) Configure(facts map[string]interface{}) {
+func (devs *DevsAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigDevsConsiderEmptyCommits].(bool); exists {
 		devs.ConsiderEmptyCommits = val
 	}
 	if val, exists := facts[identity.FactIdentityDetectorReversedPeopleDict].([]string); exists {
 		devs.reversedPeopleDict = val
 	}
+	return nil
 }
 
 // Flag for the command line switch which enables this analysis.
@@ -116,9 +117,10 @@ func (devs *DevsAnalysis) Description() string {
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (devs *DevsAnalysis) Initialize(repository *git.Repository) {
+func (devs *DevsAnalysis) Initialize(repository *git.Repository) error {
 	devs.days = map[int]map[int]*DevDay{}
 	devs.OneShotMergeProcessor.Initialize()
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

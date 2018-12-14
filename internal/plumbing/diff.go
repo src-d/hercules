@@ -1,13 +1,14 @@
 package plumbing
 
 import (
+	"strings"
+
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"strings"
+	"gopkg.in/src-d/hercules.v6/internal/core"
 )
 
 // FileDiff calculates the difference of files which were modified.
@@ -81,18 +82,21 @@ func (diff *FileDiff) ListConfigurationOptions() []core.ConfigurationOption {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (diff *FileDiff) Configure(facts map[string]interface{}) {
+func (diff *FileDiff) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigFileDiffDisableCleanup].(bool); exists {
 		diff.CleanupDisabled = val
 	}
 	if val, exists := facts[ConfigFileWhitespaceIgnore].(bool); exists {
 		diff.WhitespaceIgnore = val
 	}
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (diff *FileDiff) Initialize(repository *git.Repository) {}
+func (diff *FileDiff) Initialize(repository *git.Repository) error {
+	return nil
+}
 
 func stripWhitespace(str string, ignoreWhitespace bool) string {
 	if ignoreWhitespace {

@@ -1,22 +1,21 @@
 package leaves
 
 import (
+	"bytes"
 	"io/ioutil"
 	"path"
 	"testing"
-
-	"bytes"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v5/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v5/internal/test"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v6/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v6/internal/test"
 )
 
 func fixtureShotness() *ShotnessAnalysis {

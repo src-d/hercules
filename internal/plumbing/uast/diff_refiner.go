@@ -6,8 +6,8 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing"
 )
 
 // FileDiffRefiner uses UASTs to improve the human interpretability of diffs.
@@ -51,11 +51,14 @@ func (ref *FileDiffRefiner) ListConfigurationOptions() []core.ConfigurationOptio
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (ref *FileDiffRefiner) Configure(facts map[string]interface{}) {}
+func (ref *FileDiffRefiner) Configure(facts map[string]interface{}) error {
+	return nil
+}
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (ref *FileDiffRefiner) Initialize(repository *git.Repository) {
+func (ref *FileDiffRefiner) Initialize(repository *git.Repository) error {
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

@@ -34,8 +34,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"gopkg.in/src-d/hercules.v5"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
+	"gopkg.in/src-d/hercules.v6"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
 )
 
 // oneLineWriter splits the output data by lines and outputs one on top of another using '\r'.
@@ -223,7 +223,7 @@ targets can be added using the --plugin system.`,
 			commits, err = hercules.LoadCommitsFromFile(commitsFile, repository)
 		}
 		if err != nil {
-			log.Panicf("failed to list the commits: %v", err)
+			log.Fatalf("failed to list the commits: %v", err)
 		}
 		cmdlineFacts[hercules.ConfigPipelineCommits] = commits
 		var deployed []hercules.LeafPipelineItem
@@ -233,13 +233,16 @@ targets can be added using the --plugin system.`,
 				deployed = append(deployed, item.(hercules.LeafPipelineItem))
 			}
 		}
-		pipeline.Initialize(cmdlineFacts)
+		err = pipeline.Initialize(cmdlineFacts)
+		if err != nil {
+			log.Fatal(err)
+		}
 		if dryRun, _ := cmdlineFacts[hercules.ConfigPipelineDryRun].(bool); dryRun {
 			return
 		}
 		results, err := pipeline.Run(commits)
 		if err != nil {
-			panic(err)
+			log.Fatalf("failed to run the pipeline: %v", err)
 		}
 		if !disableStatus {
 			fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\r")

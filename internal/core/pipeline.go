@@ -17,8 +17,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	"gopkg.in/src-d/hercules.v5/internal/toposort"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	"gopkg.in/src-d/hercules.v6/internal/toposort"
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.
@@ -95,10 +95,10 @@ type PipelineItem interface {
 	ListConfigurationOptions() []ConfigurationOption
 	// Configure performs the initial setup of the object by applying parameters from facts.
 	// It allows to create PipelineItems in a universal way.
-	Configure(facts map[string]interface{})
+	Configure(facts map[string]interface{}) error
 	// Initialize prepares and resets the item. Consume() requires Initialize()
 	// to be called at least once beforehand.
-	Initialize(*git.Repository)
+	Initialize(*git.Repository) error
 	// Consume processes the next commit.
 	// deps contains the required entities which match Depends(). Besides, it always includes
 	// DependencyCommit and DependencyIndex.
@@ -577,7 +577,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 // Initialize prepares the pipeline for the execution (Run()). This function
 // resolves the execution DAG, Configure()-s and Initialize()-s the items in it in the
 // topological dependency order. `facts` are passed inside Configure(). They are mutable.
-func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
+func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 	if facts == nil {
 		facts = map[string]interface{}{}
 	}
@@ -591,14 +591,21 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) {
 	dumpPath, _ := facts[ConfigPipelineDumpPath].(string)
 	pipeline.resolve(dumpPath)
 	if dryRun, _ := facts[ConfigPipelineDryRun].(bool); dryRun {
-		return
+		return nil
 	}
 	for _, item := range pipeline.items {
-		item.Configure(facts)
+		err := item.Configure(facts)
+		if err != nil {
+			return errors.Wrapf(err, "%s failed to configure", item.Name())
+		}
 	}
 	for _, item := range pipeline.items {
-		item.Initialize(pipeline.repository)
+		err := item.Initialize(pipeline.repository)
+		if err != nil {
+			return errors.Wrapf(err, "%s failed to initialize", item.Name())
+		}
 	}
+	return nil
 }
 
 // Run method executes the pipeline.

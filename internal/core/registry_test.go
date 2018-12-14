@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/hercules.v5/internal/test"
+	"gopkg.in/src-d/hercules.v6/internal/test"
 )
 
 func getRegistry() *PipelineItemRegistry {
@@ -39,7 +39,8 @@ func (item *dummyPipelineItem) Features() []string {
 	return arr[:]
 }
 
-func (item *dummyPipelineItem) Configure(facts map[string]interface{}) {
+func (item *dummyPipelineItem) Configure(facts map[string]interface{}) error {
+	return nil
 }
 
 func (item *dummyPipelineItem) ListConfigurationOptions() []ConfigurationOption {
@@ -53,7 +54,9 @@ func (item *dummyPipelineItem) ListConfigurationOptions() []ConfigurationOption 
 	return options[:]
 }
 
-func (item *dummyPipelineItem) Initialize(repository *git.Repository) {}
+func (item *dummyPipelineItem) Initialize(repository *git.Repository) error {
+	return nil
+}
 
 func (item *dummyPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	return map[string]interface{}{"dummy": nil}, nil
@@ -86,14 +89,17 @@ func (item *dummyPipelineItem2) Features() []string {
 	return arr[:]
 }
 
-func (item *dummyPipelineItem2) Configure(facts map[string]interface{}) {
+func (item *dummyPipelineItem2) Configure(facts map[string]interface{}) error {
+	return nil
 }
 
 func (item *dummyPipelineItem2) ListConfigurationOptions() []ConfigurationOption {
 	return []ConfigurationOption{}
 }
 
-func (item *dummyPipelineItem2) Initialize(repository *git.Repository) {}
+func (item *dummyPipelineItem2) Initialize(repository *git.Repository) error {
+	return nil
+}
 
 func (item *dummyPipelineItem2) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	return map[string]interface{}{"dummy2": nil}, nil

@@ -7,17 +7,17 @@ import (
 	"path"
 	"testing"
 
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/test/fixtures"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/test/fixtures"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v5/internal/test"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v6/internal/test"
 )
 
 func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash string) {
@@ -1184,4 +1184,20 @@ func TestBurndownEmptyFileHistory(t *testing.T) {
 	assert.NotNil(t, res.FileHistories)
 	assert.Len(t, res.PeopleHistories, 0)
 	assert.NotNil(t, res.PeopleHistories)
+}
+
+func TestBurndownNegativePeople(t *testing.T) {
+	burndown := &BurndownAnalysis{
+		Sampling:    30,
+		Granularity: 30,
+		PeopleNumber: -1,
+	}
+	err := burndown.Initialize(test.Repository)
+	assert.Equal(t, err.Error(), "PeopleNumber is negative: -1")
+	facts := map[string]interface{}{
+		ConfigBurndownTrackPeople:                true,
+		identity.FactIdentityDetectorPeopleCount: -1,
+	}
+	err = burndown.Configure(facts)
+	assert.Equal(t, err.Error(), "PeopleNumber is negative: -1")
 }

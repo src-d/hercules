@@ -22,9 +22,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
 )
 
 // Extractor retrieves UASTs from Babelfish server which correspond to changed files in a commit.
@@ -137,7 +137,7 @@ func (exr *Extractor) ListConfigurationOptions() []core.ConfigurationOption {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (exr *Extractor) Configure(facts map[string]interface{}) {
+func (exr *Extractor) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigUASTEndpoint].(string); exists {
 		exr.Endpoint = val
 	}
@@ -153,11 +153,12 @@ func (exr *Extractor) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigUASTFailOnErrors].(bool); exists {
 		exr.FailOnErrors = val
 	}
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (exr *Extractor) Initialize(repository *git.Repository) {
+func (exr *Extractor) Initialize(repository *git.Repository) error {
 	if exr.Context == nil {
 		exr.Context = func() (context.Context, context.CancelFunc) {
 			return context.Background(), nil
@@ -190,6 +191,7 @@ func (exr *Extractor) Initialize(repository *git.Repository) {
 		panic("UAST goroutine pool was not created")
 	}
 	exr.ProcessedFiles = map[string]int{}
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -346,12 +348,15 @@ func (uc *Changes) ListConfigurationOptions() []core.ConfigurationOption {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (uc *Changes) Configure(facts map[string]interface{}) {}
+func (uc *Changes) Configure(facts map[string]interface{}) error {
+	return nil
+}
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (uc *Changes) Initialize(repository *git.Repository) {
+func (uc *Changes) Initialize(repository *git.Repository) error {
 	uc.cache = map[plumbing.Hash]*uast.Node{}
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -472,18 +477,20 @@ func (saver *ChangesSaver) Description() string {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (saver *ChangesSaver) Configure(facts map[string]interface{}) {
+func (saver *ChangesSaver) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigUASTChangesSaverOutputPath]; exists {
 		saver.OutputPath = val.(string)
 	}
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (saver *ChangesSaver) Initialize(repository *git.Repository) {
+func (saver *ChangesSaver) Initialize(repository *git.Repository) error {
 	saver.repository = repository
 	saver.result = [][]Change{}
 	saver.OneShotMergeProcessor.Initialize()
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.
