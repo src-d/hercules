@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -446,6 +447,77 @@ func TestPipelineError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestPipelineDryRun(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	item := &testPipelineItem{}
+	item.TestError = true
+	pipeline.AddItem(item)
+	pipeline.DryRun = true
+	pipeline.Initialize(map[string]interface{}{})
+	assert.True(t, pipeline.DryRun)
+	pipeline.DryRun = false
+	pipeline.Initialize(map[string]interface{}{ConfigPipelineDryRun: true})
+	assert.True(t, pipeline.DryRun)
+	commits := make([]*object.Commit, 1)
+	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
+		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
+	result, err := pipeline.Run(commits)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 1)
+	assert.Contains(t, result, nil)
+	assert.Nil(t, err)
+}
+
+func TestPipelineDryRunFalse(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	item := &testPipelineItem{}
+	pipeline.AddItem(item)
+	pipeline.Initialize(map[string]interface{}{ConfigPipelineDryRun: false})
+	commits := make([]*object.Commit, 1)
+	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
+		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
+	result, err := pipeline.Run(commits)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 2)
+	assert.Contains(t, result, nil)
+	assert.Contains(t, result, item)
+	assert.Nil(t, err)
+	assert.True(t, item.DepsConsumed)
+	assert.True(t, item.CommitMatches)
+	assert.True(t, item.IndexMatches)
+	assert.Equal(t, 1, *item.MergeState)
+	assert.True(t, item.Forked)
+	assert.False(t, *item.Merged)
+}
+
+func TestPipelineDumpPlanConfigure(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	item := &testPipelineItem{}
+	pipeline.AddItem(item)
+	pipeline.DumpPlan = true
+	pipeline.DryRun = true
+	pipeline.Initialize(map[string]interface{}{})
+	assert.True(t, pipeline.DumpPlan)
+	pipeline.DumpPlan = false
+	pipeline.Initialize(map[string]interface{}{ConfigPipelineDumpPlan: true})
+	assert.True(t, pipeline.DumpPlan)
+	stream := &bytes.Buffer{}
+	planPrintFunc = func(args... interface{}) {
+		fmt.Fprintln(stream, args...)
+	}
+	commits := make([]*object.Commit, 1)
+	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
+		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
+	result, err := pipeline.Run(commits)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 1)
+	assert.Contains(t, result, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, `E [1]
+C 1 af9ddc0db70f09f3f27b4b98e415592a7485171c
+`, stream.String())
+}
+
 func TestCommonAnalysisResultMerge(t *testing.T) {
 	c1 := CommonAnalysisResult{
 		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100,
@@ -508,7 +580,7 @@ func TestPrepareRunPlanTiny(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := prepareRunPlan([]*object.Commit{rootCommit})
+	plan := prepareRunPlan([]*object.Commit{rootCommit}, false)
 	assert.Len(t, plan, 2)
 	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, rootBranchIndex, plan[0].Items[0])
@@ -535,7 +607,7 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 		}
 		return nil
 	})
-	plan := prepareRunPlan(commits)
+	plan := prepareRunPlan(commits, false)
 	/*for _, p := range plan {
 		if p.Commit != nil {
 			fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
@@ -663,7 +735,7 @@ func TestPrepareRunPlanBig(t *testing.T) {
 				}
 				return nil
 			})
-			plan := prepareRunPlan(commits)
+			plan := prepareRunPlan(commits, false)
 			/*for _, p := range plan {
 				if p.Commit != nil {
 					fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)

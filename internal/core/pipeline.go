@@ -223,6 +223,12 @@ type Pipeline struct {
 	// second is the total number of steps.
 	OnProgress func(int, int)
 
+	// DryRun indicates whether the items are not executed.
+	DryRun bool
+
+	// DumpPlan indicates whether to print the execution plan to stderr.
+	DumpPlan bool
+
 	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 
@@ -238,17 +244,20 @@ type Pipeline struct {
 }
 
 const (
-	// ConfigPipelineDumpPath is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// ConfigPipelineDAGPath is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which enables saving the items DAG to the specified file.
-	ConfigPipelineDumpPath = "Pipeline.DumpPath"
+	ConfigPipelineDAGPath = "Pipeline.DAGPath"
 	// ConfigPipelineDryRun is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which disables Configure() and Initialize() invocation on each PipelineItem during the
 	// Pipeline initialization.
-	// Subsequent Run() calls are going to fail. Useful with ConfigPipelineDumpPath=true.
+	// Subsequent Run() calls are going to fail. Useful with ConfigPipelineDAGPath=true.
 	ConfigPipelineDryRun = "Pipeline.DryRun"
 	// ConfigPipelineCommits is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which allows to specify the custom commit sequence. By default, Pipeline.Commits() is used.
-	ConfigPipelineCommits = "commits"
+	ConfigPipelineCommits = "Pipeline.Commits"
+	// ConfigPipelineDumpPlan is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// which outputs the execution plan to stderr.
+	ConfigPipelineDumpPlan = "Pipeline.DumpPlan"
 	// DependencyCommit is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
 	// which always exists. It corresponds to the currently analyzed commit.
 	DependencyCommit = "commit"
@@ -588,10 +597,16 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 			log.Panicf("failed to list the commits: %v", err)
 		}
 	}
-	dumpPath, _ := facts[ConfigPipelineDumpPath].(string)
+	dumpPath, _ := facts[ConfigPipelineDAGPath].(string)
 	pipeline.resolve(dumpPath)
-	if dryRun, _ := facts[ConfigPipelineDryRun].(bool); dryRun {
-		return nil
+	if dumpPlan, exists := facts[ConfigPipelineDumpPlan].(bool); exists {
+		pipeline.DumpPlan = dumpPlan
+	}
+	if dryRun, exists := facts[ConfigPipelineDryRun].(bool); exists {
+		pipeline.DryRun = dryRun
+		if dryRun {
+			return nil
+		}
 	}
 	for _, item := range pipeline.items {
 		err := item.Configure(facts)
@@ -620,7 +635,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	if onProgress == nil {
 		onProgress = func(int, int) {}
 	}
-	plan := prepareRunPlan(commits)
+	plan := prepareRunPlan(commits, pipeline.DumpPlan)
 	progressSteps := len(plan) + 2
 	branches := map[int][]PipelineItem{}
 	// we will need rootClone if there is more than one root branch
@@ -631,6 +646,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	commitIndex := 0
 	for index, step := range plan {
 		onProgress(index+1, progressSteps)
+		if pipeline.DryRun {
+			continue
+		}
 		firstItem := step.Items[0]
 		switch step.Action {
 		case runActionCommit:
@@ -688,9 +706,11 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	}
 	onProgress(len(plan)+1, progressSteps)
 	result := map[LeafPipelineItem]interface{}{}
-	for index, item := range getMasterBranch(branches) {
-		if casted, ok := item.(LeafPipelineItem); ok {
-			result[pipeline.items[index].(LeafPipelineItem)] = casted.Finalize()
+	if !pipeline.DryRun {
+		for index, item := range getMasterBranch(branches) {
+			if casted, ok := item.(LeafPipelineItem); ok {
+				result[pipeline.items[index].(LeafPipelineItem)] = casted.Finalize()
+			}
 		}
 	}
 	onProgress(progressSteps, progressSteps)

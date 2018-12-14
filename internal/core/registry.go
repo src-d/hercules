@@ -202,12 +202,16 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 		iface := interface{}("")
 		ptr1 := (**string)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
 		*ptr1 = flagSet.String("dump-dag", "", "Write the pipeline DAG to a Graphviz file.")
-		flags[ConfigPipelineDumpPath] = iface
+		flags[ConfigPipelineDAGPath] = iface
 		iface = interface{}(true)
 		ptr2 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
 		*ptr2 = flagSet.Bool("dry-run", false, "Do not run any analyses - only resolve the DAG. "+
-			"Useful for --dump-dag.")
+			"Useful for --dump-dag or --dump-plan.")
 		flags[ConfigPipelineDryRun] = iface
+		iface = interface{}(true)
+		ptr3 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+		*ptr3 = flagSet.Bool("dump-plan", false, "Print the pipeline execution plan to stderr.")
+		flags[ConfigPipelineDumpPlan] = iface
 	}
 	var features []string
 	for f := range registry.featureFlags.Choices {

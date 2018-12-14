@@ -226,19 +226,19 @@ targets can be added using the --plugin system.`,
 			log.Fatalf("failed to list the commits: %v", err)
 		}
 		cmdlineFacts[hercules.ConfigPipelineCommits] = commits
+		dryRun, _ := cmdlineFacts[hercules.ConfigPipelineDryRun].(bool)
 		var deployed []hercules.LeafPipelineItem
 		for name, valPtr := range cmdlineDeployed {
 			if *valPtr {
 				item := pipeline.DeployItem(hercules.Registry.Summon(name)[0])
-				deployed = append(deployed, item.(hercules.LeafPipelineItem))
+				if !dryRun {
+					deployed = append(deployed, item.(hercules.LeafPipelineItem))
+				}
 			}
 		}
 		err = pipeline.Initialize(cmdlineFacts)
 		if err != nil {
 			log.Fatal(err)
-		}
-		if dryRun, _ := cmdlineFacts[hercules.ConfigPipelineDryRun].(bool); dryRun {
-			return
 		}
 		results, err := pipeline.Run(commits)
 		if err != nil {
