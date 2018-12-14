@@ -13,7 +13,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5"
+	"gopkg.in/src-d/hercules.v6"
 )
 
 // ChurnAnalysis contains the intermediate state which is mutated by Consume(). It should implement
@@ -104,20 +104,22 @@ func (churn *ChurnAnalysis) Description() string {
 }
 
 // Configure applies the parameters specified in the command line. Map keys correspond to "Name".
-func (churn *ChurnAnalysis) Configure(facts map[string]interface{}) {
+func (churn *ChurnAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigChurnTrackPeople].(bool); exists {
 		churn.TrackPeople = val
 	}
 	if churn.TrackPeople {
 		churn.reversedPeopleDict = facts[hercules.FactIdentityDetectorReversedPeopleDict].([]string)
 	}
+	return nil
 }
 
 // Initialize resets the internal temporary data structures and prepares the object for Consume().
-func (churn *ChurnAnalysis) Initialize(repository *git.Repository) {
+func (churn *ChurnAnalysis) Initialize(repository *git.Repository) error {
 	churn.global = []editInfo{}
 	churn.people = map[int][]editInfo{}
 	churn.OneShotMergeProcessor.Initialize()
+	return nil
 }
 
 func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {

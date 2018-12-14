@@ -213,7 +213,6 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   digest = "1:d0d418e1c02e6fc00259ef09d0d4f5135fc6aedac356ff0a11f4e5ef0c447270"
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
@@ -250,12 +249,11 @@
   revision = "f187355171c936ac84a82793659ebb4936bc1c23"
 
 [[projects]]
-  branch = "master"
-  digest = "1:b566bbc018497ffb47060cab752ed1b899dea649c9cf1c6b54ae13b4f81f4d10"
+  digest = "1:e7e3141ecc5f7eeae9a1a4438044614049ccdd57a302b8793dec0c29202cadce"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   pruneopts = "UT"
-  revision = "4d4bfba8f1d1027c4fdbe371823030df51419987"
+  revision = "5b93e2dc01fd8fbf32aa74a198b0ebe78f6f6b6f"
 
 [[projects]]
   branch = "master"

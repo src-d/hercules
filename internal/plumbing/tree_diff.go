@@ -12,7 +12,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/core"
 )
 
 // TreeDiff generates the list of changes for a commit. A change can be either one or two blobs
@@ -117,7 +117,7 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
+func (treediff *TreeDiff) Configure(facts map[string]interface{}) error {
 	if val, exist := facts[ConfigTreeDiffEnableBlacklist]; exist && val.(bool) {
 		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedPrefixes].([]string)
 	}
@@ -134,17 +134,19 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigTreeDiffFilterRegexp].(string); exists {
 		treediff.NameFilter = regexp.MustCompile(val)
 	}
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (treediff *TreeDiff) Initialize(repository *git.Repository) {
+func (treediff *TreeDiff) Initialize(repository *git.Repository) error {
 	treediff.previousTree = nil
 	treediff.repository = repository
 	if treediff.Languages == nil {
 		treediff.Languages = map[string]bool{}
 		treediff.Languages[allLanguages] = true
 	}
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

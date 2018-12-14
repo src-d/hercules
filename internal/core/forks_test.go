@@ -1,9 +1,10 @@
 package core
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
-	"testing"
 )
 
 type testForkPipelineItem struct {
@@ -25,7 +26,8 @@ func (item *testForkPipelineItem) Requires() []string {
 	return []string{}
 }
 
-func (item *testForkPipelineItem) Configure(facts map[string]interface{}) {
+func (item *testForkPipelineItem) Configure(facts map[string]interface{}) error {
+	return nil
 }
 
 func (item *testForkPipelineItem) ListConfigurationOptions() []ConfigurationOption {
@@ -40,8 +42,9 @@ func (item *testForkPipelineItem) Features() []string {
 	return nil
 }
 
-func (item *testForkPipelineItem) Initialize(repository *git.Repository) {
+func (item *testForkPipelineItem) Initialize(repository *git.Repository) error {
 	item.Mutable = map[int]bool{}
+	return nil
 }
 
 func (item *testForkPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {

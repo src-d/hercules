@@ -16,10 +16,10 @@ import (
 	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v5/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v6/internal/plumbing/uast"
 	"gopkg.in/vmarkovtsev/BiDiSentiment.v1"
 )
 
@@ -120,7 +120,7 @@ func (sent *CommentSentimentAnalysis) Description() string {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) {
+func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigCommentSentimentGap]; exists {
 		sent.Gap = val.(float32)
 	}
@@ -129,6 +129,7 @@ func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) {
 	}
 	sent.validate()
 	sent.commitsByDay = facts[items.FactCommitsByDay].(map[int][]plumbing.Hash)
+	return nil
 }
 
 func (sent *CommentSentimentAnalysis) validate() {
@@ -146,11 +147,12 @@ func (sent *CommentSentimentAnalysis) validate() {
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) {
+func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) error {
 	sent.commentsByDay = map[int][]string{}
 	sent.xpather = &uast_items.ChangesXPather{XPath: "//*[@roleComment]"}
 	sent.validate()
 	sent.OneShotMergeProcessor.Initialize()
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

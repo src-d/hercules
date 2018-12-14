@@ -12,8 +12,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal"
-	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal"
+	"gopkg.in/src-d/hercules.v6/internal/core"
 )
 
 // RenameAnalysis improves TreeDiff's results by searching for changed blobs under different
@@ -80,21 +80,23 @@ func (ra *RenameAnalysis) ListConfigurationOptions() []core.ConfigurationOption 
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (ra *RenameAnalysis) Configure(facts map[string]interface{}) {
+func (ra *RenameAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigRenameAnalysisSimilarityThreshold].(int); exists {
 		ra.SimilarityThreshold = val
 	}
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (ra *RenameAnalysis) Initialize(repository *git.Repository) {
+func (ra *RenameAnalysis) Initialize(repository *git.Repository) error {
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
 		log.Printf("Warning: adjusted the similarity threshold to %d\n",
 			RenameAnalysisDefaultThreshold)
 		ra.SimilarityThreshold = RenameAnalysisDefaultThreshold
 	}
 	ra.repository = repository
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

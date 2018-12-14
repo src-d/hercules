@@ -15,12 +15,12 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal/burndown"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v5/internal/yaml"
+	"gopkg.in/src-d/hercules.v6/internal/burndown"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v6/internal/yaml"
 )
 
 // BurndownAnalysis allows to gather the line burndown statistics for a Git repository.
@@ -193,7 +193,7 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []core.Configuratio
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
+func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigBurndownGranularity].(int); exists {
 		analyser.Granularity = val
 	}
@@ -205,6 +205,9 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
 	}
 	if people, exists := facts[ConfigBurndownTrackPeople].(bool); people {
 		if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
+			if val < 0 {
+				return fmt.Errorf("PeopleNumber is negative: %d", val)
+			}
 			analyser.PeopleNumber = val
 			analyser.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
 		}
@@ -214,6 +217,7 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) {
 	if val, exists := facts[ConfigBurndownDebug].(bool); exists {
 		analyser.Debug = val
 	}
+	return nil
 }
 
 // Flag for the command line switch which enables this analysis.
@@ -229,7 +233,7 @@ func (analyser *BurndownAnalysis) Description() string {
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
+func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 	if analyser.Granularity <= 0 {
 		log.Printf("Warning: adjusted the granularity to %d days\n",
 			DefaultBurndownGranularity)
@@ -248,6 +252,9 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	analyser.repository = repository
 	analyser.globalHistory = sparseHistory{}
 	analyser.fileHistories = map[string]sparseHistory{}
+	if analyser.PeopleNumber < 0 {
+		return fmt.Errorf("PeopleNumber is negative: %d", analyser.PeopleNumber)
+	}
 	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
 	analyser.files = map[string]*burndown.File{}
 	analyser.mergedFiles = map[string]bool{}
@@ -256,6 +263,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) {
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
 	analyser.day = 0
 	analyser.previousDay = 0
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit's data.

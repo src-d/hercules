@@ -13,19 +13,21 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	"gopkg.in/src-d/hercules.v5/internal/test"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	"gopkg.in/src-d/hercules.v6/internal/test"
 )
 
 type testPipelineItem struct {
-	Initialized   bool
-	DepsConsumed  bool
-	Forked        bool
-	Merged        *bool
-	CommitMatches bool
-	IndexMatches  bool
-	MergeState    *int
-	TestError     bool
+	Initialized      bool
+	DepsConsumed     bool
+	Forked           bool
+	Merged           *bool
+	CommitMatches    bool
+	IndexMatches     bool
+	MergeState       *int
+	TestError        bool
+	ConfigureRaises  bool
+	InitializeRaises bool
 }
 
 func (item *testPipelineItem) Name() string {
@@ -41,7 +43,11 @@ func (item *testPipelineItem) Requires() []string {
 	return []string{}
 }
 
-func (item *testPipelineItem) Configure(facts map[string]interface{}) {
+func (item *testPipelineItem) Configure(facts map[string]interface{}) error {
+	if item.ConfigureRaises {
+		return errors.New("test1")
+	}
+	return nil
 }
 
 func (item *testPipelineItem) ListConfigurationOptions() []ConfigurationOption {
@@ -68,10 +74,14 @@ func (item *testPipelineItem) Features() []string {
 	return f[:]
 }
 
-func (item *testPipelineItem) Initialize(repository *git.Repository) {
+func (item *testPipelineItem) Initialize(repository *git.Repository) error {
 	item.Initialized = repository != nil
 	item.Merged = new(bool)
 	item.MergeState = new(int)
+	if item.InitializeRaises {
+		return errors.New("test2")
+	}
+	return nil
 }
 
 func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
@@ -150,10 +160,12 @@ func (item *dependingTestPipelineItem) ListConfigurationOptions() []Configuratio
 	return options[:]
 }
 
-func (item *dependingTestPipelineItem) Configure(facts map[string]interface{}) {
+func (item *dependingTestPipelineItem) Configure(facts map[string]interface{}) error {
+	return nil
 }
 
-func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) {
+func (item *dependingTestPipelineItem) Initialize(repository *git.Repository) error {
+	return nil
 }
 
 func (item *dependingTestPipelineItem) Flag() string {
@@ -214,11 +226,30 @@ func TestPipelineFeatures(t *testing.T) {
 	})
 }
 
+func TestPipelineErrors(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	pipeline.SetFact("fact", "value")
+	assert.Equal(t, pipeline.GetFact("fact"), "value")
+	item := &testPipelineItem{}
+	pipeline.AddItem(item)
+	item.ConfigureRaises = true
+	err := pipeline.Initialize(map[string]interface{}{})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "configure")
+	assert.Contains(t, err.Error(), "test1")
+	item.ConfigureRaises = false
+	item.InitializeRaises = true
+	err = pipeline.Initialize(map[string]interface{}{})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "initialize")
+	assert.Contains(t, err.Error(), "test2")
+}
+
 func TestPipelineRun(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
 	item := &testPipelineItem{}
 	pipeline.AddItem(item)
-	pipeline.Initialize(map[string]interface{}{})
+	assert.Nil(t, pipeline.Initialize(map[string]interface{}{}))
 	assert.True(t, item.Initialized)
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(

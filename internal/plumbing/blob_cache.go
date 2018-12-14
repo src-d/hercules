@@ -13,8 +13,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal"
-	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal"
+	"gopkg.in/src-d/hercules.v6/internal/core"
 )
 
 // ErrorBinary is raised in CachedBlob.CountLines() if the file is binary.
@@ -132,17 +132,19 @@ func (blobCache *BlobCache) ListConfigurationOptions() []core.ConfigurationOptio
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (blobCache *BlobCache) Configure(facts map[string]interface{}) {
+func (blobCache *BlobCache) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigBlobCacheFailOnMissingSubmodules].(bool); exists {
 		blobCache.FailOnMissingSubmodules = val
 	}
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (blobCache *BlobCache) Initialize(repository *git.Repository) {
+func (blobCache *BlobCache) Initialize(repository *git.Repository) error {
 	blobCache.repository = repository
 	blobCache.cache = map[plumbing.Hash]*CachedBlob{}
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

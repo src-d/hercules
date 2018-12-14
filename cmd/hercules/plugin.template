@@ -24,7 +24,7 @@ import (
 
   "github.com/gogo/protobuf/proto"
   "gopkg.in/src-d/go-git.v4"
-  "gopkg.in/src-d/hercules.v5"
+  "gopkg.in/src-d/hercules.v6"
 )
 
 // {{.name}} contains the intermediate state which is mutated by Consume(). It should implement
@@ -80,12 +80,14 @@ func ({{.varname}} *{{.name}}) Description() string {
 }
 
 // Configure applies the parameters specified in the command line. Map keys correspond to "Name".
-func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) {
+func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) error {
+  return nil
 }
 
 // Initialize resets the internal temporary data structures and prepares the object for Consume().
-func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) {
+func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) error {
   {{.varname}}.OneShotMergeProcessor.Initialize()
+  return nil
 }
 
 // Consume is called for every commit in the sequence.

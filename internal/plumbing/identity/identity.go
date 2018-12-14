@@ -2,13 +2,15 @@ package identity
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v5/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/core"
 )
 
 // Detector determines the author of a commit. Same person can commit under different
@@ -73,7 +75,7 @@ func (detector *Detector) Requires() []string {
 func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
 		Name:        ConfigIdentityDetectorPeopleDictPath,
-		Description: "Path to the developers' email associations.",
+		Description: "Path to the file with developer -> name|email associations.",
 		Flag:        "people-dict",
 		Type:        core.StringConfigurationOption,
 		Default:     ""},
@@ -82,7 +84,7 @@ func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption 
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (detector *Detector) Configure(facts map[string]interface{}) {
+func (detector *Detector) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[FactIdentityDetectorPeopleDict].(map[string]int); exists {
 		detector.PeopleDict = val
 	}
@@ -92,7 +94,10 @@ func (detector *Detector) Configure(facts map[string]interface{}) {
 	if detector.PeopleDict == nil || detector.ReversedPeopleDict == nil {
 		peopleDictPath, _ := facts[ConfigIdentityDetectorPeopleDictPath].(string)
 		if peopleDictPath != "" {
-			detector.LoadPeopleDict(peopleDictPath)
+			err := detector.LoadPeopleDict(peopleDictPath)
+			if err != nil {
+				return errors.Errorf("failed to load %s: %v", peopleDictPath, err)
+			}
 			facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict) - 1
 		} else {
 			if _, exists := facts[core.ConfigPipelineCommits]; !exists {
@@ -106,11 +111,13 @@ func (detector *Detector) Configure(facts map[string]interface{}) {
 	}
 	facts[FactIdentityDetectorPeopleDict] = detector.PeopleDict
 	facts[FactIdentityDetectorReversedPeopleDict] = detector.ReversedPeopleDict
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (detector *Detector) Initialize(repository *git.Repository) {
+func (detector *Detector) Initialize(repository *git.Repository) error {
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.
@@ -147,7 +154,7 @@ func (detector *Detector) LoadPeopleDict(path string) error {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	dict := make(map[string]int)
-	reverseDict := []string{}
+	var reverseDict []string
 	size := 0
 	for scanner.Scan() {
 		ids := strings.Split(scanner.Text(), "|")
@@ -160,6 +167,7 @@ func (detector *Detector) LoadPeopleDict(path string) error {
 	reverseDict = append(reverseDict, AuthorMissingName)
 	detector.PeopleDict = dict
 	detector.ReversedPeopleDict = reverseDict
+	fmt.Println(detector.ReversedPeopleDict)
 	return nil
 }
 

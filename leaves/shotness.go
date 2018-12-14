@@ -13,10 +13,10 @@ import (
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v5/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v6/internal/plumbing/uast"
 )
 
 // ShotnessAnalysis contains the intermediate state which is mutated by Consume(). It should implement
@@ -130,7 +130,7 @@ func (shotness *ShotnessAnalysis) Description() string {
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) {
+func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigShotnessXpathStruct]; exists {
 		shotness.XpathStruct = val.(string)
 	} else {
@@ -141,14 +141,16 @@ func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) {
 	} else {
 		shotness.XpathName = DefaultShotnessXpathName
 	}
+	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (shotness *ShotnessAnalysis) Initialize(repository *git.Repository) {
+func (shotness *ShotnessAnalysis) Initialize(repository *git.Repository) error {
 	shotness.nodes = map[string]*nodeShotness{}
 	shotness.files = map[string]map[string]*nodeShotness{}
 	shotness.OneShotMergeProcessor.Initialize()
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

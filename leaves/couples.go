@@ -9,11 +9,11 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/pb"
-	items "gopkg.in/src-d/hercules.v5/internal/plumbing"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v5/internal/yaml"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/pb"
+	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v6/internal/yaml"
 )
 
 // CouplesAnalysis calculates the number of common commits for files and authors.
@@ -82,11 +82,12 @@ func (couples *CouplesAnalysis) ListConfigurationOptions() []core.ConfigurationO
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) {
+func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
 		couples.PeopleNumber = val
 		couples.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
 	}
+	return nil
 }
 
 // Flag for the command line switch which enables this analysis.
@@ -103,7 +104,7 @@ func (couples *CouplesAnalysis) Description() string {
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
+func (couples *CouplesAnalysis) Initialize(repository *git.Repository) error {
 	couples.people = make([]map[string]int, couples.PeopleNumber+1)
 	for i := range couples.people {
 		couples.people[i] = map[string]int{}
@@ -112,6 +113,7 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) {
 	couples.files = map[string]map[string]int{}
 	couples.renames = &[]rename{}
 	couples.OneShotMergeProcessor.Initialize()
+	return nil
 }
 
 // Consume runs this PipelineItem on the next commit data.

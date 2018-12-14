@@ -3,12 +3,12 @@ package hercules
 import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v5/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v5/internal/yaml"
-	"gopkg.in/src-d/hercules.v5/leaves"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v6/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v6/internal/yaml"
+	"gopkg.in/src-d/hercules.v6/leaves"
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.

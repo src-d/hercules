@@ -14,8 +14,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
-	"gopkg.in/src-d/hercules.v5/internal/core"
-	"gopkg.in/src-d/hercules.v5/internal/test"
+	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v6/internal/test"
 )
 
 func fixtureIdentityDetector() *Detector {
@@ -162,6 +162,12 @@ func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim Markovtsev")
 	assert.Equal(t, id.ReversedPeopleDict[2], "Máximo Cuadros")
 	assert.Equal(t, id.ReversedPeopleDict[3], AuthorMissingName)
+}
+
+func TestIdentityDetectorLoadPeopleDictWrongPath(t *testing.T) {
+	id := fixtureIdentityDetector()
+	err := id.LoadPeopleDict(path.Join("identities"))
+	assert.NotNil(t, err)
 }
 
 /*
