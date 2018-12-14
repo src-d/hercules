@@ -2,7 +2,6 @@ package identity
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -167,7 +166,6 @@ func (detector *Detector) LoadPeopleDict(path string) error {
 	reverseDict = append(reverseDict, AuthorMissingName)
 	detector.PeopleDict = dict
 	detector.ReversedPeopleDict = reverseDict
-	fmt.Println(detector.ReversedPeopleDict)
 	return nil
 }
 
