@@ -61,13 +61,16 @@ func MetadataToCommonAnalysisResult(meta *core.Metadata) *CommonAnalysisResult {
 type Pipeline = core.Pipeline
 
 const (
-	// ConfigPipelineDumpPath is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// ConfigPipelineDAGPath is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which enables saving the items DAG to the specified file.
-	ConfigPipelineDumpPath = core.ConfigPipelineDumpPath
+	ConfigPipelineDAGPath = core.ConfigPipelineDAGPath
+	// ConfigPipelineDumpPlan is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// which outputs the execution plan to stderr.
+	ConfigPipelineDumpPlan = core.ConfigPipelineDumpPlan
 	// ConfigPipelineDryRun is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which disables Configure() and Initialize() invocation on each PipelineItem during the
 	// Pipeline initialization.
-	// Subsequent Run() calls are going to fail. Useful with ConfigPipelineDumpPath=true.
+	// Subsequent Run() calls are going to fail. Useful with ConfigPipelineDAGPath=true.
 	ConfigPipelineDryRun = core.ConfigPipelineDryRun
 	// ConfigPipelineCommits is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which allows to specify the custom commit sequence. By default, Pipeline.Commits() is used.

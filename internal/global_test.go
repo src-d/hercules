@@ -18,11 +18,11 @@ func TestPipelineSerialize(t *testing.T) {
 	pipeline.SetFeature(uast_items.FeatureUast)
 	pipeline.DeployItem(&leaves.BurndownAnalysis{})
 	facts := map[string]interface{}{}
-	facts["Pipeline.DryRun"] = true
+	facts[core.ConfigPipelineDryRun] = true
 	tmpdir, _ := ioutil.TempDir("", "hercules-")
 	defer os.RemoveAll(tmpdir)
 	dotpath := path.Join(tmpdir, "graph.dot")
-	facts["Pipeline.DumpPath"] = dotpath
+	facts[core.ConfigPipelineDAGPath] = dotpath
 	pipeline.Initialize(facts)
 	bdot, _ := ioutil.ReadFile(dotpath)
 	dot := string(bdot)
@@ -58,11 +58,11 @@ func TestPipelineSerializeNoUast(t *testing.T) {
 	// pipeline.SetFeature(FeatureUast)
 	pipeline.DeployItem(&leaves.BurndownAnalysis{})
 	facts := map[string]interface{}{}
-	facts["Pipeline.DryRun"] = true
+	facts[core.ConfigPipelineDryRun] = true
 	tmpdir, _ := ioutil.TempDir("", "hercules-")
 	defer os.RemoveAll(tmpdir)
 	dotpath := path.Join(tmpdir, "graph.dot")
-	facts["Pipeline.DumpPath"] = dotpath
+	facts[core.ConfigPipelineDAGPath] = dotpath
 	pipeline.Initialize(facts)
 	bdot, _ := ioutil.ReadFile(dotpath)
 	dot := string(bdot)

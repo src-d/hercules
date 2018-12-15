@@ -104,7 +104,7 @@ Vadim|vadim@sourced.tech`)
 		}
 		commits = append(commits, commit)
 	}
-	facts["commits"] = commits
+	facts[core.ConfigPipelineCommits] = commits
 	id = fixtureIdentityDetector()
 	id.PeopleDict = nil
 	id.ReversedPeopleDict = nil

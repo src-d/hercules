@@ -1,7 +1,9 @@
 package core
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"reflect"
 	"sort"
 
@@ -81,6 +83,11 @@ const (
 	rootBranchIndex = 1
 )
 
+// planPrintFunc is used to print the execution plan in prepareRunPlan().
+var planPrintFunc = func(args... interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
+}
+
 type runAction struct {
 	Action int
 	Commit *object.Commit
@@ -127,7 +134,7 @@ func getMasterBranch(branches map[int][]PipelineItem) []PipelineItem {
 }
 
 // prepareRunPlan schedules the actions for Pipeline.Run().
-func prepareRunPlan(commits []*object.Commit) []runAction {
+func prepareRunPlan(commits []*object.Commit, printResult bool) []runAction {
 	hashes, dag := buildDag(commits)
 	leaveRootComponent(hashes, dag)
 	mergedDag, mergedSeq := mergeDag(hashes, dag)
@@ -144,17 +151,23 @@ func prepareRunPlan(commits []*object.Commit) []runAction {
 	fmt.Printf("}\n")*/
 	plan := generatePlan(orderNodes, hashes, mergedDag, dag, mergedSeq)
 	plan = collectGarbage(plan)
-	/*for _, p := range plan {
-		firstItem := p.Items[0]
-		switch p.Action {
-		case runActionCommit:
-			fmt.Fprintln(os.Stderr, "C", firstItem, p.Commit.Hash.String())
-		case runActionFork:
-			fmt.Fprintln(os.Stderr, "F", p.Items)
-		case runActionMerge:
-			fmt.Fprintln(os.Stderr, "M", p.Items)
+	if printResult {
+		for _, p := range plan {
+			firstItem := p.Items[0]
+			switch p.Action {
+			case runActionCommit:
+				planPrintFunc("C", firstItem, p.Commit.Hash.String())
+			case runActionFork:
+				planPrintFunc("F", p.Items)
+			case runActionMerge:
+				planPrintFunc("M", p.Items)
+			case runActionEmerge:
+				planPrintFunc("E", p.Items)
+			case runActionDelete:
+				planPrintFunc("D", p.Items)
+			}
 		}
-	}*/
+	}
 	return plan
 }
 
