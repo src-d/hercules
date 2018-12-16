@@ -20,6 +20,7 @@ import (
 	"gopkg.in/src-d/hercules.v6/internal/pb"
 	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
 	"gopkg.in/src-d/hercules.v6/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v6/internal/rbtree"
 	"gopkg.in/src-d/hercules.v6/internal/yaml"
 )
 
@@ -66,6 +67,8 @@ type BurndownAnalysis struct {
 	peopleHistories []sparseHistory
 	// files is the mapping <file path> -> *File.
 	files map[string]*burndown.File
+	// fileAllocator is the allocator for RBTree-s in `files`.
+	fileAllocator *rbtree.Allocator
 	// mergedFiles is used during merges to record the real file hashes
 	mergedFiles map[string]bool
 	// mergedAuthor of the processed merge commit
@@ -257,6 +260,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 	}
 	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
 	analyser.files = map[string]*burndown.File{}
+	analyser.fileAllocator = rbtree.NewAllocator()
 	analyser.mergedFiles = map[string]bool{}
 	analyser.mergedAuthor = identity.AuthorMissing
 	analyser.renames = map[string]string{}
@@ -314,8 +318,9 @@ func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
 	for i := range result {
 		clone := *analyser
 		clone.files = map[string]*burndown.File{}
+		clone.fileAllocator = clone.fileAllocator.Clone()
 		for key, file := range analyser.files {
-			clone.files[key] = file.Clone(false)
+			clone.files[key] = file.Clone(clone.fileAllocator, false)
 		}
 		result[i] = &clone
 	}
@@ -342,6 +347,9 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 	for key, val := range keys {
 		if !val {
 			for _, burn := range all {
+				if f, exists := burn.files[key]; exists {
+					f.Delete()
+				}
 				delete(burn.files, key)
 			}
 			continue
@@ -364,7 +372,8 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 		}
 		for _, burn := range all {
 			if burn.files[key] != files[0] {
-				burn.files[key] = files[0].Clone(false)
+				burn.files[key].Delete()
+				burn.files[key] = files[0].Clone(burn.fileAllocator, false)
 			}
 		}
 	}
@@ -1011,7 +1020,7 @@ func (analyser *BurndownAnalysis) newFile(
 		updaters = append(updaters, analyser.updateMatrix)
 		day = analyser.packPersonWithDay(author, day)
 	}
-	return burndown.NewFile(day, size, updaters...), nil
+	return burndown.NewFile(day, size, analyser.fileAllocator, updaters...), nil
 }
 
 func (analyser *BurndownAnalysis) handleInsertion(
@@ -1054,6 +1063,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 		return nil
 	}
 	file.Update(analyser.packPersonWithDay(author, analyser.day), 0, 0, lines)
+	file.Delete()
 	delete(analyser.files, name)
 	delete(analyser.fileHistories, name)
 	analyser.renames[name] = ""
