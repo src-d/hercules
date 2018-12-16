@@ -265,7 +265,7 @@ func printResults(
 	commonResult := results[nil].(*hercules.CommonAnalysisResult)
 
 	fmt.Println("hercules:")
-	fmt.Println("  version: 3")
+	fmt.Printf("  version: %d\n", hercules.BinaryVersion)
 	fmt.Println("  hash:", hercules.BinaryGitHash)
 	fmt.Println("  repository:", uri)
 	fmt.Println("  begin_unix_time:", commonResult.BeginTime)
