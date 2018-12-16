@@ -149,6 +149,13 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	}
 	iter := tree.FindLE(pos)
 	origin := *iter.Item()
+	prevOrigin := origin
+	{
+		prevIter := iter.Prev()
+		if prevIter.Item() != nil {
+			prevOrigin = *prevIter.Item()
+		}
+	}
 	if insLength > 0 {
 		file.updateTime(time, time, insLength)
 	}
@@ -180,6 +187,11 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 			break
 		}
 		delta := internal.Min(nextIter.Item().Key, pos+delLength) - internal.Max(node.Key, pos)
+		if delta == 0 && insLength == 0 && origin.Key == pos && prevOrigin.Value == node.Value {
+			origin = *node
+			tree.DeleteWithIterator(iter)
+			iter = nextIter
+		}
 		if delta <= 0 {
 			break
 		}
@@ -233,7 +245,9 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 			// recover the beginning
 			tree.Insert(rbtree.Item{Key: pos, Value: time})
 		}
-	} else if (pos > origin.Key && previous.Value != origin.Value) || pos == origin.Key || pos == 0 {
+	} else if (pos > origin.Key && previous.Value != origin.Value) ||
+		(pos == origin.Key && origin.Value != prevOrigin.Value) ||
+		pos == 0 {
 		// continue the original interval
 		tree.Insert(rbtree.Item{Key: pos, Value: origin.Value})
 	}
