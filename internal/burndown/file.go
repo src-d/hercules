@@ -209,7 +209,7 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 		// insert our new interval
 		if iter.Item().Value == time && iter.Item().Key-delLength == pos {
 			prev := iter.Prev()
-			if prev.Item().Value != time {
+			if prev.NegativeLimit() || prev.Item().Value != time {
 				iter.Item().Key = pos
 			} else {
 				tree.DeleteWithIterator(iter)
@@ -245,7 +245,7 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 			// recover the beginning
 			tree.Insert(rbtree.Item{Key: pos, Value: time})
 		}
-	} else if (pos > origin.Key && previous.Value != origin.Value) ||
+	} else if (pos > origin.Key && previous != nil && previous.Value != origin.Value) ||
 		(pos == origin.Key && origin.Value != prevOrigin.Value) ||
 		pos == 0 {
 		// continue the original interval

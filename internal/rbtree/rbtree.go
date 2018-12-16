@@ -257,6 +257,9 @@ func (iter Iterator) NegativeLimit() bool {
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (iter Iterator) Item() *Item {
+	if iter.Limit() || iter.NegativeLimit() {
+		return nil
+	}
 	return &iter.node.item
 }
 
