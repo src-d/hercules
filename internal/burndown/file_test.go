@@ -71,7 +71,7 @@ func TestCloneFile(t *testing.T) {
 	file.Update(4, 20, 10, 0)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
 	assert.Equal(t, alloc.Size(), 6)
-	clone := file.Clone(alloc.Clone(), false)
+	clone := file.Clone(alloc.Clone())
 	clone.Update(5, 45, 0, 10)
 	// 0 0 | 20 4 | 30 1 | 45 0 | 120 -1        [0]: 95, [1]: 15, [4]: 10
 	clone.Update(6, 45, 5, 0)
@@ -101,56 +101,6 @@ func TestCloneFile(t *testing.T) {
 	// 125 -1
 	assert.Equal(t, "0 0\n20 4\n30 1\n45 6\n50 0\n125 -1\n", dump)
 
-}
-
-func TestCloneFileClearStatus(t *testing.T) {
-	file, status, alloc := fixtureFile()
-	// 0 0 | 100 -1                             [0]: 100
-	file.Update(1, 20, 30, 0)
-	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
-	file.Update(2, 20, 0, 5)
-	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
-	file.Update(3, 20, 0, 5)
-	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
-	file.Update(4, 20, 10, 0)
-	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
-	newStatus := map[int]int64{}
-	clone := file.Clone(alloc.Clone(), true, func(a, b, c int) {
-		updateStatusFile(newStatus, a, b, c)
-	})
-	clone.Update(5, 45, 0, 10)
-	// 0 0 | 20 4 | 30 1 | 45 0 | 120 -1        [0]: -5, [1]: -5
-	clone.Update(6, 45, 5, 0)
-	// 0 0 | 20 4 | 30 1 | 45 6 | 50 0 | 125 -1 [0]: -5, [1]: -5, [6]: 5
-	assert.Equal(t, int64(100), status[0])
-	assert.Equal(t, int64(20), status[1])
-	assert.Equal(t, int64(0), status[2])
-	assert.Equal(t, int64(0), status[3])
-	assert.Equal(t, int64(10), status[4])
-	assert.Equal(t, int64(-5), newStatus[0])
-	assert.Equal(t, int64(-5), newStatus[1])
-	assert.Equal(t, int64(0), newStatus[2])
-	assert.Equal(t, int64(0), newStatus[3])
-	assert.Equal(t, int64(0), newStatus[4])
-	assert.Equal(t, int64(0), newStatus[5])
-	assert.Equal(t, int64(5), newStatus[6])
-	dump := file.Dump()
-	// Output:
-	// 0 0
-	// 20 4
-	// 30 1
-	// 50 0
-	// 130 -1
-	assert.Equal(t, "0 0\n20 4\n30 1\n50 0\n130 -1\n", dump)
-	dump = clone.Dump()
-	// Output:
-	// 0 0
-	// 20 4
-	// 30 1
-	// 45 6
-	// 50 0
-	// 125 -1
-	assert.Equal(t, "0 0\n20 4\n30 1\n45 6\n50 0\n125 -1\n", dump)
 }
 
 func TestLenFile(t *testing.T) {
@@ -635,7 +585,7 @@ func TestFileMerge(t *testing.T) {
 	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
 	file1.Update(4, 20, 10, 0)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
-	file2 := file1.Clone(alloc.Clone(), false)
+	file2 := file1.Clone(alloc.Clone())
 	file1.Update(TreeMergeMark, 60, 30, 30)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 90 0 | 130 -1
 	// [0]: 70, [1]: 20, [4]: 10

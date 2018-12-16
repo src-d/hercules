@@ -108,15 +108,8 @@ func NewFileFromTree(keys []int, vals []int, allocator *rbtree.Allocator, update
 // Clone copies the file. It performs a deep copy of the tree;
 // depending on `clearStatuses` the original updaters are removed or not.
 // Any new `updaters` are appended.
-func (file *File) Clone(allocator *rbtree.Allocator, clearStatuses bool, updaters ...Updater) *File {
-	clone := &File{tree: file.tree.Clone(allocator), updaters: file.updaters}
-	if clearStatuses {
-		clone.updaters = []Updater{}
-	}
-	for _, updater := range updaters {
-		clone.updaters = append(clone.updaters, updater)
-	}
-	return clone
+func (file *File) Clone(allocator *rbtree.Allocator) *File {
+	return &File{tree: file.tree.Clone(allocator), updaters: file.updaters}
 }
 
 // Delete deallocates the file.
