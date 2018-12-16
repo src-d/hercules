@@ -211,6 +211,24 @@ func TestFusedFile(t *testing.T) {
 	assert.Equal(t, "0 0\n10 1\n16 0\n99 -1\n", dump)
 	assert.Equal(t, int64(93), status[0])
 	assert.Equal(t, int64(6), status[1])
+	file.Update(3, 10, 0, 6)
+	dump = file.Dump()
+	assert.Equal(t, "0 0\n93 -1\n", dump)
+}
+
+func TestDeleteSameBeginning(t *testing.T) {
+	file, _ := fixtureFile()
+	file.Update(1, 0, 5, 0)
+	dump := file.Dump()
+	// Output:
+	// 0 0
+	// 10 1
+	// 16 0
+	// 99 -1
+	assert.Equal(t, "0 1\n5 0\n105 -1\n", dump)
+	file.Update(3, 0, 0, 5)
+	dump = file.Dump()
+	assert.Equal(t, "0 0\n100 -1\n", dump)
 }
 
 func TestInsertSameTimeFile(t *testing.T) {
