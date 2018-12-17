@@ -33,6 +33,11 @@ func (allocator Allocator) Size() int {
 	return len(allocator.storage)
 }
 
+// Used returns the number of nodes contained in the allocator.
+func (allocator Allocator) Used() int {
+	return len(allocator.storage) - len(allocator.gaps)
+}
+
 // Clone copies an existing RBTree allocator.
 func (allocator *Allocator) Clone() *Allocator {
 	newAllocator := &Allocator{
@@ -118,8 +123,15 @@ func (tree RBTree) Len() int {
 	return int(tree.count)
 }
 
-// Clone performs a deep copy of the tree.
-func (tree RBTree) Clone(allocator *Allocator) *RBTree {
+// CloneShallow performs a shallow copy of the tree - the nodes are assumed to already exist in the allocator.
+func (tree RBTree) CloneShallow(allocator *Allocator) *RBTree {
+	clone := tree
+	clone.allocator = allocator
+	return &clone
+}
+
+// CloneDeep performs a deep copy of the tree - the nodes are created from scratch.
+func (tree RBTree) CloneDeep(allocator *Allocator) *RBTree {
 	clone := &RBTree{
 		count: tree.count,
 		allocator: allocator,
@@ -149,8 +161,12 @@ func (tree RBTree) Clone(allocator *Allocator) *RBTree {
 
 // Erase removes all the nodes from the tree.
 func (tree *RBTree) Erase() {
+	nodes := make([]uint32, 0, tree.count)
 	for iter := tree.Min(); !iter.Limit(); iter = iter.Next() {
-		tree.allocator.free(iter.node)
+		nodes = append(nodes, iter.node)
+	}
+	for _, node := range nodes {
+		tree.allocator.free(node)
 	}
 	tree.root = 0
 	tree.minNode = 0

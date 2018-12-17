@@ -320,7 +320,7 @@ func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
 		clone.files = map[string]*burndown.File{}
 		clone.fileAllocator = clone.fileAllocator.Clone()
 		for key, file := range analyser.files {
-			clone.files[key] = file.Clone(clone.fileAllocator)
+			clone.files[key] = file.CloneShallow(clone.fileAllocator)
 		}
 		result[i] = &clone
 	}
@@ -373,7 +373,7 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 		for _, burn := range all {
 			if burn.files[key] != files[0] {
 				burn.files[key].Delete()
-				burn.files[key] = files[0].Clone(burn.fileAllocator)
+				burn.files[key] = files[0].CloneDeep(burn.fileAllocator)
 			}
 		}
 	}

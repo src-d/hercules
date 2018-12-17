@@ -59,7 +59,7 @@ func TestBullshitFile(t *testing.T) {
 	assert.Equal(t, alloc.Size(), 3)  // 1 + 2 nodes
 }
 
-func TestCloneFile(t *testing.T) {
+func TestCloneFileShallow(t *testing.T) {
 	file, status, alloc := fixtureFile()
 	// 0 0 | 100 -1                             [0]: 100
 	file.Update(1, 20, 30, 0)
@@ -71,7 +71,7 @@ func TestCloneFile(t *testing.T) {
 	file.Update(4, 20, 10, 0)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
 	assert.Equal(t, alloc.Size(), 6)
-	clone := file.Clone(alloc.Clone())
+	clone := file.CloneShallow(alloc.Clone())
 	clone.Update(5, 45, 0, 10)
 	// 0 0 | 20 4 | 30 1 | 45 0 | 120 -1        [0]: 95, [1]: 15, [4]: 10
 	clone.Update(6, 45, 5, 0)
@@ -100,7 +100,49 @@ func TestCloneFile(t *testing.T) {
 	// 50 0
 	// 125 -1
 	assert.Equal(t, "0 0\n20 4\n30 1\n45 6\n50 0\n125 -1\n", dump)
+}
 
+func TestCloneFileDeep(t *testing.T) {
+	file, status, alloc := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	assert.Equal(t, alloc.Size(), 6)
+	clone := file.CloneDeep(rbtree.NewAllocator())
+	clone.Update(5, 45, 0, 10)
+	// 0 0 | 20 4 | 30 1 | 45 0 | 120 -1        [0]: 95, [1]: 15, [4]: 10
+	clone.Update(6, 45, 5, 0)
+	// 0 0 | 20 4 | 30 1 | 45 6 | 50 0 | 125 -1 [0]: 95, [1]: 15, [4]: 10, [6]: 5
+	assert.Equal(t, int64(95), status[0])
+	assert.Equal(t, int64(15), status[1])
+	assert.Equal(t, int64(0), status[2])
+	assert.Equal(t, int64(0), status[3])
+	assert.Equal(t, int64(10), status[4])
+	assert.Equal(t, int64(0), status[5])
+	assert.Equal(t, int64(5), status[6])
+	dump := file.Dump()
+	// Output:
+	// 0 0
+	// 20 4
+	// 30 1
+	// 50 0
+	// 130 -1
+	assert.Equal(t, "0 0\n20 4\n30 1\n50 0\n130 -1\n", dump)
+	dump = clone.Dump()
+	// Output:
+	// 0 0
+	// 20 4
+	// 30 1
+	// 45 6
+	// 50 0
+	// 125 -1
+	assert.Equal(t, "0 0\n20 4\n30 1\n45 6\n50 0\n125 -1\n", dump)
 }
 
 func TestLenFile(t *testing.T) {
@@ -401,7 +443,8 @@ func TestBug3File(t *testing.T) {
 
 func TestBug4File(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(0, 10, rbtree.NewAllocator(), func(a, b, c int) {
+	alloc := rbtree.NewAllocator()
+	file := NewFile(0, 10, alloc, func(a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	// 0 0 | 10 -1
@@ -459,6 +502,8 @@ func TestBug4File(t *testing.T) {
 	// 0 125 | 2 215 | 27 214 | 28 300 | 29 214 | 30 215 | 37 214 | 40 215 | 44 125 | 46 215 | 48 125 | 49 215 | 69 125 | 73 215 | 79 125 | 80 0 | 81 -1
 	dump = file.Dump()
 	assert.Equal(t, "0 125\n2 215\n27 214\n28 300\n29 214\n30 215\n37 214\n40 215\n44 125\n46 215\n48 125\n49 215\n69 125\n73 215\n79 125\n80 0\n81 -1\n", dump)
+	assert.Equal(t, 1 + file.tree.Len(), alloc.Used())
+	assert.Equal(t, file.Nodes(), file.tree.Len())
 }
 
 func TestBug5File(t *testing.T) {
@@ -574,7 +619,7 @@ func TestFileMergeMark(t *testing.T) {
 	assert.NotContains(t, status, TreeMergeMark)
 }
 
-func TestFileMerge(t *testing.T) {
+func TestFileMergeShallow(t *testing.T) {
 	file1, status, alloc := fixtureFile()
 	// 0 0 | 100 -1                             [0]: 100
 	file1.Update(1, 20, 30, 0)
@@ -585,7 +630,46 @@ func TestFileMerge(t *testing.T) {
 	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
 	file1.Update(4, 20, 10, 0)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
-	file2 := file1.Clone(alloc.Clone())
+	file2 := file1.CloneShallow(alloc.Clone())
+	file1.Update(TreeMergeMark, 60, 30, 30)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 90 0 | 130 -1
+	// [0]: 70, [1]: 20, [4]: 10
+	file2.Update(5, 60, 20, 20)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 0 | 130 -1
+	// [0]: 80, [1]: 20, [4]: 10, [5]: 20
+	file2.Update(TreeMergeMark, 80, 10, 10)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 M | 90 0 | 130 -1
+	// [0]: 70, [1]: 20, [4]: 10, [5]: 20
+	file2.Update(6, 0, 10, 10)
+	// 0 6 | 10 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 M | 90 0 | 130 -1
+	// [0]: 60, [1]: 20, [4]: 10, [5]: 20, [6]: 10
+	file1.Merge(7, file2)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 60 5 | 80 7 | 90 0 | 130 -1
+	// [0]: 70, [1]: 20, [4]: 10, [5]: 20, [6]: 0, [7]: 10
+	dump := file1.Dump()
+	assert.Equal(t, "0 0\n20 4\n30 1\n50 0\n60 5\n80 7\n90 0\n130 -1\n", dump)
+	assert.Equal(t, int64(70), status[0])
+	assert.Equal(t, int64(20), status[1])
+	assert.Equal(t, int64(0), status[2])
+	assert.Equal(t, int64(0), status[3])
+	assert.Equal(t, int64(10), status[4])
+	assert.Equal(t, int64(20), status[5])
+	assert.Equal(t, int64(10), status[6])
+	assert.Equal(t, int64(10), status[7])
+}
+
+func TestFileMergeDeep(t *testing.T) {
+	file1, status, _ := fixtureFile()
+	// 0 0 | 100 -1                             [0]: 100
+	file1.Update(1, 20, 30, 0)
+	// 0 0 | 20 1 | 50 0 | 130 -1               [0]: 100, [1]: 30
+	file1.Update(2, 20, 0, 5)
+	// 0 0 | 20 1 | 45 0 | 125 -1               [0]: 100, [1]: 25
+	file1.Update(3, 20, 0, 5)
+	// 0 0 | 20 1 | 40 0 | 120 -1               [0]: 100, [1]: 20
+	file1.Update(4, 20, 10, 0)
+	// 0 0 | 20 4 | 30 1 | 50 0 | 130 -1        [0]: 100, [1]: 20, [4]: 10
+	file2 := file1.CloneDeep(rbtree.NewAllocator())
 	file1.Update(TreeMergeMark, 60, 30, 30)
 	// 0 0 | 20 4 | 30 1 | 50 0 | 60 M | 90 0 | 130 -1
 	// [0]: 70, [1]: 20, [4]: 10

@@ -313,7 +313,34 @@ func TestRandomized(t *testing.T) {
 	}
 }
 
-func TestClone(t *testing.T) {
+func TestCloneShallow(t *testing.T) {
+	alloc1 := NewAllocator()
+	alloc1.malloc()
+	tree := NewRBTree(alloc1)
+	tree.Insert(Item{7, 7})
+	assert.Equal(t, alloc1.storage, []node{{}, {}, {color: black, item: Item{7, 7}}})
+	assert.Equal(t, tree.minNode, uint32(2))
+	assert.Equal(t, tree.maxNode, uint32(2))
+	alloc2 := alloc1.Clone()
+	clone := tree.CloneShallow(alloc2)
+	assert.Equal(t, alloc2.storage, []node{{}, {}, {color: black, item: Item{7, 7}}})
+	assert.Equal(t, clone.minNode, uint32(2))
+	assert.Equal(t, clone.maxNode, uint32(2))
+	assert.Equal(t, alloc2.Size(), 3)
+	tree.Insert(Item{10, 10})
+	alloc3 := alloc1.Clone()
+	clone = tree.CloneShallow(alloc3)
+	assert.Equal(t, alloc3.storage, []node{
+		{}, {},
+		{right: 3, color: black, item: Item{7, 7}},
+		{parent: 2, color: red, item: Item{10, 10}}})
+	assert.Equal(t, clone.minNode, uint32(2))
+	assert.Equal(t, clone.maxNode, uint32(3))
+	assert.Equal(t, alloc3.Size(), 4)
+	assert.Equal(t, alloc2.Size(), 3)
+}
+
+func TestCloneDeep(t *testing.T) {
 	alloc1 := NewAllocator()
 	alloc1.malloc()
 	tree := NewRBTree(alloc1)
@@ -322,14 +349,14 @@ func TestClone(t *testing.T) {
 	assert.Equal(t, tree.minNode, uint32(2))
 	assert.Equal(t, tree.maxNode, uint32(2))
 	alloc2 := NewAllocator()
-	clone := tree.Clone(alloc2)
+	clone := tree.CloneDeep(alloc2)
 	assert.Equal(t, alloc2.storage, []node{{}, {color: black, item: Item{7, 7}}})
 	assert.Equal(t, clone.minNode, uint32(1))
 	assert.Equal(t, clone.maxNode, uint32(1))
 	assert.Equal(t, alloc2.Size(), 2)
 	tree.Insert(Item{10, 10})
 	alloc2 = NewAllocator()
-	clone = tree.Clone(alloc2)
+	clone = tree.CloneDeep(alloc2)
 	assert.Equal(t, alloc2.storage, []node{
 		{},
 		{right: 2, color: black, item: Item{7, 7}},
@@ -337,4 +364,16 @@ func TestClone(t *testing.T) {
 	assert.Equal(t, clone.minNode, uint32(1))
 	assert.Equal(t, clone.maxNode, uint32(2))
 	assert.Equal(t, alloc2.Size(), 3)
+}
+
+func TestErase(t *testing.T) {
+	alloc := NewAllocator()
+	tree := NewRBTree(alloc)
+	for i := 0; i < 10; i++ {
+		tree.Insert(Item{uint32(i), uint32(i)})
+	}
+	assert.Equal(t, alloc.Used(), 11)
+	tree.Erase()
+	assert.Equal(t, alloc.Used(), 1)
+	assert.Equal(t, alloc.Size(), 11)
 }

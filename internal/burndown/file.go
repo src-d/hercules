@@ -105,11 +105,15 @@ func NewFileFromTree(keys []int, vals []int, allocator *rbtree.Allocator, update
 	return file
 }
 
-// Clone copies the file. It performs a deep copy of the tree;
-// depending on `clearStatuses` the original updaters are removed or not.
-// Any new `updaters` are appended.
-func (file *File) Clone(allocator *rbtree.Allocator) *File {
-	return &File{tree: file.tree.Clone(allocator), updaters: file.updaters}
+// CloneShallow copies the file. It performs a shallow copy of the tree: the allocator
+// must be Clone()-d beforehand.
+func (file *File) CloneShallow(allocator *rbtree.Allocator) *File {
+	return &File{tree: file.tree.CloneShallow(allocator), updaters: file.updaters}
+}
+
+// CloneDeep copies the file. It performs a deep copy of the tree.
+func (file *File) CloneDeep(allocator *rbtree.Allocator) *File {
+	return &File{tree: file.tree.CloneDeep(allocator), updaters: file.updaters}
 }
 
 // Delete deallocates the file.
@@ -121,6 +125,11 @@ func (file *File) Delete() {
 // intervals.
 func (file *File) Len() int {
 	return int(file.tree.Max().Item().Key)
+}
+
+// Nodes returns the number of RBTree nodes in the file.
+func (file *File) Nodes() int {
+	return file.tree.Len()
 }
 
 // Update modifies the underlying tree to adapt to the specified line changes.
