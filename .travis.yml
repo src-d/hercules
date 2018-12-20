@@ -7,8 +7,8 @@ git:
 language: go
 go_import_path: gopkg.in/src-d/hercules.v6
 go:
-- 1.10.x
-- 1.11.x
+  - 1.10.x
+  - 1.11.x
 
 services:
   - docker
@@ -65,7 +65,7 @@ install:
   - make TAGS=tensorflow
 script:
   - set -e
-  - if [ $TRAVIS_GO_VERSION = "1.11.*" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
+  - if [ $TRAVIS_GO_VERSION == "1.11.x" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
   - go vet -tags tensorflow ./...
   - golint -set_exit_status $(go list ./... | grep -v /vendor/)
   - flake8
@@ -80,7 +80,7 @@ script:
   - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
   - # $GOPATH/bin/hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules > /dev/null
   - set +e
-  - if [ $TRAVIS_GO_VERSION = "1.11.*" ]; then bash <(curl -s https://codecov.io/bash); fi
+  - if [ $TRAVIS_GO_VERSION == "1.11.x" ]; then bash <(curl -s https://codecov.io/bash); fi
 
 jobs:
   include:
