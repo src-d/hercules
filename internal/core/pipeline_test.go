@@ -502,7 +502,7 @@ func TestPipelineDumpPlanConfigure(t *testing.T) {
 	pipeline.Initialize(map[string]interface{}{ConfigPipelineDumpPlan: true})
 	assert.True(t, pipeline.DumpPlan)
 	stream := &bytes.Buffer{}
-	planPrintFunc = func(args... interface{}) {
+	planPrintFunc = func(args ...interface{}) {
 		fmt.Fprintln(stream, args...)
 	}
 	commits := make([]*object.Commit, 1)

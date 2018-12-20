@@ -295,7 +295,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 						matchesB,
 						&object.Change{
 							From: deletedBlobsB[d].change.From,
-							To: addedBlobsB[a].change.To})
+							To:   addedBlobsB[a].change.To})
 					break
 				}
 			}
@@ -355,7 +355,7 @@ func (ra *RenameAnalysis) Fork(n int) []core.PipelineItem {
 
 func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 	size := internal.Max64(1, internal.Max64(size1, size2))
-	return (internal.Abs64(size1-size2)*10000)/size <= int64(100-ra.SimilarityThreshold) * 100
+	return (internal.Abs64(size1-size2)*10000)/size <= int64(100-ra.SimilarityThreshold)*100
 }
 
 func (ra *RenameAnalysis) blobsAreClose(
@@ -487,7 +487,7 @@ func sortRenameCandidates(candidates []int, origin string, nameGetter func(int) 
 		return distances[i].Distance < distances[j].Distance
 	})
 	for i, cd := range distances {
-		candidates[i]  = cd.Candidate
+		candidates[i] = cd.Candidate
 	}
 }
 

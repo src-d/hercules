@@ -49,7 +49,7 @@ type DevDay struct {
 	// Commits is the number of commits made by a particular developer in a particular day.
 	Commits int
 	// Added is the number of added lines by a particular developer in a particular day.
-	Added   int
+	Added int
 	// Removed is the number of removed lines by a particular developer in a particular day.
 	Removed int
 	// Changed is the number of changed lines by a particular developer in a particular day.
@@ -208,7 +208,7 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (devs *DevsAnalysis) Finalize() interface{} {
 	return DevsResult{
-		Days: devs.days,
+		Days:               devs.days,
 		reversedPeopleDict: devs.reversedPeopleDict,
 	}
 }
@@ -253,7 +253,7 @@ func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 		}
 	}
 	result := DevsResult{
-		Days: days,
+		Days:               days,
 		reversedPeopleDict: message.DevIndex,
 	}
 	return result, nil
@@ -270,10 +270,10 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 	}
 	devIndex := map[string]devIndexPair{}
 	for dev, devName := range cr1.reversedPeopleDict {
-		devIndex[devName] = devIndexPair{Index1: dev+1, Index2: devIndex[devName].Index2}
+		devIndex[devName] = devIndexPair{Index1: dev + 1, Index2: devIndex[devName].Index2}
 	}
 	for dev, devName := range cr2.reversedPeopleDict {
-		devIndex[devName] = devIndexPair{Index1: devIndex[devName].Index1, Index2: dev+1}
+		devIndex[devName] = devIndexPair{Index1: devIndex[devName].Index1, Index2: dev + 1}
 	}
 	jointDevSeq := make([]string, len(devIndex))
 	{

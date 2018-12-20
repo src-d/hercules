@@ -19,17 +19,17 @@ type Item struct {
 type Allocator struct {
 	HibernationThreshold int
 
-	storage []node
-	gaps map[uint32]bool
+	storage           []node
+	gaps              map[uint32]bool
 	hibernatedStorage [6][]byte
-	hibernatedLen int
+	hibernatedLen     int
 }
 
 // NewAllocator creates a new allocator for RBTree's nodes.
 func NewAllocator() *Allocator {
-	return &Allocator{ 
+	return &Allocator{
 		storage: []node{},
-		gaps: map[uint32]bool{},
+		gaps:    map[uint32]bool{},
 	}
 }
 
@@ -47,7 +47,7 @@ func (allocator Allocator) Used() int {
 func (allocator *Allocator) Clone() *Allocator {
 	newAllocator := &Allocator{
 		storage: make([]node, len(allocator.storage), cap(allocator.storage)),
-		gaps: map[uint32]bool{},
+		gaps:    map[uint32]bool{},
 	}
 	copy(newAllocator.storage, allocator.storage)
 	for key, val := range allocator.gaps {
@@ -108,7 +108,7 @@ func (allocator *Allocator) Boot() {
 		}(i)
 	}
 	wg.Wait()
-	allocator.storage = make([]node, allocator.hibernatedLen, (allocator.hibernatedLen * 3) / 2)
+	allocator.storage = make([]node, allocator.hibernatedLen, (allocator.hibernatedLen*3)/2)
 	for i := range allocator.storage {
 		n := &allocator.storage[i]
 		n.item.Key = buffers[0][i]
@@ -136,7 +136,7 @@ func (allocator *Allocator) malloc() uint32 {
 		allocator.storage = append(allocator.storage, node{})
 		n = 1
 	}
-	if n == negativeLimitNode - 1 {
+	if n == negativeLimitNode-1 {
 		// math.MaxUint32 is reserved
 		panic("the size of my RBTree allocator has reached the maximum value for uint32, sorry")
 	}
@@ -203,7 +203,7 @@ func (tree RBTree) CloneShallow(allocator *Allocator) *RBTree {
 // CloneDeep performs a deep copy of the tree - the nodes are created from scratch.
 func (tree RBTree) CloneDeep(allocator *Allocator) *RBTree {
 	clone := &RBTree{
-		count: tree.count,
+		count:     tree.count,
 		allocator: allocator,
 	}
 	nodeMap := map[uint32]uint32{0: 0}
@@ -472,8 +472,8 @@ func doAssert(b bool) {
 }
 
 const (
-	red = false
-	black = true
+	red               = false
+	black             = true
 	negativeLimitNode = math.MaxUint32
 )
 

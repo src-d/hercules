@@ -257,11 +257,11 @@ func (file *File) Update(time int, pos int, insLength int, delLength int) {
 	if delta != 0 {
 		for iter = iter.Next(); !iter.Limit(); iter = iter.Next() {
 			// we do not need to re-balance the tree
-			iter.Item().Key = uint32(int(iter.Item().Key)+delta)
+			iter.Item().Key = uint32(int(iter.Item().Key) + delta)
 		}
 		// have to adjust origin in case insLength == 0
 		if origin.Key > uint32(pos) {
-			origin.Key = uint32(int(origin.Key)+delta)
+			origin.Key = uint32(int(origin.Key) + delta)
 		}
 	}
 
