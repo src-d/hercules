@@ -40,11 +40,17 @@ func (allocator Allocator) Size() int {
 
 // Used returns the number of nodes contained in the allocator.
 func (allocator Allocator) Used() int {
+	if allocator.storage == nil {
+		panic("hibernated allocators cannot be used")
+	}
 	return len(allocator.storage) - len(allocator.gaps)
 }
 
 // Clone copies an existing RBTree allocator.
 func (allocator *Allocator) Clone() *Allocator {
+	if allocator.storage == nil {
+		panic("cannot clone a hibernated allocator")
+	}
 	newAllocator := &Allocator{
 		storage: make([]node, len(allocator.storage), cap(allocator.storage)),
 		gaps:    map[uint32]bool{},
@@ -58,10 +64,13 @@ func (allocator *Allocator) Clone() *Allocator {
 
 // Hibernate compresses the allocated memory.
 func (allocator *Allocator) Hibernate() {
-	if allocator.HibernationThreshold == 0 || len(allocator.storage) < allocator.HibernationThreshold {
+	if allocator.HibernationThreshold > 0 && len(allocator.storage) < allocator.HibernationThreshold {
 		return
 	}
 	allocator.hibernatedLen = len(allocator.storage)
+	if allocator.hibernatedLen == 0 {
+		return
+	}
 	buffers := [6][]uint32{}
 	for i := 0; i < len(buffers); i++ {
 		buffers[i] = make([]uint32, len(allocator.storage))
@@ -122,6 +131,9 @@ func (allocator *Allocator) Boot() {
 }
 
 func (allocator *Allocator) malloc() uint32 {
+	if allocator.storage == nil {
+		panic("hibernated allocators cannot be used")
+	}
 	if len(allocator.gaps) > 0 {
 		var key uint32
 		for key = range allocator.gaps {
@@ -146,6 +158,9 @@ func (allocator *Allocator) malloc() uint32 {
 }
 
 func (allocator *Allocator) free(n uint32) {
+	if allocator.storage == nil {
+		panic("hibernated allocators cannot be used")
+	}
 	_, exists := allocator.gaps[n]
 	doAssert(!exists)
 	allocator.storage[n] = node{}
