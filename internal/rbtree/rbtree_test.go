@@ -380,3 +380,42 @@ func TestErase(t *testing.T) {
 	assert.Equal(t, alloc.Used(), 1)
 	assert.Equal(t, alloc.Size(), 11)
 }
+
+func TestAllocatorHibernateBoot(t *testing.T) {
+	alloc := NewAllocator()
+	for i := 0; i < 10000; i++ {
+		n := alloc.malloc()
+		alloc.storage[n].item.Key = uint32(i)
+		alloc.storage[n].item.Value = uint32(i)
+		alloc.storage[n].left = uint32(i)
+		alloc.storage[n].right = uint32(i)
+		alloc.storage[n].parent = uint32(i)
+		alloc.storage[n].color = i%2 == 0
+	}
+	alloc.Hibernate()
+	assert.Nil(t, alloc.storage)
+	assert.Equal(t, alloc.Size(), 0)
+	assert.Equal(t, alloc.hibernatedLen, 10001)
+	assert.PanicsWithValue(t, "hibernated allocators cannot be used", func() { alloc.Used() })
+	assert.PanicsWithValue(t, "hibernated allocators cannot be used", func() { alloc.malloc() })
+	assert.PanicsWithValue(t, "hibernated allocators cannot be used", func() { alloc.free(0) })
+	assert.PanicsWithValue(t, "cannot clone a hibernated allocator", func() { alloc.Clone() })
+	alloc.Boot()
+	assert.Equal(t, alloc.hibernatedLen, 0)
+	for n := 1; n <= 10000; n++ {
+		assert.Equal(t, alloc.storage[n].item.Key, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].item.Value, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].left, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].right, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].parent, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].color, (n-1)%2 == 0)
+	}
+}
+
+func TestAllocatorHibernateBootEmpty(t *testing.T) {
+	alloc := NewAllocator()
+	alloc.Hibernate()
+	alloc.Boot()
+	assert.Equal(t, alloc.Size(), 0)
+	assert.Equal(t, alloc.Used(), 0)
+}
