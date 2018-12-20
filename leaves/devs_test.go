@@ -284,7 +284,7 @@ func TestDevsMergeResults(t *testing.T) {
 	people1 := [...]string{"1@srcd", "2@srcd"}
 	people2 := [...]string{"3@srcd", "1@srcd"}
 	r1 := DevsResult{
-		Days: map[int]map[int]*DevDay{},
+		Days:               map[int]map[int]*DevDay{},
 		reversedPeopleDict: people1[:],
 	}
 	r1.Days[1] = map[int]*DevDay{}
@@ -296,7 +296,7 @@ func TestDevsMergeResults(t *testing.T) {
 	r1.Days[11] = map[int]*DevDay{}
 	r1.Days[11][1] = &DevDay{10, 20, 30, 40}
 	r2 := DevsResult{
-		Days: map[int]map[int]*DevDay{},
+		Days:               map[int]map[int]*DevDay{},
 		reversedPeopleDict: people2[:],
 	}
 	r2.Days[1] = map[int]*DevDay{}
@@ -317,7 +317,7 @@ func TestDevsMergeResults(t *testing.T) {
 	assert.Equal(t, rm.Days[11], map[int]*DevDay{1: {10, 20, 30, 40}})
 	assert.Equal(t, rm.Days[2], map[int]*DevDay{
 		identity.AuthorMissing: {100, 200, 300, 400},
-		2: {11, 21, 31, 41},
+		2:                      {11, 21, 31, 41},
 	})
 	assert.Equal(t, rm.Days[1], map[int]*DevDay{
 		0: {11, 22, 33, 44},
@@ -325,8 +325,8 @@ func TestDevsMergeResults(t *testing.T) {
 		2: {10, 20, 30, 40},
 	})
 	assert.Equal(t, rm.Days[10], map[int]*DevDay{
-		0: {11, 21, 31, 41},
-		2: {11, 21, 31, 41},
-		identity.AuthorMissing: {100*2, 200*2, 300*2, 400*2},
+		0:                      {11, 21, 31, 41},
+		2:                      {11, 21, 31, 41},
+		identity.AuthorMissing: {100 * 2, 200 * 2, 300 * 2, 400 * 2},
 	})
 }

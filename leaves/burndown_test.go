@@ -1173,8 +1173,8 @@ func TestBurndownDeserialize(t *testing.T) {
 
 func TestBurndownEmptyFileHistory(t *testing.T) {
 	burndown := &BurndownAnalysis{
-		Sampling: 30,
-		Granularity: 30,
+		Sampling:      30,
+		Granularity:   30,
 		globalHistory: sparseHistory{0: map[int]int64{0: 10}},
 		fileHistories: map[string]sparseHistory{"test.go": {}},
 	}
@@ -1188,8 +1188,8 @@ func TestBurndownEmptyFileHistory(t *testing.T) {
 
 func TestBurndownNegativePeople(t *testing.T) {
 	burndown := &BurndownAnalysis{
-		Sampling:    30,
-		Granularity: 30,
+		Sampling:     30,
+		Granularity:  30,
 		PeopleNumber: -1,
 	}
 	err := burndown.Initialize(test.Repository)

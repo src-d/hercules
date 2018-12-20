@@ -56,7 +56,7 @@ func TestBullshitFile(t *testing.T) {
 	file.Update(1, 10, 0, 0)
 	assert.Equal(t, int64(100), status[0])
 	assert.Equal(t, int64(0), status[1])
-	assert.Equal(t, alloc.Size(), 3)  // 1 + 2 nodes
+	assert.Equal(t, alloc.Size(), 3) // 1 + 2 nodes
 }
 
 func TestCloneFileShallow(t *testing.T) {
@@ -212,8 +212,8 @@ func TestFusedFile(t *testing.T) {
 	dump = file.Dump()
 	assert.Equal(t, "0 0\n93 -1\n", dump)
 	assert.Equal(t, alloc.Size(), 5)
-	file.Update(3, 10, 6, 0) // +2 nodes
-	assert.Equal(t, alloc.Size(), 5)  // using gaps
+	file.Update(3, 10, 6, 0)         // +2 nodes
+	assert.Equal(t, alloc.Size(), 5) // using gaps
 	file.Update(4, 10, 6, 0)
 	assert.Equal(t, alloc.Size(), 6)
 }
@@ -502,7 +502,7 @@ func TestBug4File(t *testing.T) {
 	// 0 125 | 2 215 | 27 214 | 28 300 | 29 214 | 30 215 | 37 214 | 40 215 | 44 125 | 46 215 | 48 125 | 49 215 | 69 125 | 73 215 | 79 125 | 80 0 | 81 -1
 	dump = file.Dump()
 	assert.Equal(t, "0 125\n2 215\n27 214\n28 300\n29 214\n30 215\n37 214\n40 215\n44 125\n46 215\n48 125\n49 215\n69 125\n73 215\n79 125\n80 0\n81 -1\n", dump)
-	assert.Equal(t, 1 + file.tree.Len(), alloc.Used())
+	assert.Equal(t, 1+file.tree.Len(), alloc.Used())
 	assert.Equal(t, file.Nodes(), file.tree.Len())
 }
 
@@ -539,10 +539,10 @@ func TestUpdatePanic(t *testing.T) {
 	file := NewFileFromTree(keys[:], vals[:], rbtree.NewAllocator())
 	file.tree.DeleteWithKey(0)
 	file.tree.Insert(rbtree.Item{Key: 1, Value: math.MaxUint32})
-	assert.PanicsWithValue(t, "invalid tree state", func(){file.Update(1, 0, 1, 0)})
+	assert.PanicsWithValue(t, "invalid tree state", func() { file.Update(1, 0, 1, 0) })
 	file.tree.Insert(rbtree.Item{Key: 0, Value: math.MaxUint32})
 	assert.PanicsWithValue(
-		t, "time may not be >= MaxUint32", func(){file.Update(math.MaxUint32, 0, 1, 0)})
+		t, "time may not be >= MaxUint32", func() { file.Update(math.MaxUint32, 0, 1, 0) })
 }
 
 func TestFileValidate(t *testing.T) {

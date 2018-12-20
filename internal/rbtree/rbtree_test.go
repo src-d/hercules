@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 // Create a tree storing a set of integers
 func testNewIntSet() *RBTree {
 	return NewRBTree(NewAllocator())
@@ -80,7 +79,9 @@ func TestDelete(t *testing.T) {
 func iterToString(i Iterator) string {
 	s := ""
 	for ; !i.Limit(); i = i.Next() {
-		if s != "" { s = s + ","}
+		if s != "" {
+			s = s + ","
+		}
 		s = s + fmt.Sprintf("%d", i.Item().Key)
 	}
 	return s
@@ -89,7 +90,9 @@ func iterToString(i Iterator) string {
 func reverseIterToString(i Iterator) string {
 	s := ""
 	for ; !i.NegativeLimit(); i = i.Prev() {
-		if s != "" { s = s + ","}
+		if s != "" {
+			s = s + ","
+		}
 		s = s + fmt.Sprintf("%d", i.Item().Key)
 	}
 	return s
@@ -214,7 +217,7 @@ func (oiter oracleIterator) NegativeLimit() bool {
 }
 
 func (oiter oracleIterator) Max() bool {
-	return oiter.index == len(oiter.o.data) - 1
+	return oiter.index == len(oiter.o.data)-1
 }
 
 func (oiter oracleIterator) Item() int {

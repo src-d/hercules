@@ -2,6 +2,7 @@ package rbtree
 
 import (
 	"math"
+	"sync"
 )
 
 //
@@ -16,15 +17,19 @@ type Item struct {
 
 // Allocator is the allocator for nodes in a RBTree.
 type Allocator struct {
-	storage []node
-	gaps map[uint32]bool
+	HibernationThreshold int
+
+	storage           []node
+	gaps              map[uint32]bool
+	hibernatedStorage [6][]byte
+	hibernatedLen     int
 }
 
 // NewAllocator creates a new allocator for RBTree's nodes.
 func NewAllocator() *Allocator {
-	return &Allocator{ 
+	return &Allocator{
 		storage: []node{},
-		gaps: map[uint32]bool{},
+		gaps:    map[uint32]bool{},
 	}
 }
 
@@ -42,13 +47,78 @@ func (allocator Allocator) Used() int {
 func (allocator *Allocator) Clone() *Allocator {
 	newAllocator := &Allocator{
 		storage: make([]node, len(allocator.storage), cap(allocator.storage)),
-		gaps: map[uint32]bool{},
+		gaps:    map[uint32]bool{},
 	}
 	copy(newAllocator.storage, allocator.storage)
 	for key, val := range allocator.gaps {
 		newAllocator.gaps[key] = val
 	}
 	return newAllocator
+}
+
+// Hibernate compresses the allocated memory.
+func (allocator *Allocator) Hibernate() {
+	if allocator.HibernationThreshold == 0 || len(allocator.storage) < allocator.HibernationThreshold {
+		return
+	}
+	allocator.hibernatedLen = len(allocator.storage)
+	buffers := [6][]uint32{}
+	for i := 0; i < len(buffers); i++ {
+		buffers[i] = make([]uint32, len(allocator.storage))
+	}
+	// we deinterleave to achieve a better compression ratio
+	for i, n := range allocator.storage {
+		buffers[0][i] = n.item.Key
+		buffers[1][i] = n.item.Value
+		buffers[2][i] = n.left
+		buffers[3][i] = n.parent
+		buffers[4][i] = n.right
+		if n.color {
+			buffers[5][i] = 1
+		}
+	}
+	allocator.storage = nil
+	wg := &sync.WaitGroup{}
+	wg.Add(len(buffers))
+	for i, buffer := range buffers {
+		go func(i int, buffer []uint32) {
+			allocator.hibernatedStorage[i] = CompressUInt32Slice(buffer)
+			buffers[i] = nil
+			wg.Done()
+		}(i, buffer)
+	}
+	wg.Wait()
+}
+
+// Boot performs the opposite of Hibernate() - decompresses and restores the allocated memory.
+func (allocator *Allocator) Boot() {
+	if allocator.hibernatedLen == 0 {
+		// not hibernated
+		return
+	}
+	buffers := [6][]uint32{}
+	wg := &sync.WaitGroup{}
+	wg.Add(len(buffers))
+	for i := 0; i < len(buffers); i++ {
+		go func(i int) {
+			buffers[i] = make([]uint32, allocator.hibernatedLen)
+			DecompressUInt32Slice(allocator.hibernatedStorage[i], buffers[i])
+			allocator.hibernatedStorage[i] = nil
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	allocator.storage = make([]node, allocator.hibernatedLen, (allocator.hibernatedLen*3)/2)
+	for i := range allocator.storage {
+		n := &allocator.storage[i]
+		n.item.Key = buffers[0][i]
+		n.item.Value = buffers[1][i]
+		n.left = buffers[2][i]
+		n.parent = buffers[3][i]
+		n.right = buffers[4][i]
+		n.color = buffers[5][i] > 0
+	}
+	allocator.hibernatedLen = 0
 }
 
 func (allocator *Allocator) malloc() uint32 {
@@ -66,7 +136,7 @@ func (allocator *Allocator) malloc() uint32 {
 		allocator.storage = append(allocator.storage, node{})
 		n = 1
 	}
-	if n == negativeLimitNode - 1 {
+	if n == negativeLimitNode-1 {
 		// math.MaxUint32 is reserved
 		panic("the size of my RBTree allocator has reached the maximum value for uint32, sorry")
 	}
@@ -133,7 +203,7 @@ func (tree RBTree) CloneShallow(allocator *Allocator) *RBTree {
 // CloneDeep performs a deep copy of the tree - the nodes are created from scratch.
 func (tree RBTree) CloneDeep(allocator *Allocator) *RBTree {
 	clone := &RBTree{
-		count: tree.count,
+		count:     tree.count,
 		allocator: allocator,
 	}
 	nodeMap := map[uint32]uint32{0: 0}
@@ -402,8 +472,8 @@ func doAssert(b bool) {
 }
 
 const (
-	red = false
-	black = true
+	red               = false
+	black             = true
 	negativeLimitNode = math.MaxUint32
 )
 
