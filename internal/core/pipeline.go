@@ -147,6 +147,16 @@ type ResultMergeablePipelineItem interface {
 	MergeResults(r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{}
 }
 
+// HibernateablePipelineItem is the interface to allow pipeline items to be frozen (compacted, unloaded)
+// while they are not needed in the hosting branch.
+type HibernateablePipelineItem interface {
+	PipelineItem
+	// Hibernate signals that the item is temporarily not needed and it's memory can be optimized.
+	Hibernate()
+	// Boot signals that the item is needed again and must be de-hibernate-d.
+	Boot()
+}
+
 // CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
 type CommonAnalysisResult struct {
 	// BeginTime is the time of the first commit in the analysed sequence.
