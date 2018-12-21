@@ -64,7 +64,7 @@ func (allocator *Allocator) Clone() *Allocator {
 
 // Hibernate compresses the allocated memory.
 func (allocator *Allocator) Hibernate() {
-	if allocator.HibernationThreshold > 0 && len(allocator.storage) < allocator.HibernationThreshold {
+	if len(allocator.storage) < allocator.HibernationThreshold {
 		return
 	}
 	allocator.hibernatedLen = len(allocator.storage)
