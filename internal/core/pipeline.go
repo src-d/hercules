@@ -639,7 +639,10 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	progressSteps := len(plan) + 2
 	branches := map[int][]PipelineItem{}
 	// we will need rootClone if there is more than one root branch
-	rootClone := cloneItems(pipeline.items, 1)[0]
+	var rootClone []PipelineItem
+	if !pipeline.DryRun {
+		rootClone = cloneItems(pipeline.items, 1)[0]
+	}
 	var newestTime int64
 	runTimePerItem := map[string]float64{}
 
