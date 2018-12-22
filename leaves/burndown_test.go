@@ -45,7 +45,7 @@ func TestBurndownMeta(t *testing.T) {
 	for _, opt := range opts {
 		switch opt.Name {
 		case ConfigBurndownGranularity, ConfigBurndownSampling, ConfigBurndownTrackFiles,
-			ConfigBurndownTrackPeople, ConfigBurndownDebug:
+			ConfigBurndownTrackPeople, ConfigBurndownHibernationThreshold, ConfigBurndownDebug:
 			matches++
 		}
 	}
@@ -61,6 +61,7 @@ func TestBurndownConfigure(t *testing.T) {
 	facts[ConfigBurndownTrackFiles] = true
 	facts[ConfigBurndownTrackPeople] = true
 	facts[ConfigBurndownDebug] = true
+	facts[ConfigBurndownHibernationThreshold] = 100
 	facts[identity.FactIdentityDetectorPeopleCount] = 5
 	facts[identity.FactIdentityDetectorReversedPeopleDict] = burndown.Requires()
 	burndown.Configure(facts)
@@ -68,6 +69,7 @@ func TestBurndownConfigure(t *testing.T) {
 	assert.Equal(t, burndown.Sampling, 200)
 	assert.Equal(t, burndown.TrackFiles, true)
 	assert.Equal(t, burndown.PeopleNumber, 5)
+	assert.Equal(t, burndown.HibernationThreshold, 100)
 	assert.Equal(t, burndown.Debug, true)
 	assert.Equal(t, burndown.reversedPeopleDict, burndown.Requires())
 	facts[ConfigBurndownTrackPeople] = false
@@ -103,9 +105,11 @@ func TestBurndownInitialize(t *testing.T) {
 	burndown := BurndownAnalysis{}
 	burndown.Sampling = -10
 	burndown.Granularity = DefaultBurndownGranularity
+	burndown.HibernationThreshold = 10
 	burndown.Initialize(test.Repository)
 	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity)
 	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity)
+	assert.Equal(t, burndown.fileAllocator.HibernationThreshold, 10)
 	burndown.Sampling = 0
 	burndown.Granularity = DefaultBurndownGranularity - 1
 	burndown.Initialize(test.Repository)
@@ -342,7 +346,8 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	}
 }
 
-func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) BurndownResult {
+func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
+	BurndownResult, *BurndownAnalysis) {
 	burndown := BurndownAnalysis{
 		Granularity:  30,
 		Sampling:     30,
@@ -481,11 +486,11 @@ func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) B
 	burndown.reversedPeopleDict = people[:]
 	burndown.Consume(deps)
 	out := burndown.Finalize().(BurndownResult)
-	return out
+	return out, &burndown
 }
 
 func TestBurndownSerialize(t *testing.T) {
-	out := bakeBurndownForSerialization(t, 0, 1)
+	out, _ := bakeBurndownForSerialization(t, 0, 1)
 	burndown := &BurndownAnalysis{}
 
 	buffer := &bytes.Buffer{}
@@ -564,7 +569,7 @@ func TestBurndownSerialize(t *testing.T) {
 }
 
 func TestBurndownSerializeAuthorMissing(t *testing.T) {
-	out := bakeBurndownForSerialization(t, 0, identity.AuthorMissing)
+	out, _ := bakeBurndownForSerialization(t, 0, identity.AuthorMissing)
 	burndown := &BurndownAnalysis{}
 
 	buffer := &bytes.Buffer{}
@@ -1200,4 +1205,15 @@ func TestBurndownNegativePeople(t *testing.T) {
 	}
 	err = burndown.Configure(facts)
 	assert.Equal(t, err.Error(), "PeopleNumber is negative: -1")
+}
+
+func TestBurndownHibernateBoot(t *testing.T) {
+	_, burndown := bakeBurndownForSerialization(t, 0, 1)
+	assert.Equal(t, burndown.fileAllocator.Size(), 157)
+	assert.Equal(t, burndown.fileAllocator.Used(), 155)
+	burndown.Hibernate()
+	assert.Equal(t, burndown.fileAllocator.Size(), 0)
+	burndown.Boot()
+	assert.Equal(t, burndown.fileAllocator.Size(), 157)
+	assert.Equal(t, burndown.fileAllocator.Used(), 155)
 }

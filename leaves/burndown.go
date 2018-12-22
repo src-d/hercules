@@ -40,8 +40,13 @@ type BurndownAnalysis struct {
 	// It does not change the project level burndown results.
 	TrackFiles bool
 
-	// The number of developers for which to collect the burndown stats. 0 disables it.
+	// PeopleNumber is the number of developers for which to collect the burndown stats. 0 disables it.
 	PeopleNumber int
+
+	// HibernationThreshold sets the hibernation threshold for the underlying
+	// RBTree allocator. It is useful to trade CPU time for reduced peak memory consumption
+	// if there are many branches.
+	HibernationThreshold int
 
 	// Debug activates the debugging mode. Analyse() runs slower in this mode
 	// but it accurately checks all the intermediate states for invariant
@@ -126,6 +131,10 @@ const (
 	ConfigBurndownTrackFiles = "Burndown.TrackFiles"
 	// ConfigBurndownTrackPeople enables burndown collection for authors.
 	ConfigBurndownTrackPeople = "Burndown.TrackPeople"
+	// ConfigBurndownHibernationThreshold sets the hibernation threshold for the underlying
+	// RBTree allocator. It is useful to trade CPU time for reduced peak memory consumption
+	// if there are many branches.
+	ConfigBurndownHibernationThreshold = "Burndown.HibernationThreshold"
 	// ConfigBurndownDebug enables some extra debug assertions.
 	ConfigBurndownDebug = "Burndown.Debug"
 	// DefaultBurndownGranularity is the default number of days for BurndownAnalysis.Granularity
@@ -186,6 +195,12 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []core.Configuratio
 		Flag:        "burndown-people",
 		Type:        core.BoolConfigurationOption,
 		Default:     false}, {
+		Name: ConfigBurndownHibernationThreshold,
+		Description: "The minimum size for the allocated memory in each branch to be compressed." +
+			"0 disables this optimization. Lower values trade CPU time more. Sane examples: Nx1000.",
+		Flag:    "burndown-hibernation-threshold",
+		Type:    core.IntConfigurationOption,
+		Default: 0}, {
 		Name:        ConfigBurndownDebug,
 		Description: "Validate the trees on each step.",
 		Flag:        "burndown-debug",
@@ -216,6 +231,9 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) error 
 		}
 	} else if exists {
 		analyser.PeopleNumber = 0
+	}
+	if val, exists := facts[ConfigBurndownHibernationThreshold].(int); exists {
+		analyser.HibernationThreshold = val
 	}
 	if val, exists := facts[ConfigBurndownDebug].(bool); exists {
 		analyser.Debug = val
@@ -261,6 +279,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
 	analyser.files = map[string]*burndown.File{}
 	analyser.fileAllocator = rbtree.NewAllocator()
+	analyser.fileAllocator.HibernationThreshold = analyser.HibernationThreshold
 	analyser.mergedFiles = map[string]bool{}
 	analyser.mergedAuthor = identity.AuthorMissing
 	analyser.renames = map[string]string{}
@@ -276,6 +295,9 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	if analyser.fileAllocator.Size() == 0 && len(analyser.files) > 0 {
+		panic("BurndownAnalysis.Consume() was called on a hibernated instance")
+	}
 	author := deps[identity.DependencyAuthor].(int)
 	day := deps[items.DependencyDay].(int)
 	if !deps[core.DependencyIsMerge].(bool) {
@@ -378,6 +400,16 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 		}
 	}
 	analyser.onNewDay()
+}
+
+// Hibernate compresses the bound RBTree memory with the files.
+func (analyser *BurndownAnalysis) Hibernate() {
+	analyser.fileAllocator.Hibernate()
+}
+
+// Boot decompresses the bound RBTree memory with the files.
+func (analyser *BurndownAnalysis) Boot() {
+	analyser.fileAllocator.Boot()
 }
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.

@@ -419,3 +419,18 @@ func TestAllocatorHibernateBootEmpty(t *testing.T) {
 	assert.Equal(t, alloc.Size(), 0)
 	assert.Equal(t, alloc.Used(), 0)
 }
+
+func TestAllocatorHibernateBootThreshold(t *testing.T) {
+	alloc := NewAllocator()
+	alloc.malloc()
+	alloc.HibernationThreshold = 3
+	alloc.Hibernate()
+	assert.Equal(t, alloc.hibernatedLen, 0)
+	alloc.Boot()
+	alloc.malloc()
+	alloc.Hibernate()
+	assert.Equal(t, alloc.hibernatedLen, 3)
+	alloc.Boot()
+	assert.Equal(t, alloc.Size(), 3)
+	assert.Equal(t, alloc.Used(), 3)
+}

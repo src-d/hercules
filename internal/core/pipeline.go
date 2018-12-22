@@ -147,6 +147,16 @@ type ResultMergeablePipelineItem interface {
 	MergeResults(r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{}
 }
 
+// HibernateablePipelineItem is the interface to allow pipeline items to be frozen (compacted, unloaded)
+// while they are not needed in the hosting branch.
+type HibernateablePipelineItem interface {
+	PipelineItem
+	// Hibernate signals that the item is temporarily not needed and it's memory can be optimized.
+	Hibernate()
+	// Boot signals that the item is needed again and must be de-hibernate-d.
+	Boot()
+}
+
 // CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
 type CommonAnalysisResult struct {
 	// BeginTime is the time of the first commit in the analysed sequence.
@@ -639,7 +649,10 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	progressSteps := len(plan) + 2
 	branches := map[int][]PipelineItem{}
 	// we will need rootClone if there is more than one root branch
-	rootClone := cloneItems(pipeline.items, 1)[0]
+	var rootClone []PipelineItem
+	if !pipeline.DryRun {
+		rootClone = cloneItems(pipeline.items, 1)[0]
+	}
 	var newestTime int64
 	runTimePerItem := map[string]float64{}
 
