@@ -212,6 +212,12 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 		ptr3 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
 		*ptr3 = flagSet.Bool("dump-plan", false, "Print the pipeline execution plan to stderr.")
 		flags[ConfigPipelineDumpPlan] = iface
+		iface = interface{}(0)
+		ptr4 := (**int)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+		*ptr4 = flagSet.Int("hibernation-distance", 0,
+			"Minimum number of actions between two sequential usages of a branch to activate "+
+				"the hibernation optimization (cpu-memory trade-off). 0 disables.")
+		flags[ConfigPipelineHibernationDistance] = iface
 	}
 	var features []string
 	for f := range registry.featureFlags.Choices {

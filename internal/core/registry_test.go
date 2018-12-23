@@ -135,12 +135,13 @@ func TestRegistryAddFlags(t *testing.T) {
 		Run:   func(cmd *cobra.Command, args []string) {},
 	}
 	facts, deployed := reg.AddFlags(testCmd.Flags())
-	assert.Len(t, facts, 5)
+	assert.Len(t, facts, 6)
 	assert.IsType(t, 0, facts[(&testPipelineItem{}).ListConfigurationOptions()[0].Name])
 	assert.IsType(t, true, facts[(&dummyPipelineItem{}).ListConfigurationOptions()[0].Name])
 	assert.Contains(t, facts, ConfigPipelineDryRun)
 	assert.Contains(t, facts, ConfigPipelineDAGPath)
 	assert.Contains(t, facts, ConfigPipelineDumpPlan)
+	assert.Contains(t, facts, ConfigPipelineHibernationDistance)
 	assert.Len(t, deployed, 1)
 	assert.Contains(t, deployed, (&testPipelineItem{}).Name())
 	assert.NotNil(t, testCmd.Flags().Lookup((&testPipelineItem{}).Flag()))
@@ -148,6 +149,7 @@ func TestRegistryAddFlags(t *testing.T) {
 	assert.NotNil(t, testCmd.Flags().Lookup("dump-dag"))
 	assert.NotNil(t, testCmd.Flags().Lookup("dump-plan"))
 	assert.NotNil(t, testCmd.Flags().Lookup("dry-run"))
+	assert.NotNil(t, testCmd.Flags().Lookup("hibernation-distance"))
 	assert.NotNil(t, testCmd.Flags().Lookup(
 		(&testPipelineItem{}).ListConfigurationOptions()[0].Flag))
 	assert.NotNil(t, testCmd.Flags().Lookup(

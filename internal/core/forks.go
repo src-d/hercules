@@ -78,6 +78,10 @@ const (
 	runActionEmerge = iota
 	// runActionDelete removes the branch as it is no longer needed
 	runActionDelete = iota
+	// runActionHibernate preserves the items in the branch
+	runActionHibernate = iota
+	// runActionBoot does the opposite to runActionHibernate - recovers the original memory
+	runActionBoot = iota
 
 	// rootBranchIndex is the minimum branch index in the plan
 	rootBranchIndex = 1
@@ -134,7 +138,8 @@ func getMasterBranch(branches map[int][]PipelineItem) []PipelineItem {
 }
 
 // prepareRunPlan schedules the actions for Pipeline.Run().
-func prepareRunPlan(commits []*object.Commit, printResult bool) []runAction {
+func prepareRunPlan(commits []*object.Commit, hibernationDistance int,
+	printResult bool) []runAction {
 	hashes, dag := buildDag(commits)
 	leaveRootComponent(hashes, dag)
 	mergedDag, mergedSeq := mergeDag(hashes, dag)
@@ -151,6 +156,9 @@ func prepareRunPlan(commits []*object.Commit, printResult bool) []runAction {
 	fmt.Printf("}\n")*/
 	plan := generatePlan(orderNodes, hashes, mergedDag, dag, mergedSeq)
 	plan = collectGarbage(plan)
+	if hibernationDistance > 0 {
+		plan = insertHibernateBoot(plan, hibernationDistance)
+	}
 	if printResult {
 		for _, p := range plan {
 			firstItem := p.Items[0]
@@ -165,6 +173,10 @@ func prepareRunPlan(commits []*object.Commit, printResult bool) []runAction {
 				planPrintFunc("E", p.Items)
 			case runActionDelete:
 				planPrintFunc("D", p.Items)
+			case runActionHibernate:
+				planPrintFunc("H", firstItem)
+			case runActionBoot:
+				planPrintFunc("B", firstItem)
 			}
 		}
 	}
@@ -670,4 +682,68 @@ func collectGarbage(plan []runAction) []runAction {
 		}
 	}
 	return garbageCollectedPlan
+}
+
+type hbAction struct {
+	Branch    int
+	Hibernate bool
+}
+
+func insertHibernateBoot(plan []runAction, hibernationDistance int) []runAction {
+	addons := map[int][]hbAction{}
+	lastUsed := map[int]int{}
+	addonsCount := 0
+	for x, action := range plan {
+		if action.Action == runActionDelete {
+			continue
+		}
+		for _, item := range action.Items {
+			if i, exists := lastUsed[item]; exists && (x-i-1) > hibernationDistance {
+				if addons[x] == nil {
+					addons[x] = make([]hbAction, 0, 1)
+				}
+				addons[x] = append(addons[x], hbAction{item, false})
+				if addons[i] == nil {
+					addons[i] = make([]hbAction, 0, 1)
+				}
+				addons[i] = append(addons[i], hbAction{item, true})
+				addonsCount += 2
+			}
+			lastUsed[item] = x
+		}
+	}
+	newPlan := make([]runAction, 0, len(plan)+addonsCount)
+	for x, action := range plan {
+		xaddons := addons[x]
+		var boots []int
+		var hibernates []int
+		if len(xaddons) > 0 {
+			boots = make([]int, 0, len(xaddons))
+			hibernates = make([]int, 0, len(xaddons))
+			for _, addon := range xaddons {
+				if !addon.Hibernate {
+					boots = append(boots, addon.Branch)
+				} else {
+					hibernates = append(hibernates, addon.Branch)
+				}
+			}
+		}
+		if len(boots) > 0 {
+			newPlan = append(newPlan, runAction{
+				Action: runActionBoot,
+				Commit: action.Commit,
+				Items:  boots,
+			})
+		}
+		newPlan = append(newPlan, action)
+		if len(hibernates) > 0 {
+			newPlan = append(newPlan, runAction{
+				Action: runActionHibernate,
+				Commit: action.Commit,
+				Items:  hibernates,
+			})
+		}
+
+	}
+	return newPlan
 }

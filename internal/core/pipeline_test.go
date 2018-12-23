@@ -134,6 +134,8 @@ func (item *testPipelineItem) Serialize(result interface{}, binary bool, writer 
 type dependingTestPipelineItem struct {
 	DependencySatisfied  bool
 	TestNilConsumeReturn bool
+	Hibernated           bool
+	Booted               bool
 }
 
 func (item *dependingTestPipelineItem) Name() string {
@@ -187,10 +189,22 @@ func (item *dependingTestPipelineItem) Consume(deps map[string]interface{}) (map
 }
 
 func (item *dependingTestPipelineItem) Fork(n int) []PipelineItem {
-	return make([]PipelineItem, n)
+	clones := make([]PipelineItem, n)
+	for i := range clones {
+		clones[i] = item
+	}
+	return clones
 }
 
 func (item *dependingTestPipelineItem) Merge(branches []PipelineItem) {
+}
+
+func (item *dependingTestPipelineItem) Hibernate() {
+	item.Hibernated = true
+}
+
+func (item *dependingTestPipelineItem) Boot() {
+	item.Booted = true
 }
 
 func (item *dependingTestPipelineItem) Finalize() interface{} {
@@ -286,7 +300,6 @@ func TestPipelineRunBranches(t *testing.T) {
 	pipeline.AddItem(item)
 	pipeline.Initialize(map[string]interface{}{})
 	assert.True(t, item.Initialized)
-	commits := make([]*object.Commit, 5)
 	hashes := []string{
 		"6db8065cdb9bb0758f36a7e75fc72ab95f9e8145",
 		"f30daba81ff2bf0b3ba02a1e1441e74f8a4f6fee",
@@ -294,6 +307,7 @@ func TestPipelineRunBranches(t *testing.T) {
 		"dd9dd084d5851d7dc4399fc7dbf3d8292831ebc5",
 		"f4ed0405b14f006c0744029d87ddb3245607587a",
 	}
+	commits := make([]*object.Commit, len(hashes))
 	for i, h := range hashes {
 		var err error
 		commits[i], err = test.Repository.CommitObject(plumbing.NewHash(h))
@@ -580,7 +594,7 @@ func TestPrepareRunPlanTiny(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := prepareRunPlan([]*object.Commit{rootCommit}, false)
+	plan := prepareRunPlan([]*object.Commit{rootCommit}, 0, true)
 	assert.Len(t, plan, 2)
 	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, rootBranchIndex, plan[0].Items[0])
@@ -607,7 +621,7 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 		}
 		return nil
 	})
-	plan := prepareRunPlan(commits, false)
+	plan := prepareRunPlan(commits, 0, false)
 	/*for _, p := range plan {
 		if p.Commit != nil {
 			fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
@@ -735,7 +749,7 @@ func TestPrepareRunPlanBig(t *testing.T) {
 				}
 				return nil
 			})
-			plan := prepareRunPlan(commits, false)
+			plan := prepareRunPlan(commits, 0, false)
 			/*for _, p := range plan {
 				if p.Commit != nil {
 					fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
@@ -791,4 +805,33 @@ func TestPrepareRunPlanBig(t *testing.T) {
 			assert.Equal(t, numEmerges, 1, fmt.Sprintf("emerges %v", testCase))
 		}()
 	}
+}
+
+func TestPipelineRunHibernation(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	pipeline.HibernationDistance = 2
+	pipeline.AddItem(&testPipelineItem{})
+	item := &dependingTestPipelineItem{}
+	pipeline.AddItem(item)
+	pipeline.Initialize(map[string]interface{}{})
+	hashes := []string{
+		"0183e08978007c746468fca9f68e6e2fbf32100c",
+		"b467a682f680a4dcfd74869480a52f8be3a4fdf0",
+		"31c9f752f9ce103e85523442fa3f05b1ff4ea546",
+		"6530890fcd02fb5e6e85ce2951fdd5c555f2c714",
+		"feb2d230777cbb492ecbc27dea380dc1e7b8f437",
+		"9b30d2abc043ab59aa7ec7b50970c65c90b98853",
+	}
+	commits := make([]*object.Commit, len(hashes))
+	for i, h := range hashes {
+		var err error
+		commits[i], err = test.Repository.CommitObject(plumbing.NewHash(h))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := pipeline.Run(commits)
+	assert.Nil(t, err)
+	assert.True(t, item.Hibernated)
+	assert.True(t, item.Booted)
 }

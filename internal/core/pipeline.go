@@ -233,6 +233,10 @@ type Pipeline struct {
 	// second is the total number of steps.
 	OnProgress func(int, int)
 
+	// HibernationDistance is the minimum number of actions between two sequential usages of
+	// a branch to activate the hibernation optimization (cpu-memory trade-off). 0 disables.
+	HibernationDistance int
+
 	// DryRun indicates whether the items are not executed.
 	DryRun bool
 
@@ -268,6 +272,10 @@ const (
 	// ConfigPipelineDumpPlan is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which outputs the execution plan to stderr.
 	ConfigPipelineDumpPlan = "Pipeline.DumpPlan"
+	// ConfigPipelineHibernationDistance is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// which is the minimum number of actions between two sequential usages of
+	// a branch to activate the hibernation optimization (cpu-memory trade-off). 0 disables.
+	ConfigPipelineHibernationDistance = "Pipeline.HibernationDistance"
 	// DependencyCommit is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
 	// which always exists. It corresponds to the currently analyzed commit.
 	DependencyCommit = "commit"
@@ -607,6 +615,12 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 			log.Panicf("failed to list the commits: %v", err)
 		}
 	}
+	if val, exists := facts[ConfigPipelineHibernationDistance].(int); exists {
+		if val < 0 {
+			log.Panicf("--hibernation-distance cannot be negative (got %d)", val)
+		}
+		pipeline.HibernationDistance = val
+	}
 	dumpPath, _ := facts[ConfigPipelineDAGPath].(string)
 	pipeline.resolve(dumpPath)
 	if dumpPlan, exists := facts[ConfigPipelineDumpPlan].(bool); exists {
@@ -645,7 +659,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	if onProgress == nil {
 		onProgress = func(int, int) {}
 	}
-	plan := prepareRunPlan(commits, pipeline.DumpPlan)
+	plan := prepareRunPlan(commits, pipeline.HibernationDistance, pipeline.DumpPlan)
 	progressSteps := len(plan) + 2
 	branches := map[int][]PipelineItem{}
 	// we will need rootClone if there is more than one root branch
@@ -715,6 +729,22 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			}
 		case runActionDelete:
 			delete(branches, firstItem)
+		case runActionHibernate:
+			for _, item := range step.Items {
+				for _, item := range branches[item] {
+					if hi, ok := item.(HibernateablePipelineItem); ok {
+						hi.Hibernate()
+					}
+				}
+			}
+		case runActionBoot:
+			for _, item := range step.Items {
+				for _, item := range branches[item] {
+					if hi, ok := item.(HibernateablePipelineItem); ok {
+						hi.Boot()
+					}
+				}
+			}
 		}
 	}
 	onProgress(len(plan)+1, progressSteps)
