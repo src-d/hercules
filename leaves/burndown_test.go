@@ -1212,6 +1212,8 @@ func TestBurndownHibernateBoot(t *testing.T) {
 	assert.Equal(t, burndown.fileAllocator.Size(), 157)
 	assert.Equal(t, burndown.fileAllocator.Used(), 155)
 	burndown.Hibernate()
+	assert.PanicsWithValue(t, "BurndownAnalysis.Consume() was called on a hibernated instance",
+		func() { burndown.Consume(nil) })
 	assert.Equal(t, burndown.fileAllocator.Size(), 0)
 	burndown.Boot()
 	assert.Equal(t, burndown.fileAllocator.Size(), 157)
