@@ -712,15 +712,19 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			}
 			commitIndex++
 		case runActionFork:
+			startTime := time.Now()
 			for i, clone := range cloneItems(branches[firstItem], len(step.Items)-1) {
 				branches[step.Items[i+1]] = clone
 			}
+			runTimePerItem["*.Fork"] += time.Now().Sub(startTime).Seconds()
 		case runActionMerge:
+			startTime := time.Now()
 			merged := make([][]PipelineItem, len(step.Items))
 			for i, b := range step.Items {
 				merged[i] = branches[b]
 			}
 			mergeItems(merged)
+			runTimePerItem["*.Merge"] += time.Now().Sub(startTime).Seconds()
 		case runActionEmerge:
 			if firstItem == rootBranchIndex {
 				branches[firstItem] = pipeline.items
@@ -733,7 +737,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			for _, item := range step.Items {
 				for _, item := range branches[item] {
 					if hi, ok := item.(HibernateablePipelineItem); ok {
+						startTime := time.Now()
 						hi.Hibernate()
+						runTimePerItem[item.Name()+".Hibernation"] += time.Now().Sub(startTime).Seconds()
 					}
 				}
 			}
@@ -741,7 +747,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			for _, item := range step.Items {
 				for _, item := range branches[item] {
 					if hi, ok := item.(HibernateablePipelineItem); ok {
+						startTime := time.Now()
 						hi.Boot()
+						runTimePerItem[item.Name()+".Hibernation"] += time.Now().Sub(startTime).Seconds()
 					}
 				}
 			}
