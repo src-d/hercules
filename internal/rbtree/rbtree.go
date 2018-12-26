@@ -1,8 +1,13 @@
 package rbtree
 
 import (
+	"fmt"
 	"math"
+	"os"
 	"sync"
+
+	"github.com/gogo/protobuf/sortkeys"
+	"gopkg.in/src-d/go-git.v4/utils/binary"
 )
 
 //
@@ -19,10 +24,11 @@ type Item struct {
 type Allocator struct {
 	HibernationThreshold int
 
-	storage           []node
-	gaps              map[uint32]bool
-	hibernatedStorage [6][]byte
-	hibernatedLen     int
+	storage              []node
+	gaps                 map[uint32]bool
+	hibernatedData       [7][]byte
+	hibernatedStorageLen int
+	hibernatedGapsLen    int
 }
 
 // NewAllocator creates a new allocator for RBTree's nodes.
@@ -64,11 +70,14 @@ func (allocator *Allocator) Clone() *Allocator {
 
 // Hibernate compresses the allocated memory.
 func (allocator *Allocator) Hibernate() {
+	if allocator.hibernatedStorageLen > 0 {
+		panic("cannot hibernate an already hibernated Allocator")
+	}
 	if len(allocator.storage) < allocator.HibernationThreshold {
 		return
 	}
-	allocator.hibernatedLen = len(allocator.storage)
-	if allocator.hibernatedLen == 0 {
+	allocator.hibernatedStorageLen = len(allocator.storage)
+	if allocator.hibernatedStorageLen == 0 {
 		return
 	}
 	buffers := [6][]uint32{}
@@ -88,36 +97,69 @@ func (allocator *Allocator) Hibernate() {
 	}
 	allocator.storage = nil
 	wg := &sync.WaitGroup{}
-	wg.Add(len(buffers))
+	wg.Add(len(buffers) + 1)
 	for i, buffer := range buffers {
 		go func(i int, buffer []uint32) {
-			allocator.hibernatedStorage[i] = CompressUInt32Slice(buffer)
+			allocator.hibernatedData[i] = CompressUInt32Slice(buffer)
 			buffers[i] = nil
 			wg.Done()
 		}(i, buffer)
 	}
+	// compress gaps
+	go func() {
+		if len(allocator.gaps) > 0 {
+			allocator.hibernatedGapsLen = len(allocator.gaps)
+			gapsBuffer := make([]uint32, len(allocator.gaps))
+			i := 0
+			for key := range allocator.gaps {
+				gapsBuffer[i] = key
+				i++
+			}
+			sortkeys.Uint32s(gapsBuffer)
+			allocator.hibernatedData[len(buffers)] = CompressUInt32Slice(gapsBuffer)
+		}
+		allocator.gaps = nil
+		wg.Done()
+	}()
 	wg.Wait()
 }
 
 // Boot performs the opposite of Hibernate() - decompresses and restores the allocated memory.
 func (allocator *Allocator) Boot() {
-	if allocator.hibernatedLen == 0 {
+	if allocator.hibernatedStorageLen == 0 {
 		// not hibernated
 		return
 	}
+	if allocator.hibernatedData[0] == nil {
+		panic("cannot boot a serialized Allocator")
+	}
+	allocator.gaps = map[uint32]bool{}
 	buffers := [6][]uint32{}
 	wg := &sync.WaitGroup{}
-	wg.Add(len(buffers))
+	wg.Add(len(buffers) + 1)
 	for i := 0; i < len(buffers); i++ {
 		go func(i int) {
-			buffers[i] = make([]uint32, allocator.hibernatedLen)
-			DecompressUInt32Slice(allocator.hibernatedStorage[i], buffers[i])
-			allocator.hibernatedStorage[i] = nil
+			buffers[i] = make([]uint32, allocator.hibernatedStorageLen)
+			DecompressUInt32Slice(allocator.hibernatedData[i], buffers[i])
+			allocator.hibernatedData[i] = nil
 			wg.Done()
 		}(i)
 	}
+	go func() {
+		if allocator.hibernatedGapsLen > 0 {
+			gapData := allocator.hibernatedData[len(buffers)]
+			buffer := make([]uint32, allocator.hibernatedGapsLen)
+			DecompressUInt32Slice(gapData, buffer)
+			for _, key := range buffer {
+				allocator.gaps[key] = true
+			}
+			allocator.hibernatedData[len(buffers)] = nil
+			allocator.hibernatedGapsLen = 0
+		}
+		wg.Done()
+	}()
 	wg.Wait()
-	allocator.storage = make([]node, allocator.hibernatedLen, (allocator.hibernatedLen*3)/2)
+	allocator.storage = make([]node, allocator.hibernatedStorageLen, (allocator.hibernatedStorageLen*3)/2)
 	for i := range allocator.storage {
 		n := &allocator.storage[i]
 		n.item.Key = buffers[0][i]
@@ -127,7 +169,76 @@ func (allocator *Allocator) Boot() {
 		n.right = buffers[4][i]
 		n.color = buffers[5][i] > 0
 	}
-	allocator.hibernatedLen = 0
+	allocator.hibernatedStorageLen = 0
+}
+
+// Serialize writes the hibernated allocator on disk.
+func (allocator *Allocator) Serialize(path string) error {
+	if allocator.storage != nil {
+		panic("serialization requires the hibernated state")
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	err = binary.WriteVariableWidthInt(file, int64(allocator.hibernatedStorageLen))
+	if err != nil {
+		return err
+	}
+	err = binary.WriteVariableWidthInt(file, int64(allocator.hibernatedGapsLen))
+	if err != nil {
+		return err
+	}
+	for i, hse := range allocator.hibernatedData {
+		err = binary.WriteVariableWidthInt(file, int64(len(hse)))
+		if err != nil {
+			return err
+		}
+		_, err = file.Write(hse)
+		if err != nil {
+			return err
+		}
+		allocator.hibernatedData[i] = nil
+	}
+	return nil
+}
+
+// Deserialize reads a hibernated allocator from disk.
+func (allocator *Allocator) Deserialize(path string) error {
+	if allocator.storage != nil {
+		panic("deserialization requires the hibernated state")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	x, err := binary.ReadVariableWidthInt(file)
+	if err != nil {
+		return err
+	}
+	allocator.hibernatedStorageLen = int(x)
+	x, err = binary.ReadVariableWidthInt(file)
+	if err != nil {
+		return err
+	}
+	allocator.hibernatedGapsLen = int(x)
+	for i := range allocator.hibernatedData {
+		x, err = binary.ReadVariableWidthInt(file)
+		if err != nil {
+			return err
+		}
+		allocator.hibernatedData[i] = make([]byte, int(x))
+		n, err := file.Read(allocator.hibernatedData[i])
+		if err != nil {
+			return err
+		}
+		if n != int(x) {
+			return fmt.Errorf("incomplete read %d: %d instead of %d", i, n, x)
+		}
+	}
+	return nil
 }
 
 func (allocator *Allocator) malloc() uint32 {

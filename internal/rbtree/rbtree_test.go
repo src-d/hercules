@@ -2,7 +2,9 @@ package rbtree
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"sort"
 	"testing"
 
@@ -321,15 +323,17 @@ func TestCloneShallow(t *testing.T) {
 	alloc1.malloc()
 	tree := NewRBTree(alloc1)
 	tree.Insert(Item{7, 7})
-	assert.Equal(t, alloc1.storage, []node{{}, {}, {color: black, item: Item{7, 7}}})
+	tree.Insert(Item{8, 8})
+	tree.DeleteWithKey(8)
+	assert.Equal(t, alloc1.storage, []node{{}, {}, {color: black, item: Item{7, 7}}, {}})
 	assert.Equal(t, tree.minNode, uint32(2))
 	assert.Equal(t, tree.maxNode, uint32(2))
 	alloc2 := alloc1.Clone()
 	clone := tree.CloneShallow(alloc2)
-	assert.Equal(t, alloc2.storage, []node{{}, {}, {color: black, item: Item{7, 7}}})
+	assert.Equal(t, alloc2.storage, []node{{}, {}, {color: black, item: Item{7, 7}}, {}})
 	assert.Equal(t, clone.minNode, uint32(2))
 	assert.Equal(t, clone.maxNode, uint32(2))
-	assert.Equal(t, alloc2.Size(), 3)
+	assert.Equal(t, alloc2.Size(), 4)
 	tree.Insert(Item{10, 10})
 	alloc3 := alloc1.Clone()
 	clone = tree.CloneShallow(alloc3)
@@ -340,7 +344,7 @@ func TestCloneShallow(t *testing.T) {
 	assert.Equal(t, clone.minNode, uint32(2))
 	assert.Equal(t, clone.maxNode, uint32(3))
 	assert.Equal(t, alloc3.Size(), 4)
-	assert.Equal(t, alloc2.Size(), 3)
+	assert.Equal(t, alloc2.Size(), 4)
 }
 
 func TestCloneDeep(t *testing.T) {
@@ -392,16 +396,23 @@ func TestAllocatorHibernateBoot(t *testing.T) {
 		alloc.storage[n].parent = uint32(i)
 		alloc.storage[n].color = i%2 == 0
 	}
+	for i := 0; i < 10000; i++ {
+		alloc.gaps[uint32(i)] = true // makes no sense, only to test
+	}
 	alloc.Hibernate()
+	assert.PanicsWithValue(t, "cannot hibernate an already hibernated Allocator", alloc.Hibernate)
 	assert.Nil(t, alloc.storage)
+	assert.Nil(t, alloc.gaps)
 	assert.Equal(t, alloc.Size(), 0)
-	assert.Equal(t, alloc.hibernatedLen, 10001)
+	assert.Equal(t, alloc.hibernatedStorageLen, 10001)
+	assert.Equal(t, alloc.hibernatedGapsLen, 10000)
 	assert.PanicsWithValue(t, "hibernated allocators cannot be used", func() { alloc.Used() })
 	assert.PanicsWithValue(t, "hibernated allocators cannot be used", func() { alloc.malloc() })
 	assert.PanicsWithValue(t, "hibernated allocators cannot be used", func() { alloc.free(0) })
 	assert.PanicsWithValue(t, "cannot clone a hibernated allocator", func() { alloc.Clone() })
 	alloc.Boot()
-	assert.Equal(t, alloc.hibernatedLen, 0)
+	assert.Equal(t, alloc.hibernatedStorageLen, 0)
+	assert.Equal(t, alloc.hibernatedGapsLen, 0)
 	for n := 1; n <= 10000; n++ {
 		assert.Equal(t, alloc.storage[n].item.Key, uint32(n-1))
 		assert.Equal(t, alloc.storage[n].item.Value, uint32(n-1))
@@ -409,6 +420,7 @@ func TestAllocatorHibernateBoot(t *testing.T) {
 		assert.Equal(t, alloc.storage[n].right, uint32(n-1))
 		assert.Equal(t, alloc.storage[n].parent, uint32(n-1))
 		assert.Equal(t, alloc.storage[n].color, (n-1)%2 == 0)
+		assert.True(t, alloc.gaps[uint32(n-1)])
 	}
 }
 
@@ -416,6 +428,7 @@ func TestAllocatorHibernateBootEmpty(t *testing.T) {
 	alloc := NewAllocator()
 	alloc.Hibernate()
 	alloc.Boot()
+	assert.NotNil(t, alloc.gaps)
 	assert.Equal(t, alloc.Size(), 0)
 	assert.Equal(t, alloc.Used(), 0)
 }
@@ -425,12 +438,77 @@ func TestAllocatorHibernateBootThreshold(t *testing.T) {
 	alloc.malloc()
 	alloc.HibernationThreshold = 3
 	alloc.Hibernate()
-	assert.Equal(t, alloc.hibernatedLen, 0)
+	assert.Equal(t, alloc.hibernatedStorageLen, 0)
 	alloc.Boot()
 	alloc.malloc()
 	alloc.Hibernate()
-	assert.Equal(t, alloc.hibernatedLen, 3)
+	assert.Equal(t, alloc.hibernatedGapsLen, 0)
+	assert.Equal(t, alloc.hibernatedStorageLen, 3)
 	alloc.Boot()
 	assert.Equal(t, alloc.Size(), 3)
 	assert.Equal(t, alloc.Used(), 3)
+	assert.NotNil(t, alloc.gaps)
+}
+
+func TestAllocatorSerializeDeserialize(t *testing.T) {
+	alloc := NewAllocator()
+	for i := 0; i < 10000; i++ {
+		n := alloc.malloc()
+		alloc.storage[n].item.Key = uint32(i)
+		alloc.storage[n].item.Value = uint32(i)
+		alloc.storage[n].left = uint32(i)
+		alloc.storage[n].right = uint32(i)
+		alloc.storage[n].parent = uint32(i)
+		alloc.storage[n].color = i%2 == 0
+	}
+	for i := 0; i < 10000; i++ {
+		alloc.gaps[uint32(i)] = true // makes no sense, only to test
+	}
+	assert.PanicsWithValue(t, "serialization requires the hibernated state",
+		func() { alloc.Serialize("...") })
+	assert.PanicsWithValue(t, "deserialization requires the hibernated state",
+		func() { alloc.Deserialize("...") })
+	alloc.Hibernate()
+	file, err := ioutil.TempFile("", "")
+	assert.Nil(t, err)
+	name := file.Name()
+	defer os.Remove(name)
+	assert.Nil(t, file.Close())
+	assert.NotNil(t, alloc.Serialize("/tmp/xxx/yyy"))
+	assert.Nil(t, alloc.Serialize(name))
+	assert.Nil(t, alloc.storage)
+	assert.Nil(t, alloc.gaps)
+	for _, d := range alloc.hibernatedData {
+		assert.Nil(t, d)
+	}
+	assert.Equal(t, alloc.hibernatedStorageLen, 10001)
+	assert.Equal(t, alloc.hibernatedGapsLen, 10000)
+	assert.PanicsWithValue(t, "cannot boot a serialized Allocator", alloc.Boot)
+	assert.NotNil(t, alloc.Deserialize("/tmp/xxx/yyy"))
+	assert.Nil(t, alloc.Deserialize(name))
+	for _, d := range alloc.hibernatedData {
+		assert.True(t, len(d) > 0)
+	}
+	alloc.Boot()
+	assert.Equal(t, alloc.hibernatedStorageLen, 0)
+	assert.Equal(t, alloc.hibernatedGapsLen, 0)
+	for _, d := range alloc.hibernatedData {
+		assert.Nil(t, d)
+	}
+	for n := 1; n <= 10000; n++ {
+		assert.Equal(t, alloc.storage[n].item.Key, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].item.Value, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].left, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].right, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].parent, uint32(n-1))
+		assert.Equal(t, alloc.storage[n].color, (n-1)%2 == 0)
+		assert.True(t, alloc.gaps[uint32(n-1)])
+	}
+	alloc.Hibernate()
+	assert.Nil(t, os.Truncate(name, 100))
+	assert.NotNil(t, alloc.Deserialize(name))
+	assert.Nil(t, os.Truncate(name, 4))
+	assert.NotNil(t, alloc.Deserialize(name))
+	assert.Nil(t, os.Truncate(name, 0))
+	assert.NotNil(t, alloc.Deserialize(name))
 }

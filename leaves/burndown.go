@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"os"
 	"sort"
 	"sync"
 	"unicode/utf8"
@@ -48,6 +50,14 @@ type BurndownAnalysis struct {
 	// if there are many branches.
 	HibernationThreshold int
 
+	// HibernationToDisk specifies whether the hibernated RBTree allocator must be saved on disk
+	// rather than kept in memory.
+	HibernationToDisk bool
+
+	// HibernationDirectory is the name of the temporary directory to use for saving hibernated
+	// RBTree allocators.
+	HibernationDirectory string
+
 	// Debug activates the debugging mode. Analyse() runs slower in this mode
 	// but it accurately checks all the intermediate states for invariant
 	// violations.
@@ -74,6 +84,8 @@ type BurndownAnalysis struct {
 	files map[string]*burndown.File
 	// fileAllocator is the allocator for RBTree-s in `files`.
 	fileAllocator *rbtree.Allocator
+	// hibernatedFileName is the path to the serialized `fileAllocator`.
+	hibernatedFileName string
 	// mergedFiles is used during merges to record the real file hashes
 	mergedFiles map[string]bool
 	// mergedAuthor of the processed merge commit
@@ -135,6 +147,12 @@ const (
 	// RBTree allocator. It is useful to trade CPU time for reduced peak memory consumption
 	// if there are many branches.
 	ConfigBurndownHibernationThreshold = "Burndown.HibernationThreshold"
+	// ConfigBurndownHibernationToDisk sets whether the hibernated RBTree allocator must be saved
+	// on disk rather than kept in memory.
+	ConfigBurndownHibernationToDisk = "Burndown.HibernationOnDisk"
+	// ConfigBurndownHibernationDirectory sets the name of the temporary directory to use for
+	// saving hibernated RBTree allocators.
+	ConfigBurndownHibernationDirectory = "Burndown.HibernationDirectory"
 	// ConfigBurndownDebug enables some extra debug assertions.
 	ConfigBurndownDebug = "Burndown.Debug"
 	// DefaultBurndownGranularity is the default number of days for BurndownAnalysis.Granularity
@@ -201,6 +219,18 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []core.Configuratio
 		Flag:    "burndown-hibernation-threshold",
 		Type:    core.IntConfigurationOption,
 		Default: 0}, {
+		Name: ConfigBurndownHibernationToDisk,
+		Description: "Save hibernated RBTree allocators to disk rather than keep it in memory; " +
+			"requires --burndown-hibernation-threshold to be greater than zero.",
+		Flag:    "burndown-hibernation-disk",
+		Type:    core.BoolConfigurationOption,
+		Default: false}, {
+		Name: ConfigBurndownHibernationDirectory,
+		Description: "Temporary directory where to save the hibernated RBTree allocators; " +
+			"requires --burndown-hibernation-disk.",
+		Flag:    "burndown-hibernation-dir",
+		Type:    core.StringConfigurationOption,
+		Default: ""}, {
 		Name:        ConfigBurndownDebug,
 		Description: "Validate the trees on each step.",
 		Flag:        "burndown-debug",
@@ -234,6 +264,12 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) error 
 	}
 	if val, exists := facts[ConfigBurndownHibernationThreshold].(int); exists {
 		analyser.HibernationThreshold = val
+	}
+	if val, exists := facts[ConfigBurndownHibernationToDisk].(bool); exists {
+		analyser.HibernationToDisk = val
+	}
+	if val, exists := facts[ConfigBurndownHibernationDirectory].(string); exists {
+		analyser.HibernationDirectory = val
 	}
 	if val, exists := facts[ConfigBurndownDebug].(bool); exists {
 		analyser.Debug = val
@@ -394,7 +430,9 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 		}
 		for _, burn := range all {
 			if burn.files[key] != files[0] {
-				burn.files[key].Delete()
+				if burn.files[key] != nil {
+					burn.files[key].Delete()
+				}
 				burn.files[key] = files[0].CloneDeep(burn.fileAllocator)
 			}
 		}
@@ -403,13 +441,32 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 }
 
 // Hibernate compresses the bound RBTree memory with the files.
-func (analyser *BurndownAnalysis) Hibernate() {
+func (analyser *BurndownAnalysis) Hibernate() error {
 	analyser.fileAllocator.Hibernate()
+	if analyser.HibernationToDisk {
+		file, err := ioutil.TempFile(analyser.HibernationDirectory, "*-hercules.bin")
+		if err != nil {
+			return err
+		}
+		analyser.hibernatedFileName = file.Name()
+		file.Close()
+		analyser.fileAllocator.Serialize(analyser.hibernatedFileName)
+	}
+	return nil
 }
 
 // Boot decompresses the bound RBTree memory with the files.
-func (analyser *BurndownAnalysis) Boot() {
+func (analyser *BurndownAnalysis) Boot() error {
+	if analyser.hibernatedFileName != "" {
+		analyser.fileAllocator.Deserialize(analyser.hibernatedFileName)
+		err := os.Remove(analyser.hibernatedFileName)
+		if err != nil {
+			return err
+		}
+		analyser.hibernatedFileName = ""
+	}
 	analyser.fileAllocator.Boot()
+	return nil
 }
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.

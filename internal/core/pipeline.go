@@ -152,9 +152,9 @@ type ResultMergeablePipelineItem interface {
 type HibernateablePipelineItem interface {
 	PipelineItem
 	// Hibernate signals that the item is temporarily not needed and it's memory can be optimized.
-	Hibernate()
+	Hibernate() error
 	// Boot signals that the item is needed again and must be de-hibernate-d.
-	Boot()
+	Boot() error
 }
 
 // CommonAnalysisResult holds the information which is always extracted at Pipeline.Run().
@@ -738,7 +738,10 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				for _, item := range branches[item] {
 					if hi, ok := item.(HibernateablePipelineItem); ok {
 						startTime := time.Now()
-						hi.Hibernate()
+						err := hi.Hibernate()
+						if err != nil {
+							log.Panicf("Failed to hibernate %s: %v\n", item.Name(), err)
+						}
 						runTimePerItem[item.Name()+".Hibernation"] += time.Now().Sub(startTime).Seconds()
 					}
 				}
@@ -748,7 +751,10 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				for _, item := range branches[item] {
 					if hi, ok := item.(HibernateablePipelineItem); ok {
 						startTime := time.Now()
-						hi.Boot()
+						err := hi.Boot()
+						if err != nil {
+							log.Panicf("Failed to boot %s: %v\n", item.Name(), err)
+						}
 						runTimePerItem[item.Name()+".Hibernation"] += time.Now().Sub(startTime).Seconds()
 					}
 				}

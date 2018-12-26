@@ -136,6 +136,8 @@ type dependingTestPipelineItem struct {
 	TestNilConsumeReturn bool
 	Hibernated           bool
 	Booted               bool
+	RaiseHibernateError  bool
+	RaiseBootError       bool
 }
 
 func (item *dependingTestPipelineItem) Name() string {
@@ -199,12 +201,20 @@ func (item *dependingTestPipelineItem) Fork(n int) []PipelineItem {
 func (item *dependingTestPipelineItem) Merge(branches []PipelineItem) {
 }
 
-func (item *dependingTestPipelineItem) Hibernate() {
+func (item *dependingTestPipelineItem) Hibernate() error {
 	item.Hibernated = true
+	if item.RaiseHibernateError {
+		return errors.New("error")
+	}
+	return nil
 }
 
-func (item *dependingTestPipelineItem) Boot() {
+func (item *dependingTestPipelineItem) Boot() error {
 	item.Booted = true
+	if item.RaiseBootError {
+		return errors.New("error")
+	}
+	return nil
 }
 
 func (item *dependingTestPipelineItem) Finalize() interface{} {
@@ -834,4 +844,10 @@ func TestPipelineRunHibernation(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, item.Hibernated)
 	assert.True(t, item.Booted)
+	item.RaiseHibernateError = true
+	assert.Panics(t, func() { pipeline.Run(commits) })
+	item.RaiseHibernateError = false
+	pipeline.Run(commits)
+	item.RaiseBootError = true
+	assert.Panics(t, func() { pipeline.Run(commits) })
 }

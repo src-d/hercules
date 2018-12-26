@@ -45,7 +45,9 @@ func TestBurndownMeta(t *testing.T) {
 	for _, opt := range opts {
 		switch opt.Name {
 		case ConfigBurndownGranularity, ConfigBurndownSampling, ConfigBurndownTrackFiles,
-			ConfigBurndownTrackPeople, ConfigBurndownHibernationThreshold, ConfigBurndownDebug:
+			ConfigBurndownTrackPeople, ConfigBurndownHibernationThreshold,
+			ConfigBurndownHibernationToDisk, ConfigBurndownHibernationDirectory,
+			ConfigBurndownDebug:
 			matches++
 		}
 	}
@@ -62,6 +64,8 @@ func TestBurndownConfigure(t *testing.T) {
 	facts[ConfigBurndownTrackPeople] = true
 	facts[ConfigBurndownDebug] = true
 	facts[ConfigBurndownHibernationThreshold] = 100
+	facts[ConfigBurndownHibernationToDisk] = true
+	facts[ConfigBurndownHibernationDirectory] = "xxx"
 	facts[identity.FactIdentityDetectorPeopleCount] = 5
 	facts[identity.FactIdentityDetectorReversedPeopleDict] = burndown.Requires()
 	burndown.Configure(facts)
@@ -70,6 +74,8 @@ func TestBurndownConfigure(t *testing.T) {
 	assert.Equal(t, burndown.TrackFiles, true)
 	assert.Equal(t, burndown.PeopleNumber, 5)
 	assert.Equal(t, burndown.HibernationThreshold, 100)
+	assert.True(t, burndown.HibernationToDisk)
+	assert.Equal(t, burndown.HibernationDirectory, "xxx")
 	assert.Equal(t, burndown.Debug, true)
 	assert.Equal(t, burndown.reversedPeopleDict, burndown.Requires())
 	facts[ConfigBurndownTrackPeople] = false
@@ -1211,11 +1217,27 @@ func TestBurndownHibernateBoot(t *testing.T) {
 	_, burndown := bakeBurndownForSerialization(t, 0, 1)
 	assert.Equal(t, burndown.fileAllocator.Size(), 157)
 	assert.Equal(t, burndown.fileAllocator.Used(), 155)
-	burndown.Hibernate()
+	assert.Nil(t, burndown.Hibernate())
 	assert.PanicsWithValue(t, "BurndownAnalysis.Consume() was called on a hibernated instance",
 		func() { burndown.Consume(nil) })
 	assert.Equal(t, burndown.fileAllocator.Size(), 0)
-	burndown.Boot()
+	assert.Nil(t, burndown.Boot())
 	assert.Equal(t, burndown.fileAllocator.Size(), 157)
 	assert.Equal(t, burndown.fileAllocator.Used(), 155)
+}
+
+func TestBurndownHibernateBootSerialize(t *testing.T) {
+	_, burndown := bakeBurndownForSerialization(t, 0, 1)
+	assert.Equal(t, burndown.fileAllocator.Size(), 157)
+	assert.Equal(t, burndown.fileAllocator.Used(), 155)
+	burndown.HibernationToDisk = true
+	assert.Nil(t, burndown.Hibernate())
+	assert.NotEmpty(t, burndown.hibernatedFileName)
+	assert.PanicsWithValue(t, "BurndownAnalysis.Consume() was called on a hibernated instance",
+		func() { burndown.Consume(nil) })
+	assert.Equal(t, burndown.fileAllocator.Size(), 0)
+	assert.Nil(t, burndown.Boot())
+	assert.Equal(t, burndown.fileAllocator.Size(), 157)
+	assert.Equal(t, burndown.fileAllocator.Used(), 155)
+	assert.Empty(t, burndown.hibernatedFileName)
 }
