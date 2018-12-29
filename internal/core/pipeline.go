@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -644,6 +645,10 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 			return errors.Wrapf(err, "%s failed to initialize", item.Name())
 		}
 	}
+	if pipeline.HibernationDistance > 0 {
+		// if we want hibernation, then we want to minimize RSS
+		debug.SetGCPercent(20) // the default is 100
+	}
 	return nil
 }
 
@@ -675,6 +680,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 		onProgress(index+1, progressSteps)
 		if pipeline.DryRun {
 			continue
+		}
+		if index > 0 && index%100 == 0 && pipeline.HibernationDistance > 0 {
+			debug.FreeOSMemory()
 		}
 		firstItem := step.Items[0]
 		switch step.Action {
