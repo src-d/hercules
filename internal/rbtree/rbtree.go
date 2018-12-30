@@ -272,6 +272,9 @@ func (allocator *Allocator) free(n uint32) {
 	if allocator.storage == nil {
 		panic("hibernated allocators cannot be used")
 	}
+	if n == 0 {
+		panic("node #0 is special and cannot be deallocated")
+	}
 	_, exists := allocator.gaps[n]
 	doAssert(!exists)
 	allocator.storage[n] = node{}
