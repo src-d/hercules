@@ -118,12 +118,12 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (treediff *TreeDiff) Configure(facts map[string]interface{}) error {
-	if val, exist := facts[ConfigTreeDiffEnableBlacklist]; exist && val.(bool) {
+	if val, exists := facts[ConfigTreeDiffEnableBlacklist].(bool); exists && val {
 		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedPrefixes].([]string)
 	}
-	if val, exists := facts[ConfigTreeDiffLanguages].(string); exists {
+	if val, exists := facts[ConfigTreeDiffLanguages].([]string); exists {
 		treediff.Languages = map[string]bool{}
-		for _, lang := range strings.Split(val, ",") {
+		for _, lang := range val {
 			treediff.Languages[strings.TrimSpace(lang)] = true
 		}
 	} else if treediff.Languages == nil {

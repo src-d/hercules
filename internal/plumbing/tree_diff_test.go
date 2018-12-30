@@ -28,6 +28,28 @@ func TestTreeDiffMeta(t *testing.T) {
 	assert.Len(t, opts, 4)
 }
 
+func TestTreeDiffConfigure(t *testing.T) {
+	td := fixtureTreeDiff()
+	facts := map[string]interface{}{
+		ConfigTreeDiffEnableBlacklist: true,
+		ConfigTreeDiffBlacklistedPrefixes: []string{"vendor"},
+		ConfigTreeDiffLanguages: []string{"go"},
+		ConfigTreeDiffFilterRegexp: "_.*",
+	}
+	assert.Nil(t, td.Configure(facts))
+	assert.Equal(t, td.Languages, map[string]bool{"go": true})
+	assert.Equal(t, td.SkipDirs, []string{"vendor"})
+	assert.Equal(t, td.NameFilter.String(), "_.*")
+	delete(facts, ConfigTreeDiffLanguages)
+	td.Languages = nil
+	assert.Nil(t, td.Configure(facts))
+	assert.Equal(t, td.Languages, map[string]bool{"all": true})
+	td.SkipDirs = []string{"test"}
+	delete(facts, ConfigTreeDiffEnableBlacklist)
+	assert.Nil(t, td.Configure(facts))
+	assert.Equal(t, td.SkipDirs, []string{"test"})
+}
+
 func TestTreeDiffRegistration(t *testing.T) {
 	summoned := core.Registry.Summon((&TreeDiff{}).Name())
 	assert.Len(t, summoned, 1)
@@ -175,7 +197,7 @@ func TestTreeDiffConsumeOnlyFilesThatMatchFilter(t *testing.T) {
 
 func TestTreeDiffConsumeLanguageFilterFirst(t *testing.T) {
 	td := fixtureTreeDiff()
-	td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: "Go"})
+	td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: []string{"Go"}})
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"fbe766ffdc3f87f6affddc051c6f8b419beea6a2"))
 	deps := map[string]interface{}{}
@@ -195,7 +217,7 @@ func TestTreeDiffConsumeLanguageFilterFirst(t *testing.T) {
 
 func TestTreeDiffConsumeLanguageFilter(t *testing.T) {
 	td := fixtureTreeDiff()
-	td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: "Python"})
+	td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: []string{"Python"}})
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"e89c1d10fb31e32668ad905eb59dc44d7a4a021e"))
 	deps := map[string]interface{}{}
