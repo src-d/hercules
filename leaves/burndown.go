@@ -719,9 +719,9 @@ func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, s
 	}
 
 	size := int((commonMerged.EndTime - commonMerged.BeginTime) / (3600 * 24))
-	daily := make([][]float32, size+granularity)
+	daily := make([][]float32, size+granularity+1)
 	for i := range daily {
-		daily[i] = make([]float32, size+sampling)
+		daily[i] = make([]float32, size+sampling+1)
 	}
 	if len(m1) > 0 {
 		addBurndownMatrix(m1, granularity1, sampling1, daily,
