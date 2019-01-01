@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"path"
 	"regexp"
 	"strings"
 
@@ -261,11 +262,14 @@ func (treediff *TreeDiff) checkLanguage(name string, blobHash plumbing.Hash) (bo
 		return false, err
 	}
 	buffer := make([]byte, 1024)
-	_, err = reader.Read(buffer)
+	n, err := reader.Read(buffer)
 	if err != nil {
 		return false, err
 	}
-	lang := enry.GetLanguage(name, buffer)
+	if n < len(buffer) {
+		buffer = buffer[:n]
+	}
+	lang := enry.GetLanguage(path.Base(name), buffer)
 	return treediff.Languages[lang], nil
 }
 
