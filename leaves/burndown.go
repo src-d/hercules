@@ -425,9 +425,7 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 			// it could be also removed in the merge commit itself
 			continue
 		}
-		if len(files) > 1 {
-			files[0].Merge(analyser.packPersonWithDay(analyser.mergedAuthor, analyser.day), files[1:]...)
-		}
+		files[0].Merge(analyser.packPersonWithDay(analyser.mergedAuthor, analyser.day), files[1:]...)
 		for _, burn := range all {
 			if burn.files[key] != files[0] {
 				if burn.files[key] != nil {
@@ -1123,7 +1121,7 @@ func (analyser *BurndownAnalysis) handleInsertion(
 	name := change.To.Name
 	file, exists := analyser.files[name]
 	if exists {
-		println("\n", analyser, "error")
+		log.Println("\n", analyser, "error")
 		return fmt.Errorf("file %s already exists", name)
 	}
 	var hash plumbing.Hash

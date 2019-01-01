@@ -335,7 +335,7 @@ func (tree RBTree) CloneDeep(allocator *Allocator) *RBTree {
 		count:     tree.count,
 		allocator: allocator,
 	}
-	nodeMap := map[uint32]uint32{0: 0}
+	nodeMap := map[uint32]uint32{}
 	originStorage := tree.storage()
 	for iter := tree.Min(); !iter.Limit(); iter = iter.Next() {
 		newNode := allocator.malloc()
