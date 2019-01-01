@@ -321,7 +321,7 @@ func TestRandomized(t *testing.T) {
 func TestAllocatorFreeZero(t *testing.T) {
 	alloc := NewAllocator()
 	alloc.malloc()
-	assert.Panics(t, func(){alloc.free(0)})
+	assert.Panics(t, func() { alloc.free(0) })
 }
 
 func TestCloneShallow(t *testing.T) {

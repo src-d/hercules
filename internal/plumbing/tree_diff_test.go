@@ -31,10 +31,10 @@ func TestTreeDiffMeta(t *testing.T) {
 func TestTreeDiffConfigure(t *testing.T) {
 	td := fixtureTreeDiff()
 	facts := map[string]interface{}{
-		ConfigTreeDiffEnableBlacklist: true,
+		ConfigTreeDiffEnableBlacklist:     true,
 		ConfigTreeDiffBlacklistedPrefixes: []string{"vendor"},
-		ConfigTreeDiffLanguages: []string{"go"},
-		ConfigTreeDiffFilterRegexp: "_.*",
+		ConfigTreeDiffLanguages:           []string{"go"},
+		ConfigTreeDiffFilterRegexp:        "_.*",
 	}
 	assert.Nil(t, td.Configure(facts))
 	assert.Equal(t, td.Languages, map[string]bool{"go": true})
