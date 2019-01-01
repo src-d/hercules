@@ -247,3 +247,12 @@ func TestTreeDiffFork(t *testing.T) {
 	assert.Equal(t, td1.previousTree, td2.previousTree)
 	td1.Merge([]core.PipelineItem{td2})
 }
+
+func TestTreeDiffCheckLanguage(t *testing.T) {
+	td := fixtureTreeDiff()
+	td.Languages["Go"] = true
+	lang, err := td.checkLanguage(
+		"version.go", plumbing.NewHash("975f35a1412b8ae79b5ba2558f71f41e707fd5a9"))
+	assert.Nil(t, err)
+	assert.True(t, lang)
+}

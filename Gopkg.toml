@@ -63,7 +63,7 @@
   name = "gopkg.in/cheggaaa/pb.v1"
 
 [[constraint]]
-  branch = "master"
+  version = "v1.6.7"
   name = "gopkg.in/src-d/enry.v1"
 
 [[constraint]]
