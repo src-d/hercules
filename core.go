@@ -1,6 +1,7 @@
 package hercules
 
 import (
+	"github.com/spf13/pflag"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v6/internal/core"
@@ -156,6 +157,17 @@ type CachedBlob = plumbing.CachedBlob
 // SafeYamlString escapes the string so that it can be reliably used in YAML.
 func SafeYamlString(str string) string {
 	return yaml.SafeString(str)
+}
+
+// PathifyFlagValue changes the type of a string command line argument to "path".
+func PathifyFlagValue(flag *pflag.Flag) {
+	core.PathifyFlagValue(flag)
+}
+
+// EnablePathFlagTypeMasquerade changes the type of all "path" command line arguments from "string"
+// to "path". This operation cannot be canceled and is intended to be used for better --help output.
+func EnablePathFlagTypeMasquerade() {
+	core.EnablePathFlagTypeMasquerade()
 }
 
 func init() {

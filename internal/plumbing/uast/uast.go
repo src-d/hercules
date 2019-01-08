@@ -460,7 +460,7 @@ func (saver *ChangesSaver) ListConfigurationOptions() []core.ConfigurationOption
 		Name:        ConfigUASTChangesSaverOutputPath,
 		Description: "The target directory where to store the changed UAST files.",
 		Flag:        "changed-uast-dir",
-		Type:        core.StringConfigurationOption,
+		Type:        core.PathConfigurationOption,
 		Default:     "."},
 	}
 	return options[:]

@@ -88,7 +88,7 @@ func (devs *DevsAnalysis) ListConfigurationOptions() []core.ConfigurationOption 
 	options := [...]core.ConfigurationOption{{
 		Name:        ConfigDevsConsiderEmptyCommits,
 		Description: "Take into account empty commits such as trivial merges.",
-		Flag:        "--empty-commits",
+		Flag:        "empty-commits",
 		Type:        core.BoolConfigurationOption,
 		Default:     false}}
 	return options[:]

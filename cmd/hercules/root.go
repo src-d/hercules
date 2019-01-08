@@ -147,6 +147,10 @@ func loadPlugins() {
 	const pluginDesc = "Load the specified plugin by the full or relative path. " +
 		"Can be specified multiple times."
 	fs.Var(&pluginFlags, pluginFlagName, pluginDesc)
+	err := cobra.MarkFlagFilename(fs, "plugin")
+	if err != nil {
+		panic(err)
+	}
 	pflag.Var(&pluginFlags, pluginFlagName, pluginDesc)
 	fs.Parse(os.Args[1:])
 	for path := range pluginFlags {
@@ -168,17 +172,39 @@ targets can be added using the --plugin system.`,
 	Args: cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		flags := cmd.Flags()
-		firstParent, _ := flags.GetBool("first-parent")
-		commitsFile, _ := flags.GetString("commits")
-		protobuf, _ := flags.GetBool("pb")
-		profile, _ := flags.GetBool("profile")
-		disableStatus, _ := flags.GetBool("quiet")
-		sshIdentity, _ := flags.GetString("ssh-identity")
+		getBool := func(name string) bool {
+			value, err := flags.GetBool(name)
+			if err != nil {
+				panic(err)
+			}
+			return value
+		}
+		getString := func(name string) string {
+			value, err := flags.GetString(name)
+			if err != nil {
+				panic(err)
+			}
+			return value
+		}
+		firstParent := getBool("first-parent")
+		commitsFile := getString("commits")
+		protobuf := getBool("pb")
+		profile := getBool("profile")
+		disableStatus := getBool("quiet")
+		sshIdentity := getString("ssh-identity")
 
 		if profile {
-			go http.ListenAndServe("localhost:6060", nil)
+			go func() {
+				err := http.ListenAndServe("localhost:6060", nil)
+				if err != nil {
+					panic(err)
+				}
+			}()
 			prof, _ := os.Create("hercules.pprof")
-			pprof.StartCPUProfile(prof)
+			err := pprof.StartCPUProfile(prof)
+			if err != nil {
+				panic(err)
+			}
 			defer pprof.StopCPUProfile()
 		}
 		uri := args[0]
@@ -350,6 +376,7 @@ func formatUsage(c *cobra.Command) error {
 	leaves := hercules.Registry.GetLeaves()
 	plumbing := hercules.Registry.GetPlumbingItems()
 	features := hercules.Registry.GetFeaturedItems()
+	hercules.EnablePathFlagTypeMasquerade()
 	filter := map[string]bool{}
 	for _, l := range leaves {
 		filter[l.Flag()] = true
@@ -450,13 +477,16 @@ var cmdlineDeployed map[string]*bool
 
 func init() {
 	loadPlugins()
-	rootCmd.MarkFlagFilename("plugin")
 	rootFlags := rootCmd.Flags()
 	rootFlags.String("commits", "", "Path to the text file with the "+
-		"commit history to follow instead of the default `git log`. "+
+		"commit history to follow instead of the default 'git log'. "+
 		"The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
-	rootCmd.MarkFlagFilename("commits")
+	err := rootCmd.MarkFlagFilename("commits")
+	if err != nil {
+		panic(err)
+	}
+	hercules.PathifyFlagValue(rootFlags.Lookup("commits"))
 	rootFlags.Bool("first-parent", false, "Follow only the first parent in the commit history - "+
 		"\"git log --first-parent\".")
 	rootFlags.Bool("pb", false, "The output format will be Protocol Buffers instead of YAML.")
@@ -464,6 +494,11 @@ func init() {
 		"Do not print status updates to stderr.")
 	rootFlags.Bool("profile", false, "Collect the profile to hercules.pprof.")
 	rootFlags.String("ssh-identity", "", "Path to SSH identity file (e.g., ~/.ssh/id_rsa) to clone from an SSH remote.")
+	err = rootCmd.MarkFlagFilename("ssh-identity")
+	if err != nil {
+		panic(err)
+	}
+	hercules.PathifyFlagValue(rootFlags.Lookup("ssh-identity"))
 	cmdlineFacts, cmdlineDeployed = hercules.Registry.AddFlags(rootFlags)
 	rootCmd.SetUsageFunc(formatUsage)
 	rootCmd.AddCommand(versionCmd)

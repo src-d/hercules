@@ -76,7 +76,7 @@ func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption 
 		Name:        ConfigIdentityDetectorPeopleDictPath,
 		Description: "Path to the file with developer -> name|email associations.",
 		Flag:        "people-dict",
-		Type:        core.StringConfigurationOption,
+		Type:        core.PathConfigurationOption,
 		Default:     ""},
 	}
 	return options[:]

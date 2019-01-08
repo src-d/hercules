@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -39,7 +40,7 @@ func (registry *PipelineItemRegistry) Register(example PipelineItem) {
 // the specified string. It materializes all the found types and returns them.
 func (registry *PipelineItemRegistry) Summon(providesOrName string) []PipelineItem {
 	if registry.provided == nil {
-		return []PipelineItem{}
+		return nil
 	}
 	ts := registry.provided[providesOrName]
 	var items []PipelineItem
@@ -120,6 +121,41 @@ func (registry *PipelineItemRegistry) GetFeaturedItems() map[string][]FeaturedPi
 	return features
 }
 
+var pathFlagTypeMasquerade bool
+
+// EnablePathFlagTypeMasquerade changes the type of all "path" command line arguments from "string"
+// to "path". This operation cannot be canceled and is intended to be used for better --help output.
+func EnablePathFlagTypeMasquerade() {
+	pathFlagTypeMasquerade = true
+}
+
+type pathValue struct {
+	origin pflag.Value
+}
+
+func wrapPathValue(val pflag.Value) pflag.Value {
+	return &pathValue{val}
+}
+
+func (s *pathValue) Set(val string) error {
+	return s.origin.Set(val)
+}
+func (s *pathValue) Type() string {
+	if pathFlagTypeMasquerade {
+		return "path"
+	}
+	return "string"
+}
+
+func (s *pathValue) String() string {
+	return s.origin.String()
+}
+
+// PathifyFlagValue changes the type of a string command line argument to "path".
+func PathifyFlagValue(flag *pflag.Flag) {
+	flag.Value = wrapPathValue(flag.Value)
+}
+
 type arrayFeatureFlags struct {
 	// Flags contains the features activated through the command line.
 	Flags []string
@@ -172,10 +208,17 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 				iface = interface{}(0)
 				ptr := (**int)(getPtr())
 				*ptr = flagSet.Int(opt.Flag, opt.Default.(int), formatHelp(opt.Description))
-			case StringConfigurationOption:
+			case StringConfigurationOption, PathConfigurationOption:
 				iface = interface{}("")
 				ptr := (**string)(getPtr())
 				*ptr = flagSet.String(opt.Flag, opt.Default.(string), formatHelp(opt.Description))
+				if opt.Type == PathConfigurationOption {
+					err := cobra.MarkFlagFilename(flagSet, opt.Flag)
+					if err != nil {
+						panic(err)
+					}
+					PathifyFlagValue(flagSet.Lookup(opt.Flag))
+				}
 			case FloatConfigurationOption:
 				iface = interface{}(float32(0))
 				ptr := (**float32)(getPtr())
@@ -203,6 +246,7 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 		ptr1 := (**string)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
 		*ptr1 = flagSet.String("dump-dag", "", "Write the pipeline DAG to a Graphviz file.")
 		flags[ConfigPipelineDAGPath] = iface
+		PathifyFlagValue(flagSet.Lookup("dump-dag"))
 		iface = interface{}(true)
 		ptr2 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
 		*ptr2 = flagSet.Bool("dry-run", false, "Do not run any analyses - only resolve the DAG. "+

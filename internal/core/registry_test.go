@@ -1,10 +1,12 @@
 package core
 
 import (
+	"os"
 	"reflect"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/hercules.v6/internal/test"
@@ -114,6 +116,7 @@ func (item *dummyPipelineItem2) Merge(branches []PipelineItem) {
 
 func TestRegistrySummon(t *testing.T) {
 	reg := getRegistry()
+	assert.Len(t, reg.Summon("whatever"), 0)
 	reg.Register(&testPipelineItem{})
 	summoned := reg.Summon((&testPipelineItem{}).Provides()[0])
 	assert.Len(t, summoned, 1)
@@ -214,4 +217,18 @@ func TestRegistryFeaturedItems(t *testing.T) {
 	assert.Len(t, featured["power"], 2)
 	assert.Equal(t, featured["power"][0].Name(), (&testPipelineItem{}).Name())
 	assert.Equal(t, featured["power"][1].Name(), (&dummyPipelineItem{}).Name())
+}
+
+func TestRegistryPathMasquerade(t *testing.T) {
+	fs := pflag.NewFlagSet(os.Args[0], pflag.ContinueOnError)
+	var value string
+	fs.StringVar(&value, "test", "", "usage")
+	flag := fs.Lookup("test")
+	PathifyFlagValue(flag)
+	assert.Equal(t, flag.Value.Type(), "string")
+	assert.Nil(t, flag.Value.Set("xxx"))
+	assert.Equal(t, flag.Value.String(), "xxx")
+	EnablePathFlagTypeMasquerade()
+	assert.Equal(t, flag.Value.Type(), "path")
+	assert.Equal(t, flag.Value.String(), "xxx")
 }

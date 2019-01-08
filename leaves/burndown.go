@@ -229,7 +229,7 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []core.Configuratio
 		Description: "Temporary directory where to save the hibernated RBTree allocators; " +
 			"requires --burndown-hibernation-disk.",
 		Flag:    "burndown-hibernation-dir",
-		Type:    core.StringConfigurationOption,
+		Type:    core.PathConfigurationOption,
 		Default: ""}, {
 		Name:        ConfigBurndownDebug,
 		Description: "Validate the trees on each step.",
