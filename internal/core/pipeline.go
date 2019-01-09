@@ -36,6 +36,8 @@ const (
 	FloatConfigurationOption
 	// StringsConfigurationOption reflects the array of strings value type.
 	StringsConfigurationOption
+	// PathConfigurationOption reflects the file system path value type.
+	PathConfigurationOption
 )
 
 // String() returns an empty string for the boolean type, "int" for integers and "string" for
@@ -52,6 +54,8 @@ func (opt ConfigurationOptionType) String() string {
 		return "float"
 	case StringsConfigurationOption:
 		return "string"
+	case PathConfigurationOption:
+		return "path"
 	}
 	log.Panicf("Invalid ConfigurationOptionType value %d", opt)
 	return ""

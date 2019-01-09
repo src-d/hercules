@@ -584,6 +584,8 @@ func TestConfigurationOptionTypeString(t *testing.T) {
 	opt = ConfigurationOptionType(4)
 	assert.Equal(t, opt.String(), "string")
 	opt = ConfigurationOptionType(5)
+	assert.Equal(t, opt.String(), "path")
+	opt = ConfigurationOptionType(6)
 	assert.Panics(t, func() { _ = opt.String() })
 }
 

@@ -37,7 +37,7 @@ func TestDevsMeta(t *testing.T) {
 	assert.Equal(t, d.Flag(), "devs")
 	assert.Len(t, d.ListConfigurationOptions(), 1)
 	assert.Equal(t, d.ListConfigurationOptions()[0].Name, ConfigDevsConsiderEmptyCommits)
-	assert.Equal(t, d.ListConfigurationOptions()[0].Flag, "--empty-commits")
+	assert.Equal(t, d.ListConfigurationOptions()[0].Flag, "empty-commits")
 	assert.Equal(t, d.ListConfigurationOptions()[0].Type, core.BoolConfigurationOption)
 	assert.Equal(t, d.ListConfigurationOptions()[0].Default, false)
 	assert.True(t, len(d.Description()) > 0)
