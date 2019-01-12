@@ -443,6 +443,7 @@ func TestAllocatorHibernateBootThreshold(t *testing.T) {
 	alloc := NewAllocator()
 	alloc.malloc()
 	alloc.HibernationThreshold = 3
+	assert.Equal(t, 3, alloc.Clone().HibernationThreshold)
 	alloc.Hibernate()
 	assert.Equal(t, alloc.hibernatedStorageLen, 0)
 	alloc.Boot()

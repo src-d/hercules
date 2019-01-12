@@ -53,13 +53,14 @@ func (allocator Allocator) Used() int {
 }
 
 // Clone copies an existing RBTree allocator.
-func (allocator *Allocator) Clone() *Allocator {
+func (allocator Allocator) Clone() *Allocator {
 	if allocator.storage == nil {
 		panic("cannot clone a hibernated allocator")
 	}
 	newAllocator := &Allocator{
-		storage: make([]node, len(allocator.storage), cap(allocator.storage)),
-		gaps:    map[uint32]bool{},
+		HibernationThreshold: allocator.HibernationThreshold,
+		storage:              make([]node, len(allocator.storage), cap(allocator.storage)),
+		gaps:                 map[uint32]bool{},
 	}
 	copy(newAllocator.storage, allocator.storage)
 	for key, val := range allocator.gaps {

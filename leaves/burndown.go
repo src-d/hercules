@@ -447,8 +447,16 @@ func (analyser *BurndownAnalysis) Hibernate() error {
 			return err
 		}
 		analyser.hibernatedFileName = file.Name()
-		file.Close()
-		analyser.fileAllocator.Serialize(analyser.hibernatedFileName)
+		err = file.Close()
+		if err != nil {
+			analyser.hibernatedFileName = ""
+			return err
+		}
+		err = analyser.fileAllocator.Serialize(analyser.hibernatedFileName)
+		if err != nil {
+			analyser.hibernatedFileName = ""
+			return err
+		}
 	}
 	return nil
 }
@@ -456,8 +464,11 @@ func (analyser *BurndownAnalysis) Hibernate() error {
 // Boot decompresses the bound RBTree memory with the files.
 func (analyser *BurndownAnalysis) Boot() error {
 	if analyser.hibernatedFileName != "" {
-		analyser.fileAllocator.Deserialize(analyser.hibernatedFileName)
-		err := os.Remove(analyser.hibernatedFileName)
+		err := analyser.fileAllocator.Deserialize(analyser.hibernatedFileName)
+		if err != nil {
+			return err
+		}
+		err = os.Remove(analyser.hibernatedFileName)
 		if err != nil {
 			return err
 		}

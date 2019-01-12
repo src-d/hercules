@@ -679,6 +679,38 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	var newestTime int64
 	runTimePerItem := map[string]float64{}
 
+	isMerge := func(index int, commit plumbing.Hash) bool {
+		match := false
+		// look for the same hash backward
+		for i := index - 1; i > 0; i-- {
+			switch plan[i].Action {
+			case runActionHibernate, runActionBoot:
+				continue
+			case runActionCommit:
+				match = plan[i].Commit.Hash == commit
+				fallthrough
+			default:
+				i = 0
+			}
+		}
+		if match {
+			return true
+		}
+		// look for the same hash forward
+		for i := index + 1; i < len(plan); i++ {
+			switch plan[i].Action {
+			case runActionHibernate, runActionBoot:
+				continue
+			case runActionCommit:
+				match = plan[i].Commit.Hash == commit
+				fallthrough
+			default:
+				i = len(plan)
+			}
+		}
+		return match
+	}
+
 	commitIndex := 0
 	for index, step := range plan {
 		onProgress(index+1, progressSteps)
@@ -692,14 +724,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 		switch step.Action {
 		case runActionCommit:
 			state := map[string]interface{}{
-				DependencyCommit: step.Commit,
-				DependencyIndex:  commitIndex,
-				DependencyIsMerge: (index > 0 &&
-					plan[index-1].Action == runActionCommit &&
-					plan[index-1].Commit.Hash == step.Commit.Hash) ||
-					(index < (len(plan)-1) &&
-						plan[index+1].Action == runActionCommit &&
-						plan[index+1].Commit.Hash == step.Commit.Hash),
+				DependencyCommit:  step.Commit,
+				DependencyIndex:   commitIndex,
+				DependencyIsMerge: isMerge(index, step.Commit.Hash),
 			}
 			for _, item := range branches[firstItem] {
 				startTime := time.Now()
