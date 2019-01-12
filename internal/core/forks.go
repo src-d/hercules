@@ -743,7 +743,6 @@ func insertHibernateBoot(plan []runAction, hibernationDistance int) []runAction 
 				Items:  hibernates,
 			})
 		}
-
 	}
 	return newPlan
 }
