@@ -839,6 +839,7 @@ def plot_churn_matrix(args, repo, people, matrix):
     ax.set_xticklabels(["Unidentified"] + people, rotation=45, ha="left",
                        va="bottom", rotation_mode="anchor")
     ax.set_yticks(numpy.arange(0.5, matrix.shape[0] + 0.5), minor=True)
+    ax.grid(False)
     ax.grid(which="minor")
     apply_plot_style(fig, ax, None, args.background, args.font_size, args.size)
     if not args.output:
