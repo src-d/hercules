@@ -388,14 +388,12 @@ contain `"type"` which reflects the plot kind.
 
 1. Processing all the commits may fail in some rare cases. If you get an error similar to https://github.com/src-d/hercules/issues/106
 please report there and specify `--first-parent` as a workaround.
-1. Currently, go-git's file system storage backend is considerably slower than the in-memory one,
-so you should clone repos instead of reading them from disk whenever possible. Please note that the
-in-memory storage may require much RAM, for example, the Linux kernel takes over 200GB in 2017.
+1. Burndown collection may fail with an Out-Of-Memory error. See the next session for the workarounds.
 1. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
 parsed. However, most of the repositories are parsed within a minute. Try using Protocol Buffers
 instead (`hercules --pb` and `labours.py -f pb`).
-1. To speed-up yaml parsing
+1. To speed up yaml parsing
    ```
    # Debian, Ubuntu
    apt install libyaml-dev
@@ -406,3 +404,14 @@ instead (`hercules --pb` and `labours.py -f pb`).
    pip uninstall pyyaml
    pip --no-cache-dir install pyyaml
    ```
+   
+### Burndown Out-Of-Memory
+
+If the analyzed repository is big and extensively uses branching, the burndown stats collection may
+fail with an OOM. You should try the following:
+
+1. Read the repo from disk instead of cloning into memory.
+2. Use `--skip-blacklist` to avoid analyzing the unwanted files. It is also possible to constrain the `--language`.
+3. Use the [hibernation](doc/HIBERNATION.md) feature: `--hibernation-distance 10 --burndown-hibernation-threshold=1000`. Play with those two numbers to start hibernating right before the OOM.
+4. Hibernate on disk: `--burndown-hibernation-disk --burndown-hibernation-dir /path`.
+5. `--first-parent`, you win.
