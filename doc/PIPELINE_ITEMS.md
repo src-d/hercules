@@ -71,3 +71,21 @@ type ResultMergeablePipelineItem interface {
 ```
 
 ![ResultMergeablePipelineItem](result_mergeable_pipeline_item.png)
+
+### HibernateablePipelineItem (optional)
+
+See [what is hibernation](HIBERNATION.md).
+
+```go
+// HibernateablePipelineItem is the interface to allow pipeline items to be frozen (compacted, unloaded)
+// while they are not needed in the hosting branch.
+type HibernateablePipelineItem interface {
+	PipelineItem
+	// Hibernate signals that the item is temporarily not needed and it's memory can be optimized.
+	Hibernate() error
+	// Boot signals that the item is needed again and must be de-hibernate-d.
+	Boot() error
+}
+```
+
+![HibernateablePipelineItem](hibernateable_pipeline_item.png)
