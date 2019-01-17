@@ -186,9 +186,11 @@ hercules --burndown --burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m churn-matrix
 ```
 
-Besides the burndown information, `-people` collects the added and deleted line statistics per
-developer. It shows how many lines written by developer A are removed by developer B. The format is
-the matrix with N rows and (N+2) columns, where N is the number of developers.
+Beside the burndown information, `--burndown-people` collects the added and deleted line statistics per
+developer. Thus it can be visualized how many lines written by developer A are removed by developer B.
+This indicates collaboration between people and defines expertise teams.
+
+The format is the matrix with N rows and (N+2) columns, where N is the number of developers.
 
 1. First column is the number of lines the developer wrote.
 2. Second column is how many lines were written by the developer and deleted by unidentified developers
@@ -208,7 +210,7 @@ hercules --burndown --burndown-people [-people-dict=/path/to/identities]
 python3 labours.py -m ownership
 ```
 
-`-people` also allows to draw the code share through time stacked area plot. That is,
+`--burndown-people` also allows to draw the code share through time stacked area plot. That is,
 how many lines are alive at the sampled moments in time for each identified developer.
 
 #### Couples
