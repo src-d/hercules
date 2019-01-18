@@ -3,6 +3,7 @@ import argparse
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from importlib import import_module
+from itertools import chain
 import io
 import json
 import os
@@ -61,7 +62,7 @@ def parse_args():
     parser.add_argument("-m", "--mode",
                         choices=["burndown-project", "burndown-file", "burndown-person",
                                  "churn-matrix", "ownership", "couples", "shotness", "sentiment",
-                                 "devs", "all", "run-times"],
+                                 "devs", "old-vs-new", "all", "run-times"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -1314,7 +1315,7 @@ def show_devs(args, name, start_date, end_date, data):
         else:
             # outlier
             color = "grey"
-        ax.plot(plot_x, series, color=color)
+        ax.fill_between(plot_x, series, color=color)
         ax.set_axis_off()
         author = people[dev_i]
         ax.text(0.03, 0.5, author[:36] + (author[36:] and "..."),
@@ -1344,7 +1345,7 @@ def show_devs(args, name, start_date, end_date, data):
         axes[-1].xaxis.set_major_locator(matplotlib.dates.MonthLocator(interval=interval))
         axes[-1].xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%Y-%m"))
     for tick in axes[-1].xaxis.get_major_ticks():
-        tick.label.set_fontsize(16)
+        tick.label.set_fontsize(args.font_size)
     axes[-1].spines["left"].set_visible(False)
     axes[-1].spines["right"].set_visible(False)
     axes[-1].spines["top"].set_visible(False)
@@ -1353,6 +1354,34 @@ def show_devs(args, name, start_date, end_date, data):
 
     title = "%s commits" % name
     deploy_plot(title, args.output, args.style)
+
+
+def show_old_vs_new(args, name, start_date, end_date, data):
+    from scipy.signal import convolve, slepian
+
+    days, people = data
+    start_date = datetime.fromtimestamp(start_date)
+    start_date = datetime(start_date.year, start_date.month, start_date.day)
+    end_date = datetime.fromtimestamp(end_date)
+    end_date = datetime(end_date.year, end_date.month, end_date.day)
+    new_lines = numpy.zeros((end_date - start_date).days + 1)
+    old_lines = numpy.zeros_like(new_lines)
+    for day, devs in days.items():
+        for stats in devs.values():
+            new_lines[day] += stats.Added
+            old_lines[day] += stats.Removed + stats.Changed
+    resolution = 32
+    window = slepian(len(new_lines) // resolution, 0.5)
+    new_lines = convolve(new_lines, window, "same")
+    old_lines = convolve(old_lines, window, "same")
+    matplotlib, pyplot = import_pyplot(args.backend, args.style)
+    plot_x = [start_date + timedelta(days=i) for i in range(len(new_lines))]
+    pyplot.fill_between(plot_x, new_lines, color="#8DB843", label="Changed new lines")
+    pyplot.fill_between(plot_x, old_lines, color="#E14C35", label="Changed existing lines")
+    pyplot.legend(loc=2, fontsize=args.font_size)
+    for tick in chain(pyplot.gca().xaxis.get_major_ticks(), pyplot.gca().yaxis.get_major_ticks()):
+        tick.label.set_fontsize(args.font_size)
+    deploy_plot("Additions vs changes", args.output, args.style)
 
 
 def _format_number(n):
@@ -1502,6 +1531,14 @@ def main():
             return
         show_devs(args, reader.get_name(), *reader.get_header(), data)
 
+    def old_vs_new():
+        try:
+            data = reader.get_devs()
+        except KeyError:
+            print(devs_warning)
+            return
+        show_old_vs_new(args, reader.get_name(), *reader.get_header(), data)
+
     modes = {
         "run-times": run_times,
         "burndown-project": project_burndown,
@@ -1513,6 +1550,7 @@ def main():
         "shotness": shotness,
         "sentiment": sentiment,
         "devs": devs,
+        "old-vs-new": old_vs_new,
     }
     try:
         modes[args.mode]()
