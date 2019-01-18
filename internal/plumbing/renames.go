@@ -358,8 +358,15 @@ func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 	return (internal.Abs64(size1-size2)*10000)/size <= int64(100-ra.SimilarityThreshold)*100
 }
 
-func (ra *RenameAnalysis) blobsAreClose(
-	blob1 *CachedBlob, blob2 *CachedBlob) (bool, error) {
+func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (bool, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println()
+			log.Println(blob1.Hash.String())
+			log.Println(blob2.Hash.String())
+			panic(err)
+		}
+	}()
 	src, dst := string(blob1.Data), string(blob2.Data)
 	maxSize := internal.Max(1, internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst)))
 
