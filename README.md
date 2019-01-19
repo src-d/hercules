@@ -300,6 +300,19 @@ insights from the `tensorflow/tensorflow` plot above:
 2. The "blue" group of developers covers the global maintainers and a few people who left (at the top).
 3. The "red" group shows how core developers join the project or become less active.
 
+#### Added vs changed lines through time
+
+![tensorflow/tensorflow](doc/add_vs_changed.png)
+<p align="center">tensorflow/tensorflow added and changed lines through time.</p>
+
+```
+hercules --devs [-people-dict=/path/to/identities]
+python3 labours.py -m old-vs-new -o <name>
+```
+
+`--devs` from the previous section allows to plot how many lines were added and how many existing changed
+(deleted or replaced) through time. This plot is smoothed.
+
 #### Sentiment (positive and negative code)
 
 ![Django sentiment](doc/sentiment.png)
