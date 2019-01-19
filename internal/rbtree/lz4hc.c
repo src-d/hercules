@@ -39,7 +39,7 @@
  * @return : the number of bytes written into 'dst'
  *           or 0 if compression fails.
  */
-static int LZ4_compress_HC(const void* src, void* dst, int srcSize, int dstCapacity, int compressionLevel);
+int LZ4_compress_HC(const void* src, void* dst, int srcSize, int dstCapacity, int compressionLevel);
 
 /*! LZ4_decompress_fast() : **unsafe!**
  *  This function used to be a bit faster than LZ4_decompress_safe(),
@@ -60,7 +60,7 @@ static int LZ4_compress_HC(const void* src, void* dst, int srcSize, int dstCapac
  *         reads from 'src' may underflow.
  *         Use this function in trusted environment **only**.
  */
-static int LZ4_decompress_fast(const void* source, void* dest, int originalSize);
+int LZ4_decompress_fast(const void* source, void* dest, int originalSize);
 
 #define LZ4HC_HEAPMODE 1
 // Modern Intel CPUs have 32KB of L1
@@ -258,7 +258,7 @@ static const int LZ4_minLength = (MFLIMIT+1);
 #define RUN_BITS (8-ML_BITS)
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
-inline int LZ4_compressBound(int isize)  { return LZ4_COMPRESSBOUND(isize); }
+int LZ4_compressBound(int isize)  { return LZ4_COMPRESSBOUND(isize); }
 
 /*===   Enums   ===*/
 typedef enum { noDictCtx, usingDictCtx } dictCtx_directive;
@@ -1214,7 +1214,7 @@ static int LZ4_compress_HC_extStateHC (void* state, const char* src, char* dst, 
     return LZ4_compress_HC_extStateHC_fastReset(state, src, dst, srcSize, dstCapacity, compressionLevel);
 }
 
-static int LZ4_compress_HC(const void* src, void* dst, int srcSize, int dstCapacity, int compressionLevel)
+int LZ4_compress_HC(const void* src, void* dst, int srcSize, int dstCapacity, int compressionLevel)
 {
 #if defined(LZ4HC_HEAPMODE) && LZ4HC_HEAPMODE==1
     LZ4_streamHC_t* const statePtr = (LZ4_streamHC_t*)ALLOC(sizeof(LZ4_streamHC_t));
@@ -1820,7 +1820,7 @@ _output_error:
     return (int) (-(((const char*)ip)-src))-1;
 }
 
-static int LZ4_decompress_fast(const void* source, void* dest, int originalSize)
+int LZ4_decompress_fast(const void* source, void* dest, int originalSize)
 {
     return LZ4_decompress_generic(source, dest, 0, originalSize,
                                   endOnOutputSize, decode_full_block, withPrefix64k,

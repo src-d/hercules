@@ -2,7 +2,9 @@ package rbtree
 
 /*
 #cgo CFLAGS: -std=c99
-#include "lz4hc.c"
+int LZ4_compressBound(int isize);
+int LZ4_compress_HC(const void* src, void* dst, int srcSize, int dstCapacity, int compressionLevel);
+int LZ4_decompress_fast(const void* source, void* dest, int originalSize);
 */
 import "C"
 import "unsafe"
