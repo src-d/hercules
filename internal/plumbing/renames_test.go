@@ -1,6 +1,7 @@
 package plumbing
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -185,4 +186,76 @@ func TestRenameAnalysisSortRenameCandidates(t *testing.T) {
 	})
 	assert.Equal(t, candidates[0], 3)
 	assert.Equal(t, candidates[1], 1)
+}
+
+func TestBlobsAreCloseText(t *testing.T) {
+	blob1 := &CachedBlob{Data: []byte("hello, world!")}
+	blob2 := &CachedBlob{Data: []byte("hello, world?")}
+	blob1.Size = int64(len(blob1.Data))
+	blob2.Size = int64(len(blob2.Data))
+	ra := fixtureRenameAnalysis()
+	result, err := ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.True(t, result)
+
+	blob1.Data = []byte("hello, mloncode")
+	blob1.Size = int64(len(blob1.Data))
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.False(t, result)
+}
+
+func TestBlobsAreCloseBinary(t *testing.T) {
+	blob1 := &CachedBlob{}
+	blob2 := &CachedBlob{}
+	ra := fixtureRenameAnalysis()
+	result, err := ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.True(t, result)
+
+	blob1.Data = make([]byte, 100)
+	blob2.Data = blob1.Data
+	blob1.Size = 100
+	blob2.Size = 100
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.True(t, result)
+
+	blob1.Data = bytes.Repeat([]byte{1}, 100)
+	blob2.Data = blob1.Data
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.True(t, result)
+
+	for i := 0; i < 100; i++ {
+		blob1.Data[i] = byte(i)
+	}
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.True(t, result)
+
+	blob2.Data = make([]byte, 100)
+	for i := 0; i < 80; i++ {
+		blob2.Data[i] = byte(i)
+	}
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.True(t, result)
+
+	blob2.Data[79] = 0
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.False(t, result)
+
+	blob1.Data = []byte("hello, world!")
+	blob1.Size = int64(len(blob2.Data))
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.False(t, result)
+
+	blob1.Data, blob2.Data = blob2.Data, blob1.Data
+	blob1.Size, blob2.Size = blob2.Size, blob1.Size
+	result, err = ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.False(t, result)
 }

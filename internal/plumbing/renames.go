@@ -367,6 +367,15 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 			panic(err)
 		}
 	}()
+	_, err1 := blob1.CountLines()
+	_, err2 := blob2.CountLines()
+	if err1 == ErrorBinary || err2 == ErrorBinary {
+		// binary mode
+		bsdifflen := DiffBytes(blob1.Data, blob2.Data)
+		delta := int((int64(bsdifflen) * 100) / internal.Max64(
+			internal.Min64(blob1.Size, blob2.Size), 1))
+		return 100-delta >= ra.SimilarityThreshold, nil
+	}
 	src, dst := string(blob1.Data), string(blob2.Data)
 	maxSize := internal.Max(1, internal.Max(utf8.RuneCountInString(src), utf8.RuneCountInString(dst)))
 
@@ -411,6 +420,9 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 				posSrc += step
 				posDst += step
 			}
+		}
+		if possibleDelInsBlock {
+			continue
 		}
 		// supposing that the rest of the lines are the same (they are not - too optimistic),
 		// estimate the maximum similarity and exit the loop if it lower than our threshold

@@ -48,7 +48,7 @@ before_install:
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v golang.org/x/lint/golint
   - go get -v github.com/golang/dep/cmd/dep
-  - (wget https://bootstrap.pypa.io/get-pip.py || wget https://raw.githubusercontent.com/pypa/get-pip/master/get-pip.py) && python3 get-pip.py --user && rm get-pip.py
+  - (wget -O - https://bootstrap.pypa.io/get-pip.py || wget -O - https://raw.githubusercontent.com/pypa/get-pip/master/get-pip.py) | python3 - --user pip==18.1
   - export PATH=~/usr/bin:$GOPATH/bin:$PATH
   - make --version
   - pip3 --version

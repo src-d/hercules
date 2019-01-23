@@ -28,7 +28,7 @@ echo\n\
 echo "	$@"\n\
 echo\n\' > /browser && \
     chmod +x /browser && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3 && \
+    curl https://bootstrap.pypa.io/get-pip.py | python3 - pip==18.1 && \
     pip3 install --no-cache-dir --no-build-isolation cython && \
     pip3 install --no-cache-dir --no-build-isolation -r /root/src/gopkg.in/src-d/hercules.v6/requirements.txt https://github.com/mind/wheels/releases/download/tf1.7-cpu/tensorflow-1.7.0-cp36-cp36m-linux_x86_64.whl && \
     rm -rf /root/* && \
