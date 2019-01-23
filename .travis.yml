@@ -5,7 +5,7 @@ git:
   depth: 9999999
 
 language: go
-go_import_path: gopkg.in/src-d/hercules.v6
+go_import_path: gopkg.in/src-d/hercules.v7
 go:
   - 1.10.x
   - 1.11.x
@@ -24,10 +24,10 @@ cache:
     - $HOME/gopath/src
 before_cache:
   - cd $HOME/gopath
-  - mv $HOME/gopath/src/gopkg.in/src-d/hercules.v6/vendor $HOME/gopath/src/gopkg.in/src-d/.vendor
-  - rm -rf $HOME/gopath/src/gopkg.in/src-d/hercules.v6
-  - mkdir $HOME/gopath/src/gopkg.in/src-d/hercules.v6
-  - mv $HOME/gopath/src/gopkg.in/src-d/.vendor $HOME/gopath/src/gopkg.in/src-d/hercules.v6/vendor
+  - mv $HOME/gopath/src/gopkg.in/src-d/hercules.v7/vendor $HOME/gopath/src/gopkg.in/src-d/.vendor
+  - rm -rf $HOME/gopath/src/gopkg.in/src-d/hercules.v7
+  - mkdir $HOME/gopath/src/gopkg.in/src-d/hercules.v7
+  - mv $HOME/gopath/src/gopkg.in/src-d/.vendor $HOME/gopath/src/gopkg.in/src-d/hercules.v7/vendor
 
 matrix:
   fast_finish: true
@@ -69,7 +69,7 @@ script:
   - go vet -tags tensorflow ./...
   - golint -set_exit_status $(go list ./... | grep -v /vendor/)
   - flake8
-  - go test -coverpkg=all -v -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v6/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt
+  - go test -coverpkg=all -v -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v7/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --devs --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
@@ -95,7 +95,7 @@ jobs:
       os: osx
       osx_image: xcode9.3
       go: 1.11.x
-      go_import_path: gopkg.in/src-d/hercules.v6
+      go_import_path: gopkg.in/src-d/hercules.v7
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
@@ -117,7 +117,7 @@ jobs:
     - stage: deploy
       os: linux
       go: 1.11.x
-      go_import_path: gopkg.in/src-d/hercules.v6
+      go_import_path: gopkg.in/src-d/hercules.v7
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip

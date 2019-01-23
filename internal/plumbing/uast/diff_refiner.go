@@ -6,8 +6,8 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/hercules.v6/internal/core"
-	"gopkg.in/src-d/hercules.v6/internal/plumbing"
+	"gopkg.in/src-d/hercules.v7/internal/core"
+	"gopkg.in/src-d/hercules.v7/internal/plumbing"
 )
 
 // FileDiffRefiner uses UASTs to improve the human interpretability of diffs.

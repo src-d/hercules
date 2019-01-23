@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/hercules.v6/internal/test"
+	"gopkg.in/src-d/hercules.v7/internal/test"
 )
 
 func getRegistry() *PipelineItemRegistry {

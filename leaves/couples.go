@@ -9,11 +9,11 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v6/internal/core"
-	"gopkg.in/src-d/hercules.v6/internal/pb"
-	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
-	"gopkg.in/src-d/hercules.v6/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v6/internal/yaml"
+	"gopkg.in/src-d/hercules.v7/internal/core"
+	"gopkg.in/src-d/hercules.v7/internal/pb"
+	items "gopkg.in/src-d/hercules.v7/internal/plumbing"
+	"gopkg.in/src-d/hercules.v7/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v7/internal/yaml"
 )
 
 // CouplesAnalysis calculates the number of common commits for files and authors.
