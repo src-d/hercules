@@ -847,7 +847,7 @@ def plot_churn_matrix(args, repo, people, matrix):
         pos1 = ax.get_position()
         pos2 = (pos1.x0 + 0.15, pos1.y0 - 0.1, pos1.width * 0.9, pos1.height * 0.9)
         ax.set_position(pos2)
-    if args.mode == "all":
+    if args.mode == "all" and args.output:
         output = get_plot_path(args.output, "matrix")
     else:
         output = args.output
@@ -863,7 +863,7 @@ def plot_ownership(args, repo, names, people, date_range, last):
         data = locals().copy()
         del data["args"]
         data["type"] = "ownership"
-        if args.mode == "all":
+        if args.mode == "all" and args.output:
             output = get_plot_path(args.output, "people")
         else:
             output = args.output
@@ -885,7 +885,7 @@ def plot_ownership(args, repo, names, people, date_range, last):
     legend = pyplot.legend(loc=legend_loc, fontsize=args.font_size)
     apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
                      args.font_size, args.size)
-    if args.mode == "all":
+    if args.mode == "all" and args.output:
         output = get_plot_path(args.output, "people")
     else:
         output = args.output
