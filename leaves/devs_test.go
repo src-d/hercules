@@ -282,17 +282,17 @@ func TestDevsSerialize(t *testing.T) {
 	assert.Len(t, msg.Days[1].Devs, 2)
 	assert.Equal(t, msg.Days[1].Devs[0], &pb.DevDay{
 		Commits: 10, Stats: &pb.LineStats{Added: 20, Removed: 30, Changed: 40},
-		Languages: map[string]*pb.LineStats{"Go": {2, 3, 4}}})
+		Languages: map[string]*pb.LineStats{"Go": {Added: 2, Removed: 3, Changed: 4}}})
 	assert.Equal(t, msg.Days[1].Devs[1], &pb.DevDay{
 		Commits: 1, Stats: &pb.LineStats{Added: 2, Removed: 3, Changed: 4},
-		Languages: map[string]*pb.LineStats{"Go": {25, 35, 45}}})
+		Languages: map[string]*pb.LineStats{"Go": {Added: 25, Removed: 35, Changed: 45}}})
 	assert.Len(t, msg.Days[10].Devs, 2)
 	assert.Equal(t, msg.Days[10].Devs[0], &pb.DevDay{
 		Commits: 11, Stats: &pb.LineStats{Added: 21, Removed: 31, Changed: 41},
-		Languages: map[string]*pb.LineStats{"": {12, 13, 14}}})
+		Languages: map[string]*pb.LineStats{"": {Added: 12, Removed: 13, Changed: 14}}})
 	assert.Equal(t, msg.Days[10].Devs[-1], &pb.DevDay{
 		Commits: 100, Stats: &pb.LineStats{Added: 200, Removed: 300, Changed: 400},
-		Languages: map[string]*pb.LineStats{"Go": {32, 33, 34}}})
+		Languages: map[string]*pb.LineStats{"Go": {Added: 32, Removed: 33, Changed: 34}}})
 }
 
 func TestDevsDeserialize(t *testing.T) {
