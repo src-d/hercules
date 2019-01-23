@@ -55,8 +55,8 @@ column embeddings are stored in separate files.
 import glob
 import math
 import os
-import time
 import threading
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -226,8 +226,8 @@ class SwivelModel:
             raise ValueError(
                 "submatrix_rows={0} can not be bigger than rows number={1} "
                 "(specify submatrix_rows={1})".format(config.submatrix_rows, self.n_cols))
-        self.n_submatrices = (self.n_rows * self.n_cols /
-                              (config.submatrix_rows * config.submatrix_cols))
+        self.n_submatrices = (
+            self.n_rows * self.n_cols / (config.submatrix_rows * config.submatrix_cols))
         log("n_submatrices: %d", self.n_submatrices)
 
         with tf.device("/cpu:0"):
@@ -313,10 +313,8 @@ class SwivelModel:
 
                     # The confidence function scales the L2 loss based on
                     # the raw co-occurrence count.
-                    l2_confidence = (
-                        config.confidence_base +
-                        config.confidence_scale * tf.pow(
-                            count, config.confidence_exponent))
+                    l2_confidence = config.confidence_base + config.confidence_scale * tf.pow(
+                        count, config.confidence_exponent)
 
                     l2_loss = config.loss_multiplier * tf.reduce_sum(
                         0.5 * l2_confidence * err * err * count_is_nonzero)

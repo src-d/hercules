@@ -1,5 +1,7 @@
-import yaml
 import sys
+
+import yaml
+
 
 yaml_invalid = yaml.reader.Reader.NON_PRINTABLE
 

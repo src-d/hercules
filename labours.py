@@ -3,8 +3,8 @@ import argparse
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from importlib import import_module
-from itertools import chain
 import io
+from itertools import chain
 import json
 import os
 import re
@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument("-m", "--mode",
                         choices=["burndown-project", "burndown-file", "burndown-person",
                                  "churn-matrix", "ownership", "couples", "shotness", "sentiment",
-                                 "devs", "old-vs-new", "all", "run-times"],
+                                 "devs", "old-vs-new", "all", "run-times", "languages"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -164,7 +164,7 @@ class YamlReader(Reader):
 
     def get_project_burndown(self):
         return self.data["hercules"]["repository"], \
-               self._parse_burndown_matrix(self.data["Burndown"]["project"]).T
+            self._parse_burndown_matrix(self.data["Burndown"]["project"]).T
 
     def get_files_burndown(self):
         return [(p[0], self._parse_burndown_matrix(p[1]).T)
@@ -175,13 +175,13 @@ class YamlReader(Reader):
                 for p in self.data["Burndown"]["people"].items()]
 
     def get_ownership_burndown(self):
-        return self.data["Burndown"]["people_sequence"].copy(),\
-               {p[0]: self._parse_burndown_matrix(p[1])
-                for p in self.data["Burndown"]["people"].items()}
+        return self.data["Burndown"]["people_sequence"].copy(), \
+            {p[0]: self._parse_burndown_matrix(p[1])
+             for p in self.data["Burndown"]["people"].items()}
 
     def get_people_interaction(self):
         return self.data["Burndown"]["people_sequence"].copy(), \
-               self._parse_burndown_matrix(self.data["Burndown"]["people_interaction"])
+            self._parse_burndown_matrix(self.data["Burndown"]["people_interaction"])
 
     def get_files_coocc(self):
         coocc = self.data["Couples"]["files_coocc"]
@@ -229,7 +229,7 @@ class YamlReader(Reader):
 
     def get_devs(self):
         people = self.data["Devs"]["people"]
-        days = {int(d): {int(dev): DevDay(*(int(x) for x in day[:-1]))
+        days = {int(d): {int(dev): DevDay(*(int(x) for x in day[:-1]), day[-1])
                          for dev, day in devs.items()}
                 for d, devs in self.data["Devs"]["days"].items()}
         return days, people
@@ -349,7 +349,8 @@ class ProtobufReader(Reader):
     def get_devs(self):
         people = list(self.contents["Devs"].dev_index)
         days = {d: {dev: DevDay(stats.commits, stats.stats.added, stats.stats.removed,
-                                stats.stats.changed)
+                                stats.stats.changed, {k: [v.added, v.removed, v.changed]
+                                                      for k, v in stats.languages.items()})
                     for dev, stats in day.devs.items()}
                 for d, day in self.contents["Devs"].days.items()}
         return days, people
@@ -390,12 +391,20 @@ def read_input(args):
     return reader
 
 
-class DevDay(namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed"))):
+class DevDay(namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed", "Languages"))):
     def add(self, dd):
+        langs = defaultdict(lambda: [0] * 3)
+        for key, val in self.Languages.items():
+            for i in range(3):
+                langs[key][i] += val[i]
+        for key, val in dd.Languages.items():
+            for i in range(3):
+                langs[key][i] += val[i]
         return DevDay(Commits=self.Commits + dd.Commits,
                       Added=self.Added + dd.Added,
                       Removed=self.Removed + dd.Removed,
-                      Changed=self.Changed + dd.Changed)
+                      Changed=self.Changed + dd.Changed,
+                      Languages=dict(langs))
 
 
 def calculate_average_lifetime(matrix):
@@ -410,8 +419,8 @@ def calculate_average_lifetime(matrix):
         lifetimes[i - start] = band[i - 1]
     lsum = lifetimes.sum()
     if lsum != 0:
-        return (lifetimes.dot(numpy.arange(1, matrix.shape[1], 1))
-                / (lsum * matrix.shape[1]))
+        total = lifetimes.dot(numpy.arange(1, matrix.shape[1], 1))
+        return total / (lsum * matrix.shape[1])
     return numpy.nan
 
 
@@ -1218,7 +1227,7 @@ def show_devs(args, name, start_date, end_date, data):
     else:
         chosen_people = set(people)
     devseries = defaultdict(list)
-    devstats = defaultdict(lambda: DevDay(0, 0, 0, 0))
+    devstats = defaultdict(lambda: DevDay(0, 0, 0, 0, {}))
     for day, devs in sorted(days.items()):
         for dev, stats in devs.items():
             if people[dev] in chosen_people:
@@ -1248,7 +1257,7 @@ def show_devs(args, name, start_date, end_date, data):
         arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to window size
         series[i] = list(arr.transpose())
     # calculate the distance matrix using dynamic time warping metric
-    dists = numpy.full((len(series)+1, len(series)+1), -100500, dtype=numpy.float32)
+    dists = numpy.full((len(series) + 1, len(series) + 1), -100500, dtype=numpy.float32)
     for x in range(len(series)):
         dists[x, x] = 0
         for y in range(x + 1, len(series)):
@@ -1284,7 +1293,7 @@ def show_devs(args, name, start_date, end_date, data):
 
     # determine clusters
     opt_dist_chain = numpy.cumsum(numpy.array(
-        [0] + [dists[route[i], route[i + 1]] for i in range(len(route)-1)]))
+        [0] + [dists[route[i], route[i + 1]] for i in range(len(route) - 1)]))
     clusters = HDBSCAN(min_cluster_size=2).fit_predict(opt_dist_chain[:, numpy.newaxis])
     route = [keys[node] for node in route]
 
@@ -1384,6 +1393,23 @@ def show_old_vs_new(args, name, start_date, end_date, data):
     for tick in chain(pyplot.gca().xaxis.get_major_ticks(), pyplot.gca().yaxis.get_major_ticks()):
         tick.label.set_fontsize(args.font_size)
     deploy_plot("Additions vs changes", args.output, args.style)
+
+
+def show_languages(args, name, start_date, end_date, data):
+    days, people = data
+    devlangs = defaultdict(lambda: defaultdict(lambda: numpy.zeros(3, dtype=int)))
+    for day, devs in days.items():
+        for dev, stats in devs.items():
+            for lang, vals in stats.Languages.items():
+                devlangs[dev][lang] += vals
+    devlangs = sorted(devlangs.items(), key=lambda p: -sum(x.sum() for x in p[1].values()))
+    for dev, ls in devlangs:
+        print()
+        print("#", people[dev])
+        ls = sorted(((vals.sum(), lang) for lang, vals in ls.items()), reverse=True)
+        for vals, lang in ls:
+            if lang:
+                print("%s: %d" % (lang, vals))
 
 
 def _format_number(n):
@@ -1541,6 +1567,14 @@ def main():
             return
         show_old_vs_new(args, reader.get_name(), *reader.get_header(), data)
 
+    def languages():
+        try:
+            data = reader.get_devs()
+        except KeyError:
+            print(devs_warning)
+            return
+        show_languages(args, reader.get_name(), *reader.get_header(), data)
+
     modes = {
         "run-times": run_times,
         "burndown-project": project_burndown,
@@ -1553,6 +1587,7 @@ def main():
         "sentiment": sentiment,
         "devs": devs,
         "old-vs-new": old_vs_new,
+        "languages": languages,
     }
     try:
         modes[args.mode]()
