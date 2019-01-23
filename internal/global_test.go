@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/hercules.v6/internal/core"
-	uast_items "gopkg.in/src-d/hercules.v6/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v6/internal/test"
-	"gopkg.in/src-d/hercules.v6/leaves"
+	"gopkg.in/src-d/hercules.v7/internal/core"
+	uast_items "gopkg.in/src-d/hercules.v7/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v7/internal/test"
+	"gopkg.in/src-d/hercules.v7/leaves"
 )
 
 func TestPipelineSerialize(t *testing.T) {

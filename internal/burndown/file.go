@@ -5,8 +5,8 @@ import (
 	"log"
 	"math"
 
-	"gopkg.in/src-d/hercules.v6/internal"
-	"gopkg.in/src-d/hercules.v6/internal/rbtree"
+	"gopkg.in/src-d/hercules.v7/internal"
+	"gopkg.in/src-d/hercules.v7/internal/rbtree"
 )
 
 // Updater is the function which is called back on File.Update().

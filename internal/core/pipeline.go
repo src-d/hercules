@@ -18,8 +18,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
-	"gopkg.in/src-d/hercules.v6/internal/pb"
-	"gopkg.in/src-d/hercules.v6/internal/toposort"
+	"gopkg.in/src-d/hercules.v7/internal/pb"
+	"gopkg.in/src-d/hercules.v7/internal/toposort"
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.

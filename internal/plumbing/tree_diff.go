@@ -13,7 +13,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v6/internal/core"
+	"gopkg.in/src-d/hercules.v7/internal/core"
 )
 
 // TreeDiff generates the list of changes for a commit. A change can be either one or two blobs
@@ -45,7 +45,7 @@ const (
 	// which sets the list of programming languages to analyze. Language names are at
 	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
 	// "all" is the special name which disables this filter.
-	ConfigTreeDiffLanguages = "TreeDiff.Languages"
+	ConfigTreeDiffLanguages = "TreeDiff.LanguagesDetection"
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
 

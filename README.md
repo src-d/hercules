@@ -4,7 +4,7 @@
 <h1 align="center">Hercules</h1>
 <p align="center">
       Fast, insightful and highly customizable Git history analysis.<br><br>
-      <a href="http://godoc.org/gopkg.in/src-d/hercules.v6"><img src="https://godoc.org/gopkg.in/src-d/hercules.v6?status.svg" alt="GoDoc"></a>
+      <a href="http://godoc.org/gopkg.in/src-d/hercules.v7"><img src="https://godoc.org/gopkg.in/src-d/hercules.v7?status.svg" alt="GoDoc"></a>
       <a href="https://travis-ci.org/src-d/hercules"><img src="https://travis-ci.org/src-d/hercules.svg?branch=master" alt="Travis build Status"></a>
       <a href="https://ci.appveyor.com/project/vmarkovtsev/hercules"><img src="https://ci.appveyor.com/api/projects/status/49f0lm3v2y6xyph3?svg=true" alt="AppVeyor build status"></a>
       <a href="https://hub.docker.com/r/srcd/hercules"><img src="https://img.shields.io/docker/build/srcd/hercules.svg" alt="Docker build status"></a>
@@ -59,8 +59,8 @@ Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke
 You are going to need Go (>= v1.10), [`protoc`](https://github.com/google/protobuf/releases),
 and [`dep`](https://github.com/golang/dep).
 ```
-go get -d gopkg.in/src-d/hercules.v6/cmd/hercules
-cd $GOPATH/src/gopkg.in/src-d/hercules.v6
+go get -d gopkg.in/src-d/hercules.v7/cmd/hercules
+cd $GOPATH/src/gopkg.in/src-d/hercules.v7
 make
 ```
 

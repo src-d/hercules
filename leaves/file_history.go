@@ -11,9 +11,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v6/internal/core"
-	"gopkg.in/src-d/hercules.v6/internal/pb"
-	items "gopkg.in/src-d/hercules.v6/internal/plumbing"
+	"gopkg.in/src-d/hercules.v7/internal/core"
+	"gopkg.in/src-d/hercules.v7/internal/pb"
+	items "gopkg.in/src-d/hercules.v7/internal/plumbing"
 )
 
 // FileHistory contains the intermediate state which is mutated by Consume(). It should implement

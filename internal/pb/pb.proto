@@ -107,11 +107,16 @@ message FileHistoryResultMessage {
     map<string, FileHistory> files = 1;
 }
 
+message LineStats {
+    int32 added = 1;
+    int32 removed = 2;
+    int32 changed = 3;
+}
+
 message DevDay {
     int32 commits = 1;
-    int32 added = 2;
-    int32 removed = 3;
-    int32 changed = 4;
+    LineStats stats = 2;
+    map<string, LineStats> languages = 3;
 }
 
 message DayDevs {

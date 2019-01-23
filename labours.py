@@ -229,7 +229,8 @@ class YamlReader(Reader):
 
     def get_devs(self):
         people = self.data["Devs"]["people"]
-        days = {int(d): {int(dev): DevDay(*(int(x) for x in day)) for dev, day in devs.items()}
+        days = {int(d): {int(dev): DevDay(*(int(x) for x in day[:-1]))
+                         for dev, day in devs.items()}
                 for d, devs in self.data["Devs"]["days"].items()}
         return days, people
 
@@ -347,7 +348,8 @@ class ProtobufReader(Reader):
 
     def get_devs(self):
         people = list(self.contents["Devs"].dev_index)
-        days = {d: {dev: DevDay(stats.commits, stats.added, stats.removed, stats.changed)
+        days = {d: {dev: DevDay(stats.commits, stats.stats.added, stats.stats.removed,
+                                stats.stats.changed)
                     for dev, stats in day.devs.items()}
                 for d, day in self.contents["Devs"].days.items()}
         return days, people
