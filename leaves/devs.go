@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/gogo/protobuf/proto"
@@ -21,6 +22,7 @@ import (
 
 // DevsAnalysis calculates the number of commits through time per developer.
 // It also records the numbers of added, deleted and changed lines through time per developer.
+// Those numbers are additionally measured per language.
 type DevsAnalysis struct {
 	core.NoopMerger
 	core.OneShotMergeProcessor
@@ -44,16 +46,23 @@ type DevsResult struct {
 	reversedPeopleDict []string
 }
 
-// DevDay is the statistics for a development day and a particular developer.
-type DevDay struct {
-	// Commits is the number of commits made by a particular developer in a particular day.
-	Commits int
+// LineStats holds the numbers of inserted, deleted and changed lines.
+type LineStats struct {
 	// Added is the number of added lines by a particular developer in a particular day.
 	Added int
 	// Removed is the number of removed lines by a particular developer in a particular day.
 	Removed int
 	// Changed is the number of changed lines by a particular developer in a particular day.
 	Changed int
+}
+
+// DevDay is the statistics for a development day and a particular developer.
+type DevDay struct {
+	// Commits is the number of commits made by a particular developer in a particular day.
+	Commits int
+	LineStats
+	// LanguagesDetection carries fine-grained line stats per programming language.
+	Languages map[string]LineStats
 }
 
 const (
@@ -79,7 +88,7 @@ func (devs *DevsAnalysis) Provides() []string {
 func (devs *DevsAnalysis) Requires() []string {
 	arr := [...]string{
 		identity.DependencyAuthor, items.DependencyTreeChanges, items.DependencyFileDiff,
-		items.DependencyBlobCache, items.DependencyDay}
+		items.DependencyBlobCache, items.DependencyDay, items.DependencyLanguages}
 	return arr[:]
 }
 
@@ -145,12 +154,13 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	}
 	dd, exists := devsDay[author]
 	if !exists {
-		dd = &DevDay{}
+		dd = &DevDay{Languages: map[string]LineStats{}}
 		devsDay[author] = dd
 	}
 	dd.Commits++
 	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*items.CachedBlob)
 	fileDiffs := deps[items.DependencyFileDiff].(map[string]items.FileDiffData)
+	langs := deps[items.DependencyLanguages].(map[plumbing.Hash]string)
 	for _, change := range treeDiff {
 		action, err := change.Action()
 		if err != nil {
@@ -165,6 +175,13 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				continue
 			}
 			dd.Added += lines
+			lang := langs[change.To.TreeEntry.Hash]
+			langStats := dd.Languages[lang]
+			dd.Languages[lang] = LineStats{
+				Added:   langStats.Added + lines,
+				Removed: langStats.Removed,
+				Changed: langStats.Changed,
+			}
 		case merkletrie.Delete:
 			blob := cache[change.From.TreeEntry.Hash]
 			lines, err := blob.CountLines()
@@ -173,7 +190,15 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				continue
 			}
 			dd.Removed += lines
+			lang := langs[change.From.TreeEntry.Hash]
+			langStats := dd.Languages[lang]
+			dd.Languages[lang] = LineStats{
+				Added:   langStats.Added,
+				Removed: langStats.Removed + lines,
+				Changed: langStats.Changed,
+			}
 		case merkletrie.Modify:
+			lang := langs[change.To.TreeEntry.Hash]
 			thisDiffs := fileDiffs[change.To.Name]
 			var removedPending int
 			for _, edit := range thisDiffs.Diffs {
@@ -181,16 +206,36 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				case diffmatchpatch.DiffEqual:
 					if removedPending > 0 {
 						dd.Removed += removedPending
+						langStats := dd.Languages[lang]
+						dd.Languages[lang] = LineStats{
+							Added:   langStats.Added,
+							Removed: langStats.Removed + removedPending,
+							Changed: langStats.Changed,
+						}
 					}
 					removedPending = 0
 				case diffmatchpatch.DiffInsert:
 					added := utf8.RuneCountInString(edit.Text)
 					if removedPending > added {
+						removed := removedPending - added
 						dd.Changed += added
-						dd.Removed += removedPending - added
+						dd.Removed += removed
+						langStats := dd.Languages[lang]
+						dd.Languages[lang] = LineStats{
+							Added:   langStats.Added,
+							Removed: langStats.Removed + removed,
+							Changed: langStats.Changed + added,
+						}
 					} else {
+						added := added - removedPending
 						dd.Changed += removedPending
-						dd.Added += added - removedPending
+						dd.Added += added
+						langStats := dd.Languages[lang]
+						dd.Languages[lang] = LineStats{
+							Added:   langStats.Added + added,
+							Removed: langStats.Removed,
+							Changed: langStats.Changed + removedPending,
+						}
 					}
 					removedPending = 0
 				case diffmatchpatch.DiffDelete:
@@ -199,6 +244,12 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 			}
 			if removedPending > 0 {
 				dd.Removed += removedPending
+				langStats := dd.Languages[lang]
+				dd.Languages[lang] = LineStats{
+					Added:   langStats.Added,
+					Removed: langStats.Removed + removedPending,
+					Changed: langStats.Changed,
+				}
 			}
 		}
 	}
@@ -244,11 +295,22 @@ func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 			if dev == -1 {
 				dev = identity.AuthorMissing
 			}
+			languages := map[string]LineStats{}
 			rdd[int(dev)] = &DevDay{
 				Commits: int(stats.Commits),
-				Added:   int(stats.Added),
-				Removed: int(stats.Removed),
-				Changed: int(stats.Changed),
+				LineStats: LineStats{
+					Added:   int(stats.Stats.Added),
+					Removed: int(stats.Stats.Removed),
+					Changed: int(stats.Stats.Changed),
+				},
+				Languages: languages,
+			}
+			for lang, ls := range stats.Languages {
+				languages[lang] = LineStats{
+					Added:   int(ls.Added),
+					Removed: int(ls.Removed),
+					Changed: int(ls.Changed),
+				}
 			}
 		}
 	}
@@ -311,13 +373,21 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 			}
 			newstats, exists := newdd[newdev]
 			if !exists {
-				newstats = &DevDay{}
+				newstats = &DevDay{Languages: map[string]LineStats{}}
 				newdd[newdev] = newstats
 			}
 			newstats.Commits += stats.Commits
 			newstats.Added += stats.Added
 			newstats.Removed += stats.Removed
 			newstats.Changed += stats.Changed
+			for lang, ls := range stats.Languages {
+				prev := newstats.Languages[lang]
+				newstats.Languages[lang] = LineStats{
+					Added:   prev.Added + ls.Added,
+					Removed: prev.Removed + ls.Removed,
+					Changed: prev.Changed + ls.Changed,
+				}
+			}
 		}
 	}
 	for day, dd := range cr2.Days {
@@ -333,13 +403,21 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 			}
 			newstats, exists := newdd[newdev]
 			if !exists {
-				newstats = &DevDay{}
+				newstats = &DevDay{Languages: map[string]LineStats{}}
 				newdd[newdev] = newstats
 			}
 			newstats.Commits += stats.Commits
 			newstats.Added += stats.Added
 			newstats.Removed += stats.Removed
 			newstats.Changed += stats.Changed
+			for lang, ls := range stats.Languages {
+				prev := newstats.Languages[lang]
+				newstats.Languages[lang] = LineStats{
+					Added:   prev.Added + ls.Added,
+					Removed: prev.Removed + ls.Removed,
+					Changed: prev.Changed + ls.Changed,
+				}
+			}
 		}
 	}
 	return merged
@@ -373,8 +451,18 @@ func (devs *DevsAnalysis) serializeText(result *DevsResult, writer io.Writer) {
 			if dev == identity.AuthorMissing {
 				dev = -1
 			}
-			fmt.Fprintf(writer, "      %d: [%d, %d, %d, %d]\n",
-				dev, stats.Commits, stats.Added, stats.Removed, stats.Changed)
+			var langs []string
+			for lang, ls := range stats.Languages {
+				if lang == "" {
+					lang = "none"
+				}
+				langs = append(langs,
+					fmt.Sprintf("%s: [%d, %d, %d]", lang, ls.Added, ls.Removed, ls.Changed))
+			}
+			sort.Strings(langs)
+			fmt.Fprintf(writer, "      %d: [%d, %d, %d, %d, {%s}]\n",
+				dev, stats.Commits, stats.Added, stats.Removed, stats.Changed,
+				strings.Join(langs, ", "))
 		}
 	}
 	fmt.Fprintln(writer, "  people:")
@@ -395,11 +483,22 @@ func (devs *DevsAnalysis) serializeBinary(result *DevsResult, writer io.Writer) 
 			if dev == identity.AuthorMissing {
 				dev = -1
 			}
+			languages := map[string]*pb.LineStats{}
 			dd.Devs[int32(dev)] = &pb.DevDay{
 				Commits: int32(stats.Commits),
-				Added:   int32(stats.Added),
-				Changed: int32(stats.Changed),
-				Removed: int32(stats.Removed),
+				Stats: &pb.LineStats{
+					Added:   int32(stats.Added),
+					Changed: int32(stats.Changed),
+					Removed: int32(stats.Removed),
+				},
+				Languages: languages,
+			}
+			for lang, ls := range stats.Languages {
+				languages[lang] = &pb.LineStats{
+					Added:   int32(ls.Added),
+					Changed: int32(ls.Changed),
+					Removed: int32(ls.Removed),
+				}
 			}
 		}
 	}

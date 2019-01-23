@@ -45,7 +45,7 @@ const (
 	// which sets the list of programming languages to analyze. Language names are at
 	// https://doc.bblf.sh/languages.html Names are joined with a comma ",".
 	// "all" is the special name which disables this filter.
-	ConfigTreeDiffLanguages = "TreeDiff.Languages"
+	ConfigTreeDiffLanguages = "TreeDiff.LanguagesDetection"
 	// allLanguages denotes passing all files in.
 	allLanguages = "all"
 
