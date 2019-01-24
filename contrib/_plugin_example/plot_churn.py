@@ -3,12 +3,12 @@ from datetime import datetime, timedelta
 import os
 import re
 import sys
-import yaml
 
 from matplotlib import pyplot
 import matplotlib.dates as mdates
 import numpy
 import pandas
+import yaml
 
 
 def parse_args():
