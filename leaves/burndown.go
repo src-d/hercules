@@ -714,7 +714,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 // least of (sampling1, sampling2) and (granularity1, granularity2).
 func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int,
 	c1, c2 *core.CommonAnalysisResult) DenseHistory {
-	commonMerged := *c1
+	commonMerged := c1.Copy()
 	commonMerged.Merge(c2)
 
 	var granularity, sampling int

@@ -50,7 +50,7 @@ var combineCmd = &cobra.Command{
 		}
 		mergedMessage := pb.AnalysisResults{
 			Header: &pb.Metadata{
-				Version:    2,
+				Version:    int32(hercules.BinaryVersion),
 				Hash:       hercules.BinaryGitHash,
 				Repository: strings.Join(repos, " & "),
 			},
