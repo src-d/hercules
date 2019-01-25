@@ -176,6 +176,16 @@ type CommonAnalysisResult struct {
 	RunTimePerItem map[string]float64
 }
 
+// Copy produces a deep clone of the object.
+func (car CommonAnalysisResult) Copy() CommonAnalysisResult {
+	result := car
+	result.RunTimePerItem = map[string]float64{}
+	for key, val := range car.RunTimePerItem {
+		result.RunTimePerItem[key] = val
+	}
+	return result
+}
+
 // BeginTimeAsTime converts the UNIX timestamp of the beginning to Go time.
 func (car *CommonAnalysisResult) BeginTimeAsTime() time.Time {
 	return time.Unix(car.BeginTime, 0)

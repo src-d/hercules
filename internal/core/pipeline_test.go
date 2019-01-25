@@ -542,6 +542,16 @@ C 1 af9ddc0db70f09f3f27b4b98e415592a7485171c
 `, stream.String())
 }
 
+func TestCommonAnalysisResultCopy(t *testing.T) {
+	c1 := CommonAnalysisResult{
+		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100,
+		RunTimePerItem: map[string]float64{"one": 1, "two": 2}}
+	c2 := c1.Copy()
+	assert.Equal(t, c1, c2)
+	c2.RunTimePerItem["one"] = 100500
+	assert.Equal(t, c1.RunTimePerItem["one"], float64(1))
+}
+
 func TestCommonAnalysisResultMerge(t *testing.T) {
 	c1 := CommonAnalysisResult{
 		BeginTime: 1513620635, EndTime: 1513720635, CommitsNumber: 1, RunTime: 100,
