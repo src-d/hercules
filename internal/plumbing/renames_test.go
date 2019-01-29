@@ -2,6 +2,10 @@ package plumbing
 
 import (
 	"bytes"
+	"compress/gzip"
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -258,4 +262,28 @@ func TestBlobsAreCloseBinary(t *testing.T) {
 	result, err = ra.blobsAreClose(blob1, blob2)
 	assert.Nil(t, err)
 	assert.False(t, result)
+}
+
+func TestBlobsAreCloseBug(t *testing.T) {
+	gzsource, err := os.Open(path.Join("..", "test_data", "rename_bug.xml.gz"))
+	defer gzsource.Close()
+	if err != nil {
+		t.Errorf("open ../test_data/rename_bug.xml.gz: %v", err)
+	}
+	gzreader, err := gzip.NewReader(gzsource)
+	if err != nil {
+		t.Errorf("gzip ../test_data/rename_bug.xml.gz: %v", err)
+	}
+	data, err := ioutil.ReadAll(gzreader)
+	if err != nil {
+		t.Errorf("gzip ../test_data/rename_bug.xml.gz: %v", err)
+	}
+	blob1 := &CachedBlob{Data: data}
+	blob2 := &CachedBlob{Data: data}
+	blob1.Size = int64(len(data))
+	blob2.Size = int64(len(data))
+	ra := fixtureRenameAnalysis()
+	result, err := ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.True(t, result)
 }
