@@ -138,7 +138,7 @@ func TestRegistryAddFlags(t *testing.T) {
 		Run:   func(cmd *cobra.Command, args []string) {},
 	}
 	facts, deployed := reg.AddFlags(testCmd.Flags())
-	assert.Len(t, facts, 6)
+	assert.Len(t, facts, 7)
 	assert.IsType(t, 0, facts[(&testPipelineItem{}).ListConfigurationOptions()[0].Name])
 	assert.IsType(t, true, facts[(&dummyPipelineItem{}).ListConfigurationOptions()[0].Name])
 	assert.Contains(t, facts, ConfigPipelineDryRun)
@@ -153,6 +153,7 @@ func TestRegistryAddFlags(t *testing.T) {
 	assert.NotNil(t, testCmd.Flags().Lookup("dump-plan"))
 	assert.NotNil(t, testCmd.Flags().Lookup("dry-run"))
 	assert.NotNil(t, testCmd.Flags().Lookup("hibernation-distance"))
+	assert.NotNil(t, testCmd.Flags().Lookup("print-actions"))
 	assert.NotNil(t, testCmd.Flags().Lookup(
 		(&testPipelineItem{}).ListConfigurationOptions()[0].Flag))
 	assert.NotNil(t, testCmd.Flags().Lookup(

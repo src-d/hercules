@@ -636,7 +636,7 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 			log.Panicf("failed to list the commits: %v", err)
 		}
 	}
-	pipeline.PrintActions = facts[ConfigPipelinePrintActions].(bool)
+	pipeline.PrintActions, _ = facts[ConfigPipelinePrintActions].(bool)
 	if val, exists := facts[ConfigPipelineHibernationDistance].(int); exists {
 		if val < 0 {
 			log.Panicf("--hibernation-distance cannot be negative (got %d)", val)
