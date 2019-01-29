@@ -258,6 +258,9 @@ type Pipeline struct {
 	// DumpPlan indicates whether to print the execution plan to stderr.
 	DumpPlan bool
 
+	// PrintActions indicates whether to print the taken actions during the execution.
+	PrintActions bool
+
 	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 
@@ -291,6 +294,9 @@ const (
 	// which is the minimum number of actions between two sequential usages of
 	// a branch to activate the hibernation optimization (cpu-memory trade-off). 0 disables.
 	ConfigPipelineHibernationDistance = "Pipeline.HibernationDistance"
+	// ConfigPipelinePrintActions is the name of the Pipeline configuration option (Pipeline.Initialize())
+	// which enables printing the taken actions of the execution plan to stderr.
+	ConfigPipelinePrintActions = "Pipeline.PrintActions"
 	// DependencyCommit is the name of one of the three items in `deps` supplied to PipelineItem.Consume()
 	// which always exists. It corresponds to the currently analyzed commit.
 	DependencyCommit = "commit"
@@ -630,6 +636,7 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 			log.Panicf("failed to list the commits: %v", err)
 		}
 	}
+	pipeline.PrintActions = facts[ConfigPipelinePrintActions].(bool)
 	if val, exists := facts[ConfigPipelineHibernationDistance].(int); exists {
 		if val < 0 {
 			log.Panicf("--hibernation-distance cannot be negative (got %d)", val)
@@ -726,6 +733,10 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 		onProgress(index+1, progressSteps)
 		if pipeline.DryRun {
 			continue
+		}
+		if pipeline.PrintActions {
+			fmt.Fprintln(os.Stderr)
+			printAction(step)
 		}
 		if index > 0 && index%100 == 0 && pipeline.HibernationDistance > 0 {
 			debug.FreeOSMemory()

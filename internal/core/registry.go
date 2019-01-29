@@ -262,6 +262,10 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 			"Minimum number of actions between two sequential usages of a branch to activate "+
 				"the hibernation optimization (cpu-memory trade-off). 0 disables.")
 		flags[ConfigPipelineHibernationDistance] = iface
+		iface = interface{}(true)
+		ptr5 := (**bool)(unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface)))
+		*ptr5 = flagSet.Bool("print-actions", false, "Print the executed actions to stderr.")
+		flags[ConfigPipelinePrintActions] = iface
 	}
 	var features []string
 	for f := range registry.featureFlags.Choices {

@@ -161,26 +161,31 @@ func prepareRunPlan(commits []*object.Commit, hibernationDistance int,
 	}
 	if printResult {
 		for _, p := range plan {
-			firstItem := p.Items[0]
-			switch p.Action {
-			case runActionCommit:
-				planPrintFunc("C", firstItem, p.Commit.Hash.String())
-			case runActionFork:
-				planPrintFunc("F", p.Items)
-			case runActionMerge:
-				planPrintFunc("M", p.Items)
-			case runActionEmerge:
-				planPrintFunc("E", p.Items)
-			case runActionDelete:
-				planPrintFunc("D", p.Items)
-			case runActionHibernate:
-				planPrintFunc("H", firstItem)
-			case runActionBoot:
-				planPrintFunc("B", firstItem)
-			}
+			printAction(p)
 		}
 	}
 	return plan
+}
+
+// printAction prints the specified action to stderr.
+func printAction(p runAction) {
+	firstItem := p.Items[0]
+	switch p.Action {
+	case runActionCommit:
+		planPrintFunc("C", firstItem, p.Commit.Hash.String())
+	case runActionFork:
+		planPrintFunc("F", p.Items)
+	case runActionMerge:
+		planPrintFunc("M", p.Items)
+	case runActionEmerge:
+		planPrintFunc("E", p.Items)
+	case runActionDelete:
+		planPrintFunc("D", p.Items)
+	case runActionHibernate:
+		planPrintFunc("H", firstItem)
+	case runActionBoot:
+		planPrintFunc("B", firstItem)
+	}
 }
 
 // buildDag generates the raw commit DAG and the commit hash map.
