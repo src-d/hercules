@@ -44,6 +44,10 @@ const (
 
 	// RenameAnalysisMaxCandidates is the maximum number of rename candidates to consider per file.
 	RenameAnalysisMaxCandidates = 50
+
+	// RenameAnalysisSetSizeLimit is the maximum number of added + removed files for
+	// RenameAnalysisMaxCandidates to be active; the bigger numbers set it to 1.
+	RenameAnalysisSetSizeLimit = 1000
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -163,6 +167,10 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	// Stage 2 - apply the similarity threshold
 	// n^2 but actually linear
 	// We sort the blobs by size and do the single linear scan.
+	maxCandidates := RenameAnalysisMaxCandidates
+	if len(stillAdded)+len(stillDeleted) > RenameAnalysisSetSizeLimit {
+		maxCandidates = 1
+	}
 	addedBlobs := make(sortableBlobs, 0, stillAdded.Len())
 	deletedBlobs := make(sortableBlobs, 0, stillDeleted.Len())
 	var smallChanges []*object.Change
@@ -226,7 +234,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				if finished {
 					return nil
 				}
-				if ci > RenameAnalysisMaxCandidates {
+				if ci > maxCandidates {
 					break
 				}
 				blobsAreClose, err := ra.blobsAreClose(
@@ -281,7 +289,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				if finished {
 					return nil
 				}
-				if ci > RenameAnalysisMaxCandidates {
+				if ci > maxCandidates {
 					break
 				}
 				blobsAreClose, err := ra.blobsAreClose(

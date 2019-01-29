@@ -852,6 +852,7 @@ func TestPipelineRunHibernation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	pipeline.PrintActions = true
 	_, err := pipeline.Run(commits)
 	assert.Nil(t, err)
 	assert.True(t, item.Hibernated)
