@@ -426,12 +426,21 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 		}
 		// supposing that the rest of the lines are the same (they are not - too optimistic),
 		// estimate the maximum similarity and exit the loop if it lower than our threshold
-		maxCommon := common + internal.Min(
-			utf8.RuneCountInString(src[posSrc:]),
-			utf8.RuneCountInString(dst[posDst:]))
+		var srcPendingSize, dstPendingSize int
+		if posSrc < len(src) {
+			srcPendingSize = utf8.RuneCountInString(src[posSrc:])
+		}
+		if posDst < len(dst) {
+			dstPendingSize = utf8.RuneCountInString(dst[posDst:])
+		}
+		maxCommon := common + internal.Min(srcPendingSize, dstPendingSize)
 		similarity := (maxCommon * 100) / maxSize
 		if similarity < ra.SimilarityThreshold {
 			return false, nil
+		}
+		similarity = (common * 100) / maxSize
+		if similarity >= ra.SimilarityThreshold {
+			return true, nil
 		}
 	}
 	// the very last "overly optimistic" estimate was actually precise, so since we are still here
