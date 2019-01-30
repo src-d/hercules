@@ -101,10 +101,7 @@ func (langs *LanguagesDetection) detectLanguage(name string, blob *CachedBlob) s
 	if err == ErrorBinary {
 		return ""
 	}
-	data := make([]byte, len(blob.Data))
-	copy(data, blob.Data)
-	// FIXME(vmarkovtsev): use the original blob.Data once https://github.com/src-d/enry/issues/196 is fixed
-	lang := enry.GetLanguage(path.Base(name), data)
+	lang := enry.GetLanguage(path.Base(name), blob.Data)
 	return lang
 }
 
