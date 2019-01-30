@@ -73,7 +73,16 @@ var combineCmd = &cobra.Command{
 
 func loadMessage(fileName string, repos *[]string) (
 	map[string]interface{}, *hercules.CommonAnalysisResult, []string) {
-	errs := []string{}
+	var errs []string
+	fi, err := os.Stat(fileName)
+	if err != nil {
+		errs = append(errs, "Cannot access "+fileName+": "+err.Error())
+		return nil, nil, errs
+	}
+	if fi.Size() == 0 {
+		errs = append(errs, "Cannot parse "+fileName+": file size is 0")
+		return nil, nil, errs
+	}
 	buffer, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		errs = append(errs, "Cannot read "+fileName+": "+err.Error())
@@ -83,6 +92,10 @@ func loadMessage(fileName string, repos *[]string) (
 	err = proto.Unmarshal(buffer, &message)
 	if err != nil {
 		errs = append(errs, "Cannot parse "+fileName+": "+err.Error())
+		return nil, nil, errs
+	}
+	if message.Header == nil {
+		errs = append(errs, "Cannot parse "+fileName+": corrupted header")
 		return nil, nil, errs
 	}
 	*repos = append(*repos, message.Header.Repository)
