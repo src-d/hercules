@@ -22,7 +22,7 @@ import (
 // TreeDiff is a PipelineItem.
 type TreeDiff struct {
 	core.NoopMerger
-	SkipDirs   []string
+	SkipFiles  []string
 	NameFilter *regexp.Regexp
 	Languages  map[string]bool
 
@@ -58,8 +58,8 @@ const (
 var defaultBlacklistedPrefixes = []string{
 	"vendor/",
 	"vendors/",
-	"node_modules/",
 	"package-lock.json",
+	"Gopkg.lock",
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -85,11 +85,12 @@ func (treediff *TreeDiff) Requires() []string {
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
-		Name:        ConfigTreeDiffEnableBlacklist,
-		Description: "Skip blacklisted directories.",
-		Flag:        "skip-blacklist",
-		Type:        core.BoolConfigurationOption,
-		Default:     false}, {
+		Name: ConfigTreeDiffEnableBlacklist,
+		Description: "Skip blacklisted directories and vendored files (according to " +
+			"src-d/enry.IsVendor).",
+		Flag:    "skip-blacklist",
+		Type:    core.BoolConfigurationOption,
+		Default: false}, {
 
 		Name: ConfigTreeDiffBlacklistedPrefixes,
 		Description: "List of blacklisted path prefixes (e.g. directories or specific files). " +
@@ -120,7 +121,7 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (treediff *TreeDiff) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigTreeDiffEnableBlacklist].(bool); exists && val {
-		treediff.SkipDirs = facts[ConfigTreeDiffBlacklistedPrefixes].([]string)
+		treediff.SkipFiles = facts[ConfigTreeDiffBlacklistedPrefixes].([]string)
 	}
 	if val, exists := facts[ConfigTreeDiffLanguages].([]string); exists {
 		treediff.Languages = map[string]bool{}
@@ -170,14 +171,14 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 	if err != nil {
 		return nil, err
 	}
-	var diff object.Changes
+	var diffs object.Changes
 	if treediff.previousTree != nil {
-		diff, err = object.DiffTree(treediff.previousTree, tree)
+		diffs, err = object.DiffTree(treediff.previousTree, tree)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		diff = []*object.Change{}
+		diffs = []*object.Change{}
 		err = func() error {
 			fileIter := tree.Files()
 			defer fileIter.Close()
@@ -196,7 +197,7 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 				if !pass {
 					continue
 				}
-				diff = append(diff, &object.Change{
+				diffs = append(diffs, &object.Change{
 					To: object.ChangeEntry{Name: file.Name, Tree: tree, TreeEntry: object.TreeEntry{
 						Name: file.Name, Mode: file.Mode, Hash: file.Hash}}})
 			}
@@ -208,12 +209,19 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 	}
 	treediff.previousTree = tree
 	treediff.previousCommit = commit.Hash
+	diffs = treediff.filterDiffs(diffs)
+	return map[string]interface{}{DependencyTreeChanges: diffs}, nil
+}
 
+func (treediff *TreeDiff) filterDiffs(diffs object.Changes) object.Changes {
 	// filter without allocation
-	filteredDiff := make([]*object.Change, 0, len(diff))
+	filteredDiffs := make(object.Changes, 0, len(diffs))
 OUTER:
-	for _, change := range diff {
-		for _, dir := range treediff.SkipDirs {
+	for _, change := range diffs {
+		if len(treediff.SkipFiles) > 0 && (enry.IsVendor(change.To.Name) || enry.IsVendor(change.From.Name)) {
+			continue
+		}
+		for _, dir := range treediff.SkipFiles {
 			if strings.HasPrefix(change.To.Name, dir) || strings.HasPrefix(change.From.Name, dir) {
 				continue OUTER
 			}
@@ -223,7 +231,7 @@ OUTER:
 			matchedFrom := treediff.NameFilter.MatchString(change.From.Name)
 
 			if !matchedTo && !matchedFrom {
-				continue OUTER
+				continue
 			}
 		}
 		var changeEntry object.ChangeEntry
@@ -232,15 +240,12 @@ OUTER:
 		} else {
 			changeEntry = change.To
 		}
-		pass, _ := treediff.checkLanguage(changeEntry.Name, changeEntry.TreeEntry.Hash)
-		if !pass {
+		if pass, _ := treediff.checkLanguage(changeEntry.Name, changeEntry.TreeEntry.Hash); !pass {
 			continue
 		}
-		filteredDiff = append(filteredDiff, change)
+		filteredDiffs = append(filteredDiffs, change)
 	}
-
-	diff = filteredDiff
-	return map[string]interface{}{DependencyTreeChanges: diff}, nil
+	return filteredDiffs
 }
 
 // Fork clones this PipelineItem.
