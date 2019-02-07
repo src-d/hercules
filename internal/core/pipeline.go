@@ -681,6 +681,15 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 // There is always a "nil" record with CommonAnalysisResult.
 func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]interface{}, error) {
 	startRunTime := time.Now()
+	cleanReturn := false
+	defer func() {
+		if !cleanReturn {
+			remotes, _ := pipeline.repository.Remotes()
+			if len(remotes) > 0 {
+				log.Printf("Failed to run the pipeline on %s", remotes[0].Config().URLs)
+			}
+		}
+	}()
 	onProgress := pipeline.OnProgress
 	if onProgress == nil {
 		onProgress = func(int, int) {}
@@ -838,6 +847,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 		RunTime:        time.Since(startRunTime),
 		RunTimePerItem: runTimePerItem,
 	}
+	cleanReturn = true
 	return result, nil
 }
 
