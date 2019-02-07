@@ -1132,7 +1132,6 @@ func (analyser *BurndownAnalysis) handleInsertion(
 	name := change.To.Name
 	file, exists := analyser.files[name]
 	if exists {
-		log.Println("\n", analyser, "error")
 		return fmt.Errorf("file %s already exists", name)
 	}
 	var hash plumbing.Hash
