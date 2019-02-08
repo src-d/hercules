@@ -1350,7 +1350,7 @@ def show_devs(args, name, start_date, end_date, data):
     interval = int(numpy.ceil(num_months / target_num_labels))
     if interval >= 8:
         interval = int(numpy.ceil(num_months / (12 * target_num_labels)))
-        axes[-1].xaxis.set_major_locator(matplotlib.dates.YearLocator(interval=interval))
+        axes[-1].xaxis.set_major_locator(matplotlib.dates.YearLocator(base=max(1, interval // 12)))
         axes[-1].xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%Y"))
     else:
         axes[-1].xaxis.set_major_locator(matplotlib.dates.MonthLocator(interval=interval))
