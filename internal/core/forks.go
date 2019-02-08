@@ -188,6 +188,20 @@ func printAction(p runAction) {
 	}
 }
 
+// getCommitParents returns the list of *unique* commit parents.
+// Yes, it *is* possible to have several identical parents, and Hercules used to crash because of that.
+func getCommitParents(commit *object.Commit) []plumbing.Hash {
+	result := make([]plumbing.Hash, 0, len(commit.ParentHashes))
+	parents := map[plumbing.Hash]bool{}
+	for _, parent := range commit.ParentHashes {
+		if _, exists := parents[parent]; !exists {
+			parents[parent] = true
+			result = append(result, parent)
+		}
+	}
+	return result
+}
+
 // buildDag generates the raw commit DAG and the commit hash map.
 func buildDag(commits []*object.Commit) (
 	map[string]*object.Commit, map[plumbing.Hash][]*object.Commit) {
@@ -201,7 +215,8 @@ func buildDag(commits []*object.Commit) (
 		if _, exists := dag[commit.Hash]; !exists {
 			dag[commit.Hash] = make([]*object.Commit, 0, 1)
 		}
-		for _, parent := range commit.ParentHashes {
+
+		for _, parent := range getCommitParents(commit) {
 			if _, exists := hashes[parent.String()]; !exists {
 				continue
 			}
@@ -242,7 +257,7 @@ func leaveRootComponent(
 				}
 			}
 			if commit, exists := hashes[head.String()]; exists {
-				for _, p := range commit.ParentHashes {
+				for _, p := range getCommitParents(commit) {
 					if !visited[p] {
 						if _, exists := hashes[p.String()]; exists {
 							queue = append(queue, p)
