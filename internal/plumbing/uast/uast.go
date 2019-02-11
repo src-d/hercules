@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"runtime"
@@ -172,7 +173,11 @@ func (exr *Extractor) Initialize(repository *git.Repository) error {
 	for i := 0; i < poolSize; i++ {
 		client, err := bblfsh.NewClient(exr.Endpoint)
 		if err != nil {
-			panic(err)
+			if err.Error() == "context deadline exceeded" {
+				log.Println("Looks like the Babelfish server is not running. Please refer " +
+					"to https://docs.sourced.tech/babelfish/using-babelfish/getting-started#running-with-docker-recommended")
+			}
+			return err
 		}
 		exr.clients[i] = client
 	}
