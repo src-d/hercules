@@ -626,6 +626,15 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 // resolves the execution DAG, Configure()-s and Initialize()-s the items in it in the
 // topological dependency order. `facts` are passed inside Configure(). They are mutable.
 func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
+	cleanReturn := false
+	defer func() {
+		if !cleanReturn {
+			remotes, _ := pipeline.repository.Remotes()
+			if len(remotes) > 0 {
+				log.Printf("Failed to initialize the pipeline on %s", remotes[0].Config().URLs)
+			}
+		}
+	}()
 	if facts == nil {
 		facts = map[string]interface{}{}
 	}
@@ -651,18 +660,21 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 	if dryRun, exists := facts[ConfigPipelineDryRun].(bool); exists {
 		pipeline.DryRun = dryRun
 		if dryRun {
+			cleanReturn = true
 			return nil
 		}
 	}
 	for _, item := range pipeline.items {
 		err := item.Configure(facts)
 		if err != nil {
+			cleanReturn = true
 			return errors.Wrapf(err, "%s failed to configure", item.Name())
 		}
 	}
 	for _, item := range pipeline.items {
 		err := item.Initialize(pipeline.repository)
 		if err != nil {
+			cleanReturn = true
 			return errors.Wrapf(err, "%s failed to initialize", item.Name())
 		}
 	}
@@ -670,6 +682,7 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 		// if we want hibernation, then we want to minimize RSS
 		debug.SetGCPercent(20) // the default is 100
 	}
+	cleanReturn = true
 	return nil
 }
 

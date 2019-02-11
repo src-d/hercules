@@ -192,10 +192,15 @@ func printAction(p runAction) {
 // Yes, it *is* possible to have several identical parents, and Hercules used to crash because of that.
 func getCommitParents(commit *object.Commit) []plumbing.Hash {
 	result := make([]plumbing.Hash, 0, len(commit.ParentHashes))
-	parents := map[plumbing.Hash]bool{}
+	var parents map[plumbing.Hash]bool
+	if len(commit.ParentHashes) > 1 {
+		parents = map[plumbing.Hash]bool{}
+	}
 	for _, parent := range commit.ParentHashes {
 		if _, exists := parents[parent]; !exists {
-			parents[parent] = true
+			if parents != nil {
+				parents[parent] = true
+			}
 			result = append(result, parent)
 		}
 	}

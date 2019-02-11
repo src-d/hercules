@@ -29,6 +29,8 @@ type testPipelineItem struct {
 	TestError        bool
 	ConfigureRaises  bool
 	InitializeRaises bool
+	InitializePanics bool
+	ConsumePanics    bool
 }
 
 func (item *testPipelineItem) Name() string {
@@ -76,6 +78,9 @@ func (item *testPipelineItem) Features() []string {
 }
 
 func (item *testPipelineItem) Initialize(repository *git.Repository) error {
+	if item.InitializePanics {
+		panic("!")
+	}
 	item.Initialized = repository != nil
 	item.Merged = new(bool)
 	item.MergeState = new(int)
@@ -88,6 +93,9 @@ func (item *testPipelineItem) Initialize(repository *git.Repository) error {
 func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	if item.TestError {
 		return nil, errors.New("error")
+	}
+	if item.ConsumePanics {
+		panic("!")
 	}
 	obj, exists := deps[DependencyCommit]
 	item.DepsConsumed = exists
@@ -268,6 +276,9 @@ func TestPipelineErrors(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "initialize")
 	assert.Contains(t, err.Error(), "test2")
+	item.InitializeRaises = false
+	item.InitializePanics = true
+	assert.Panics(t, func() { pipeline.Initialize(map[string]interface{}{}) })
 }
 
 func TestPipelineRun(t *testing.T) {
