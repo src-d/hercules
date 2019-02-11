@@ -23,7 +23,10 @@ import (
 
 func fixtureUASTExtractor() *Extractor {
 	exr := Extractor{Endpoint: "0.0.0.0:9432"}
-	exr.Initialize(test.Repository)
+	err := exr.Initialize(test.Repository)
+	if err != nil {
+		panic(err)
+	}
 	return &exr
 }
 
@@ -78,6 +81,12 @@ func TestUASTExtractorRegistration(t *testing.T) {
 	summoned = core.Registry.Summon((&Extractor{}).Provides()[0])
 	assert.Len(t, summoned, 1)
 	assert.Equal(t, summoned[0].Name(), "UAST")
+}
+
+func TestUASTExtractorNoBabelfish(t *testing.T) {
+	exr := Extractor{Endpoint: "0.0.0.0:56934"}
+	err := exr.Initialize(test.Repository)
+	assert.NotNil(t, err)
 }
 
 func TestUASTExtractorConsume(t *testing.T) {
