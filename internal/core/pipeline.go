@@ -757,7 +757,6 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			continue
 		}
 		if pipeline.PrintActions {
-			fmt.Fprintln(os.Stderr)
 			printAction(step)
 		}
 		if index > 0 && index%100 == 0 && pipeline.HibernationDistance > 0 {

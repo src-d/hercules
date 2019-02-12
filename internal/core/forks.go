@@ -89,6 +89,7 @@ const (
 
 // planPrintFunc is used to print the execution plan in prepareRunPlan().
 var planPrintFunc = func(args ...interface{}) {
+	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, args...)
 }
 

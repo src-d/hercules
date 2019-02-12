@@ -537,9 +537,13 @@ func TestPipelineDumpPlanConfigure(t *testing.T) {
 	pipeline.Initialize(map[string]interface{}{ConfigPipelineDumpPlan: true})
 	assert.True(t, pipeline.DumpPlan)
 	stream := &bytes.Buffer{}
+	backupPlanPrintFunc := planPrintFunc
 	planPrintFunc = func(args ...interface{}) {
 		fmt.Fprintln(stream, args...)
 	}
+	defer func() {
+		planPrintFunc = backupPlanPrintFunc
+	}()
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))

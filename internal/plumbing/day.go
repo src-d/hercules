@@ -1,6 +1,7 @@
 package plumbing
 
 import (
+	"log"
 	"time"
 
 	"gopkg.in/src-d/go-git.v4"
@@ -13,6 +14,7 @@ import (
 // It is a PipelineItem.
 type DaysSinceStart struct {
 	core.NoopMerger
+	remote      string
 	day0        *time.Time
 	previousDay int
 	commits     map[int][]plumbing.Hash
@@ -75,6 +77,9 @@ func (days *DaysSinceStart) Initialize(repository *git.Repository) error {
 			delete(days.commits, key)
 		}
 	}
+	if r, err := repository.Remotes(); err == nil && len(r) > 0 {
+		days.remote = r[0].Config().URLs[0]
+	}
 	return nil
 }
 
@@ -88,9 +93,13 @@ func (days *DaysSinceStart) Consume(deps map[string]interface{}) (map[string]int
 	index := deps[core.DependencyIndex].(int)
 	if index == 0 {
 		// first iteration - initialize the file objects from the tree
-		*days.day0 = commit.Committer.When
 		// our precision is 1 day
-		*days.day0 = days.day0.Truncate(24 * time.Hour)
+		*days.day0 = commit.Committer.When.Truncate(24 * time.Hour)
+		if days.day0.Unix() < 631152000 { // 01.01.1990, that was 30 years ago
+			log.Println()
+			log.Printf("Warning: suspicious committer timestamp in %s > %s",
+				days.remote, commit.Hash.String())
+		}
 	}
 	day := int(commit.Committer.When.Sub(*days.day0).Hours() / 24)
 	if day < days.previousDay {
