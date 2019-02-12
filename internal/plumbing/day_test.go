@@ -1,7 +1,11 @@
 package plumbing
 
 import (
+	"bytes"
+	"log"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -122,4 +126,31 @@ func TestDaysSinceStartFork(t *testing.T) {
 	assert.True(t, dss1 != dss2)
 	// just for the sake of it
 	dss1.Merge([]core.PipelineItem{dss2})
+}
+
+func TestDaysSinceStartConsumeZero(t *testing.T) {
+	dss := fixtureDaysSinceStart()
+	deps := map[string]interface{}{}
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1"))
+	commit.Committer.When = time.Unix(0, 0)
+	deps[core.DependencyCommit] = commit
+	deps[core.DependencyIndex] = 0
+	// print warning to log
+	myOutput := &bytes.Buffer{}
+	log.SetOutput(myOutput)
+	defer func() {
+		log.SetOutput(os.Stderr)
+	}()
+	res, err := dss.Consume(deps)
+	assert.Nil(t, err)
+	assert.Contains(t, myOutput.String(), "Warning")
+	assert.Contains(t, myOutput.String(), "cce947b98a050c6d356bc6ba95030254914027b1")
+	assert.Contains(t, myOutput.String(), "hercules")
+	assert.Contains(t, myOutput.String(), "github.com")
+	assert.Equal(t, res[DependencyDay].(int), 0)
+	assert.Equal(t, dss.previousDay, 0)
+	assert.Equal(t, dss.day0.Year(), 1970)
+	assert.Equal(t, dss.day0.Minute(), 0)
+	assert.Equal(t, dss.day0.Second(), 0)
 }

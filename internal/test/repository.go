@@ -2,14 +2,14 @@ package test
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
+	"path"
 
-	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"io/ioutil"
-	"path"
 )
 
 // Repository is a boilerplate sample repository (Hercules itself).
