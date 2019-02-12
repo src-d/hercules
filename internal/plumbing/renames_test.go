@@ -264,20 +264,25 @@ func TestBlobsAreCloseBinary(t *testing.T) {
 	assert.False(t, result)
 }
 
-func TestBlobsAreCloseBug(t *testing.T) {
-	gzsource, err := os.Open(path.Join("..", "test_data", "rename_bug.xml.gz"))
+func loadData(t *testing.T, name string) []byte {
+	gzsource, err := os.Open(path.Join("..", "test_data", name))
 	defer gzsource.Close()
 	if err != nil {
-		t.Errorf("open ../test_data/rename_bug.xml.gz: %v", err)
+		t.Errorf("open ../test_data/%s: %v", name, err)
 	}
 	gzreader, err := gzip.NewReader(gzsource)
 	if err != nil {
-		t.Errorf("gzip ../test_data/rename_bug.xml.gz: %v", err)
+		t.Errorf("gzip ../test_data/%s: %v", name, err)
 	}
 	data, err := ioutil.ReadAll(gzreader)
 	if err != nil {
-		t.Errorf("gzip ../test_data/rename_bug.xml.gz: %v", err)
+		t.Errorf("gzip ../test_data/%s: %v", name, err)
 	}
+	return data
+}
+
+func TestBlobsAreCloseBug1(t *testing.T) {
+	data := loadData(t, "rename_bug1.xml.gz")
 	blob1 := &CachedBlob{Data: data}
 	blob2 := &CachedBlob{Data: data}
 	blob1.Size = int64(len(data))
@@ -286,4 +291,17 @@ func TestBlobsAreCloseBug(t *testing.T) {
 	result, err := ra.blobsAreClose(blob1, blob2)
 	assert.Nil(t, err)
 	assert.True(t, result)
+}
+
+func TestBlobsAreCloseBug2(t *testing.T) {
+	data1 := loadData(t, "rename_bug2.base.gz")
+	data2 := loadData(t, "rename_bug2.head.gz")
+	blob1 := &CachedBlob{Data: data1}
+	blob2 := &CachedBlob{Data: data2}
+	blob1.Size = int64(len(data1))
+	blob2.Size = int64(len(data2))
+	ra := fixtureRenameAnalysis()
+	result, err := ra.blobsAreClose(blob1, blob2)
+	assert.Nil(t, err)
+	assert.False(t, result)
 }

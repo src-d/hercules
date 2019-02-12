@@ -4,6 +4,7 @@ import (
 	"log"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"unicode/utf8"
 
@@ -48,6 +49,10 @@ const (
 	// RenameAnalysisSetSizeLimit is the maximum number of added + removed files for
 	// RenameAnalysisMaxCandidates to be active; the bigger numbers set it to 1.
 	RenameAnalysisSetSizeLimit = 1000
+
+	// RenameAnalysisByteDiffSizeThreshold is the maximum size of each of the compared parts
+	// to be diff-ed on byte level.
+	RenameAnalysisByteDiffSizeThreshold = 100000
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -367,12 +372,12 @@ func (ra *RenameAnalysis) sizesAreClose(size1 int64, size2 int64) bool {
 }
 
 func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (bool, error) {
+	cleanReturn := false
 	defer func() {
-		if err := recover(); err != nil {
+		if !cleanReturn {
 			log.Println()
 			log.Println(blob1.Hash.String())
 			log.Println(blob2.Hash.String())
-			panic(err)
 		}
 	}()
 	_, err1 := blob1.CountLines()
@@ -382,6 +387,7 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 		bsdifflen := DiffBytes(blob1.Data, blob2.Data)
 		delta := int((int64(bsdifflen) * 100) / internal.Max64(
 			internal.Min64(blob1.Size, blob2.Size), 1))
+		cleanReturn = true
 		return 100-delta >= ra.SimilarityThreshold, nil
 	}
 	src, dst := string(blob1.Data), string(blob2.Data)
@@ -390,8 +396,14 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 	// compute the line-by-line diff, then the char-level diffs of the del-ins blocks
 	// yes, this algorithm is greedy and not exact
 	dmp := diffmatchpatch.New()
-	srcLines, dstLines, lines := dmp.DiffLinesToRunes(src, dst)
-	diffs := dmp.DiffMainRunes(srcLines, dstLines, false)
+	srcLineRunes, dstLineRunes, _ := dmp.DiffLinesToRunes(src, dst)
+	// the third returned value, []string, is the mapping from runes to lines
+	// we cannot use it because it is approximate and has string collisions
+	// that is, the mapping is wrong for huge files
+	diffs := dmp.DiffMainRunes(srcLineRunes, dstLineRunes, false)
+
+	srcPositions := calcLinePositions(src)
+	dstPositions := calcLinePositions(dst)
 	var common, posSrc, prevPosSrc, posDst int
 	possibleDelInsBlock := false
 	for _, edit := range diffs {
@@ -399,35 +411,36 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 		case diffmatchpatch.DiffDelete:
 			possibleDelInsBlock = true
 			prevPosSrc = posSrc
-			for _, lineno := range edit.Text {
-				posSrc += len(lines[lineno])
-			}
+			posSrc += utf8.RuneCountInString(edit.Text)
 		case diffmatchpatch.DiffInsert:
-			nextPosDst := posDst
-			for _, lineno := range edit.Text {
-				nextPosDst += len(lines[lineno])
-			}
+			nextPosDst := posDst + utf8.RuneCountInString(edit.Text)
 			if possibleDelInsBlock {
 				possibleDelInsBlock = false
-				localDmp := diffmatchpatch.New()
-				localSrc := src[prevPosSrc:posSrc]
-				localDst := dst[posDst:nextPosDst]
-				localDiffs := localDmp.DiffMainRunes([]rune(localSrc), []rune(localDst), false)
-				for _, localEdit := range localDiffs {
-					if localEdit.Type == diffmatchpatch.DiffEqual {
-						common += utf8.RuneCountInString(localEdit.Text)
+				if internal.Max(srcPositions[posSrc]-srcPositions[prevPosSrc],
+					dstPositions[nextPosDst]-dstPositions[posDst]) < RenameAnalysisByteDiffSizeThreshold {
+					localDmp := diffmatchpatch.New()
+					localSrc := src[srcPositions[prevPosSrc]:srcPositions[posSrc]]
+					localDst := dst[dstPositions[posDst]:dstPositions[nextPosDst]]
+					localDiffs := localDmp.DiffMainRunes(
+						strToLiteralRunes(localSrc), strToLiteralRunes(localDst), false)
+					for _, localEdit := range localDiffs {
+						if localEdit.Type == diffmatchpatch.DiffEqual {
+							common += utf8.RuneCountInString(localEdit.Text)
+						}
 					}
 				}
 			}
 			posDst = nextPosDst
 		case diffmatchpatch.DiffEqual:
 			possibleDelInsBlock = false
-			for _, lineno := range edit.Text {
-				common += utf8.RuneCountInString(lines[lineno])
-				step := len(lines[lineno])
-				posSrc += step
-				posDst += step
+			step := utf8.RuneCountInString(edit.Text)
+			// for i := range edit.Text does *not* work
+			// idk why, but `i` appears to be bigger than the number of runes
+			for i := 0; i < step; i++ {
+				common += srcPositions[posSrc+i+1] - srcPositions[posSrc+i]
 			}
+			posSrc += step
+			posDst += step
 		}
 		if possibleDelInsBlock {
 			continue
@@ -435,25 +448,50 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 		// supposing that the rest of the lines are the same (they are not - too optimistic),
 		// estimate the maximum similarity and exit the loop if it lower than our threshold
 		var srcPendingSize, dstPendingSize int
-		if posSrc < len(src) {
-			srcPendingSize = utf8.RuneCountInString(src[posSrc:])
-		}
-		if posDst < len(dst) {
-			dstPendingSize = utf8.RuneCountInString(dst[posDst:])
-		}
+		srcPendingSize = len(src) - srcPositions[posSrc]
+		dstPendingSize = len(dst) - dstPositions[posDst]
 		maxCommon := common + internal.Min(srcPendingSize, dstPendingSize)
 		similarity := (maxCommon * 100) / maxSize
 		if similarity < ra.SimilarityThreshold {
+			cleanReturn = true
 			return false, nil
 		}
 		similarity = (common * 100) / maxSize
 		if similarity >= ra.SimilarityThreshold {
+			cleanReturn = true
 			return true, nil
 		}
 	}
 	// the very last "overly optimistic" estimate was actually precise, so since we are still here
 	// the blobs are similar
+	cleanReturn = true
 	return true, nil
+}
+
+func calcLinePositions(text string) []int {
+	if text == "" {
+		return []int{0}
+	}
+	lines := strings.Split(text, "\n")
+	positions := make([]int, len(lines)+1)
+	accum := 0
+	for i, l := range lines {
+		positions[i] = accum
+		accum += len(l) + 1 // +1 for \n
+	}
+	if len(lines) > 0 && lines[len(lines)-1] != "\n" {
+		accum--
+	}
+	positions[len(lines)] = accum
+	return positions
+}
+
+func strToLiteralRunes(s string) []rune {
+	lrunes := make([]rune, len(s))
+	for i, b := range []byte(s) {
+		lrunes[i] = rune(b)
+	}
+	return lrunes
 }
 
 type sortableChange struct {
