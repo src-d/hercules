@@ -2,6 +2,10 @@
   name = "github.com/xanzy/ssh-agent"
   version = "0.2.0"
 
+[[override]]
+  name = "gopkg.in/src-d/go-siva.v1"
+  version = "1.4.0"
+
 [[constraint]]
   branch = "master"
   name = "github.com/Masterminds/sprig"
@@ -67,7 +71,7 @@
   name = "gopkg.in/src-d/enry.v1"
 
 [[constraint]]
-  branch = "master"
+  version = "v4.3.0"
   name = "gopkg.in/src-d/go-billy-siva.v4"
 
 [[constraint]]
