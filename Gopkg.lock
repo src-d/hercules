@@ -480,12 +480,12 @@
   version = "v1.6.8"
 
 [[projects]]
-  branch = "master"
-  digest = "1:c057dcdb0f2891f49cc48a6faa3d39efee510b040c6aaa6341e71a79a759ea12"
+  digest = "1:243e7c47ccea1c5afc5c9283fccb7f44ceb051db90bb7a68bcf0d45c7a204aec"
   name = "gopkg.in/src-d/go-billy-siva.v4"
   packages = ["."]
   pruneopts = "UT"
-  revision = "cd8ce6d3364eb9355e1f63649174b26901fb43c4"
+  revision = "80a2c7ecfab413643f4101751b0bea1b5215ed45"
+  version = "v4.3.0"
 
 [[projects]]
   branch = "master"
@@ -561,12 +561,12 @@
   version = "v4.7.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:dc4a92e4e85a5d281406fb696c2fb14d1fdbc13a4f7e6ff7c6474f64c18db3da"
+  digest = "1:ba158cc44e2037bc427be0c4b7d7d70cc9e0320a2ef31dba7bc33a86492b0314"
   name = "gopkg.in/src-d/go-siva.v1"
   packages = ["."]
   pruneopts = "UT"
-  revision = "b4cd504f9d6e57728058609e4540e931fbd41220"
+  revision = "0c04605024c3bee1d4389992be452d182ae98922"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
