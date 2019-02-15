@@ -80,7 +80,7 @@
 
 [[constraint]]
   name = "gopkg.in/src-d/go-git.v4"
-  version = "4.7.1"
+  version = "4.10.0"
 
 [[constraint]]
   branch = "master"
