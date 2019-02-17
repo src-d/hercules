@@ -267,7 +267,7 @@ func (exr *Extractor) extractUAST(
 		defer cancel()
 	}
 	request := client.NewParseRequest().
-		Content(string(data)).Filename(name).Mode(bblfsh.Annotated).Context(ctx)
+		Content(string(data)).Filename(name).Mode(bblfsh.Semantic).Context(ctx)
 	response, _, err := request.UAST()
 	if err != nil {
 		if strings.Contains("missing driver", err.Error()) {

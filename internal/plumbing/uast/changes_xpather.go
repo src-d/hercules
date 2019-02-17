@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"io"
 	"log"
+	"sort"
 
 	"github.com/minio/highwayhash"
 	"gopkg.in/bblfsh/client-go.v3/tools"
-	bblfsh "gopkg.in/bblfsh/sdk.v2/uast"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 )
@@ -73,6 +73,16 @@ func (xpather ChangesXPather) hash(nodesToHash []nodes.Node) map[uint64]nodes.No
 
 func stringifyUASTNode(node nodes.Node, writer io.Writer) {
 	for element := range tools.Iterate(tools.NewIterator(node, tools.PositionOrder)) {
-		writer.Write([]byte(bblfsh.TokenOf(element.(nodes.Object)) + "|" + bblfsh.TypeOf(element) + ">"))
+		var keys []string
+		obj := element.(nodes.Object)
+		for key, val := range obj {
+			if _, ok := val.(nodes.String); ok {
+				keys = append(keys, key)
+			}
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			writer.Write([]byte(key + "=" + string(obj[key].(nodes.String)) + ";"))
+		}
 	}
 }

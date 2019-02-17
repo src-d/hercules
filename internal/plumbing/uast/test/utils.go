@@ -24,7 +24,7 @@ func ParseBlobFromTestRepo(hash, name string, client *bblfsh.Client) nodes.Node 
 	if err != nil {
 		panic(err)
 	}
-	request := client.NewParseRequest().Content(string(data)).Filename(name).Mode(bblfsh.Annotated)
+	request := client.NewParseRequest().Content(string(data)).Filename(name).Mode(bblfsh.Semantic)
 	response, _, err := request.UAST()
 	if err != nil {
 		panic(err)

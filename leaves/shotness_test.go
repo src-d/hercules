@@ -182,7 +182,7 @@ func TestShotnessConsume(t *testing.T) {
 	assert.Len(t, sh.files, 1)
 	assert.Len(t, sh.files["new.java"], 18)
 	for _, node := range sh.nodes {
-		assert.Equal(t, node.Summary.InternalRole, "MethodDeclaration")
+		assert.Equal(t, node.Summary.Type, "uast:FunctionGroup")
 		if node.Summary.Name != "testUnpackEntryFromFile" {
 			assert.Equal(t, node.Count, 1)
 			if node.Summary.Name != "testUnpackEntryFromStreamToFile" {
@@ -202,10 +202,10 @@ func TestShotnessConsume(t *testing.T) {
 		t.FailNow()
 	}
 	assert.Equal(t, result.Nodes[14].String(),
-		"MethodDeclaration_testUnpackEntryFromStreamToFile_"+newfileName)
+		"uast:FunctionGroup_testUnpackEntryFromStreamToFile_"+newfileName)
 	assert.Equal(t, result.Counters[14], map[int]int{14: 1, 13: 1})
 	assert.Equal(t, result.Nodes[15].String(),
-		"MethodDeclaration_testUnpackEntryFromStream_"+newfileName)
+		"uast:FunctionGroup_testUnpackEntryFromStream_"+newfileName)
 	assert.Equal(t, result.Counters[15], map[int]int{
 		8: 1, 0: 1, 5: 1, 6: 1, 11: 1, 1: 1, 13: 1, 17: 1, 3: 1, 15: 1, 9: 1, 4: 1, 7: 1, 16: 1, 2: 1, 12: 1, 10: 1})
 	uastChanges[0] = uast_items.Change{
@@ -242,93 +242,75 @@ func TestShotnessSerializeText(t *testing.T) {
 	sh.Serialize(result, false, buffer)
 	assert.Equal(t, buffer.String(), `  - name: testAddEntry
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testArchiveEquals
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testContainsAnyEntry
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testDuplicateEntryAtAddOrReplace
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testDuplicateEntryAtAdd
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testDuplicateEntryAtReplace
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testPackEntries
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testPackEntry
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testPreserveRoot
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testRemoveDirs
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testRemoveEntry
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testRepackArchive
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testUnexplode
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testUnpackEntryFromFile
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":2,"14":1,"15":1,"16":1,"17":1}
   - name: testUnpackEntryFromStreamToFile
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"13":1,"14":1}
   - name: testUnpackEntryFromStream
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: testZipException
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,59,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
   - name: unexplodeWithException
     file: test.java
-    internal_role: MethodDeclaration
-    roles: [111,100,41,45]
+    internal_role: uast:FunctionGroup
     counters: {"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"10":1,"11":1,"12":1,"13":1,"15":1,"16":1,"17":1}
 `)
 }
