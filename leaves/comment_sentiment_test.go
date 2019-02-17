@@ -10,8 +10,11 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/bblfsh/client-go.v2"
-	"gopkg.in/bblfsh/client-go.v2/tools"
+	"gopkg.in/bblfsh/client-go.v3"
+	"gopkg.in/bblfsh/client-go.v3/tools"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
+	"gopkg.in/bblfsh/sdk.v2/uast/query"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v7/internal/core"
 	"gopkg.in/src-d/hercules.v7/internal/pb"
@@ -153,13 +156,14 @@ func TestCommentSentimentConsume(t *testing.T) {
 	hash2 := "2a7392320b332494a08d5113aabe6d056fef7e9d"
 	root1 := uast_test.ParseBlobFromTestRepo(hash1, "labours.py", client)
 	root2 := uast_test.ParseBlobFromTestRepo(hash2, "labours.py", client)
-	comments, _ := tools.Filter(root2, "//*[@roleComment]")
-	for _, c := range comments {
-		t := strings.TrimSpace(c.Token)
+	comments, _ := tools.Filter(root2, "//*[@role='Comment']")
+	for _, c := range query.AllNodes(comments) {
+		obj := c.(nodes.Object)
+		t := strings.TrimSpace(uast.TokenOf(obj))
 		if t == "we need to adjust the peak, it may not be less than the decayed value" {
-			c.Token = "license copyright boring"
+			obj[uast.KeyToken] = nodes.String("license copyright boring")
 		} else if t == "Tensorflow 1.5 parses sys.argv unconditionally *applause*" {
-			c.StartPosition = nil
+			obj[uast.KeyPos].(nodes.Object)[uast.KeyStart] = nil
 		}
 	}
 	gitChange := test.FakeChangeForName("labours.py", hash1, hash2)
@@ -169,11 +173,13 @@ func TestCommentSentimentConsume(t *testing.T) {
 			{Before: root1, After: root2, Change: gitChange},
 		},
 	}
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
+		"d48d50d0b72be95bb8054e3839b8dd79fa970b1c"))
 	result, err := sent.Consume(deps)
 	assert.Nil(t, err)
 	assert.Nil(t, result)
 	assert.Len(t, sent.commentsByDay, 1)
-	assert.Len(t, sent.commentsByDay[0], 4)
+	assert.Len(t, sent.commentsByDay[0], 6)
 }
 
 var (

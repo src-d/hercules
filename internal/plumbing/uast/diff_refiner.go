@@ -4,7 +4,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/client-go.v3/tools"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/hercules.v7/internal/core"
 	"gopkg.in/src-d/hercules.v7/internal/plumbing"
@@ -108,15 +110,14 @@ func (ref *FileDiffRefiner) Consume(deps map[string]interface{}) (map[string]int
 			result[fileName] = oldDiff
 			continue
 		}
-		line2node := make([][]*uast.Node, oldDiff.NewLinesOfCode)
-		VisitEachNode(uastChange.After, func(node *uast.Node) {
-			if node.StartPosition != nil && node.EndPosition != nil {
-				for l := node.StartPosition.Line; l <= node.EndPosition.Line; l++ {
-					nodes := line2node[l-1] // line starts with 1
-					if nodes == nil {
-						nodes = []*uast.Node{}
+		line2node := make([][]nodes.Node, oldDiff.NewLinesOfCode)
+		VisitEachNode(uastChange.After, func(node nodes.Node) {
+			if obj, ok := node.(nodes.Object); ok {
+				pos := uast.PositionsOf(obj)
+				if pos.Start() != nil && pos.End() != nil {
+					for l := pos.Start().Line; l <= pos.End().Line; l++ {
+						line2node[l-1] = append(line2node[l-1], node) // line starts with 1
 					}
-					line2node[l-1] = append(nodes, node)
 				}
 			}
 		})
@@ -172,27 +173,22 @@ func (ref *FileDiffRefiner) Fork(n int) []core.PipelineItem {
 
 // VisitEachNode is a handy routine to execute a callback on every node in the subtree,
 // including the root itself. Depth first tree traversal.
-func VisitEachNode(root *uast.Node, payload func(*uast.Node)) {
-	queue := []*uast.Node{}
-	queue = append(queue, root)
-	for len(queue) > 0 {
-		node := queue[len(queue)-1]
-		queue = queue[:len(queue)-1]
-		payload(node)
-		for _, child := range node.Children {
-			queue = append(queue, child)
+func VisitEachNode(root nodes.Node, payload func(nodes.Node)) {
+	for child := range tools.Iterate(tools.NewIterator(root, tools.PreOrder)) {
+		if _, ok := child.(nodes.Object); ok {
+			payload(child)
 		}
 	}
 }
 
-func countNodesInInterval(occupiedMap [][]*uast.Node, start, end int) int {
-	nodes := map[*uast.Node]bool{}
+func countNodesInInterval(occupiedMap [][]nodes.Node, start, end int) int {
+	inodes := map[nodes.Comparable]bool{}
 	for i := start; i < end; i++ {
 		for _, node := range occupiedMap[i] {
-			nodes[node] = true
+			inodes[nodes.UniqueKey(node)] = true
 		}
 	}
-	return len(nodes)
+	return len(inodes)
 }
 
 func init() {

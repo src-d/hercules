@@ -9,8 +9,11 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/sergi/go-diff/diffmatchpatch"
-	"gopkg.in/bblfsh/client-go.v2/tools"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/client-go.v3/tools"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	uast_nodes "gopkg.in/bblfsh/sdk.v2/uast/nodes"
+	"gopkg.in/bblfsh/sdk.v2/uast/query"
+	"gopkg.in/bblfsh/sdk.v2/uast/role"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v7/internal/core"
@@ -42,10 +45,10 @@ const (
 
 	// DefaultShotnessXpathStruct is the default UAST XPath to choose the analysed nodes.
 	// It extracts functions.
-	DefaultShotnessXpathStruct = "//*[@roleFunction and @roleDeclaration]"
+	DefaultShotnessXpathStruct = "//*[@role='Function' and @role='Declaration']"
 	// DefaultShotnessXpathName is the default UAST XPath to choose the names of the analysed nodes.
 	// It looks at the current tree level and at the immediate children.
-	DefaultShotnessXpathName = "/*[@roleFunction and @roleIdentifier and @roleName] | /*/*[@roleFunction and @roleIdentifier and @roleName]"
+	DefaultShotnessXpathName = "/*[1]/*/*[@role='Function' and @role='Identifier' and @role='Name'] | /*[1]"
 )
 
 type nodeShotness struct {
@@ -58,7 +61,7 @@ type nodeShotness struct {
 // These attributes are supposed to uniquely identify each node.
 type NodeSummary struct {
 	InternalRole string
-	Roles        []uast.Role
+	Roles        []role.Role
 	Name         string
 	File         string
 }
@@ -167,10 +170,10 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 	diffs := deps[items.DependencyFileDiff].(map[string]items.FileDiffData)
 	allNodes := map[string]bool{}
 
-	addNode := func(name string, node *uast.Node, fileName string) {
+	addNode := func(name string, node uast_nodes.Node, fileName string) {
 		nodeSummary := NodeSummary{
-			InternalRole: node.InternalType,
-			Roles:        node.Roles,
+			InternalRole: uast.TypeOf(node),
+			Roles:        uast.RolesOf(node.(uast_nodes.Object)),
 			Name:         name,
 			File:         fileName,
 		}
@@ -260,23 +263,25 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 			continue
 		}
 		reversedNodesAfter := reverseNodeMap(nodesAfter)
-		genLine2Node := func(nodes map[string]*uast.Node, linesNum int) [][]*uast.Node {
-			res := make([][]*uast.Node, linesNum)
+		genLine2Node := func(nodes map[string]uast_nodes.Node, linesNum int) [][]uast_nodes.Node {
+			res := make([][]uast_nodes.Node, linesNum)
 			for _, node := range nodes {
-				if node.StartPosition == nil {
+				pos := uast.PositionsOf(node.(uast_nodes.Object))
+				if pos.Start() == nil {
 					continue
 				}
-				startLine := node.StartPosition.Line
-				endLine := node.StartPosition.Line
-				if node.EndPosition != nil && node.EndPosition.Line > node.StartPosition.Line {
-					endLine = node.EndPosition.Line
+				startLine := pos.Start().Line
+				endLine := pos.Start().Line
+				if pos.End() != nil && pos.End().Line > pos.Start().Line {
+					endLine = pos.End().Line
 				} else {
-					// we need to determine node.EndPosition.Line
-					uast_items.VisitEachNode(node, func(child *uast.Node) {
-						if child.StartPosition != nil {
-							candidate := child.StartPosition.Line
-							if child.EndPosition != nil {
-								candidate = child.EndPosition.Line
+					// we need to determine pos.End().Line
+					uast_items.VisitEachNode(node, func(child uast_nodes.Node) {
+						childPos := uast.PositionsOf(child.(uast_nodes.Object))
+						if childPos.Start() != nil {
+							candidate := childPos.Start().Line
+							if childPos.End() != nil {
+								candidate = childPos.End().Line
 							}
 							if candidate > endLine {
 								endLine = candidate
@@ -287,7 +292,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 				for l := startLine; l <= endLine; l++ {
 					lineNodes := res[l-1]
 					if lineNodes == nil {
-						lineNodes = []*uast.Node{}
+						lineNodes = []uast_nodes.Node{}
 					}
 					lineNodes = append(lineNodes, node)
 					res[l-1] = lineNodes
@@ -309,7 +314,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 					nodes := line2nodeBefore[l]
 					for _, node := range nodes {
 						// toName because we handled a possible rename before
-						addNode(reversedNodesBefore[node], node, toName)
+						addNode(reversedNodesBefore[uast_nodes.UniqueKey(node)], node, toName)
 					}
 				}
 				lineNumBefore += size
@@ -317,7 +322,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 				for l := lineNumAfter; l < lineNumAfter+size; l++ {
 					nodes := line2nodeAfter[l]
 					for _, node := range nodes {
-						addNode(reversedNodesAfter[node], node, toName)
+						addNode(reversedNodesAfter[uast_nodes.UniqueKey(node)], node, toName)
 					}
 				}
 				lineNumAfter += size
@@ -443,49 +448,54 @@ func (shotness *ShotnessAnalysis) serializeBinary(result *ShotnessResult, writer
 	return err
 }
 
-func (shotness *ShotnessAnalysis) extractNodes(root *uast.Node) (map[string]*uast.Node, error) {
-	structs, err := tools.Filter(root, shotness.XpathStruct)
+func (shotness *ShotnessAnalysis) extractNodes(root uast_nodes.Node) (map[string]uast_nodes.Node, error) {
+	it, err := tools.Filter(root, shotness.XpathStruct)
 	if err != nil {
 		return nil, err
 	}
+	structs := query.AllNodes(it)
 	// some structs may be inside other structs; we pick the outermost
 	// otherwise due to UAST quirks there may be false positives
-	internal := map[*uast.Node]bool{}
-	for _, mainNode := range structs {
-		if internal[mainNode] {
+	internal := map[uast_nodes.Comparable]bool{}
+	for _, ext := range structs {
+		mainNode := ext.(uast_nodes.Node)
+		if internal[uast_nodes.UniqueKey(mainNode)] {
 			continue
 		}
 		subs, err := tools.Filter(mainNode, shotness.XpathStruct)
 		if err != nil {
 			return nil, err
 		}
-		for _, sub := range subs {
-			if sub != mainNode {
-				internal[sub] = true
+		for subs.Next() {
+			sub := subs.Node().(uast_nodes.Node)
+			if uast_nodes.UniqueKey(sub) != uast_nodes.UniqueKey(mainNode) {
+				internal[uast_nodes.UniqueKey(sub)] = true
 			}
 		}
 	}
-	res := map[string]*uast.Node{}
-	for _, node := range structs {
-		if internal[node] {
+	res := map[string]uast_nodes.Node{}
+	for _, ext := range structs {
+		node := ext.(uast_nodes.Node)
+		if internal[uast_nodes.UniqueKey(node)] {
 			continue
 		}
-		nodeNames, err := tools.Filter(node, shotness.XpathName)
+		it, err := tools.Filter(node, shotness.XpathName)
 		if err != nil {
 			return nil, err
 		}
+		nodeNames := query.AllNodes(it)
 		if len(nodeNames) == 0 {
 			continue
 		}
-		res[nodeNames[0].Token] = node
+		res[uast.TokenOf(nodeNames[0].(uast_nodes.Object))] = node
 	}
 	return res, nil
 }
 
-func reverseNodeMap(nodes map[string]*uast.Node) map[*uast.Node]string {
-	res := map[*uast.Node]string{}
+func reverseNodeMap(nodes map[string]uast_nodes.Node) map[uast_nodes.Comparable]string {
+	res := map[uast_nodes.Comparable]string{}
 	for key, node := range nodes {
-		res[node] = key
+		res[uast_nodes.UniqueKey(node)] = key
 	}
 	return res
 }

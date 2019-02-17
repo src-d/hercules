@@ -6,8 +6,9 @@ import (
 	"log"
 
 	"github.com/minio/highwayhash"
-	"gopkg.in/bblfsh/client-go.v2/tools"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/client-go.v3/tools"
+	bblfsh "gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
@@ -22,8 +23,8 @@ var hashKey = []byte{
 }
 
 // Extract returns the list of new or changed UAST nodes filtered by XPath.
-func (xpather ChangesXPather) Extract(changes []Change) []*uast.Node {
-	result := []*uast.Node{}
+func (xpather ChangesXPather) Extract(changes []Change) []nodes.Node {
+	var result []nodes.Node
 	for _, change := range changes {
 		if change.After == nil {
 			continue
@@ -44,21 +45,25 @@ func (xpather ChangesXPather) Extract(changes []Change) []*uast.Node {
 	return result
 }
 
-func (xpather ChangesXPather) filter(root *uast.Node, origin plumbing.Hash) []*uast.Node {
-	if root != nil {
-		nodes, err := tools.Filter(root, xpather.XPath)
-		if err != nil {
-			log.Printf("libuast filter error on object %s: %v", origin.String(), err)
-			return []*uast.Node{}
-		}
-		return nodes
+func (xpather ChangesXPather) filter(root nodes.Node, origin plumbing.Hash) []nodes.Node {
+	if root == nil {
+		return nil
 	}
-	return []*uast.Node{}
+	filtered, err := tools.Filter(root, xpather.XPath)
+	if err != nil {
+		log.Printf("libuast filter error on object %s: %v", origin.String(), err)
+		return []nodes.Node{}
+	}
+	var result []nodes.Node
+	for filtered.Next() {
+		result = append(result, filtered.Node().(nodes.Node))
+	}
+	return result
 }
 
-func (xpather ChangesXPather) hash(nodes []*uast.Node) map[uint64]*uast.Node {
-	result := map[uint64]*uast.Node{}
-	for _, node := range nodes {
+func (xpather ChangesXPather) hash(nodesToHash []nodes.Node) map[uint64]nodes.Node {
+	result := map[uint64]nodes.Node{}
+	for _, node := range nodesToHash {
 		buffer := &bytes.Buffer{}
 		stringifyUASTNode(node, buffer)
 		result[highwayhash.Sum64(buffer.Bytes(), hashKey)] = node
@@ -66,9 +71,8 @@ func (xpather ChangesXPather) hash(nodes []*uast.Node) map[uint64]*uast.Node {
 	return result
 }
 
-func stringifyUASTNode(node *uast.Node, writer io.Writer) {
-	writer.Write([]byte(node.Token + "|" + node.InternalType + ">"))
-	for _, child := range node.Children {
-		stringifyUASTNode(child, writer)
+func stringifyUASTNode(node nodes.Node, writer io.Writer) {
+	for element := range tools.Iterate(tools.NewIterator(node, tools.PositionOrder)) {
+		writer.Write([]byte(bblfsh.TokenOf(element.(nodes.Object)) + "|" + bblfsh.TypeOf(element) + ">"))
 	}
 }

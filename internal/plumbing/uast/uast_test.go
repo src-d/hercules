@@ -12,7 +12,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/bblfsh/sdk.v1/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v7/internal/core"
@@ -172,9 +173,9 @@ func TestUASTExtractorConsume(t *testing.T) {
 
 	res, err = exr.Consume(deps)
 	assert.Nil(t, err)
-	uasts := res[DependencyUasts].(map[plumbing.Hash]*uast.Node)
+	uasts := res[DependencyUasts].(map[plumbing.Hash]nodes.Node)
 	assert.Equal(t, len(uasts), 1)
-	assert.Equal(t, len(uasts[hash].Children), 24)
+	assert.Equal(t, len(uasts[hash].(nodes.Object)["body"].(nodes.Array)), 24)
 }
 
 func TestUASTExtractorFork(t *testing.T) {
@@ -221,24 +222,27 @@ func TestUASTChangesRegistration(t *testing.T) {
 	assert.True(t, matched)
 }
 
+func newNodeWithType(name string) nodes.Node {
+	return nodes.Object{
+		uast.KeyType:  nodes.String(name),
+		uast.KeyToken: nodes.String("my_token"),
+	}
+}
+
 func TestUASTChangesConsume(t *testing.T) {
-	var uastsArray []*uast.Node
-	uasts := map[plumbing.Hash]*uast.Node{}
+	var uastsArray []nodes.Node
+	uasts := map[plumbing.Hash]nodes.Node{}
 	hash := plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")
-	uasts[hash] = &uast.Node{}
-	uasts[hash].InternalType = "uno"
+	uasts[hash] = newNodeWithType("uno")
 	uastsArray = append(uastsArray, uasts[hash])
 	hash = plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9")
-	uasts[hash] = &uast.Node{}
-	uasts[hash].InternalType = "dos"
+	uasts[hash] = newNodeWithType("dos")
 	uastsArray = append(uastsArray, uasts[hash])
 	hash = plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1")
-	uasts[hash] = &uast.Node{}
-	uasts[hash].InternalType = "tres"
+	uasts[hash] = newNodeWithType("tres")
 	uastsArray = append(uastsArray, uasts[hash])
 	hash = plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	uasts[hash] = &uast.Node{}
-	uasts[hash].InternalType = "quatro"
+	uasts[hash] = newNodeWithType("quatro")
 	uastsArray = append(uastsArray, uasts[hash])
 	changes := make(object.Changes, 3)
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
@@ -374,7 +378,7 @@ func TestUASTChangesSaverPayload(t *testing.T) {
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
 	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
-	changes[0] = Change{Before: &uast.Node{}, After: &uast.Node{},
+	changes[0] = Change{Before: nodes.Object{}, After: nodes.Object{},
 		Change: &object.Change{From: object.ChangeEntry{
 			Name: "analyser.go",
 			Tree: treeFrom,
@@ -448,7 +452,7 @@ func TestUASTChangesSaverConsumeMerge(t *testing.T) {
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
 	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
-	changes[0] = Change{Before: &uast.Node{}, After: &uast.Node{},
+	changes[0] = Change{Before: nodes.Object{}, After: nodes.Object{},
 		Change: &object.Change{From: object.ChangeEntry{
 			Name: "analyser.go",
 			Tree: treeFrom,
