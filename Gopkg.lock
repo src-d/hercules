@@ -427,17 +427,6 @@
   version = "v1.16.0"
 
 [[projects]]
-  digest = "1:ace997f8ef569276114f7a4e2a8b44cc8ee34b4d756ccbeb73f612589d98b0b3"
-  name = "gopkg.in/bblfsh/client-go.v2"
-  packages = [
-    ".",
-    "tools",
-  ]
-  pruneopts = "UT"
-  revision = "47a750b0793f5094635bd013001c435bacc6ac48"
-  version = "v2.8.8"
-
-[[projects]]
   digest = "1:fafaec170283195ece36f81308d93913f10d5b650302d686ba28789cf70b6d01"
   name = "gopkg.in/bblfsh/client-go.v3"
   packages = [
@@ -461,14 +450,13 @@
   version = "v1.16.1"
 
 [[projects]]
-  digest = "1:54b8e8f6199fa36245d5bb3f96cb72b4e2d463258256c3a0e34857df45d03890"
+  digest = "1:5d6f2fec85fa4f0a6c8828c790c8b33be009032b8f50f899c11d4aaec0157485"
   name = "gopkg.in/bblfsh/sdk.v2"
   packages = [
     "driver",
     "driver/errors",
     "driver/manifest",
     "protocol",
-    "protocol/v1",
     "uast",
     "uast/nodes",
     "uast/nodes/nodesproto",
@@ -645,11 +633,8 @@
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
     "golang.org/x/crypto/ssh/terminal",
-    "gopkg.in/bblfsh/client-go.v2",
-    "gopkg.in/bblfsh/client-go.v2/tools",
     "gopkg.in/bblfsh/client-go.v3",
     "gopkg.in/bblfsh/client-go.v3/tools",
-    "gopkg.in/bblfsh/sdk.v1/uast",
     "gopkg.in/bblfsh/sdk.v2/uast",
     "gopkg.in/bblfsh/sdk.v2/uast/nodes",
     "gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto",
