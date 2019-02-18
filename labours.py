@@ -551,8 +551,18 @@ def interpolate_burndown_matrix(matrix, granularity, sampling):
     return daily
 
 
-def load_burndown(header, name, matrix, resample):
+def import_pandas():
     import pandas
+    try:
+        from pandas.plotting import register_matplotlib_converters
+        register_matplotlib_converters()
+    except ImportError:
+        pass
+    return pandas
+
+
+def load_burndown(header, name, matrix, resample):
+    pandas = import_pandas()
 
     start, last, sampling, granularity = header
     assert sampling > 0
@@ -621,7 +631,7 @@ def load_burndown(header, name, matrix, resample):
 
 
 def load_ownership(header, sequence, contents, max_people):
-    import pandas
+    pandas = import_pandas()
 
     start, last, sampling, _ = header
     start = datetime.fromtimestamp(start)
@@ -1464,7 +1474,7 @@ def main():
 
     def run_times():
         rt = reader.get_run_times()
-        import pandas
+        pandas = import_pandas()
         series = pandas.to_timedelta(pandas.Series(rt).sort_values(ascending=False), unit="s")
         df = pandas.concat([series, series / series.sum()], axis=1)
         df.columns = ["time", "ratio"]
