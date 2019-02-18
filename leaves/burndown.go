@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"sync"
@@ -166,6 +167,7 @@ const (
 type sparseHistory = map[int]map[int]int64
 
 // DenseHistory is the matrix [number of samples][number of bands] -> number of lines.
+//                                    y                  x
 type DenseHistory = [][]int64
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -499,17 +501,20 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 			}
 		}
 	}
-	peopleMatrix := make(DenseHistory, analyser.PeopleNumber)
-	for i, row := range analyser.matrix {
-		mrow := make([]int64, analyser.PeopleNumber+2)
-		peopleMatrix[i] = mrow
-		for key, val := range row {
-			if key == identity.AuthorMissing {
-				key = -1
-			} else if key == authorSelf {
-				key = -2
+	var peopleMatrix DenseHistory
+	if len(analyser.matrix) > 0 {
+		peopleMatrix = make(DenseHistory, analyser.PeopleNumber)
+		for i, row := range analyser.matrix {
+			mrow := make([]int64, analyser.PeopleNumber+2)
+			peopleMatrix[i] = mrow
+			for key, val := range row {
+				if key == identity.AuthorMissing {
+					key = -1
+				} else if key == authorSelf {
+					key = -2
+				}
+				mrow[key+2] = val
 			}
-			mrow[key+2] = val
 		}
 	}
 	return BurndownResult{
@@ -608,54 +613,19 @@ func (analyser *BurndownAnalysis) MergeResults(
 				c1, c2)
 		}()
 	}
-	if len(bar1.FileHistories) > 0 || len(bar2.FileHistories) > 0 {
-		merged.FileHistories = map[string]DenseHistory{}
-		historyMutex := sync.Mutex{}
-		for key, fh1 := range bar1.FileHistories {
-			if fh2, exists := bar2.FileHistories[key]; exists {
-				wg.Add(1)
-				go func(fh1, fh2 DenseHistory, key string) {
-					defer wg.Done()
-					historyMutex.Lock()
-					defer historyMutex.Unlock()
-					merged.FileHistories[key] = mergeMatrices(
-						fh1, fh2, bar1.granularity, bar1.sampling, bar2.granularity, bar2.sampling, c1, c2)
-				}(fh1, fh2, key)
-			} else {
-				historyMutex.Lock()
-				merged.FileHistories[key] = fh1
-				historyMutex.Unlock()
-			}
-		}
-		for key, fh2 := range bar2.FileHistories {
-			if _, exists := bar1.FileHistories[key]; !exists {
-				historyMutex.Lock()
-				merged.FileHistories[key] = fh2
-				historyMutex.Unlock()
-			}
-		}
-	}
 	if len(merged.reversedPeopleDict) > 0 {
-		merged.PeopleHistories = make([]DenseHistory, len(merged.reversedPeopleDict))
-		for i, key := range merged.reversedPeopleDict {
-			ptrs := people[key]
-			if ptrs[1] < 0 {
-				if len(bar2.PeopleHistories) > 0 {
-					merged.PeopleHistories[i] = bar2.PeopleHistories[ptrs[2]]
-				}
-			} else if ptrs[2] < 0 {
-				if len(bar1.PeopleHistories) > 0 {
-					merged.PeopleHistories[i] = bar1.PeopleHistories[ptrs[1]]
-				}
-			} else {
+		if len(bar1.PeopleHistories) > 0 || len(bar2.PeopleHistories) > 0 {
+			merged.PeopleHistories = make([]DenseHistory, len(merged.reversedPeopleDict))
+			for i, key := range merged.reversedPeopleDict {
+				ptrs := people[key]
 				wg.Add(1)
 				go func(i int) {
 					defer wg.Done()
 					var m1, m2 DenseHistory
-					if len(bar1.PeopleHistories) > 0 {
+					if ptrs[1] >= 0 {
 						m1 = bar1.PeopleHistories[ptrs[1]]
 					}
-					if len(bar2.PeopleHistories) > 0 {
+					if ptrs[2] >= 0 {
 						m2 = bar2.PeopleHistories[ptrs[2]]
 					}
 					merged.PeopleHistories[i] = mergeMatrices(
@@ -678,9 +648,11 @@ func (analyser *BurndownAnalysis) MergeResults(
 						merged.PeopleMatrix[i] = append(merged.PeopleMatrix[i], 0)
 					}
 				}
-				for i := len(bar1.reversedPeopleDict); i < len(merged.reversedPeopleDict); i++ {
-					merged.PeopleMatrix = append(
-						merged.PeopleMatrix, make([]int64, len(merged.reversedPeopleDict)+2))
+				if len(bar1.PeopleMatrix) > 0 {
+					for i := len(bar1.reversedPeopleDict); i < len(merged.reversedPeopleDict); i++ {
+						merged.PeopleMatrix = append(
+							merged.PeopleMatrix, make([]int64, len(merged.reversedPeopleDict)+2))
+					}
 				}
 			} else {
 				merged.PeopleMatrix = make(DenseHistory, len(merged.reversedPeopleDict))
@@ -709,6 +681,14 @@ func (analyser *BurndownAnalysis) MergeResults(
 	return merged
 }
 
+func roundTime(unix int64, dir bool) int {
+	days := float64(unix) / (3600 * 24)
+	if dir {
+		return int(math.Ceil(days))
+	}
+	return int(math.Floor(days))
+}
+
 // mergeMatrices takes two [number of samples][number of bands] matrices,
 // resamples them to days so that they become square, sums and resamples back to the
 // least of (sampling1, sampling2) and (granularity1, granularity2).
@@ -729,31 +709,28 @@ func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, s
 		granularity = granularity2
 	}
 
-	size := int((commonMerged.EndTime - commonMerged.BeginTime) / (3600 * 24))
-	daily := make([][]float32, size+granularity+1)
+	size := roundTime(commonMerged.EndTime, true) - roundTime(commonMerged.BeginTime, false)
+	daily := make([][]float32, size+granularity)
 	for i := range daily {
-		daily[i] = make([]float32, size+sampling+1)
+		daily[i] = make([]float32, size+sampling)
 	}
 	if len(m1) > 0 {
 		addBurndownMatrix(m1, granularity1, sampling1, daily,
-			int(c1.BeginTime-commonMerged.BeginTime)/(3600*24))
+			roundTime(c1.BeginTime, false)-roundTime(commonMerged.BeginTime, false))
 	}
 	if len(m2) > 0 {
 		addBurndownMatrix(m2, granularity2, sampling2, daily,
-			int(c2.BeginTime-commonMerged.BeginTime)/(3600*24))
+			roundTime(c2.BeginTime, false)-roundTime(commonMerged.BeginTime, false))
 	}
 
 	// convert daily to [][]int64
 	result := make(DenseHistory, (size+sampling-1)/sampling)
 	for i := range result {
 		result[i] = make([]int64, (size+granularity-1)/granularity)
-		sampledIndex := i * sampling
-		if i == len(result)-1 {
-			sampledIndex = size - 1
-		}
+		sampledIndex := (i+1)*sampling - 1
 		for j := 0; j < len(result[i]); j++ {
 			accum := float32(0)
-			for k := j * granularity; k < (j+1)*granularity && k < size; k++ {
+			for k := j * granularity; k < (j+1)*granularity; k++ {
 				accum += daily[sampledIndex][k]
 			}
 			result[i][j] = int64(accum)
@@ -768,7 +745,7 @@ func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, s
 // Rows: *at least* len(matrix) * sampling + offset
 // Columns: *at least* len(matrix[...]) * granularity + offset
 // `matrix` can be sparse, so that the last columns which are equal to 0 are truncated.
-func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, daily [][]float32, offset int) {
+func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily [][]float32, offset int) {
 	// Determine the maximum number of bands; the actual one may be larger but we do not care
 	maxCols := 0
 	for _, row := range matrix {
@@ -777,13 +754,17 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, daily [][
 		}
 	}
 	neededRows := len(matrix)*sampling + offset
-	if len(daily) < neededRows {
+	if len(accdaily) < neededRows {
 		log.Panicf("merge bug: too few daily rows: required %d, have %d",
-			neededRows, len(daily))
+			neededRows, len(accdaily))
 	}
-	if len(daily[0]) < maxCols {
+	if len(accdaily[0]) < maxCols {
 		log.Panicf("merge bug: too few daily cols: required %d, have %d",
-			maxCols, len(daily[0]))
+			maxCols, len(accdaily[0]))
+	}
+	daily := make([][]float32, len(accdaily))
+	for i, row := range accdaily {
+		daily[i] = make([]float32, len(row))
 	}
 	for x := 0; x < maxCols; x++ {
 		for y := 0; y < len(matrix); y++ {
@@ -921,6 +902,16 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, daily [][
 			}
 		}
 	}
+	for y := len(matrix) * sampling; y+offset < len(daily); y++ {
+		copy(daily[y+offset], daily[len(matrix)*sampling-1+offset])
+	}
+	// the original matrix has been resampled by day
+	// add it to the accumulator
+	for y, row := range daily {
+		for x, val := range row {
+			accdaily[y][x] += val
+		}
+	}
 }
 
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
@@ -976,6 +967,8 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 				message.People[key] = pb.ToBurndownSparseMatrix(val, result.reversedPeopleDict[key])
 			}
 		}
+	}
+	if result.PeopleMatrix != nil {
 		message.PeopleInteraction = pb.DenseToCompressedSparseRowMatrix(result.PeopleMatrix)
 	}
 	serialized, err := proto.Marshal(&message)
