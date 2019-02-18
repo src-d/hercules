@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -46,6 +47,7 @@ var combineCmd = &cobra.Command{
 		bar.ShowPercent = false
 		bar.ShowSpeed = false
 		bar.SetMaxWidth(80).Start()
+		debug.SetGCPercent(20)
 		for _, fileName = range files {
 			bar.Increment()
 			anotherResults, anotherMetadata, errs := loadMessage(fileName, &repos)
@@ -53,6 +55,7 @@ var combineCmd = &cobra.Command{
 				mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata)
 			}
 			allErrors[fileName] = errs
+			debug.FreeOSMemory()
 		}
 		bar.Finish()
 		printErrors(allErrors)
