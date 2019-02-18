@@ -1149,12 +1149,18 @@ func (analyser *BurndownAnalysis) handleInsertion(
 func (analyser *BurndownAnalysis) handleDeletion(
 	change *object.Change, author int, cache map[plumbing.Hash]*items.CachedBlob) error {
 
-	name := change.From.Name
+	var name string
+	if change.To.TreeEntry.Hash != plumbing.ZeroHash {
+		// became binary
+		name = change.To.Name
+	} else {
+		name = change.From.Name
+	}
 	file, exists := analyser.files[name]
 	blob := cache[change.From.TreeEntry.Hash]
 	lines, err := blob.CountLines()
 	if exists && err != nil {
-		return fmt.Errorf("file %s unexpectedly became binary", name)
+		return fmt.Errorf("previous version of %s unexpectedly became binary", name)
 	}
 	if !exists {
 		return nil
