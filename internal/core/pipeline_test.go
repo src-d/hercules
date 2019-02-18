@@ -351,17 +351,17 @@ func TestPipelineOnProgress(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
 	progressOk := 0
 
-	onProgress := func(step int, total int) {
-		if step == 1 && total == 4 {
+	onProgress := func(step int, total int, action string) {
+		if step == 1 && total == 4 && action == "emerge" {
 			progressOk++
 		}
-		if step == 2 && total == 4 {
+		if step == 2 && total == 4 && action == "af9ddc0" {
 			progressOk++
 		}
-		if step == 3 && total == 4 {
+		if step == 3 && total == 4 && action == "finalize" {
 			progressOk++
 		}
-		if step == 4 && total == 4 {
+		if step == 4 && total == 4 && action == "" {
 			progressOk++
 		}
 	}

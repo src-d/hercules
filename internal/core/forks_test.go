@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/hercules.v7/internal/test"
 )
 
 type testForkPipelineItem struct {
@@ -99,4 +101,22 @@ func TestInsertHibernateBoot(t *testing.T) {
 		{runActionBoot, nil, []int{2, 4}},
 		{runActionMerge, nil, []int{2, 4}},
 	}, plan)
+}
+
+func TestRunActionString(t *testing.T) {
+	c, _ := test.Repository.CommitObject(plumbing.NewHash("c1002f4265a704c703207fafb95f1d4255bfae1a"))
+	ra := runAction{runActionCommit, c, nil}
+	assert.Equal(t, ra.String(), "c1002f4")
+	ra = runAction{runActionFork, nil, []int{1, 2, 5}}
+	assert.Equal(t, ra.String(), "fork^3")
+	ra = runAction{runActionMerge, nil, []int{1, 2, 5}}
+	assert.Equal(t, ra.String(), "merge^3")
+	ra = runAction{runActionEmerge, nil, nil}
+	assert.Equal(t, ra.String(), "emerge")
+	ra = runAction{runActionDelete, nil, nil}
+	assert.Equal(t, ra.String(), "delete")
+	ra = runAction{runActionHibernate, nil, nil}
+	assert.Equal(t, ra.String(), "hibernate")
+	ra = runAction{runActionBoot, nil, nil}
+	assert.Equal(t, ra.String(), "boot")
 }

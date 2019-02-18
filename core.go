@@ -26,6 +26,8 @@ const (
 	FloatConfigurationOption = core.FloatConfigurationOption
 	// StringsConfigurationOption reflects the array of strings value type.
 	StringsConfigurationOption = core.StringsConfigurationOption
+	// MessageFinalize is the status text reported before calling LeafPipelineItem.Finalize()-s.
+	MessageFinalize = core.MessageFinalize
 )
 
 // ConfigurationOption allows for the unified, retrospective way to setup PipelineItem-s.

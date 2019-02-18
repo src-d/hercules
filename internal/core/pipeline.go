@@ -244,9 +244,9 @@ func MetadataToCommonAnalysisResult(meta *Metadata) *CommonAnalysisResult {
 // See the extended example of how a Pipeline works in doc.go
 type Pipeline struct {
 	// OnProgress is the callback which is invoked in Analyse() to output it's
-	// progress. The first argument is the number of complete steps and the
-	// second is the total number of steps.
-	OnProgress func(int, int)
+	// progress. The first argument is the number of complete steps, the
+	// second is the total number of steps and the third is some description of the current action.
+	OnProgress func(int, int, string)
 
 	// HibernationDistance is the minimum number of actions between two sequential usages of
 	// a branch to activate the hibernation optimization (cpu-memory trade-off). 0 disables.
@@ -307,6 +307,8 @@ const (
 	// which always exists. It indicates whether the analyzed commit is a merge commit.
 	// Checking the number of parents is not correct - we remove the back edges during the DAG simplification.
 	DependencyIsMerge = "is_merge"
+	// MessageFinalize is the status text reported before calling LeafPipelineItem.Finalize()-s.
+	MessageFinalize = "finalize"
 )
 
 // NewPipeline initializes a new instance of Pipeline struct.
@@ -705,7 +707,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	}()
 	onProgress := pipeline.OnProgress
 	if onProgress == nil {
-		onProgress = func(int, int) {}
+		onProgress = func(int, int, string) {}
 	}
 	plan := prepareRunPlan(commits, pipeline.HibernationDistance, pipeline.DumpPlan)
 	progressSteps := len(plan) + 2
@@ -752,7 +754,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 
 	commitIndex := 0
 	for index, step := range plan {
-		onProgress(index+1, progressSteps)
+		onProgress(index+1, progressSteps, step.String())
 		if pipeline.DryRun {
 			continue
 		}
@@ -842,7 +844,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			}
 		}
 	}
-	onProgress(len(plan)+1, progressSteps)
+	onProgress(len(plan)+1, progressSteps, MessageFinalize)
 	result := map[LeafPipelineItem]interface{}{}
 	if !pipeline.DryRun {
 		for index, item := range getMasterBranch(branches) {
@@ -851,7 +853,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 			}
 		}
 	}
-	onProgress(progressSteps, progressSteps)
+	onProgress(progressSteps, progressSteps, "")
 	result[nil] = &CommonAnalysisResult{
 		BeginTime:      plan[0].Commit.Committer.When.Unix(),
 		EndTime:        newestTime,

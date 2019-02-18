@@ -45,15 +45,17 @@ type oneLineWriter struct {
 }
 
 func (writer oneLineWriter) Write(p []byte) (n int, err error) {
-	if p[len(p)-1] == '\n' {
-		p = p[:len(p)-1]
-		if len(p) > 5 && bytes.Compare(p[len(p)-5:], []byte("done.")) == 0 {
-			p = []byte("cloning...")
-		}
-		p = append(p, '\r')
-		writer.Writer.Write([]byte("\r" + strings.Repeat(" ", 80) + "\r"))
+	strp := strings.TrimSpace(string(p))
+	if strings.HasSuffix(strp, "done.") || len(strp) == 0 {
+		strp = "cloning..."
+	} else {
+		strp = strings.Replace(strp, "\n", "\033[2K\r", -1)
 	}
-	n, err = writer.Writer.Write(p)
+	_, err = writer.Writer.Write([]byte("\033[2K\r"))
+	if err != nil {
+		return
+	}
+	n, err = writer.Writer.Write([]byte(strp))
 	return
 }
 
@@ -96,7 +98,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 
 		repository, err = git.Clone(backend, nil, cloneOptions)
 		if !disableStatus {
-			fmt.Fprint(os.Stderr, strings.Repeat(" ", 80)+"\r")
+			fmt.Fprint(os.Stderr, "\033[2K\r")
 		}
 	} else if stat, err2 := os.Stat(uri); err2 == nil && !stat.IsDir() {
 		localFs := osfs.New(filepath.Dir(uri))
@@ -219,23 +221,22 @@ targets can be added using the --plugin system.`,
 		pipeline.SetFeaturesFromFlags()
 		var bar *progress.ProgressBar
 		if !disableStatus {
-			pipeline.OnProgress = func(commit, length int) {
+			pipeline.OnProgress = func(commit, length int, action string) {
 				if bar == nil {
 					bar = progress.New(length)
 					bar.Callback = func(msg string) {
-						os.Stderr.WriteString("\r" + msg)
+						os.Stderr.WriteString("\033[2K\r" + msg)
 					}
 					bar.NotPrint = true
 					bar.ShowPercent = false
 					bar.ShowSpeed = false
-					bar.SetMaxWidth(80)
-					bar.Start()
+					bar.SetMaxWidth(80).Start()
 				}
-				if commit == length-1 {
+				if action == hercules.MessageFinalize {
 					bar.Finish()
-					fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\rfinalizing...")
+					fmt.Fprint(os.Stderr, "\033[2K\rfinalizing...")
 				} else {
-					bar.Set(commit)
+					bar.Set(commit).Postfix(" [" + action + "] ")
 				}
 			}
 		}
@@ -271,7 +272,7 @@ targets can be added using the --plugin system.`,
 			log.Fatalf("failed to run the pipeline: %v", err)
 		}
 		if !disableStatus {
-			fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\r")
+			fmt.Fprint(os.Stderr, "\033[2K\r")
 			// if not a terminal, the user will not see the output, so show the status
 			if !terminal.IsTerminal(int(os.Stdout.Fd())) {
 				fmt.Fprint(os.Stderr, "writing...\r")

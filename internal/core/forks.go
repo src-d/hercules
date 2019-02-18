@@ -99,6 +99,26 @@ type runAction struct {
 	Items  []int
 }
 
+func (ra runAction) String() string {
+	switch ra.Action {
+	case runActionCommit:
+		return ra.Commit.Hash.String()[:7]
+	case runActionFork:
+		return fmt.Sprintf("fork^%d", len(ra.Items))
+	case runActionMerge:
+		return fmt.Sprintf("merge^%d", len(ra.Items))
+	case runActionEmerge:
+		return "emerge"
+	case runActionDelete:
+		return "delete"
+	case runActionHibernate:
+		return "hibernate"
+	case runActionBoot:
+		return "boot"
+	}
+	return ""
+}
+
 type orderer = func(reverse, direction bool) []string
 
 func cloneItems(origin []PipelineItem, n int) [][]PipelineItem {

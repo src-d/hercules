@@ -7,11 +7,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
 	"sort"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
+	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/src-d/hercules.v7"
 	"gopkg.in/src-d/hercules.v7/internal/pb"
 )
@@ -32,17 +34,30 @@ var combineCmd = &cobra.Command{
 			io.Copy(os.Stdout, bufio.NewReader(file))
 			return
 		}
-		repos := []string{}
+		var repos []string
 		allErrors := map[string][]string{}
 		mergedResults := map[string]interface{}{}
 		mergedMetadata := &hercules.CommonAnalysisResult{}
-		for _, fileName := range files {
+		var fileName string
+		bar := progress.New(len(files))
+		bar.Callback = func(msg string) {
+			os.Stderr.WriteString("\033[2K\r" + msg + " " + fileName)
+		}
+		bar.NotPrint = true
+		bar.ShowPercent = false
+		bar.ShowSpeed = false
+		bar.SetMaxWidth(80).Start()
+		debug.SetGCPercent(20)
+		for _, fileName = range files {
+			bar.Increment()
 			anotherResults, anotherMetadata, errs := loadMessage(fileName, &repos)
 			if anotherMetadata != nil {
 				mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata)
 			}
 			allErrors[fileName] = errs
+			debug.FreeOSMemory()
 		}
+		bar.Finish()
 		printErrors(allErrors)
 		sort.Strings(repos)
 		if mergedMetadata == nil {
@@ -59,8 +74,11 @@ var combineCmd = &cobra.Command{
 		mergedMetadata.FillMetadata(mergedMessage.Header)
 		for key, val := range mergedResults {
 			buffer := bytes.Buffer{}
-			hercules.Registry.Summon(key)[0].(hercules.LeafPipelineItem).Serialize(
+			err := hercules.Registry.Summon(key)[0].(hercules.LeafPipelineItem).Serialize(
 				val, true, &buffer)
+			if err != nil {
+				panic(err)
+			}
 			mergedMessage.Contents[key] = buffer.Bytes()
 		}
 		serialized, err := proto.Marshal(&mergedMessage)
