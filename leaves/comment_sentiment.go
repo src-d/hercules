@@ -150,7 +150,7 @@ func (sent *CommentSentimentAnalysis) validate() {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) error {
 	sent.commentsByDay = map[int][]string{}
-	sent.xpather = &uast_items.ChangesXPather{XPath: "//*[@role='Comment']"}
+	sent.xpather = &uast_items.ChangesXPather{XPath: "//uast:Comment"}
 	sent.validate()
 	sent.OneShotMergeProcessor.Initialize()
 	return nil
@@ -324,11 +324,7 @@ func (sent *CommentSentimentAnalysis) mergeComments(extracted []nodes.Node) []st
 			if pos.End() != nil && maxEnd < int(pos.End().Line) {
 				maxEnd = int(pos.End().Line)
 			}
-			token := strings.TrimSpace(uast.TokenOf(node.(nodes.Object)))
-			// FIXME(vmarkovtsev): remove this hack when https://github.com/bblfsh/go-driver/issues/39 is fixed
-			if len(token) > 0 && token[0] == '#' {
-				token = token[1:]
-			}
+			token := strings.TrimSpace(string(node.(nodes.Object)["Text"].(nodes.String)))
 			if token != "" {
 				buffer = append(buffer, token)
 			}

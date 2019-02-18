@@ -156,12 +156,12 @@ func TestCommentSentimentConsume(t *testing.T) {
 	hash2 := "2a7392320b332494a08d5113aabe6d056fef7e9d"
 	root1 := uast_test.ParseBlobFromTestRepo(hash1, "labours.py", client)
 	root2 := uast_test.ParseBlobFromTestRepo(hash2, "labours.py", client)
-	comments, _ := tools.Filter(root2, "//*[@role='Comment']")
+	comments, _ := tools.Filter(root2, "//uast:Comment")
 	for _, c := range query.AllNodes(comments) {
 		obj := c.(nodes.Object)
-		t := strings.TrimSpace(uast.TokenOf(obj))
+		t := strings.TrimSpace(string(obj["Text"].(nodes.String)))
 		if t == "we need to adjust the peak, it may not be less than the decayed value" {
-			obj[uast.KeyToken] = nodes.String("license copyright boring")
+			obj["Text"] = nodes.String("license copyright boring")
 		} else if t == "Tensorflow 1.5 parses sys.argv unconditionally *applause*" {
 			obj[uast.KeyPos].(nodes.Object)[uast.KeyStart] = nil
 		}
@@ -179,7 +179,7 @@ func TestCommentSentimentConsume(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, result)
 	assert.Len(t, sent.commentsByDay, 1)
-	assert.Len(t, sent.commentsByDay[0], 6)
+	assert.Len(t, sent.commentsByDay[0], 4)
 }
 
 var (

@@ -13,7 +13,6 @@ import (
 	"gopkg.in/bblfsh/sdk.v2/uast"
 	uast_nodes "gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/bblfsh/sdk.v2/uast/query"
-	"gopkg.in/bblfsh/sdk.v2/uast/role"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v7/internal/core"
@@ -45,10 +44,10 @@ const (
 
 	// DefaultShotnessXpathStruct is the default UAST XPath to choose the analysed nodes.
 	// It extracts functions.
-	DefaultShotnessXpathStruct = "//*[@role='Function' and @role='Declaration']"
+	DefaultShotnessXpathStruct = "//uast:FunctionGroup"
 	// DefaultShotnessXpathName is the default UAST XPath to choose the names of the analysed nodes.
 	// It looks at the current tree level and at the immediate children.
-	DefaultShotnessXpathName = "/*[1]/*/*[@role='Function' and @role='Identifier' and @role='Name'] | /*[1]"
+	DefaultShotnessXpathName = "//uast:Function/../../Name | /name"
 )
 
 type nodeShotness struct {
@@ -60,10 +59,9 @@ type nodeShotness struct {
 // NodeSummary carries the node attributes which annotate the "shotness" analysis' counters.
 // These attributes are supposed to uniquely identify each node.
 type NodeSummary struct {
-	InternalRole string
-	Roles        []role.Role
-	Name         string
-	File         string
+	Type string
+	Name string
+	File string
 }
 
 // ShotnessResult is returned by ShotnessAnalysis.Finalize() and represents the analysis result.
@@ -73,7 +71,7 @@ type ShotnessResult struct {
 }
 
 func (node NodeSummary) String() string {
-	return node.InternalRole + "_" + node.Name + "_" + node.File
+	return node.Type + "_" + node.Name + "_" + node.File
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -172,10 +170,9 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 
 	addNode := func(name string, node uast_nodes.Node, fileName string) {
 		nodeSummary := NodeSummary{
-			InternalRole: uast.TypeOf(node),
-			Roles:        uast.RolesOf(node.(uast_nodes.Object)),
-			Name:         name,
-			File:         fileName,
+			Type: uast.TypeOf(node),
+			Name: name,
+			File: fileName,
 		}
 		key := nodeSummary.String()
 		exists := allNodes[key]
@@ -391,15 +388,8 @@ func (shotness *ShotnessAnalysis) Serialize(result interface{}, binary bool, wri
 
 func (shotness *ShotnessAnalysis) serializeText(result *ShotnessResult, writer io.Writer) {
 	for i, summary := range result.Nodes {
-		fmt.Fprintf(writer, "  - name: %s\n    file: %s\n    internal_role: %s\n    roles: [",
-			summary.Name, summary.File, summary.InternalRole)
-		for j, r := range summary.Roles {
-			if j < len(summary.Roles)-1 {
-				fmt.Fprintf(writer, "%d,", r)
-			} else {
-				fmt.Fprintf(writer, "%d]\n    counters: {", r)
-			}
-		}
+		fmt.Fprintf(writer, "  - name: %s\n    file: %s\n    internal_role: %s\n    counters: {",
+			summary.Name, summary.File, summary.Type)
 		keys := make([]int, len(result.Counters[i]))
 		j := 0
 		for key := range result.Counters[i] {
@@ -426,14 +416,10 @@ func (shotness *ShotnessAnalysis) serializeBinary(result *ShotnessResult, writer
 	}
 	for i, summary := range result.Nodes {
 		record := &pb.ShotnessRecord{
-			Name:         summary.Name,
-			File:         summary.File,
-			InternalRole: summary.InternalRole,
-			Roles:        make([]int32, len(summary.Roles)),
-			Counters:     map[int32]int32{},
-		}
-		for j, r := range summary.Roles {
-			record.Roles[j] = int32(r)
+			Name:     summary.Name,
+			File:     summary.File,
+			Type:     summary.Type,
+			Counters: map[int32]int32{},
 		}
 		for key, val := range result.Counters[i] {
 			record.Counters[int32(key)] = int32(val)
@@ -479,15 +465,11 @@ func (shotness *ShotnessAnalysis) extractNodes(root uast_nodes.Node) (map[string
 		if internal[uast_nodes.UniqueKey(node)] {
 			continue
 		}
-		it, err := tools.Filter(node, shotness.XpathName)
+		nodeName, err := tools.FilterNode(node, shotness.XpathName)
 		if err != nil {
 			return nil, err
 		}
-		nodeNames := query.AllNodes(it)
-		if len(nodeNames) == 0 {
-			continue
-		}
-		res[uast.TokenOf(nodeNames[0].(uast_nodes.Object))] = node
+		res[string(nodeName.(uast_nodes.Object)["Name"].(uast_nodes.String))] = node
 	}
 	return res, nil
 }

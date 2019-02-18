@@ -88,11 +88,10 @@ message UASTChangesSaverResults {
 }
 
 message ShotnessRecord {
-    string internal_role = 1;
-    repeated int32 roles = 2;
-    string name = 3;
-    string file = 4;
-    map<int32, int32> counters = 5;
+    string type = 1;
+    string name = 2;
+    string file = 3;
+    map<int32, int32> counters = 4;
 }
 
 message ShotnessAnalysisResults {
