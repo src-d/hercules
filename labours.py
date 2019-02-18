@@ -262,9 +262,12 @@ class ProtobufReader(Reader):
         self.data = AnalysisResults()
         if file != "-":
             with open(file, "rb") as fin:
-                self.data.ParseFromString(fin.read())
+                bytes = fin.read()
         else:
-            self.data.ParseFromString(sys.stdin.buffer.read())
+            bytes = sys.stdin.buffer.read()
+        if not bytes:
+            raise ValueError("empty input")
+        self.data.ParseFromString(bytes)
         self.contents = {}
         for key, val in self.data.contents.items():
             try:
