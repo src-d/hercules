@@ -36,10 +36,11 @@ type ShotnessAnalysis struct {
 const (
 	// ConfigShotnessXpathStruct is the name of the configuration option (ShotnessAnalysis.Configure())
 	// which sets the UAST XPath to choose the analysed nodes.
+	// The format is Semantic UASTv2, see https://docs.sourced.tech/babelfish/using-babelfish/uast-querying
 	ConfigShotnessXpathStruct = "Shotness.XpathStruct"
 	// ConfigShotnessXpathName is the name of the configuration option (ShotnessAnalysis.Configure())
 	// which sets the UAST XPath to find the name of the nodes chosen by ConfigShotnessXpathStruct.
-	// These XPath-s can be different for some languages.
+	// The format is Semantic UASTv2, see https://docs.sourced.tech/babelfish/using-babelfish/uast-querying
 	ConfigShotnessXpathName = "Shotness.XpathName"
 
 	// DefaultShotnessXpathStruct is the default UAST XPath to choose the analysed nodes.
@@ -47,7 +48,7 @@ const (
 	DefaultShotnessXpathStruct = "//uast:FunctionGroup"
 	// DefaultShotnessXpathName is the default UAST XPath to choose the names of the analysed nodes.
 	// It looks at the current tree level and at the immediate children.
-	DefaultShotnessXpathName = "//uast:Function/../../Name | /name"
+	DefaultShotnessXpathName = "//uast:Function/../../Name"
 )
 
 type nodeShotness struct {
@@ -103,16 +104,18 @@ func (shotness *ShotnessAnalysis) Features() []string {
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (shotness *ShotnessAnalysis) ListConfigurationOptions() []core.ConfigurationOption {
 	opts := [...]core.ConfigurationOption{{
-		Name:        ConfigShotnessXpathStruct,
-		Description: "UAST XPath query to use for filtering the nodes.",
-		Flag:        "shotness-xpath-struct",
-		Type:        core.StringConfigurationOption,
-		Default:     DefaultShotnessXpathStruct}, {
-		Name:        ConfigShotnessXpathName,
-		Description: "UAST XPath query to determine the names of the filtered nodes.",
-		Flag:        "shotness-xpath-name",
-		Type:        core.StringConfigurationOption,
-		Default:     DefaultShotnessXpathName},
+		Name: ConfigShotnessXpathStruct,
+		Description: "Semantic UAST XPath query to use for filtering the nodes. " +
+			"Refer to https://docs.sourced.tech/babelfish/using-babelfish/uast-querying",
+		Flag:    "shotness-xpath-struct",
+		Type:    core.StringConfigurationOption,
+		Default: DefaultShotnessXpathStruct}, {
+		Name: ConfigShotnessXpathName,
+		Description: "Semantic UAST XPath query to determine the names of the filtered nodes. " +
+			"Refer to https://docs.sourced.tech/babelfish/using-babelfish/uast-querying",
+		Flag:    "shotness-xpath-name",
+		Type:    core.StringConfigurationOption,
+		Default: DefaultShotnessXpathName},
 	}
 	return opts[:]
 }
@@ -124,7 +127,7 @@ func (shotness *ShotnessAnalysis) Flag() string {
 
 // Description returns the text which explains what the analysis is doing.
 func (shotness *ShotnessAnalysis) Description() string {
-	return "Structural hotness - the granular alternative to --couples. " +
+	return "Structural hotness - a fine-grained alternative to --couples. " +
 		"Given an XPath over UASTs - selecting functions by default - we build the square " +
 		"co-occurrence matrix. The value in each cell equals to the number of times the pair " +
 		"of selected UAST units appeared in the same commit."
