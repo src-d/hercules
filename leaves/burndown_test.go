@@ -8,17 +8,17 @@ import (
 	"path"
 	"testing"
 
-	"gopkg.in/src-d/hercules.v7/internal/core"
-	"gopkg.in/src-d/hercules.v7/internal/test/fixtures"
+	"gopkg.in/src-d/hercules.v8/internal/core"
+	"gopkg.in/src-d/hercules.v8/internal/test/fixtures"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v7/internal/pb"
-	items "gopkg.in/src-d/hercules.v7/internal/plumbing"
-	"gopkg.in/src-d/hercules.v7/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v7/internal/test"
+	"gopkg.in/src-d/hercules.v8/internal/pb"
+	items "gopkg.in/src-d/hercules.v8/internal/plumbing"
+	"gopkg.in/src-d/hercules.v8/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v8/internal/test"
 )
 
 func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash string) {

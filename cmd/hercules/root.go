@@ -34,8 +34,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"gopkg.in/src-d/hercules.v7"
-	"gopkg.in/src-d/hercules.v7/internal/pb"
+	"gopkg.in/src-d/hercules.v8"
+	"gopkg.in/src-d/hercules.v8/internal/pb"
 )
 
 // oneLineWriter splits the output data by lines and outputs one on top of another using '\r'.

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/hercules.v7/internal/rbtree"
+	"gopkg.in/src-d/hercules.v8/internal/rbtree"
 )
 
 func updateStatusFile(status map[int]int64, _, previousTime, delta int) {

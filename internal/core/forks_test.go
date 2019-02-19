@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v7/internal/test"
+	"gopkg.in/src-d/hercules.v8/internal/test"
 )
 
 type testForkPipelineItem struct {
