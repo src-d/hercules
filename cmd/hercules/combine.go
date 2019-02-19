@@ -58,6 +58,7 @@ var combineCmd = &cobra.Command{
 			debug.FreeOSMemory()
 		}
 		bar.Finish()
+		os.Stderr.WriteString("\033[2K\r")
 		printErrors(allErrors)
 		sort.Strings(repos)
 		if mergedMetadata == nil {
