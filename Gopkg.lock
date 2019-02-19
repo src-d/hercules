@@ -639,7 +639,6 @@
     "gopkg.in/bblfsh/sdk.v2/uast/nodes",
     "gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto",
     "gopkg.in/bblfsh/sdk.v2/uast/query",
-    "gopkg.in/bblfsh/sdk.v2/uast/role",
     "gopkg.in/cheggaaa/pb.v1",
     "gopkg.in/src-d/enry.v1",
     "gopkg.in/src-d/go-billy-siva.v4",
