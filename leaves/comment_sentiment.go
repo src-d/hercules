@@ -17,10 +17,10 @@ import (
 	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v7/internal/core"
-	"gopkg.in/src-d/hercules.v7/internal/pb"
-	items "gopkg.in/src-d/hercules.v7/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v7/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v8/internal/core"
+	"gopkg.in/src-d/hercules.v8/internal/pb"
+	items "gopkg.in/src-d/hercules.v8/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v8/internal/plumbing/uast"
 	"gopkg.in/vmarkovtsev/BiDiSentiment.v1"
 )
 

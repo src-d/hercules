@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/client-go.v3"
-	uast_test "gopkg.in/src-d/hercules.v7/internal/plumbing/uast/test"
-	"gopkg.in/src-d/hercules.v7/internal/test"
+	uast_test "gopkg.in/src-d/hercules.v8/internal/plumbing/uast/test"
+	"gopkg.in/src-d/hercules.v8/internal/test"
 )
 
 func TestChangesXPatherExtractChanged(t *testing.T) {

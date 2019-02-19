@@ -14,8 +14,8 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v7/internal/pb"
-	"gopkg.in/src-d/hercules.v7/internal/test"
+	"gopkg.in/src-d/hercules.v8/internal/pb"
+	"gopkg.in/src-d/hercules.v8/internal/test"
 )
 
 type testPipelineItem struct {
