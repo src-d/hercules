@@ -48,7 +48,7 @@ const (
 	DefaultShotnessXpathStruct = "//uast:FunctionGroup"
 	// DefaultShotnessXpathName is the default UAST XPath to choose the names of the analysed nodes.
 	// It looks at the current tree level and at the immediate children.
-	DefaultShotnessXpathName = "//uast:Function/../../Name"
+	DefaultShotnessXpathName = "/Nodes/uast:Alias/Name"
 )
 
 type nodeShotness struct {
@@ -468,7 +468,7 @@ func (shotness *ShotnessAnalysis) extractNodes(root uast_nodes.Node) (map[string
 		if internal[uast_nodes.UniqueKey(node)] {
 			continue
 		}
-		nodeName, err := tools.FilterNode(node, shotness.XpathName)
+		nodeName, err := tools.FilterNode(node, "/*"+shotness.XpathName)
 		if err != nil {
 			return nil, err
 		}
