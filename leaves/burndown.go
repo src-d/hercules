@@ -1312,8 +1312,8 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 	if !exists {
 		return fmt.Errorf("file %s > %s does not exist (files)", from, to)
 	}
-	analyser.files[to] = file
 	delete(analyser.files, from)
+	analyser.files[to] = file
 	if analyser.day == burndown.TreeMergeMark {
 		analyser.mergedFiles[from] = false
 	}
@@ -1325,10 +1325,24 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 			if _, exists := analyser.renames[""]; exists {
 				panic("burndown renames tracking corruption")
 			}
+			known := map[string]bool{}
 			newRename, exists := analyser.renames[from]
+			known[from] = true
 			for exists {
 				futureRename = newRename
 				newRename, exists = analyser.renames[futureRename]
+				if known[newRename] {
+					// infinite cycle
+					futureRename = ""
+					for key := range known {
+						if analyser.fileHistories[key] != nil {
+							futureRename = key
+							break
+						}
+					}
+					break
+				}
+				known[futureRename] = true
 			}
 			// a future branch could have already renamed it and we are retarded
 			if futureRename == "" {
@@ -1342,8 +1356,8 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 				}
 			}
 		}
-		analyser.fileHistories[to] = history
 		delete(analyser.fileHistories, from)
+		analyser.fileHistories[to] = history
 	}
 	analyser.renames[from] = to
 	return nil
