@@ -143,17 +143,13 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 		fromName := change.From.Name
 		switch action {
 		case merkletrie.Insert:
-			if !mergeMode {
+			if !mergeMode || couples.files[toName] == nil {
 				context = append(context, toName)
 				couples.people[author][toName]++
-			} else if couples.people[author][toName] == 0 {
-				couples.people[author][toName] = 1
 			}
 		case merkletrie.Delete:
 			if !mergeMode {
 				couples.people[author][fromName]++
-			} else if couples.people[author][fromName] == 0 {
-				couples.people[author][fromName] = 1
 			}
 		case merkletrie.Modify:
 			if fromName != toName {
@@ -161,7 +157,7 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 				*couples.renames = append(
 					*couples.renames, rename{ToName: toName, FromName: fromName})
 			}
-			if !mergeMode {
+			if !mergeMode || couples.files[toName] == nil {
 				context = append(context, toName)
 				couples.people[author][toName]++
 			}

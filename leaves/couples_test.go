@@ -189,6 +189,37 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, cr.FilesMatrix[2][2], int64(3))
 }
 
+func TestCouplesConsumeFinalizeMerge(t *testing.T) {
+	c := fixtureCouples()
+	deps := map[string]interface{}{}
+	deps[identity.DependencyAuthor] = 0
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
+		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
+	deps[core.DependencyIsMerge] = true
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+LICENSE2", "+file2.go")
+	c.Consume(deps)
+	deps[plumbing.DependencyTreeChanges] = generateChanges("+file2.go", "-LICENSE2", ">file2.go>file_test.go")
+	c.Consume(deps)
+	assert.Equal(t, len(c.people[0]), 3)
+	assert.Equal(t, c.people[0]["LICENSE2"], 1)
+	assert.Equal(t, c.people[0]["file2.go"], 1)
+	assert.Equal(t, c.people[0]["file_test.go"], 1)
+	for i := 1; i < 3; i++ {
+		assert.Equal(t, len(c.people[i]), 0)
+	}
+	assert.Equal(t, c.files["LICENSE2"], map[string]int{
+		"LICENSE2": 1,
+		"file2.go": 1,
+	})
+	assert.Equal(t, c.files["file2.go"], map[string]int{
+		"file2.go": 1,
+		"LICENSE2": 1,
+	})
+	assert.Equal(t, c.files["file_test.go"], map[string]int{
+		"file_test.go": 1,
+	})
+}
+
 func TestCouplesConsumeFinalizeAuthorMissing(t *testing.T) {
 	c := fixtureCouples()
 	deps := map[string]interface{}{}
@@ -314,7 +345,7 @@ func TestCouplesSerialize(t *testing.T) {
 		reversedPeopleDict: []string{"p1", "p2", "p3"},
 	}
 	buffer := &bytes.Buffer{}
-	c.Serialize(result, false, buffer)
+	assert.Nil(t, c.Serialize(result, false, buffer))
 	assert.Equal(t, buffer.String(), `  files_coocc:
     index:
       - "five"
@@ -346,9 +377,9 @@ func TestCouplesSerialize(t *testing.T) {
         - "three"
 `)
 	buffer = &bytes.Buffer{}
-	c.Serialize(result, true, buffer)
+	assert.Nil(t, c.Serialize(result, true, buffer))
 	msg := pb.CouplesAnalysisResults{}
-	proto.Unmarshal(buffer.Bytes(), &msg)
+	assert.Nil(t, proto.Unmarshal(buffer.Bytes(), &msg))
 	assert.Len(t, msg.PeopleFiles, 3)
 	tmp1 := [...]int32{0, 1, 2}
 	assert.Equal(t, msg.PeopleFiles[0].Files, tmp1[:])
