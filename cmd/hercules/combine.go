@@ -31,8 +31,15 @@ var combineCmd = &cobra.Command{
 				panic(err)
 			}
 			defer file.Close()
-			io.Copy(os.Stdout, bufio.NewReader(file))
+			_, err = io.Copy(os.Stdout, bufio.NewReader(file))
+			if err != nil {
+				panic(err)
+			}
 			return
+		}
+		only, err := cmd.Flags().GetString("only")
+		if err != nil {
+			panic(err)
 		}
 		var repos []string
 		allErrors := map[string][]string{}
@@ -52,7 +59,7 @@ var combineCmd = &cobra.Command{
 			bar.Increment()
 			anotherResults, anotherMetadata, errs := loadMessage(fileName, &repos)
 			if anotherMetadata != nil {
-				mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata)
+				mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata, only)
 			}
 			allErrors[fileName] = errs
 			debug.FreeOSMemory()
@@ -165,8 +172,12 @@ func printErrors(allErrors map[string][]string) {
 func mergeResults(mergedResults map[string]interface{},
 	mergedCommons *hercules.CommonAnalysisResult,
 	anotherResults map[string]interface{},
-	anotherCommons *hercules.CommonAnalysisResult) {
+	anotherCommons *hercules.CommonAnalysisResult,
+	only string) {
 	for key, val := range anotherResults {
+		if only != "" && key != only {
+			continue
+		}
 		mergedResult, exists := mergedResults[key]
 		if !exists {
 			mergedResults[key] = val
@@ -183,7 +194,17 @@ func mergeResults(mergedResults map[string]interface{},
 	}
 }
 
+func getOptionsString() string {
+	var leaves []string
+	for _, leaf := range hercules.Registry.GetLeaves() {
+		leaves = append(leaves, leaf.Name())
+	}
+	return strings.Join(leaves, ", ")
+}
+
 func init() {
 	rootCmd.AddCommand(combineCmd)
 	combineCmd.SetUsageFunc(combineCmd.UsageFunc())
+	combineCmd.Flags().String("only", "", "Consider only the specified analysis. "+
+		"Empty means all available. Choices: "+getOptionsString()+".")
 }
