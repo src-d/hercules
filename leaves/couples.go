@@ -51,6 +51,12 @@ type CouplesResult struct {
 	reversedPeopleDict []string
 }
 
+const (
+	// CouplesMaximumMeaningfulContextSize is the threshold on the number of files in a commit to
+	// consider them as grouped together.
+	CouplesMaximumMeaningfulContextSize = 1000
+)
+
 type rename struct {
 	FromName string
 	ToName   string
@@ -163,14 +169,16 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 			}
 		}
 	}
-	for _, file := range context {
-		for _, otherFile := range context {
-			lane, exists := couples.files[file]
-			if !exists {
-				lane = map[string]int{}
-				couples.files[file] = lane
+	if len(context) <= CouplesMaximumMeaningfulContextSize {
+		for _, file := range context {
+			for _, otherFile := range context {
+				lane, exists := couples.files[file]
+				if !exists {
+					lane = map[string]int{}
+					couples.files[file] = lane
+				}
+				lane[otherFile]++
 			}
-			lane[otherFile]++
 		}
 	}
 	return nil, nil

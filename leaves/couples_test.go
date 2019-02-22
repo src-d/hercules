@@ -319,6 +319,27 @@ func TestCouplesConsumeFinalizeAuthorMissing(t *testing.T) {
 	assert.Equal(t, cr.FilesMatrix[2][2], int64(3))
 }
 
+func TestCouplesConsumeManyFiles(t *testing.T) {
+	c := fixtureCouples()
+	deps := map[string]interface{}{}
+	deps[identity.DependencyAuthor] = 0
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
+		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
+	deps[core.DependencyIsMerge] = false
+	changes := make(object.Changes, CouplesMaximumMeaningfulContextSize+1)
+	for i := 0; i < len(changes); i++ {
+		changes[i] = &object.Change{
+			From: object.ChangeEntry{},
+			To:   object.ChangeEntry{Name: string(i)},
+		}
+	}
+	deps[plumbing.DependencyTreeChanges] = changes
+	_, err := c.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, len(c.people[0]), len(changes))
+	assert.Len(t, c.files, 0)
+}
+
 func TestCouplesFork(t *testing.T) {
 	couples1 := fixtureCouples()
 	clones := couples1.Fork(1)
