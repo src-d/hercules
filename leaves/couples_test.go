@@ -155,6 +155,10 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, cr.Files[0], "README.md")
 	assert.Equal(t, cr.Files[1], "analyser.go")
 	assert.Equal(t, cr.Files[2], "file_test.go")
+	assert.Equal(t, len(cr.FilesLines), 3)
+	assert.Equal(t, cr.FilesLines[0], 15)
+	assert.Equal(t, cr.FilesLines[1], 252)
+	assert.Equal(t, cr.FilesLines[2], 238)
 	assert.Equal(t, len(cr.PeopleFiles[0]), 3)
 	assert.Equal(t, cr.PeopleFiles[0][0], 0)
 	assert.Equal(t, cr.PeopleFiles[0][1], 1)
@@ -288,6 +292,10 @@ func TestCouplesConsumeFinalizeAuthorMissing(t *testing.T) {
 	assert.Equal(t, cr.Files[0], "README.md")
 	assert.Equal(t, cr.Files[1], "analyser.go")
 	assert.Equal(t, cr.Files[2], "file_test.go")
+	assert.Equal(t, len(cr.FilesLines), 3)
+	assert.Equal(t, cr.FilesLines[0], 15)
+	assert.Equal(t, cr.FilesLines[1], 252)
+	assert.Equal(t, cr.FilesLines[2], 238)
 	assert.Equal(t, len(cr.PeopleFiles[0]), 3)
 	assert.Equal(t, cr.PeopleFiles[0][0], 0)
 	assert.Equal(t, cr.PeopleFiles[0][1], 1)
@@ -363,6 +371,7 @@ func TestCouplesSerialize(t *testing.T) {
 			{1: 1, 2: 1, 0: 3}, {1: 2, 2: 2, 0: 1}, {2: 2, 0: 1, 1: 2},
 		},
 		Files:              []string{"five", "one", "three"},
+		FilesLines:         []int{9, 8, 7},
 		reversedPeopleDict: []string{"p1", "p2", "p3"},
 	}
 	buffer := &bytes.Buffer{}
@@ -372,6 +381,10 @@ func TestCouplesSerialize(t *testing.T) {
       - "five"
       - "one"
       - "three"
+    lines:
+      - 9
+      - 8
+      - 7
     matrix:
       - {0: 3, 1: 1, 2: 1}
       - {0: 1, 1: 2, 2: 2}
@@ -401,6 +414,7 @@ func TestCouplesSerialize(t *testing.T) {
 	assert.Nil(t, c.Serialize(result, true, buffer))
 	msg := pb.CouplesAnalysisResults{}
 	assert.Nil(t, proto.Unmarshal(buffer.Bytes(), &msg))
+	assert.Equal(t, msg.FilesLines, []int32{9, 8, 7})
 	assert.Len(t, msg.PeopleFiles, 3)
 	tmp1 := [...]int32{0, 1, 2}
 	assert.Equal(t, msg.PeopleFiles[0].Files, tmp1[:])
@@ -430,19 +444,17 @@ func TestCouplesSerialize(t *testing.T) {
 }
 
 func TestCouplesDeserialize(t *testing.T) {
-	allBuffer, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "couples.pb"))
-	assert.Nil(t, err)
-	message := pb.AnalysisResults{}
-	err = proto.Unmarshal(allBuffer, &message)
+	message, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "couples.pb"))
 	assert.Nil(t, err)
 	couples := CouplesAnalysis{}
-	iresult, err := couples.Deserialize(message.Contents[couples.Name()])
+	iresult, err := couples.Deserialize(message)
 	assert.Nil(t, err)
 	result := iresult.(CouplesResult)
 	assert.Len(t, result.reversedPeopleDict, 2)
 	assert.Len(t, result.PeopleFiles, 2)
 	assert.Len(t, result.PeopleMatrix, 3)
 	assert.Len(t, result.Files, 74)
+	assert.Len(t, result.FilesLines, 74)
 	assert.Len(t, result.FilesMatrix, 74)
 }
 
@@ -454,6 +466,8 @@ func TestCouplesMerge(t *testing.T) {
 	r2.reversedPeopleDict = people2[:]
 	r1.Files = people1[:]
 	r2.Files = people2[:]
+	r1.FilesLines = []int{1, 2}
+	r2.FilesLines = []int{2, 3}
 	r1.PeopleFiles = make([][]int, 2)
 	r1.PeopleFiles[0] = make([]int, 2)
 	r1.PeopleFiles[0][0] = 0
@@ -497,6 +511,7 @@ func TestCouplesMerge(t *testing.T) {
 	mergedPeople := [...]string{"one", "two", "three"}
 	assert.Equal(t, merged.reversedPeopleDict, mergedPeople[:])
 	assert.Equal(t, merged.Files, mergedPeople[:])
+	assert.Equal(t, merged.FilesLines, []int{1, 4, 3})
 	assert.Len(t, merged.PeopleFiles, 3)
 	assert.Equal(t, merged.PeopleFiles[0], getSlice(0, 1))
 	assert.Equal(t, merged.PeopleFiles[1], getSlice(0, 2))
