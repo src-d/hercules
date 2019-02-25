@@ -266,6 +266,7 @@ func (detector *Detector) GeneratePeopleDict(commits []*object.Commit) {
 }
 
 // MergeReversedDicts joins two identity lists together, excluding duplicates, in-order.
+// The returned mapping's values are: final index, index in first, index in second (-1 for a miss).
 func (detector Detector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
 	people := map[string][3]int{}
 	for i, pid := range rd1 {

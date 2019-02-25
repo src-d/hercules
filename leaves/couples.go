@@ -3,6 +3,7 @@ package leaves
 import (
 	"fmt"
 	"io"
+	"log"
 	"sort"
 
 	"github.com/gogo/protobuf/proto"
@@ -42,10 +43,19 @@ type CouplesAnalysis struct {
 // CouplesResult is returned by CouplesAnalysis.Finalize() and carries couples matrices from
 // authors and files.
 type CouplesResult struct {
+	// PeopleMatrix is how many times developers changed files which were also changed by other developers.
+	// The mapping's key is the other developer, and the value is the sum over all the files both developers changed.
+	// Each element of that sum is min(C1, C2) where Ci is the number of commits developer i made which touched the file.
 	PeopleMatrix []map[int]int64
-	PeopleFiles  [][]int
-	FilesMatrix  []map[int]int64
-	Files        []string
+	// PeopleFiles is how many times developers changed files. The first dimension (left []) is developers,
+	// and the second dimension (right []) is file indexes.
+	PeopleFiles [][]int
+	// FilesMatrix is how many times file pairs occurred in the same commit.
+	FilesMatrix []map[int]int64
+	// FilesLines is the number of lines contained in each file from the last analyzed commit.
+	FilesLines []int
+	// Files is the names of the files. The order matches PeopleFiles' indexes and FilesMatrix.
+	Files []string
 
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
@@ -198,6 +208,21 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 	for i, file := range filesSequence {
 		filesIndex[file] = i
 	}
+	filesLines := make([]int, len(filesSequence))
+	for i, name := range filesSequence {
+		file, err := couples.lastCommit.File(name)
+		if err != nil {
+			log.Panicf("cannot find file %s in commit %s: %v",
+				name, couples.lastCommit.Hash.String(), err)
+		}
+		blob := items.CachedBlob{Blob: file.Blob}
+		err = blob.Cache()
+		if err != nil {
+			log.Panicf("cannot read blob %s of file %s: %v",
+				blob.Hash.String(), name, err)
+		}
+		filesLines[i], _ = blob.CountLines()
+	}
 
 	peopleMatrix := make([]map[int]int64, couples.PeopleNumber+1)
 	peopleFiles := make([][]int, couples.PeopleNumber+1)
@@ -232,6 +257,7 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 		PeopleMatrix:       peopleMatrix,
 		PeopleFiles:        peopleFiles,
 		Files:              filesSequence,
+		FilesLines:         filesLines,
 		FilesMatrix:        filesMatrix,
 		reversedPeopleDict: couples.reversedPeopleDict,
 	}
@@ -262,12 +288,14 @@ func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, erro
 	}
 	result := CouplesResult{
 		Files:              message.FileCouples.Index,
+		FilesLines:         make([]int, len(message.FileCouples.Index)),
 		FilesMatrix:        make([]map[int]int64, message.FileCouples.Matrix.NumberOfRows),
 		PeopleFiles:        make([][]int, len(message.PeopleCouples.Index)),
 		PeopleMatrix:       make([]map[int]int64, message.PeopleCouples.Matrix.NumberOfRows),
 		reversedPeopleDict: message.PeopleCouples.Index,
 	}
 	for i, files := range message.PeopleFiles {
+		result.FilesLines[i] = int(message.FilesLines[i])
 		result.PeopleFiles[i] = make([]int, len(files.Files))
 		for j, val := range files.Files {
 			result.PeopleFiles[i][j] = int(val)
@@ -298,6 +326,16 @@ func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.Co
 	people, merged.reversedPeopleDict = identity.Detector{}.MergeReversedDicts(
 		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
 	files, merged.Files = identity.Detector{}.MergeReversedDicts(cr1.Files, cr2.Files)
+	merged.FilesLines = make([]int, len(merged.Files))
+	for i, name := range merged.Files {
+		idxs := files[name]
+		if idxs[1] >= 0 {
+			merged.FilesLines[i] += cr1.FilesLines[idxs[1]]
+		}
+		if idxs[2] >= 0 {
+			merged.FilesLines[i] += cr2.FilesLines[idxs[2]]
+		}
+	}
 	merged.PeopleFiles = make([][]int, len(merged.reversedPeopleDict))
 	peopleFilesDicts := make([]map[int]bool, len(merged.reversedPeopleDict))
 	addPeopleFiles := func(peopleFiles [][]int, reversedPeopleDict []string,
@@ -371,6 +409,10 @@ func (couples *CouplesAnalysis) serializeText(result *CouplesResult, writer io.W
 	fmt.Fprintln(writer, "    index:")
 	for _, file := range result.Files {
 		fmt.Fprintf(writer, "      - %s\n", yaml.SafeString(file))
+	}
+	fmt.Fprintln(writer, "    lines:")
+	for _, l := range result.FilesLines {
+		fmt.Fprintf(writer, "      - %d\n", l)
 	}
 
 	fmt.Fprintln(writer, "    matrix:")
@@ -478,6 +520,10 @@ func (couples *CouplesAnalysis) serializeBinary(result *CouplesResult, writer io
 		message.PeopleFiles[key] = &pb.TouchedFiles{
 			Files: int32Files,
 		}
+	}
+	message.FilesLines = make([]int32, len(result.FilesLines))
+	for i, l := range result.FilesLines {
+		message.FilesLines[i] = int32(l)
 	}
 
 	serialized, err := proto.Marshal(&message)
