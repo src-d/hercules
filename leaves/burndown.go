@@ -161,7 +161,7 @@ const (
 	DefaultBurndownGranularity = 30
 	// authorSelf is the internal author index which is used in BurndownAnalysis.Finalize() to
 	// format the author overwrites matrix.
-	authorSelf = (1 << (32 - burndown.TreeMaxBinPower)) - 2
+	authorSelf = identity.AuthorMissing - 1
 )
 
 type sparseHistory = map[int]map[int]int64
@@ -1004,8 +1004,12 @@ func (analyser *BurndownAnalysis) packPersonWithDay(person int, day int) int {
 	}
 	result := day & burndown.TreeMergeMark
 	result |= person << burndown.TreeMaxBinPower
-	// This effectively means max (16383 - 1) days (>44 years) and (131072 - 2) devs.
+	// This effectively means max (16383 - 1) days (>44 years) and (262143 - 3) devs.
 	// One day less because burndown.TreeMergeMark = ((1 << 14) - 1) is a special day.
+	// Three devs less because:
+	// - math.MaxUint32 is the special rbtree value with day == TreeMergeMark (-1)
+	// - identity.AuthorMissing (-2)
+	// - authorSelf (-3)
 	return result
 }
 
