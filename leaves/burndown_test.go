@@ -416,7 +416,7 @@ func TestBurndownConsumeMergeAuthorMissing(t *testing.T) {
 	// check that we survive merge + missing author
 	bd := BurndownAnalysis{PeopleNumber: 1}
 	assert.Nil(t, bd.Initialize(test.Repository))
-	deps[identity.DependencyAuthor] = 1
+	deps[identity.DependencyAuthor] = 0
 	deps[core.DependencyIsMerge] = false
 	_, err = bd.Consume(deps)
 	assert.Nil(t, err)

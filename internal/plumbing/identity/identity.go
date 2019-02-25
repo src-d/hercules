@@ -25,8 +25,8 @@ type Detector struct {
 
 const (
 	// AuthorMissing is the internal author index which denotes any unmatched identities
-	// (Detector.Consume()).
-	AuthorMissing = (1 << 18) - 1
+	// (Detector.Consume()). It may *not* be (1 << 18) - 1, see BurndownAnalysis.packPersonWithDay().
+	AuthorMissing = (1 << 18) - 2
 	// AuthorMissingName is the string name which corresponds to AuthorMissing.
 	AuthorMissingName = "<unmatched>"
 
