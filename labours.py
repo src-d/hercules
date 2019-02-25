@@ -70,6 +70,13 @@ def parse_args():
              "\"month\", \"year\", \"no\", \"raw\" and pandas offset aliases ("
              "http://pandas.pydata.org/pandas-docs/stable/timeseries.html"
              "#offset-aliases).")
+    dateutil_url = "https://dateutil.readthedocs.io/en/stable/parser.html#dateutil.parser.parse"
+    parser.add_argument("--start-date",
+                        help="Start date of time-based plots. Any format is accepted which is "
+                             "supported by %s" % dateutil_url)
+    parser.add_argument("--end-date",
+                        help="End date of time-based plots. Any format is accepted which is "
+                             "supported by %s" % dateutil_url)
     parser.add_argument("--disable-projector", action="store_true",
                         help="Do not run Tensorflow Projector on couples.")
     parser.add_argument("--max-people", default=20, type=int,
@@ -385,7 +392,15 @@ def read_input(args):
     sys.stdout.flush()
     if args.input != "-":
         if args.input_format == "auto":
-            args.input_format = args.input.rsplit(".", 1)[1]
+            try:
+                args.input_format = args.input.rsplit(".", 1)[1]
+            except IndexError:
+                try:
+                    with open(args.input) as f:
+                        f.read(1 << 16)
+                    args.input_format = "yaml"
+                except UnicodeDecodeError:
+                    args.input_format = "pb"
     elif args.input_format == "auto":
         args.input_format = "yaml"
     reader = READERS[args.input_format]()
@@ -745,6 +760,13 @@ def default_json(x):
     return x
 
 
+def parse_date(text, default):
+    if not text:
+        return default
+    from dateutil.parser import parse
+    return parse(text)
+
+
 def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granularity,
                   sampling, resample):
     if args.output and args.output.endswith(".json"):
@@ -776,7 +798,8 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
     pyplot.xlabel("Time")
     apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
                      args.font_size, args.size)
-    pyplot.xlim(date_range_sampling[0], date_range_sampling[-1])
+    pyplot.xlim(parse_date(args.start_date, date_range_sampling[0]),
+                parse_date(args.end_date, date_range_sampling[-1]))
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
     if "M" not in resample:
@@ -898,7 +921,8 @@ def plot_ownership(args, repo, names, people, date_range, last):
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
 
     pyplot.stackplot(date_range, people, labels=names)
-    pyplot.xlim(date_range[0], last)
+    pyplot.xlim(parse_date(args.start_date, date_range[0]), parse_date(args.end_date, last))
+
     if args.relative:
         for i in range(people.shape[1]):
             people[:, i] /= people[:, i].sum()
@@ -1165,7 +1189,7 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     pyplot.xlabel("Time")
     apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
                      args.font_size, args.size)
-    pyplot.xlim(xdates[0], xdates[-1])
+    pyplot.xlim(parse_date(args.start_date, xdates[0]), parse_date(args.end_date, xdates[-1]))
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
     if "M" not in resample:
