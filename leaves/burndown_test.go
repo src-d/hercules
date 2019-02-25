@@ -70,7 +70,7 @@ func TestBurndownConfigure(t *testing.T) {
 	facts[ConfigBurndownHibernationDirectory] = "xxx"
 	facts[identity.FactIdentityDetectorPeopleCount] = 5
 	facts[identity.FactIdentityDetectorReversedPeopleDict] = bd.Requires()
-	bd.Configure(facts)
+	assert.Nil(t, bd.Configure(facts))
 	assert.Equal(t, bd.Granularity, 100)
 	assert.Equal(t, bd.Sampling, 200)
 	assert.Equal(t, bd.TrackFiles, true)
@@ -82,10 +82,10 @@ func TestBurndownConfigure(t *testing.T) {
 	assert.Equal(t, bd.reversedPeopleDict, bd.Requires())
 	facts[ConfigBurndownTrackPeople] = false
 	facts[identity.FactIdentityDetectorPeopleCount] = 50
-	bd.Configure(facts)
+	assert.Nil(t, bd.Configure(facts))
 	assert.Equal(t, bd.PeopleNumber, 0)
 	facts = map[string]interface{}{}
-	bd.Configure(facts)
+	assert.Nil(t, bd.Configure(facts))
 	assert.Equal(t, bd.Granularity, 100)
 	assert.Equal(t, bd.Sampling, 200)
 	assert.Equal(t, bd.TrackFiles, true)
@@ -110,24 +110,24 @@ func TestBurndownRegistration(t *testing.T) {
 }
 
 func TestBurndownInitialize(t *testing.T) {
-	burndown := BurndownAnalysis{}
-	burndown.Sampling = -10
-	burndown.Granularity = DefaultBurndownGranularity
-	burndown.HibernationThreshold = 10
-	burndown.Initialize(test.Repository)
-	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity)
-	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity)
-	assert.Equal(t, burndown.fileAllocator.HibernationThreshold, 10)
-	burndown.Sampling = 0
-	burndown.Granularity = DefaultBurndownGranularity - 1
-	burndown.Initialize(test.Repository)
-	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity-1)
-	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity-1)
-	burndown.Sampling = DefaultBurndownGranularity - 1
-	burndown.Granularity = -10
-	burndown.Initialize(test.Repository)
-	assert.Equal(t, burndown.Sampling, DefaultBurndownGranularity-1)
-	assert.Equal(t, burndown.Granularity, DefaultBurndownGranularity)
+	bd := BurndownAnalysis{}
+	bd.Sampling = -10
+	bd.Granularity = DefaultBurndownGranularity
+	bd.HibernationThreshold = 10
+	assert.Nil(t, bd.Initialize(test.Repository))
+	assert.Equal(t, bd.Sampling, DefaultBurndownGranularity)
+	assert.Equal(t, bd.Granularity, DefaultBurndownGranularity)
+	assert.Equal(t, bd.fileAllocator.HibernationThreshold, 10)
+	bd.Sampling = 0
+	bd.Granularity = DefaultBurndownGranularity - 1
+	assert.Nil(t, bd.Initialize(test.Repository))
+	assert.Equal(t, bd.Sampling, DefaultBurndownGranularity-1)
+	assert.Equal(t, bd.Granularity, DefaultBurndownGranularity-1)
+	bd.Sampling = DefaultBurndownGranularity - 1
+	bd.Granularity = -10
+	assert.Nil(t, bd.Initialize(test.Repository))
+	assert.Equal(t, bd.Sampling, DefaultBurndownGranularity-1)
+	assert.Equal(t, bd.Granularity, DefaultBurndownGranularity)
 }
 
 func TestBurndownConsumeFinalize(t *testing.T) {
@@ -137,7 +137,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		PeopleNumber: 2,
 		TrackFiles:   true,
 	}
-	bd.Initialize(test.Repository)
+	assert.Nil(t, bd.Initialize(test.Repository))
 	deps := map[string]interface{}{}
 
 	// stage 1
@@ -216,7 +216,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 		Granularity: 30,
 		Sampling:    0,
 	}
-	bd2.Initialize(test.Repository)
+	assert.Nil(t, bd2.Initialize(test.Repository))
 	_, err = bd2.Consume(deps)
 	assert.Nil(t, err)
 	assert.Len(t, bd2.peopleHistories, 0)
@@ -224,7 +224,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 
 	// check merge hashes
 	burndown3 := BurndownAnalysis{}
-	burndown3.Initialize(test.Repository)
+	assert.Nil(t, burndown3.Initialize(test.Repository))
 	deps[identity.DependencyAuthor] = 1
 	deps[core.DependencyIsMerge] = true
 	_, err = burndown3.Consume(deps)
@@ -354,6 +354,112 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	}
 }
 
+func TestBurndownConsumeMergeAuthorMissing(t *testing.T) {
+	deps := map[string]interface{}{}
+	deps[items.DependencyDay] = 0
+	cache := map[plumbing.Hash]*items.CachedBlob{}
+	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
+	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
+	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
+	AddHash(t, cache, "dc248ba2b22048cc730c571a748e8ffcf7085ab9")
+	deps[items.DependencyBlobCache] = cache
+	changes := make(object.Changes, 3)
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
+		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
+		"994eac1cd07235bb9815e547a75c84265dea00f5"))
+	changes[0] = &object.Change{From: object.ChangeEntry{
+		Name: "analyser.go",
+		Tree: treeFrom,
+		TreeEntry: object.TreeEntry{
+			Name: "analyser.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"),
+		},
+	}, To: object.ChangeEntry{
+		Name: "analyser.go",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "analyser.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1"),
+		},
+	}}
+	changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: "cmd/hercules/main.go",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "cmd/hercules/main.go",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9"),
+		},
+	},
+	}
+	changes[2] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: ".travis.yml",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: ".travis.yml",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"),
+		},
+	},
+	}
+	deps[items.DependencyTreeChanges] = changes
+	fd := fixtures.FileDiff()
+	filediff, err := fd.Consume(deps)
+	assert.Nil(t, err)
+	deps[items.DependencyFileDiff] = filediff[items.DependencyFileDiff]
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
+		"cce947b98a050c6d356bc6ba95030254914027b1"))
+
+	// check that we survive merge + missing author
+	bd := BurndownAnalysis{PeopleNumber: 1}
+	assert.Nil(t, bd.Initialize(test.Repository))
+	deps[identity.DependencyAuthor] = 1
+	deps[core.DependencyIsMerge] = false
+	_, err = bd.Consume(deps)
+	assert.Nil(t, err)
+
+	AddHash(t, cache, "4cdb0d969cf976f76634d1f348da3a175c9b4501")
+	treeFrom, _ = test.Repository.TreeObject(plumbing.NewHash(
+		"994eac1cd07235bb9815e547a75c84265dea00f5"))
+	treeTo, _ = test.Repository.TreeObject(plumbing.NewHash(
+		"89f33a2320f6cd0bd3d16351cfc10bea7e3dce1a"))
+	changes = object.Changes{
+		&object.Change{
+			From: object.ChangeEntry{
+				Name: ".travis.yml",
+				Tree: treeFrom,
+				TreeEntry: object.TreeEntry{
+					Name: ".travis.yml",
+					Mode: 0100644,
+					Hash: plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"),
+				},
+			}, To: object.ChangeEntry{
+				Name: ".travis.yml",
+				Tree: treeTo,
+				TreeEntry: object.TreeEntry{
+					Name: ".travis.yml",
+					Mode: 0100644,
+					Hash: plumbing.NewHash("4cdb0d969cf976f76634d1f348da3a175c9b4501"),
+				},
+			},
+		},
+	}
+	deps[items.DependencyTreeChanges] = changes
+	filediff, err = fd.Consume(deps)
+	assert.Nil(t, err)
+	deps[items.DependencyFileDiff] = filediff[items.DependencyFileDiff]
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
+		"7ef5c47aa79a1b229e3227d9ffe2401dbcbeb22f"))
+	deps[identity.DependencyAuthor] = identity.AuthorMissing
+	deps[core.DependencyIsMerge] = true
+	_, err = bd.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, identity.AuthorMissing, bd.mergedAuthor)
+}
+
 func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
 	BurndownResult, *BurndownAnalysis) {
 	bd := BurndownAnalysis{
@@ -362,7 +468,7 @@ func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
 		PeopleNumber: 2,
 		TrackFiles:   true,
 	}
-	bd.Initialize(test.Repository)
+	assert.Nil(t, bd.Initialize(test.Repository))
 	deps := map[string]interface{}{}
 	// stage 1
 	deps[identity.DependencyAuthor] = firstAuthor
@@ -502,7 +608,7 @@ func TestBurndownSerialize(t *testing.T) {
 	bd := &BurndownAnalysis{}
 
 	buffer := &bytes.Buffer{}
-	bd.Serialize(out, false, buffer)
+	assert.Nil(t, bd.Serialize(out, false, buffer))
 	assert.Equal(t, buffer.String(), `  granularity: 30
   sampling: 30
   "project": |-
@@ -581,7 +687,7 @@ func TestBurndownSerializeAuthorMissing(t *testing.T) {
 	bd := &BurndownAnalysis{}
 
 	buffer := &bytes.Buffer{}
-	bd.Serialize(out, false, buffer)
+	assert.Nil(t, bd.Serialize(out, false, buffer))
 	assert.Equal(t, buffer.String(), `  granularity: 30
   sampling: 30
   "project": |-
