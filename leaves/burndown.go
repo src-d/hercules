@@ -111,9 +111,13 @@ type BurndownResult struct {
 	// The number of samples depends on Sampling: the less Sampling, the bigger the number.
 	// The number of bands depends on Granularity: the less Granularity, the bigger the number.
 	GlobalHistory DenseHistory
-	// The key is the path inside the Git repository. The value's dimensions are the same as
+	// The key is a path inside the Git repository. The value's dimensions are the same as
 	// in GlobalHistory.
 	FileHistories map[string]DenseHistory
+	// The key is a path inside the Git repository. The value is a mapping from developer indexes
+	// (see reversedPeopleDict) and the owned line numbers. Their sum equals to the total number of
+	// lines in the file.
+	FileOwnership map[string]map[int]int
 	// [number of people][number of samples][number of bands]
 	PeopleHistories []DenseHistory
 	// [number of people][number of people + 2]
@@ -484,10 +488,28 @@ func (analyser *BurndownAnalysis) Boot() error {
 func (analyser *BurndownAnalysis) Finalize() interface{} {
 	globalHistory, lastDay := analyser.groupSparseHistory(analyser.globalHistory, -1)
 	fileHistories := map[string]DenseHistory{}
+	fileOwnership := map[string]map[int]int{}
 	for key, history := range analyser.fileHistories {
-		if len(history) > 0 {
-			fileHistories[key], _ = analyser.groupSparseHistory(history, lastDay)
+		if len(history) == 0 {
+			continue
 		}
+		fileHistories[key], _ = analyser.groupSparseHistory(history, lastDay)
+		file := analyser.files[key]
+		previousLine := 0
+		previousAuthor := identity.AuthorMissing
+		ownership := map[int]int{}
+		fileOwnership[key] = ownership
+		file.ForEach(func(line, value int) {
+			length := line - previousLine
+			if length > 0 {
+				ownership[previousAuthor] += length
+			}
+			previousLine = line
+			previousAuthor, _ = analyser.unpackPersonWithDay(int(value))
+			if previousAuthor == identity.AuthorMissing {
+				previousAuthor = -1
+			}
+		})
 	}
 	peopleHistories := make([]DenseHistory, analyser.PeopleNumber)
 	for i, history := range analyser.peopleHistories {
@@ -520,6 +542,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 	return BurndownResult{
 		GlobalHistory:      globalHistory,
 		FileHistories:      fileHistories,
+		FileOwnership:      fileOwnership,
 		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,
 		reversedPeopleDict: analyser.reversedPeopleDict,
@@ -559,8 +582,14 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 	}
 	result.GlobalHistory = convertCSR(msg.Project)
 	result.FileHistories = map[string]DenseHistory{}
-	for _, mat := range msg.Files {
+	result.FileOwnership = map[string]map[int]int{}
+	for i, mat := range msg.Files {
 		result.FileHistories[mat.Name] = convertCSR(mat)
+		ownership := map[int]int{}
+		result.FileOwnership[mat.Name] = ownership
+		for key, val := range msg.FilesOwnership[i].Value {
+			ownership[int(key)] = int(val)
+		}
 	}
 	result.reversedPeopleDict = make([]string, len(msg.People))
 	result.PeopleHistories = make([]DenseHistory, len(msg.People))
@@ -613,6 +642,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 				c1, c2)
 		}()
 	}
+	// we don't merge files
 	if len(merged.reversedPeopleDict) > 0 {
 		if len(bar1.PeopleHistories) > 0 || len(bar2.PeopleHistories) > 0 {
 			merged.PeopleHistories = make([]DenseHistory, len(merged.reversedPeopleDict))
@@ -924,6 +954,31 @@ func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer i
 		for _, key := range keys {
 			yaml.PrintMatrix(writer, result.FileHistories[key], 4, key, true)
 		}
+		fmt.Fprintln(writer, "  files_ownership:")
+		okeys := make([]string, 0, len(result.FileOwnership))
+		for key := range result.FileOwnership {
+			okeys = append(okeys, key)
+		}
+		sort.Strings(okeys)
+		for _, key := range okeys {
+			owned := result.FileOwnership[key]
+			devs := make([]int, 0, len(owned))
+			for devi := range owned {
+				devs = append(devs, devi)
+			}
+			sort.Slice(devs, func(i, j int) bool {
+				return owned[devs[i]] > owned[devs[j]] // descending order
+			})
+			for x, devi := range devs {
+				var indent string
+				if x == 0 {
+					indent = "- "
+				} else {
+					indent = "  "
+				}
+				fmt.Fprintf(writer, "    %s%d: %d\n", indent, devi, owned[devi])
+			}
+		}
 	}
 
 	if len(result.PeopleHistories) > 0 {
@@ -950,11 +1005,16 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	}
 	if len(result.FileHistories) > 0 {
 		message.Files = make([]*pb.BurndownSparseMatrix, len(result.FileHistories))
+		message.FilesOwnership = make([]*pb.FilesOwnership, len(result.FileHistories))
 		keys := sortedKeys(result.FileHistories)
 		i := 0
 		for _, key := range keys {
-			message.Files[i] = pb.ToBurndownSparseMatrix(
-				result.FileHistories[key], key)
+			message.Files[i] = pb.ToBurndownSparseMatrix(result.FileHistories[key], key)
+			ownership := map[int32]int32{}
+			message.FilesOwnership[i] = &pb.FilesOwnership{Value: ownership}
+			for key, val := range result.FileOwnership[key] {
+				ownership[int32(key)] = int32(val)
+			}
 			i++
 		}
 	}

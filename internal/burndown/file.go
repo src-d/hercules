@@ -123,12 +123,12 @@ func (file *File) Delete() {
 
 // Len returns the File's size - that is, the maximum key in the tree of line
 // intervals.
-func (file *File) Len() int {
+func (file File) Len() int {
 	return int(file.tree.Max().Item().Key)
 }
 
 // Nodes returns the number of RBTree nodes in the file.
-func (file *File) Nodes() int {
+func (file File) Nodes() int {
 	return file.tree.Len()
 }
 
@@ -327,18 +327,11 @@ func (file *File) Merge(day int, others ...*File) {
 
 // Dump formats the underlying line interval tree into a string.
 // Useful for error messages, panic()-s and debugging.
-func (file *File) Dump() string {
+func (file File) Dump() string {
 	buffer := ""
-	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
-		node := iter.Item()
-		var val int
-		if node.Value == math.MaxUint32 {
-			val = -1
-		} else {
-			val = int(node.Value)
-		}
-		buffer += fmt.Sprintf("%d %d\n", node.Key, val)
-	}
+	file.ForEach(func(line, value int) {
+		buffer += fmt.Sprintf("%d %d\n", line, value)
+	})
 	return buffer
 }
 
@@ -351,7 +344,7 @@ func (file *File) Dump() string {
 // which marks the ending of the last line interval.
 //
 // 3. Node keys must monotonically increase and never duplicate.
-func (file *File) Validate() {
+func (file File) Validate() {
 	if file.tree.Min().Item().Key != 0 {
 		log.Panic("the tree must start with key 0")
 	}
@@ -368,6 +361,21 @@ func (file *File) Validate() {
 			log.Panicf("unmerged lines left: %d", node.Key)
 		}
 		prevKey = node.Key
+	}
+}
+
+// ForEach visits each node in the underlying tree, in ascending key order.
+func (file File) ForEach(callback func(line, value int)) {
+	for iter := file.tree.Min(); !iter.Limit(); iter = iter.Next() {
+		item := iter.Item()
+		key := int(item.Key)
+		var value int
+		if item.Value == math.MaxUint32 {
+			value = -1
+		} else {
+			value = int(item.Value)
+		}
+		callback(key, value)
 	}
 }
 
