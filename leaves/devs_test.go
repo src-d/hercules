@@ -156,6 +156,23 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Equal(t, dev.Languages["Go"].Removed, 9)
 	assert.Equal(t, dev.Languages["Go"].Changed, 67)
 
+	deps[core.DependencyIsMerge] = true
+	result, err = devs.Consume(deps)
+	assert.Nil(t, result)
+	assert.Nil(t, err)
+	assert.Len(t, devs.days, 1)
+	day = devs.days[0]
+	assert.Len(t, day, 1)
+	dev = day[0]
+	assert.Equal(t, dev.Commits, 2)
+	assert.Equal(t, dev.Added, 847)
+	assert.Equal(t, dev.Removed, 9)
+	assert.Equal(t, dev.Changed, 67)
+	assert.Equal(t, dev.Languages["Go"].Added, 847)
+	assert.Equal(t, dev.Languages["Go"].Removed, 9)
+	assert.Equal(t, dev.Languages["Go"].Changed, 67)
+
+	deps[core.DependencyIsMerge] = false
 	deps[identity.DependencyAuthor] = 1
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
@@ -165,7 +182,11 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Len(t, day, 2)
 	for i := 0; i < 2; i++ {
 		dev = day[i]
-		assert.Equal(t, dev.Commits, 1)
+		if i == 0 {
+			assert.Equal(t, dev.Commits, 2)
+		} else {
+			assert.Equal(t, dev.Commits, 1)
+		}
 		assert.Equal(t, dev.Added, 847)
 		assert.Equal(t, dev.Removed, 9)
 		assert.Equal(t, dev.Changed, 67)
@@ -181,7 +202,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	day = devs.days[0]
 	assert.Len(t, day, 2)
 	dev = day[0]
-	assert.Equal(t, dev.Commits, 1)
+	assert.Equal(t, dev.Commits, 2)
 	assert.Equal(t, dev.Added, 847)
 	assert.Equal(t, dev.Removed, 9)
 	assert.Equal(t, dev.Changed, 67)
@@ -205,7 +226,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	day = devs.days[0]
 	assert.Len(t, day, 2)
 	dev = day[0]
-	assert.Equal(t, dev.Commits, 1)
+	assert.Equal(t, dev.Commits, 2)
 	assert.Equal(t, dev.Added, 847)
 	assert.Equal(t, dev.Removed, 9)
 	assert.Equal(t, dev.Changed, 67)

@@ -158,6 +158,11 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 		devsDay[author] = dd
 	}
 	dd.Commits++
+	if deps[core.DependencyIsMerge].(bool) {
+		// we ignore merge commit diffs
+		// TODO(vmarkovtsev): handle them
+		return nil, nil
+	}
 	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*items.CachedBlob)
 	fileDiffs := deps[items.DependencyFileDiff].(map[string]items.FileDiffData)
 	langs := deps[items.DependencyLanguages].(map[plumbing.Hash]string)
