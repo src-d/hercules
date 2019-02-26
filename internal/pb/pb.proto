@@ -33,6 +33,11 @@ message BurndownSparseMatrix {
     repeated BurndownSparseMatrixRow rows = 4;
 }
 
+message FilesOwnership {
+    // The sum always equals to the total number of lines in the file.
+    map<int32, int32> value = 1;
+}
+
 message BurndownAnalysisResults {
     // how many days are in each band [burndown_project, burndown_file, burndown_developer]
     int32 granularity = 1;
@@ -40,12 +45,14 @@ message BurndownAnalysisResults {
     int32 sampling = 2;
     // always exists
     BurndownSparseMatrix project = 3;
-    // this is included if `-burndown-files` was specified
+    // this is included if `--burndown-files` was specified
     repeated BurndownSparseMatrix files = 4;
-    // these two are included if `-burndown-people` was specified
+    // these two are included if `--burndown-people` was specified
     repeated BurndownSparseMatrix people = 5;
     // rows and cols order correspond to `burndown_developer`
     CompressedSparseRowMatrix people_interaction = 6;
+    // How many lines belong to relevant developers for each file. The order is the same as in `files`.
+    repeated FilesOwnership files_ownership = 7;
 }
 
 message CompressedSparseRowMatrix {

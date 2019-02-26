@@ -316,10 +316,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Len(t, bd.fileHistories, 2)
 	out := bd.Finalize().(BurndownResult)
 	/*
-		GlobalHistory   [][]int64
-		FileHistories   map[string][][]int64
-		PeopleHistories [][][]int64
-		PeopleMatrix    [][]int64
+			GlobalHistory   [][]int64
+			FileHistories   map[string][][]int64
+		    FileOwnership   map[string]map[int]int
+			PeopleHistories [][][]int64
+			PeopleMatrix    [][]int64
 	*/
 	assert.Len(t, out.GlobalHistory, 2)
 	for i := 0; i < 2; i++ {
@@ -335,6 +336,9 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	assert.Len(t, out.FileHistories["burndown.go"], 2)
 	assert.Len(t, out.FileHistories["cmd/hercules/main.go"][0], 2)
 	assert.Len(t, out.FileHistories["burndown.go"][0], 2)
+	assert.Len(t, out.FileOwnership, 2)
+	assert.Equal(t, out.FileOwnership["cmd/hercules/main.go"], map[int]int{0: 171, 1: 119})
+	assert.Equal(t, out.FileOwnership["burndown.go"], map[int]int{0: 293, 1: 250})
 	assert.Len(t, out.PeopleMatrix, 2)
 	assert.Len(t, out.PeopleMatrix[0], 4)
 	assert.Len(t, out.PeopleMatrix[1], 4)
@@ -621,6 +625,11 @@ func TestBurndownSerialize(t *testing.T) {
     "cmd/hercules/main.go": |-
       207   0
       171 119
+  files_ownership:
+    - 0: 293
+      1: 250
+    - 0: 171
+      1: 119
   people_sequence:
     - "one@srcd"
     - "two@srcd"
@@ -659,6 +668,9 @@ func TestBurndownSerialize(t *testing.T) {
 	assert.Len(t, msg.Files[0].Rows[1].Columns, 2)
 	assert.Equal(t, msg.Files[0].Rows[1].Columns[0], uint32(293))
 	assert.Equal(t, msg.Files[0].Rows[1].Columns[1], uint32(250))
+	assert.Len(t, msg.FilesOwnership, 2)
+	assert.Equal(t, msg.FilesOwnership[0].Value, map[int32]int32{0: 293, 1: 250})
+	assert.Equal(t, msg.FilesOwnership[1].Value, map[int32]int32{0: 171, 1: 119})
 	assert.Len(t, msg.People, 2)
 	assert.Equal(t, msg.People[0].Name, "one@srcd")
 	assert.Equal(t, msg.People[1].Name, "two@srcd")
@@ -700,6 +712,11 @@ func TestBurndownSerializeAuthorMissing(t *testing.T) {
     "cmd/hercules/main.go": |-
       207   0
       171 119
+  files_ownership:
+    - 0: 293
+      -1: 250
+    - 0: 171
+      -1: 119
   people_sequence:
     - "one@srcd"
     - "two@srcd"
@@ -738,6 +755,9 @@ func TestBurndownSerializeAuthorMissing(t *testing.T) {
 	assert.Len(t, msg.Files[0].Rows[1].Columns, 2)
 	assert.Equal(t, msg.Files[0].Rows[1].Columns[0], uint32(293))
 	assert.Equal(t, msg.Files[0].Rows[1].Columns[1], uint32(250))
+	assert.Len(t, msg.FilesOwnership, 2)
+	assert.Equal(t, msg.FilesOwnership[0].Value, map[int32]int32{0: 293, -1: 250})
+	assert.Equal(t, msg.FilesOwnership[1].Value, map[int32]int32{0: 171, -1: 119})
 	assert.Len(t, msg.People, 2)
 	assert.Equal(t, msg.People[0].Name, "one@srcd")
 	assert.Equal(t, msg.People[1].Name, "two@srcd")
@@ -1255,15 +1275,13 @@ func TestBurndownMergeNils(t *testing.T) {
 func TestBurndownDeserialize(t *testing.T) {
 	allBuffer, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "burndown.pb"))
 	assert.Nil(t, err)
-	message := pb.AnalysisResults{}
-	err = proto.Unmarshal(allBuffer, &message)
-	assert.Nil(t, err)
 	bd := BurndownAnalysis{}
-	iresult, err := bd.Deserialize(message.Contents[bd.Name()])
+	iresult, err := bd.Deserialize(allBuffer)
 	assert.Nil(t, err)
 	result := iresult.(BurndownResult)
 	assert.True(t, len(result.GlobalHistory) > 0)
 	assert.True(t, len(result.FileHistories) > 0)
+	assert.Equal(t, len(result.FileOwnership), len(result.FileHistories))
 	assert.True(t, len(result.reversedPeopleDict) > 0)
 	assert.True(t, len(result.PeopleHistories) > 0)
 	assert.True(t, len(result.PeopleMatrix) > 0)

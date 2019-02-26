@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x08pb.proto\"\x81\x02\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0c\n\x04hash\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x0f\n\x07\x63ommits\x18\x06 \x01(\x05\x12\x10\n\x08run_time\x18\x07 \x01(\x03\x12\x38\n\x11run_time_per_item\x18\x08 \x03(\x0b\x32\x1d.Metadata.RunTimePerItemEntry\x1a\x35\n\x13RunTimePerItemEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"\xed\x01\n\x17\x42urndownAnalysisResults\x12\x13\n\x0bgranularity\x18\x01 \x01(\x05\x12\x10\n\x08sampling\x18\x02 \x01(\x05\x12&\n\x07project\x18\x03 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12$\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12%\n\x06people\x18\x05 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x36\n\x12people_interaction\x18\x06 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\"\x94\x01\n\x16\x43ouplesAnalysisResults\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12 \n\x0epeople_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12#\n\x0cpeople_files\x18\x08 \x03(\x0b\x32\r.TouchedFiles\x12\x13\n\x0b\x66iles_lines\x18\t \x03(\x05\"o\n\nUASTChange\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x12\n\nsrc_before\x18\x02 \x01(\t\x12\x11\n\tsrc_after\x18\x03 \x01(\t\x12\x13\n\x0buast_before\x18\x04 \x01(\t\x12\x12\n\nuast_after\x18\x05 \x01(\t\"7\n\x17UASTChangesSaverResults\x12\x1c\n\x07\x63hanges\x18\x01 \x03(\x0b\x32\x0b.UASTChange\"\x9c\x01\n\x0eShotnessRecord\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04\x66ile\x18\x03 \x01(\t\x12/\n\x08\x63ounters\x18\x04 \x03(\x0b\x32\x1d.ShotnessRecord.CountersEntry\x1a/\n\rCountersEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\";\n\x17ShotnessAnalysisResults\x12 \n\x07records\x18\x01 \x03(\x0b\x32\x0f.ShotnessRecord\"\x1e\n\x0b\x46ileHistory\x12\x0f\n\x07\x63ommits\x18\x01 \x03(\t\"\x8b\x01\n\x18\x46ileHistoryResultMessage\x12\x33\n\x05\x66iles\x18\x01 \x03(\x0b\x32$.FileHistoryResultMessage.FilesEntry\x1a:\n\nFilesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1b\n\x05value\x18\x02 \x01(\x0b\x32\x0c.FileHistory:\x02\x38\x01\"<\n\tLineStats\x12\r\n\x05\x61\x64\x64\x65\x64\x18\x01 \x01(\x05\x12\x0f\n\x07removed\x18\x02 \x01(\x05\x12\x0f\n\x07\x63hanged\x18\x03 \x01(\x05\"\x9d\x01\n\x06\x44\x65vDay\x12\x0f\n\x07\x63ommits\x18\x01 \x01(\x05\x12\x19\n\x05stats\x18\x02 \x01(\x0b\x32\n.LineStats\x12)\n\tlanguages\x18\x03 \x03(\x0b\x32\x16.DevDay.LanguagesEntry\x1a<\n\x0eLanguagesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.LineStats:\x02\x38\x01\"a\n\x07\x44\x61yDevs\x12 \n\x04\x64\x65vs\x18\x01 \x03(\x0b\x32\x12.DayDevs.DevsEntry\x1a\x34\n\tDevsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x16\n\x05value\x18\x02 \x01(\x0b\x32\x07.DevDay:\x02\x38\x01\"\x8d\x01\n\x13\x44\x65vsAnalysisResults\x12,\n\x04\x64\x61ys\x18\x01 \x03(\x0b\x32\x1e.DevsAnalysisResults.DaysEntry\x12\x11\n\tdev_index\x18\x02 \x03(\t\x1a\x35\n\tDaysEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x17\n\x05value\x18\x02 \x01(\x0b\x32\x08.DayDevs:\x02\x38\x01\"=\n\tSentiment\x12\r\n\x05value\x18\x01 \x01(\x02\x12\x10\n\x08\x63omments\x18\x02 \x03(\t\x12\x0f\n\x07\x63ommits\x18\x03 \x03(\t\"\xa4\x01\n\x17\x43ommentSentimentResults\x12\x46\n\x10sentiment_by_day\x18\x01 \x03(\x0b\x32,.CommentSentimentResults.SentimentByDayEntry\x1a\x41\n\x13SentimentByDayEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.Sentiment:\x02\x38\x01\"\x8f\x01\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12\x30\n\x08\x63ontents\x18\x02 \x03(\x0b\x32\x1e.AnalysisResults.ContentsEntry\x1a/\n\rContentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x08pb.proto\"\x81\x02\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0c\n\x04hash\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x0f\n\x07\x63ommits\x18\x06 \x01(\x05\x12\x10\n\x08run_time\x18\x07 \x01(\x03\x12\x38\n\x11run_time_per_item\x18\x08 \x03(\x0b\x32\x1d.Metadata.RunTimePerItemEntry\x1a\x35\n\x13RunTimePerItemEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"i\n\x0e\x46ilesOwnership\x12)\n\x05value\x18\x01 \x03(\x0b\x32\x1a.FilesOwnership.ValueEntry\x1a,\n\nValueEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\"\x97\x02\n\x17\x42urndownAnalysisResults\x12\x13\n\x0bgranularity\x18\x01 \x01(\x05\x12\x10\n\x08sampling\x18\x02 \x01(\x05\x12&\n\x07project\x18\x03 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12$\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12%\n\x06people\x18\x05 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x36\n\x12people_interaction\x18\x06 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\x12(\n\x0f\x66iles_ownership\x18\x07 \x03(\x0b\x32\x0f.FilesOwnership\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\"\x94\x01\n\x16\x43ouplesAnalysisResults\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12 \n\x0epeople_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12#\n\x0cpeople_files\x18\x08 \x03(\x0b\x32\r.TouchedFiles\x12\x13\n\x0b\x66iles_lines\x18\t \x03(\x05\"o\n\nUASTChange\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x12\n\nsrc_before\x18\x02 \x01(\t\x12\x11\n\tsrc_after\x18\x03 \x01(\t\x12\x13\n\x0buast_before\x18\x04 \x01(\t\x12\x12\n\nuast_after\x18\x05 \x01(\t\"7\n\x17UASTChangesSaverResults\x12\x1c\n\x07\x63hanges\x18\x01 \x03(\x0b\x32\x0b.UASTChange\"\x9c\x01\n\x0eShotnessRecord\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04\x66ile\x18\x03 \x01(\t\x12/\n\x08\x63ounters\x18\x04 \x03(\x0b\x32\x1d.ShotnessRecord.CountersEntry\x1a/\n\rCountersEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\";\n\x17ShotnessAnalysisResults\x12 \n\x07records\x18\x01 \x03(\x0b\x32\x0f.ShotnessRecord\"\x1e\n\x0b\x46ileHistory\x12\x0f\n\x07\x63ommits\x18\x01 \x03(\t\"\x8b\x01\n\x18\x46ileHistoryResultMessage\x12\x33\n\x05\x66iles\x18\x01 \x03(\x0b\x32$.FileHistoryResultMessage.FilesEntry\x1a:\n\nFilesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1b\n\x05value\x18\x02 \x01(\x0b\x32\x0c.FileHistory:\x02\x38\x01\"<\n\tLineStats\x12\r\n\x05\x61\x64\x64\x65\x64\x18\x01 \x01(\x05\x12\x0f\n\x07removed\x18\x02 \x01(\x05\x12\x0f\n\x07\x63hanged\x18\x03 \x01(\x05\"\x9d\x01\n\x06\x44\x65vDay\x12\x0f\n\x07\x63ommits\x18\x01 \x01(\x05\x12\x19\n\x05stats\x18\x02 \x01(\x0b\x32\n.LineStats\x12)\n\tlanguages\x18\x03 \x03(\x0b\x32\x16.DevDay.LanguagesEntry\x1a<\n\x0eLanguagesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.LineStats:\x02\x38\x01\"a\n\x07\x44\x61yDevs\x12 \n\x04\x64\x65vs\x18\x01 \x03(\x0b\x32\x12.DayDevs.DevsEntry\x1a\x34\n\tDevsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x16\n\x05value\x18\x02 \x01(\x0b\x32\x07.DevDay:\x02\x38\x01\"\x8d\x01\n\x13\x44\x65vsAnalysisResults\x12,\n\x04\x64\x61ys\x18\x01 \x03(\x0b\x32\x1e.DevsAnalysisResults.DaysEntry\x12\x11\n\tdev_index\x18\x02 \x03(\t\x1a\x35\n\tDaysEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x17\n\x05value\x18\x02 \x01(\x0b\x32\x08.DayDevs:\x02\x38\x01\"=\n\tSentiment\x12\r\n\x05value\x18\x01 \x01(\x02\x12\x10\n\x08\x63omments\x18\x02 \x03(\t\x12\x0f\n\x07\x63ommits\x18\x03 \x03(\t\"\xa4\x01\n\x17\x43ommentSentimentResults\x12\x46\n\x10sentiment_by_day\x18\x01 \x03(\x0b\x32,.CommentSentimentResults.SentimentByDayEntry\x1a\x41\n\x13SentimentByDayEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.Sentiment:\x02\x38\x01\"\x8f\x01\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12\x30\n\x08\x63ontents\x18\x02 \x03(\x0b\x32\x1e.AnalysisResults.ContentsEntry\x1a/\n\rContentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x62\x06proto3')
 )
 
 
@@ -225,6 +225,74 @@ _BURNDOWNSPARSEMATRIX = _descriptor.Descriptor(
 )
 
 
+_FILESOWNERSHIP_VALUEENTRY = _descriptor.Descriptor(
+  name='ValueEntry',
+  full_name='FilesOwnership.ValueEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='FilesOwnership.ValueEntry.key', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='FilesOwnership.ValueEntry.value', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=_b('8\001'),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=506,
+  serialized_end=550,
+)
+
+_FILESOWNERSHIP = _descriptor.Descriptor(
+  name='FilesOwnership',
+  full_name='FilesOwnership',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='value', full_name='FilesOwnership.value', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[_FILESOWNERSHIP_VALUEENTRY, ],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=445,
+  serialized_end=550,
+)
+
+
 _BURNDOWNANALYSISRESULTS = _descriptor.Descriptor(
   name='BurndownAnalysisResults',
   full_name='BurndownAnalysisResults',
@@ -274,6 +342,13 @@ _BURNDOWNANALYSISRESULTS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='files_ownership', full_name='BurndownAnalysisResults.files_ownership', index=6,
+      number=7, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -286,8 +361,8 @@ _BURNDOWNANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=446,
-  serialized_end=683,
+  serialized_start=553,
+  serialized_end=832,
 )
 
 
@@ -345,8 +420,8 @@ _COMPRESSEDSPARSEROWMATRIX = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=685,
-  serialized_end=810,
+  serialized_start=834,
+  serialized_end=959,
 )
 
 
@@ -383,8 +458,8 @@ _COUPLES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=812,
-  serialized_end=880,
+  serialized_start=961,
+  serialized_end=1029,
 )
 
 
@@ -414,8 +489,8 @@ _TOUCHEDFILES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=882,
-  serialized_end=911,
+  serialized_start=1031,
+  serialized_end=1060,
 )
 
 
@@ -466,8 +541,8 @@ _COUPLESANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=914,
-  serialized_end=1062,
+  serialized_start=1063,
+  serialized_end=1211,
 )
 
 
@@ -525,8 +600,8 @@ _UASTCHANGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1064,
-  serialized_end=1175,
+  serialized_start=1213,
+  serialized_end=1324,
 )
 
 
@@ -556,8 +631,8 @@ _UASTCHANGESSAVERRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1177,
-  serialized_end=1232,
+  serialized_start=1326,
+  serialized_end=1381,
 )
 
 
@@ -594,8 +669,8 @@ _SHOTNESSRECORD_COUNTERSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1344,
-  serialized_end=1391,
+  serialized_start=1493,
+  serialized_end=1540,
 )
 
 _SHOTNESSRECORD = _descriptor.Descriptor(
@@ -645,8 +720,8 @@ _SHOTNESSRECORD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1235,
-  serialized_end=1391,
+  serialized_start=1384,
+  serialized_end=1540,
 )
 
 
@@ -676,8 +751,8 @@ _SHOTNESSANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1393,
-  serialized_end=1452,
+  serialized_start=1542,
+  serialized_end=1601,
 )
 
 
@@ -707,8 +782,8 @@ _FILEHISTORY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1454,
-  serialized_end=1484,
+  serialized_start=1603,
+  serialized_end=1633,
 )
 
 
@@ -745,8 +820,8 @@ _FILEHISTORYRESULTMESSAGE_FILESENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1568,
-  serialized_end=1626,
+  serialized_start=1717,
+  serialized_end=1775,
 )
 
 _FILEHISTORYRESULTMESSAGE = _descriptor.Descriptor(
@@ -775,8 +850,8 @@ _FILEHISTORYRESULTMESSAGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1487,
-  serialized_end=1626,
+  serialized_start=1636,
+  serialized_end=1775,
 )
 
 
@@ -820,8 +895,8 @@ _LINESTATS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1628,
-  serialized_end=1688,
+  serialized_start=1777,
+  serialized_end=1837,
 )
 
 
@@ -858,8 +933,8 @@ _DEVDAY_LANGUAGESENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1788,
-  serialized_end=1848,
+  serialized_start=1937,
+  serialized_end=1997,
 )
 
 _DEVDAY = _descriptor.Descriptor(
@@ -902,8 +977,8 @@ _DEVDAY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1691,
-  serialized_end=1848,
+  serialized_start=1840,
+  serialized_end=1997,
 )
 
 
@@ -940,8 +1015,8 @@ _DAYDEVS_DEVSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1895,
-  serialized_end=1947,
+  serialized_start=2044,
+  serialized_end=2096,
 )
 
 _DAYDEVS = _descriptor.Descriptor(
@@ -970,8 +1045,8 @@ _DAYDEVS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1850,
-  serialized_end=1947,
+  serialized_start=1999,
+  serialized_end=2096,
 )
 
 
@@ -1008,8 +1083,8 @@ _DEVSANALYSISRESULTS_DAYSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2038,
-  serialized_end=2091,
+  serialized_start=2187,
+  serialized_end=2240,
 )
 
 _DEVSANALYSISRESULTS = _descriptor.Descriptor(
@@ -1045,8 +1120,8 @@ _DEVSANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1950,
-  serialized_end=2091,
+  serialized_start=2099,
+  serialized_end=2240,
 )
 
 
@@ -1090,8 +1165,8 @@ _SENTIMENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2093,
-  serialized_end=2154,
+  serialized_start=2242,
+  serialized_end=2303,
 )
 
 
@@ -1128,8 +1203,8 @@ _COMMENTSENTIMENTRESULTS_SENTIMENTBYDAYENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2256,
-  serialized_end=2321,
+  serialized_start=2405,
+  serialized_end=2470,
 )
 
 _COMMENTSENTIMENTRESULTS = _descriptor.Descriptor(
@@ -1158,8 +1233,8 @@ _COMMENTSENTIMENTRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2157,
-  serialized_end=2321,
+  serialized_start=2306,
+  serialized_end=2470,
 )
 
 
@@ -1196,8 +1271,8 @@ _ANALYSISRESULTS_CONTENTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2420,
-  serialized_end=2467,
+  serialized_start=2569,
+  serialized_end=2616,
 )
 
 _ANALYSISRESULTS = _descriptor.Descriptor(
@@ -1233,17 +1308,20 @@ _ANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2324,
-  serialized_end=2467,
+  serialized_start=2473,
+  serialized_end=2616,
 )
 
 _METADATA_RUNTIMEPERITEMENTRY.containing_type = _METADATA
 _METADATA.fields_by_name['run_time_per_item'].message_type = _METADATA_RUNTIMEPERITEMENTRY
 _BURNDOWNSPARSEMATRIX.fields_by_name['rows'].message_type = _BURNDOWNSPARSEMATRIXROW
+_FILESOWNERSHIP_VALUEENTRY.containing_type = _FILESOWNERSHIP
+_FILESOWNERSHIP.fields_by_name['value'].message_type = _FILESOWNERSHIP_VALUEENTRY
 _BURNDOWNANALYSISRESULTS.fields_by_name['project'].message_type = _BURNDOWNSPARSEMATRIX
 _BURNDOWNANALYSISRESULTS.fields_by_name['files'].message_type = _BURNDOWNSPARSEMATRIX
 _BURNDOWNANALYSISRESULTS.fields_by_name['people'].message_type = _BURNDOWNSPARSEMATRIX
 _BURNDOWNANALYSISRESULTS.fields_by_name['people_interaction'].message_type = _COMPRESSEDSPARSEROWMATRIX
+_BURNDOWNANALYSISRESULTS.fields_by_name['files_ownership'].message_type = _FILESOWNERSHIP
 _COUPLES.fields_by_name['matrix'].message_type = _COMPRESSEDSPARSEROWMATRIX
 _COUPLESANALYSISRESULTS.fields_by_name['file_couples'].message_type = _COUPLES
 _COUPLESANALYSISRESULTS.fields_by_name['people_couples'].message_type = _COUPLES
@@ -1274,6 +1352,7 @@ _ANALYSISRESULTS.fields_by_name['contents'].message_type = _ANALYSISRESULTS_CONT
 DESCRIPTOR.message_types_by_name['Metadata'] = _METADATA
 DESCRIPTOR.message_types_by_name['BurndownSparseMatrixRow'] = _BURNDOWNSPARSEMATRIXROW
 DESCRIPTOR.message_types_by_name['BurndownSparseMatrix'] = _BURNDOWNSPARSEMATRIX
+DESCRIPTOR.message_types_by_name['FilesOwnership'] = _FILESOWNERSHIP
 DESCRIPTOR.message_types_by_name['BurndownAnalysisResults'] = _BURNDOWNANALYSISRESULTS
 DESCRIPTOR.message_types_by_name['CompressedSparseRowMatrix'] = _COMPRESSEDSPARSEROWMATRIX
 DESCRIPTOR.message_types_by_name['Couples'] = _COUPLES
@@ -1322,6 +1401,21 @@ BurndownSparseMatrix = _reflection.GeneratedProtocolMessageType('BurndownSparseM
   # @@protoc_insertion_point(class_scope:BurndownSparseMatrix)
   ))
 _sym_db.RegisterMessage(BurndownSparseMatrix)
+
+FilesOwnership = _reflection.GeneratedProtocolMessageType('FilesOwnership', (_message.Message,), dict(
+
+  ValueEntry = _reflection.GeneratedProtocolMessageType('ValueEntry', (_message.Message,), dict(
+    DESCRIPTOR = _FILESOWNERSHIP_VALUEENTRY,
+    __module__ = 'pb_pb2'
+    # @@protoc_insertion_point(class_scope:FilesOwnership.ValueEntry)
+    ))
+  ,
+  DESCRIPTOR = _FILESOWNERSHIP,
+  __module__ = 'pb_pb2'
+  # @@protoc_insertion_point(class_scope:FilesOwnership)
+  ))
+_sym_db.RegisterMessage(FilesOwnership)
+_sym_db.RegisterMessage(FilesOwnership.ValueEntry)
 
 BurndownAnalysisResults = _reflection.GeneratedProtocolMessageType('BurndownAnalysisResults', (_message.Message,), dict(
   DESCRIPTOR = _BURNDOWNANALYSISRESULTS,
@@ -1507,6 +1601,7 @@ _sym_db.RegisterMessage(AnalysisResults.ContentsEntry)
 
 
 _METADATA_RUNTIMEPERITEMENTRY._options = None
+_FILESOWNERSHIP_VALUEENTRY._options = None
 _SHOTNESSRECORD_COUNTERSENTRY._options = None
 _FILEHISTORYRESULTMESSAGE_FILESENTRY._options = None
 _DEVDAY_LANGUAGESENTRY._options = None
