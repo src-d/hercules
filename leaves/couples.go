@@ -295,11 +295,17 @@ func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, erro
 		reversedPeopleDict: message.PeopleCouples.Index,
 	}
 	for i, files := range message.PeopleFiles {
-		result.FilesLines[i] = int(message.FilesLines[i])
 		result.PeopleFiles[i] = make([]int, len(files.Files))
 		for j, val := range files.Files {
 			result.PeopleFiles[i][j] = int(val)
 		}
+	}
+	if len(message.FileCouples.Index) != len(message.FilesLines) {
+		log.Panicf("Couples PB message integrity violation: file_couples (%d) != file_lines (%d)",
+			len(message.FileCouples.Index), len(message.FilesLines))
+	}
+	for i, v := range message.FilesLines {
+		result.FilesLines[i] = int(v)
 	}
 	convertCSR := func(dest []map[int]int64, src *pb.CompressedSparseRowMatrix) {
 		for indptr := range src.Indptr {
@@ -323,9 +329,9 @@ func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.Co
 	cr2 := r2.(CouplesResult)
 	merged := CouplesResult{}
 	var people, files map[string][3]int
-	people, merged.reversedPeopleDict = identity.Detector{}.MergeReversedDicts(
-		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
-	files, merged.Files = identity.Detector{}.MergeReversedDicts(cr1.Files, cr2.Files)
+	id := identity.Detector{}
+	people, merged.reversedPeopleDict = id.MergeReversedDicts(cr1.reversedPeopleDict, cr2.reversedPeopleDict)
+	files, merged.Files = id.MergeReversedDicts(cr1.Files, cr2.Files)
 	merged.FilesLines = make([]int, len(merged.Files))
 	for i, name := range merged.Files {
 		idxs := files[name]
@@ -364,8 +370,7 @@ func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.Co
 		sort.Ints(merged.PeopleFiles[i])
 	}
 	merged.PeopleMatrix = make([]map[int]int64, len(merged.reversedPeopleDict)+1)
-	addPeople := func(peopleMatrix []map[int]int64, reversedPeopleDict []string,
-		reversedFilesDict []string) {
+	addPeople := func(peopleMatrix []map[int]int64, reversedPeopleDict []string) {
 		for pi, pc := range peopleMatrix {
 			var idx int
 			if pi < len(reversedPeopleDict) {
@@ -378,13 +383,19 @@ func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.Co
 				m = map[int]int64{}
 				merged.PeopleMatrix[idx] = m
 			}
-			for file, val := range pc {
-				m[files[reversedFilesDict[file]][0]] += val
+			for otherDev, val := range pc {
+				var otherIdx int
+				if otherDev < len(reversedPeopleDict) {
+					otherIdx = people[reversedPeopleDict[otherDev]][0]
+				} else {
+					otherIdx = len(merged.reversedPeopleDict)
+				}
+				m[otherIdx] += val
 			}
 		}
 	}
-	addPeople(cr1.PeopleMatrix, cr1.reversedPeopleDict, cr1.Files)
-	addPeople(cr2.PeopleMatrix, cr2.reversedPeopleDict, cr2.Files)
+	addPeople(cr1.PeopleMatrix, cr1.reversedPeopleDict)
+	addPeople(cr2.PeopleMatrix, cr2.reversedPeopleDict)
 	merged.FilesMatrix = make([]map[int]int64, len(merged.Files))
 	addFiles := func(filesMatrix []map[int]int64, reversedFilesDict []string) {
 		for fi, fc := range filesMatrix {

@@ -371,7 +371,7 @@ type CouplesAnalysisResults struct {
 	PeopleCouples *Couples `protobuf:"bytes,7,opt,name=people_couples,json=peopleCouples" json:"people_couples,omitempty"`
 	// order corresponds to `people_couples::index`
 	PeopleFiles []*TouchedFiles `protobuf:"bytes,8,rep,name=people_files,json=peopleFiles" json:"people_files,omitempty"`
-	// order corresponds to `files_couples::index`
+	// order corresponds to `file_couples::index`
 	FilesLines []int32 `protobuf:"varint,9,rep,packed,name=files_lines,json=filesLines" json:"files_lines,omitempty"`
 }
 
