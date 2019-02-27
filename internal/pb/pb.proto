@@ -80,7 +80,7 @@ message CouplesAnalysisResults {
     Couples people_couples = 7;
     // order corresponds to `people_couples::index`
     repeated TouchedFiles people_files = 8;
-    // order corresponds to `files_couples::index`
+    // order corresponds to `file_couples::index`
     repeated int32 files_lines = 9;
 }
 
@@ -109,6 +109,7 @@ message ShotnessAnalysisResults {
 
 message FileHistory {
     repeated string commits = 1;
+    //map<int32, int32> changes_by_developer = 2;
 }
 
 message FileHistoryResultMessage {

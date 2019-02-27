@@ -455,6 +455,9 @@ func TestCouplesDeserialize(t *testing.T) {
 	assert.Len(t, result.PeopleMatrix, 3)
 	assert.Len(t, result.Files, 74)
 	assert.Len(t, result.FilesLines, 74)
+	for _, v := range result.FilesLines {
+		assert.True(t, v > 0)
+	}
 	assert.Len(t, result.FilesMatrix, 74)
 }
 
