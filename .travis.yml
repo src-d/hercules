@@ -57,7 +57,7 @@ before_install:
   - sudo ldconfig
 install:
   - git clean -xfd
-  - make TAGS=tensorflow
+  - travis_retry make TAGS=tensorflow
 script:
   - set -e
   - if [ $TRAVIS_GO_VERSION == "1.11.x" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
@@ -100,7 +100,7 @@ jobs:
         - gzip -S .darwin_amd64.gz $GOPATH/bin/hercules
       script: skip
       install:
-        - make
+        - travis_retry make
       deploy:
         provider: releases
         api_key:
@@ -120,7 +120,7 @@ jobs:
         - export PATH=$GOPATH/bin:$PATH
       script: skip
       install:
-        - make
+        - travis_retry make
       after_success:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
       deploy:
