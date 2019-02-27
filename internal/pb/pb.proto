@@ -147,6 +147,24 @@ message CommentSentimentResults {
     map<int32, Sentiment> sentiment_by_day = 1;
 }
 
+message CommitFile {
+    string name = 1;
+    string language = 3;
+    LineStats stats = 4;
+}
+
+message Commit {
+    string hash = 1;
+    int64 when_unix_time = 2;
+    int32 author = 3;
+    repeated CommitFile files = 4;
+}
+
+message CommitsAnalysisResults {
+    repeated Commit commits = 1;
+    repeated string author_index = 2;
+}
+
 message AnalysisResults {
     Metadata header = 1;
     // the mapped values are dynamic messages which require the second parsing pass.
