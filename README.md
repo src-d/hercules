@@ -5,7 +5,7 @@
 <p align="center">
       Fast, insightful and highly customizable Git history analysis.<br><br>
       <a href="http://godoc.org/gopkg.in/src-d/hercules.v7"><img src="https://godoc.org/gopkg.in/src-d/hercules.v7?status.svg" alt="GoDoc"></a>
-      <a href="https://travis-ci.org/src-d/hercules"><img src="https://travis-ci.org/src-d/hercules.svg?branch=master" alt="Travis build Status"></a>
+      <a href="https://travis-ci.com/src-d/hercules"><img src="https://travis-ci.com/src-d/hercules.svg?branch=master" alt="Travis build Status"></a>
       <a href="https://ci.appveyor.com/project/vmarkovtsev/hercules"><img src="https://ci.appveyor.com/api/projects/status/49f0lm3v2y6xyph3?svg=true" alt="AppVeyor build status"></a>
       <a href="https://hub.docker.com/r/srcd/hercules"><img src="https://img.shields.io/docker/build/srcd/hercules.svg" alt="Docker build status"></a>
       <a href="https://codecov.io/gh/src-d/hercules"><img src="https://codecov.io/github/src-d/hercules/coverage.svg" alt="Code coverage"></a>
