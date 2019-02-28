@@ -8,7 +8,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v8/internal/core"
+	"gopkg.in/src-d/hercules.v9/internal/core"
 )
 
 // LinesStatsCalculator measures line statistics for each text file in the commit.

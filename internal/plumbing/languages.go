@@ -9,7 +9,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v8/internal/core"
+	"gopkg.in/src-d/hercules.v9/internal/core"
 )
 
 // LanguagesDetection run programming language detection over the changed files.

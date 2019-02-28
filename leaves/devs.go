@@ -10,11 +10,11 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v8/internal/core"
-	"gopkg.in/src-d/hercules.v8/internal/pb"
-	items "gopkg.in/src-d/hercules.v8/internal/plumbing"
-	"gopkg.in/src-d/hercules.v8/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v8/internal/yaml"
+	"gopkg.in/src-d/hercules.v9/internal/core"
+	"gopkg.in/src-d/hercules.v9/internal/pb"
+	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
+	"gopkg.in/src-d/hercules.v9/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v9/internal/yaml"
 )
 
 // DevsAnalysis calculates the number of commits through time per developer.
