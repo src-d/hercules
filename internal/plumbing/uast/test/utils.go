@@ -6,7 +6,7 @@ import (
 	"gopkg.in/bblfsh/client-go.v3"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	core_test "gopkg.in/src-d/hercules.v8/internal/test"
+	core_test "gopkg.in/src-d/hercules.v9/internal/test"
 )
 
 // ParseBlobFromTestRepo extracts the UAST from the file by it's hash and name.

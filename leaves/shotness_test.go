@@ -14,11 +14,11 @@ import (
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v8/internal/core"
-	"gopkg.in/src-d/hercules.v8/internal/pb"
-	items "gopkg.in/src-d/hercules.v8/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v8/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v8/internal/test"
+	"gopkg.in/src-d/hercules.v9/internal/core"
+	"gopkg.in/src-d/hercules.v9/internal/pb"
+	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v9/internal/test"
 )
 
 func fixtureShotness() *ShotnessAnalysis {

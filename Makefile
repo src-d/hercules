@@ -10,7 +10,7 @@ TAGS ?=
 all: ${GOPATH}/bin/hercules${EXE}
 
 test: all
-	go test gopkg.in/src-d/hercules.v8
+	go test gopkg.in/src-d/hercules.v9
 
 ${GOPATH}/bin/protoc-gen-gogo${EXE}:
 	go get -v github.com/gogo/protobuf/protoc-gen-gogo
@@ -34,4 +34,4 @@ vendor:
 	dep ensure -v
 
 ${GOPATH}/bin/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go
-	go get -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v8.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v8/cmd/hercules
+	go get -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v9.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v9/cmd/hercules

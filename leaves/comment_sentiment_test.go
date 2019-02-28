@@ -16,12 +16,12 @@ import (
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/bblfsh/sdk.v2/uast/query"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v8/internal/core"
-	"gopkg.in/src-d/hercules.v8/internal/pb"
-	items "gopkg.in/src-d/hercules.v8/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v8/internal/plumbing/uast"
-	uast_test "gopkg.in/src-d/hercules.v8/internal/plumbing/uast/test"
-	"gopkg.in/src-d/hercules.v8/internal/test"
+	"gopkg.in/src-d/hercules.v9/internal/core"
+	"gopkg.in/src-d/hercules.v9/internal/pb"
+	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
+	uast_test "gopkg.in/src-d/hercules.v9/internal/plumbing/uast/test"
+	"gopkg.in/src-d/hercules.v9/internal/test"
 )
 
 func fixtureCommentSentiment() *CommentSentimentAnalysis {

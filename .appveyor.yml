@@ -2,7 +2,7 @@ version: "{build}"
 platform: x64
 image: Visual Studio 2017
 
-clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v8
+clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v9
 
 environment:
   GOPATH: c:\gopath
@@ -16,14 +16,14 @@ build_script:
   - go version
   - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%GOPATH%\bin;%PATH%
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
-  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v8
+  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v9
   - go get -v github.com/golang/dep/cmd/dep
   - make
-  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v8\hercules.win64.zip %GOPATH%\bin\hercules.exe
+  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v9\hercules.win64.zip %GOPATH%\bin\hercules.exe
 
 test_script:
-  - go get -v -t -d gopkg.in/src-d/hercules.v8/...
-  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v8/...
+  - go get -v -t -d gopkg.in/src-d/hercules.v9/...
+  - go test -v -tags disable_babelfish gopkg.in/src-d/hercules.v9/...
 
 artifacts:
   - name: hercules.win64.zip

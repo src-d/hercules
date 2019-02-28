@@ -7,5 +7,5 @@ import (
 )
 
 func TestVersion(t *testing.T) {
-	assert.Equal(t, BinaryVersion, 8) // v7
+	assert.Equal(t, BinaryVersion, 9) // v9
 }
