@@ -109,7 +109,7 @@ message ShotnessAnalysisResults {
 
 message FileHistory {
     repeated string commits = 1;
-    //map<int32, int32> changes_by_developer = 2;
+    map<int32, LineStats> changes_by_developer = 2;
 }
 
 message FileHistoryResultMessage {

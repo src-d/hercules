@@ -6,11 +6,11 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v8/internal/core"
 	"gopkg.in/src-d/hercules.v8/internal/pb"
-	"gopkg.in/src-d/hercules.v8/internal/plumbing"
+	items "gopkg.in/src-d/hercules.v8/internal/plumbing"
 	"gopkg.in/src-d/hercules.v8/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v8/internal/test"
 	"gopkg.in/src-d/hercules.v8/internal/test/fixtures"
@@ -28,13 +28,12 @@ func TestDevsMeta(t *testing.T) {
 	d := fixtureDevs()
 	assert.Equal(t, d.Name(), "Devs")
 	assert.Equal(t, len(d.Provides()), 0)
-	assert.Equal(t, len(d.Requires()), 6)
+	assert.Equal(t, len(d.Requires()), 5)
 	assert.Equal(t, d.Requires()[0], identity.DependencyAuthor)
-	assert.Equal(t, d.Requires()[1], plumbing.DependencyTreeChanges)
-	assert.Equal(t, d.Requires()[2], plumbing.DependencyFileDiff)
-	assert.Equal(t, d.Requires()[3], plumbing.DependencyBlobCache)
-	assert.Equal(t, d.Requires()[4], plumbing.DependencyDay)
-	assert.Equal(t, d.Requires()[5], plumbing.DependencyLanguages)
+	assert.Equal(t, d.Requires()[1], items.DependencyTreeChanges)
+	assert.Equal(t, d.Requires()[2], items.DependencyDay)
+	assert.Equal(t, d.Requires()[3], items.DependencyLanguages)
+	assert.Equal(t, d.Requires()[4], items.DependencyLineStats)
 	assert.Equal(t, d.Flag(), "devs")
 	assert.Len(t, d.ListConfigurationOptions(), 1)
 	assert.Equal(t, d.ListConfigurationOptions()[0].Name, ConfigDevsConsiderEmptyCommits)
@@ -78,23 +77,23 @@ func TestDevsConsumeFinalize(t *testing.T) {
 
 	// stage 1
 	deps[identity.DependencyAuthor] = 0
-	deps[plumbing.DependencyDay] = 0
-	cache := map[gitplumbing.Hash]*plumbing.CachedBlob{}
+	deps[items.DependencyDay] = 0
+	cache := map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
 	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
 	AddHash(t, cache, "dc248ba2b22048cc730c571a748e8ffcf7085ab9")
-	deps[plumbing.DependencyBlobCache] = cache
-	deps[plumbing.DependencyLanguages] = map[gitplumbing.Hash]string{
-		gitplumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"): "Go",
-		gitplumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9"): "Go",
-		gitplumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1"): "Go",
-		gitplumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"): "Go",
+	deps[items.DependencyBlobCache] = cache
+	deps[items.DependencyLanguages] = map[plumbing.Hash]string{
+		plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"): "Go",
+		plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9"): "Go",
+		plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1"): "Go",
+		plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"): "Go",
 	}
 	changes := make(object.Changes, 3)
-	treeFrom, _ := test.Repository.TreeObject(gitplumbing.NewHash(
+	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"a1eb2ea76eb7f9bfbde9b243861474421000eb96"))
-	treeTo, _ := test.Repository.TreeObject(gitplumbing.NewHash(
+	treeTo, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"994eac1cd07235bb9815e547a75c84265dea00f5"))
 	changes[0] = &object.Change{From: object.ChangeEntry{
 		Name: "analyser.go",
@@ -102,7 +101,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 		TreeEntry: object.TreeEntry{
 			Name: "analyser.go",
 			Mode: 0100644,
-			Hash: gitplumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"),
+			Hash: plumbing.NewHash("dc248ba2b22048cc730c571a748e8ffcf7085ab9"),
 		},
 	}, To: object.ChangeEntry{
 		Name: "analyser.go",
@@ -110,7 +109,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 		TreeEntry: object.TreeEntry{
 			Name: "analyser.go",
 			Mode: 0100644,
-			Hash: gitplumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1"),
+			Hash: plumbing.NewHash("baa64828831d174f40140e4b3cfa77d1e917a2c1"),
 		},
 	}}
 	changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
@@ -119,7 +118,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 		TreeEntry: object.TreeEntry{
 			Name: "cmd/hercules/main.go",
 			Mode: 0100644,
-			Hash: gitplumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9"),
+			Hash: plumbing.NewHash("c29112dbd697ad9b401333b80c18a63951bc18d9"),
 		},
 	},
 	}
@@ -129,18 +128,23 @@ func TestDevsConsumeFinalize(t *testing.T) {
 		TreeEntry: object.TreeEntry{
 			Name: ".travis.yml",
 			Mode: 0100644,
-			Hash: gitplumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"),
+			Hash: plumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe"),
 		},
 	},
 	}
-	deps[plumbing.DependencyTreeChanges] = changes
+	deps[items.DependencyTreeChanges] = changes
 	fd := fixtures.FileDiff()
 	result, err := fd.Consume(deps)
 	assert.Nil(t, err)
-	deps[plumbing.DependencyFileDiff] = result[plumbing.DependencyFileDiff]
-	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
+	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
+	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	deps[core.DependencyIsMerge] = false
+	lsc := &items.LinesStatsCalculator{}
+	lscres, err := lsc.Consume(deps)
+	assert.Nil(t, err)
+	deps[items.DependencyLineStats] = lscres[items.DependencyLineStats]
+
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -157,6 +161,9 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Equal(t, dev.Languages["Go"].Changed, 67)
 
 	deps[core.DependencyIsMerge] = true
+	lscres, err = lsc.Consume(deps)
+	assert.Nil(t, err)
+	deps[items.DependencyLineStats] = lscres[items.DependencyLineStats]
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -174,6 +181,9 @@ func TestDevsConsumeFinalize(t *testing.T) {
 
 	deps[core.DependencyIsMerge] = false
 	deps[identity.DependencyAuthor] = 1
+	lscres, err = lsc.Consume(deps)
+	assert.Nil(t, err)
+	deps[items.DependencyLineStats] = lscres[items.DependencyLineStats]
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -218,7 +228,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Equal(t, dev.Languages["Go"].Removed, 9*2)
 	assert.Equal(t, dev.Languages["Go"].Changed, 67*2)
 
-	deps[plumbing.DependencyDay] = 1
+	deps[items.DependencyDay] = 1
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
@@ -253,10 +263,14 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Equal(t, dev.Languages["Go"].Changed, 67)
 }
 
+func ls(added, removed, changed int) items.LineStats {
+	return items.LineStats{Added: added, Removed: removed, Changed: changed}
+}
+
 func TestDevsFinalize(t *testing.T) {
 	devs := fixtureDevs()
 	devs.days[1] = map[int]*DevDay{}
-	devs.days[1][1] = &DevDay{10, LineStats{20, 30, 40}, nil}
+	devs.days[1][1] = &DevDay{10, ls(20, 30, 40), nil}
 	x := devs.Finalize().(DevsResult)
 	assert.Equal(t, x.Days, devs.days)
 	assert.Equal(t, x.reversedPeopleDict, devs.reversedPeopleDict)
@@ -271,12 +285,12 @@ func TestDevsFork(t *testing.T) {
 func TestDevsSerialize(t *testing.T) {
 	devs := fixtureDevs()
 	devs.days[1] = map[int]*DevDay{}
-	devs.days[1][0] = &DevDay{10, LineStats{20, 30, 40}, map[string]LineStats{"Go": {2, 3, 4}}}
-	devs.days[1][1] = &DevDay{1, LineStats{2, 3, 4}, map[string]LineStats{"Go": {25, 35, 45}}}
+	devs.days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(2, 3, 4)}}
+	devs.days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(25, 35, 45)}}
 	devs.days[10] = map[int]*DevDay{}
-	devs.days[10][0] = &DevDay{11, LineStats{21, 31, 41}, map[string]LineStats{"": {12, 13, 14}}}
+	devs.days[10][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"": ls(12, 13, 14)}}
 	devs.days[10][identity.AuthorMissing] = &DevDay{
-		100, LineStats{200, 300, 400}, map[string]LineStats{"Go": {32, 33, 34}}}
+		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
 	res := devs.Finalize().(DevsResult)
 	buffer := &bytes.Buffer{}
 	err := devs.Serialize(res, false, buffer)
@@ -297,7 +311,7 @@ func TestDevsSerialize(t *testing.T) {
 	err = devs.Serialize(res, true, buffer)
 	assert.Nil(t, err)
 	msg := pb.DevsAnalysisResults{}
-	proto.Unmarshal(buffer.Bytes(), &msg)
+	assert.Nil(t, proto.Unmarshal(buffer.Bytes(), &msg))
 	assert.Equal(t, msg.DevIndex, devs.reversedPeopleDict)
 	assert.Len(t, msg.Days, 2)
 	assert.Len(t, msg.Days[1].Devs, 2)
@@ -319,12 +333,12 @@ func TestDevsSerialize(t *testing.T) {
 func TestDevsDeserialize(t *testing.T) {
 	devs := fixtureDevs()
 	devs.days[1] = map[int]*DevDay{}
-	devs.days[1][0] = &DevDay{10, LineStats{20, 30, 40}, map[string]LineStats{"Go": {12, 13, 14}}}
-	devs.days[1][1] = &DevDay{1, LineStats{2, 3, 4}, map[string]LineStats{"Go": {22, 23, 24}}}
+	devs.days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
+	devs.days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
 	devs.days[10] = map[int]*DevDay{}
-	devs.days[10][0] = &DevDay{11, LineStats{21, 31, 41}, map[string]LineStats{"Go": {32, 33, 34}}}
+	devs.days[10][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
 	devs.days[10][identity.AuthorMissing] = &DevDay{
-		100, LineStats{200, 300, 400}, map[string]LineStats{"Go": {42, 43, 44}}}
+		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(42, 43, 44)}}
 	res := devs.Finalize().(DevsResult)
 	buffer := &bytes.Buffer{}
 	err := devs.Serialize(res, true, buffer)
@@ -343,29 +357,29 @@ func TestDevsMergeResults(t *testing.T) {
 		reversedPeopleDict: people1[:],
 	}
 	r1.Days[1] = map[int]*DevDay{}
-	r1.Days[1][0] = &DevDay{10, LineStats{20, 30, 40}, map[string]LineStats{"Go": {12, 13, 14}}}
-	r1.Days[1][1] = &DevDay{1, LineStats{2, 3, 4}, map[string]LineStats{"Go": {22, 23, 24}}}
+	r1.Days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
+	r1.Days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
 	r1.Days[10] = map[int]*DevDay{}
-	r1.Days[10][0] = &DevDay{11, LineStats{21, 31, 41}, nil}
+	r1.Days[10][0] = &DevDay{11, ls(21, 31, 41), nil}
 	r1.Days[10][identity.AuthorMissing] = &DevDay{
-		100, LineStats{200, 300, 400}, map[string]LineStats{"Go": {32, 33, 34}}}
+		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
 	r1.Days[11] = map[int]*DevDay{}
-	r1.Days[11][1] = &DevDay{10, LineStats{20, 30, 40}, map[string]LineStats{"Go": {42, 43, 44}}}
+	r1.Days[11][1] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(42, 43, 44)}}
 	r2 := DevsResult{
 		Days:               map[int]map[int]*DevDay{},
 		reversedPeopleDict: people2[:],
 	}
 	r2.Days[1] = map[int]*DevDay{}
-	r2.Days[1][0] = &DevDay{10, LineStats{20, 30, 40}, map[string]LineStats{"Go": {12, 13, 14}}}
-	r2.Days[1][1] = &DevDay{1, LineStats{2, 3, 4}, map[string]LineStats{"Go": {22, 23, 24}}}
+	r2.Days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
+	r2.Days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
 	r2.Days[2] = map[int]*DevDay{}
-	r2.Days[2][0] = &DevDay{11, LineStats{21, 31, 41}, map[string]LineStats{"Go": {32, 33, 34}}}
+	r2.Days[2][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
 	r2.Days[2][identity.AuthorMissing] = &DevDay{
-		100, LineStats{200, 300, 400}, map[string]LineStats{"Go": {42, 43, 44}}}
+		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(42, 43, 44)}}
 	r2.Days[10] = map[int]*DevDay{}
-	r2.Days[10][0] = &DevDay{11, LineStats{21, 31, 41}, map[string]LineStats{"Go": {52, 53, 54}}}
+	r2.Days[10][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(52, 53, 54)}}
 	r2.Days[10][identity.AuthorMissing] = &DevDay{
-		100, LineStats{200, 300, 400}, map[string]LineStats{"Go": {62, 63, 64}}}
+		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(62, 63, 64)}}
 
 	devs := fixtureDevs()
 	rm := devs.MergeResults(r1, r2, nil, nil).(DevsResult)
@@ -373,20 +387,20 @@ func TestDevsMergeResults(t *testing.T) {
 	assert.Equal(t, rm.reversedPeopleDict, peoplerm[:])
 	assert.Len(t, rm.Days, 4)
 	assert.Equal(t, rm.Days[11], map[int]*DevDay{
-		1: {10, LineStats{20, 30, 40}, map[string]LineStats{"Go": {42, 43, 44}}}})
+		1: {10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(42, 43, 44)}}})
 	assert.Equal(t, rm.Days[2], map[int]*DevDay{
-		identity.AuthorMissing: {100, LineStats{200, 300, 400}, map[string]LineStats{"Go": {42, 43, 44}}},
-		2:                      {11, LineStats{21, 31, 41}, map[string]LineStats{"Go": {32, 33, 34}}},
+		identity.AuthorMissing: {100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(42, 43, 44)}},
+		2:                      {11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}},
 	})
 	assert.Equal(t, rm.Days[1], map[int]*DevDay{
-		0: {11, LineStats{22, 33, 44}, map[string]LineStats{"Go": {34, 36, 38}}},
-		1: {1, LineStats{2, 3, 4}, map[string]LineStats{"Go": {22, 23, 24}}},
-		2: {10, LineStats{20, 30, 40}, map[string]LineStats{"Go": {12, 13, 14}}},
+		0: {11, ls(22, 33, 44), map[string]items.LineStats{"Go": ls(34, 36, 38)}},
+		1: {1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}},
+		2: {10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}},
 	})
 	assert.Equal(t, rm.Days[10], map[int]*DevDay{
-		0: {11, LineStats{21, 31, 41}, map[string]LineStats{}},
-		2: {11, LineStats{21, 31, 41}, map[string]LineStats{"Go": {52, 53, 54}}},
+		0: {11, ls(21, 31, 41), map[string]items.LineStats{}},
+		2: {11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(52, 53, 54)}},
 		identity.AuthorMissing: {
-			100 * 2, LineStats{200 * 2, 300 * 2, 400 * 2}, map[string]LineStats{"Go": {94, 96, 98}}},
+			100 * 2, ls(200*2, 300*2, 400*2), map[string]items.LineStats{"Go": ls(94, 96, 98)}},
 	})
 }
