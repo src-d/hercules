@@ -61,7 +61,8 @@ def parse_args():
     parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
     parser.add_argument("-m", "--mode",
                         choices=["burndown-project", "burndown-file", "burndown-person",
-                                 "churn-matrix", "ownership", "couples", "shotness", "sentiment",
+                                 "churn-matrix", "ownership", "couples-files", "couples-people",
+                                 "couples-shotness", "shotness", "sentiment",
                                  "devs", "old-vs-new", "all", "run-times", "languages"],
                         help="What to plot.")
     parser.add_argument(
@@ -1353,6 +1354,7 @@ def show_devs(args, name, start_date, end_date, data):
         final[route_map[i]] = convolve(full_history, window, "same")
 
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
+    pyplot.rcParams["figure.figsize"] = (32, 16)
     prop_cycle = pyplot.rcParams["axes.prop_cycle"]
     colors = prop_cycle.by_key()["color"]
     fig, axes = pyplot.subplots(final.shape[0], 1)
@@ -1400,7 +1402,7 @@ def show_devs(args, name, start_date, end_date, data):
     axes[-1].get_yaxis().set_visible(False)
     axes[-1].set_facecolor((1.0,) * 3 + (0.0,))
 
-    title = "%s commits" % name
+    title = ("%s commits" % name) if not args.output else ""
     deploy_plot(title, args.output, args.style)
 
 
@@ -1555,16 +1557,23 @@ def main():
         except KeyError:
             print("ownership: " + burndown_people_warning)
 
-    def couples():
+    def couples_files():
         try:
             write_embeddings("files", args.output, not args.disable_projector,
                              *train_embeddings(*reader.get_files_coocc(),
                                                tmpdir=args.couples_tmp_dir))
+        except KeyError:
+            print(couples_warning)
+
+    def couples_people():
+        try:
             write_embeddings("people", args.output, not args.disable_projector,
                              *train_embeddings(*reader.get_people_coocc(),
                                                tmpdir=args.couples_tmp_dir))
         except KeyError:
             print(couples_warning)
+
+    def couples_shotness():
         try:
             write_embeddings("shotness", args.output, not args.disable_projector,
                              *train_embeddings(*reader.get_shotness_coocc(),
@@ -1619,7 +1628,9 @@ def main():
         "burndown-person": people_burndown,
         "churn-matrix": churn_matrix,
         "ownership": ownership_burndown,
-        "couples": couples,
+        "couples-files": couples_files,
+        "couples-people": couples_people,
+        "couples-shotness": couples_shotness,
         "shotness": shotness,
         "sentiment": sentiment,
         "devs": devs,
@@ -1635,7 +1646,9 @@ def main():
         people_burndown()
         churn_matrix()
         ownership_burndown()
-        couples()
+        couples_files()
+        couples_people()
+        couples_shotness()
         shotness()
         sentiment()
         devs()
