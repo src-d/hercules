@@ -63,7 +63,8 @@ def parse_args():
                         choices=["burndown-project", "burndown-file", "burndown-person",
                                  "churn-matrix", "ownership", "couples-files", "couples-people",
                                  "couples-shotness", "shotness", "sentiment", "devs",
-                                 "devs-efforts", "old-vs-new", "all", "run-times", "languages"],
+                                 "devs-efforts", "old-vs-new", "all", "run-times", "languages",
+                                 "devs-parallel"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -240,7 +241,7 @@ class YamlReader(Reader):
         days = {int(d): {int(dev): DevDay(*(int(x) for x in day[:-1]), day[-1])
                          for dev, day in devs.items()}
                 for d, devs in self.data["Devs"]["days"].items()}
-        return days, people
+        return people, days
 
     def _parse_burndown_matrix(self, matrix):
         return numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
@@ -364,7 +365,7 @@ class ProtobufReader(Reader):
                                                       for k, v in stats.languages.items()})
                     for dev, stats in day.devs.items()}
                 for d, day in self.contents["Devs"].days.items()}
-        return days, people
+        return people, days
 
     def _parse_burndown_matrix(self, matrix):
         dense = numpy.zeros((matrix.number_of_rows, matrix.number_of_columns), dtype=int)
@@ -698,6 +699,7 @@ def import_pyplot(backend, style):
         matplotlib.use(backend)
     from matplotlib import pyplot
     pyplot.style.use(style)
+    print("matplotlib: backend is", matplotlib.get_backend())
     return matplotlib, pyplot
 
 
@@ -1117,7 +1119,7 @@ web_server = CORSWebServer()
 def write_embeddings(name, output, run_server, index, embeddings):
     print("Writing Tensorflow Projector files...")
     if not output:
-        output = "couples_" + name
+        output = "couples"
     if output.endswith(".json"):
         output = os.path.join(output[:-5], "couples")
         run_server = False
@@ -1235,27 +1237,9 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     deploy_plot(title, args.output, args.style)
 
 
-def show_devs(args, name, start_date, end_date, data):
-    try:
-        from fastdtw import fastdtw
-    except ImportError as e:
-        print("Cannot import fastdtw: %s\nInstall it from https://github.com/slaypni/fastdtw" % e)
-        sys.exit(1)
-    try:
-        from ortools.constraint_solver import pywrapcp, routing_enums_pb2
-    except ImportError as e:
-        print("Cannot import ortools: %s\nInstall it from "
-              "https://developers.google.com/optimization/install/python/" % e)
-        sys.exit(1)
-    try:
-        from hdbscan import HDBSCAN
-    except ImportError as e:
-        print("Cannot import ortools: %s\nInstall it from "
-              "https://developers.google.com/optimization/install/python/" % e)
-        sys.exit(1)
+def show_devs(args, name, start_date, end_date, people, days):
     from scipy.signal import convolve, slepian
 
-    days, people = data
     max_people = 50
     if len(people) > max_people:
         print("Picking top 100 developers by commit count")
@@ -1268,77 +1252,12 @@ def show_devs(args, name, start_date, end_date, data):
         chosen_people = {people[k] for _, k in commits[:max_people]}
     else:
         chosen_people = set(people)
-    devseries = defaultdict(list)
-    devstats = defaultdict(lambda: DevDay(0, 0, 0, 0, {}))
-    for day, devs in sorted(days.items()):
-        for dev, stats in devs.items():
-            if people[dev] in chosen_people:
-                devseries[dev].append((day, stats.Commits))
-                devstats[dev] = devstats[dev].add(stats)
-    print("Calculating the distance matrix")
-    # max-normalize the time series using a sliding window
-    keys = list(devseries.keys())
-    series = list(devseries.values())
-    for i, s in enumerate(series):
-        arr = numpy.array(s).transpose().astype(numpy.float32)
-        commits = arr[1]
-        if len(commits) < 7:
-            commits /= commits.max()
-        else:
-            # 4 is sizeof(float32)
-            windows = numpy.lib.stride_tricks.as_strided(commits, [len(commits) - 6, 7], [4, 4])
-            commits = numpy.concatenate((
-                [windows[0, 0] / windows[0].max(),
-                 windows[0, 1] / windows[0].max(),
-                 windows[0, 2] / windows[0].max()],
-                windows[:, 3] / windows.max(axis=1),
-                [windows[-1, 4] / windows[-1].max(),
-                 windows[-1, 5] / windows[-1].max(),
-                 windows[-1, 6] / windows[-1].max()]
-            ))
-        arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to window size
-        series[i] = list(arr.transpose())
-    # calculate the distance matrix using dynamic time warping metric
-    dists = numpy.full((len(series) + 1, len(series) + 1), -100500, dtype=numpy.float32)
-    for x in range(len(series)):
-        dists[x, x] = 0
-        for y in range(x + 1, len(series)):
-            # L1 norm
-            dist, _ = fastdtw(series[x], series[y], radius=5, dist=1)
-            dists[x, y] = dists[y, x] = dist
-    # preparation for seriation ordering
-    dists[len(series), :] = 0
-    dists[:, len(series)] = 0
-    assert (dists >= 0).all()
-    print("Ordering the series")
-    # solve the TSP on the distance matrix
-    routing = pywrapcp.RoutingModel(dists.shape[0], 1, len(series))
-
-    def dist_callback(x, y):
-        # ortools wants integers, so we approximate here
-        return int(dists[x][y] * 1000)
-
-    routing.SetArcCostEvaluatorOfAllVehicles(dist_callback)
-    search_parameters = pywrapcp.RoutingModel.DefaultSearchParameters()
-    search_parameters.local_search_metaheuristic = (
-        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
-    search_parameters.time_limit_ms = 2000
-    assignment = routing.SolveWithParameters(search_parameters)
-    index = routing.Start(0)
-    route = []
-    while not routing.IsEnd(index):
-        node = routing.IndexToNode(index)
-        if node < len(keys):
-            route.append(node)
-        index = assignment.Value(routing.NextVar(index))
+    dists, devseries, devstats, route = order_commits(chosen_people, days, people)
     route_map = {v: i for i, v in enumerate(route)}
-
     # determine clusters
-    opt_dist_chain = numpy.cumsum(numpy.array(
-        [0] + [dists[route[i], route[i + 1]] for i in range(len(route) - 1)]))
-    clusters = HDBSCAN(min_cluster_size=2).fit_predict(opt_dist_chain[:, numpy.newaxis])
+    clusters = hdbscan_cluster_routed_series(dists, route)
+    keys = list(devseries.keys())
     route = [keys[node] for node in route]
-
     print("Plotting")
     # smooth time series
     start_date = datetime.fromtimestamp(start_date)
@@ -1363,12 +1282,17 @@ def show_devs(args, name, start_date, end_date, data):
     colors = prop_cycle.by_key()["color"]
     fig, axes = pyplot.subplots(final.shape[0], 1)
     backgrounds = ("#C4FFDB", "#FFD0CD") if args.background == "white" else ("#05401C", "#40110E")
+    max_cluster = numpy.max(clusters)
     for ax, series, cluster, dev_i in zip(axes, final, clusters, route):
         if cluster >= 0:
             color = colors[cluster % len(colors)]
+            i = 1
+            while color == "#777777":
+                color = colors[(max_cluster + i) % len(colors)]
+                i += 1
         else:
             # outlier
-            color = "grey"
+            color = "#777777"
         ax.fill_between(plot_x, series, color=color)
         ax.set_axis_off()
         author = people[dev_i]
@@ -1410,10 +1334,107 @@ def show_devs(args, name, start_date, end_date, data):
     deploy_plot(title, args.output, args.style)
 
 
-def show_devs_efforts(args, name, start_date, end_date, data, max_people):
+def order_commits(chosen_people, days, people):
+    try:
+        from fastdtw import fastdtw
+    except ImportError as e:
+        print("Cannot import fastdtw: %s\nInstall it from https://github.com/slaypni/fastdtw" % e)
+        sys.exit(1)
+
+    devseries = defaultdict(list)
+    devstats = defaultdict(lambda: DevDay(0, 0, 0, 0, {}))
+    for day, devs in sorted(days.items()):
+        for dev, stats in devs.items():
+            if people[dev] in chosen_people:
+                devseries[dev].append((day, stats.Commits))
+                devstats[dev] = devstats[dev].add(stats)
+    print("Calculating the distance matrix")
+    # max-normalize the time series using a sliding window
+    series = list(devseries.values())
+    for i, s in enumerate(series):
+        arr = numpy.array(s).transpose().astype(numpy.float32)
+        commits = arr[1]
+        if len(commits) < 7:
+            commits /= commits.max()
+        else:
+            # 4 is sizeof(float32)
+            windows = numpy.lib.stride_tricks.as_strided(commits, [len(commits) - 6, 7], [4, 4])
+            commits = numpy.concatenate((
+                [windows[0, 0] / windows[0].max(),
+                 windows[0, 1] / windows[0].max(),
+                 windows[0, 2] / windows[0].max()],
+                windows[:, 3] / windows.max(axis=1),
+                [windows[-1, 4] / windows[-1].max(),
+                 windows[-1, 5] / windows[-1].max(),
+                 windows[-1, 6] / windows[-1].max()]
+            ))
+        arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to window size
+        series[i] = list(arr.transpose())
+    # calculate the distance matrix using dynamic time warping metric
+    dists = numpy.full((len(series) + 1, len(series) + 1), -100500, dtype=numpy.float32)
+    for x in range(len(series)):
+        dists[x, x] = 0
+        for y in range(x + 1, len(series)):
+            # L1 norm
+            dist, _ = fastdtw(series[x], series[y], radius=5, dist=1)
+            dists[x, y] = dists[y, x] = dist
+    # preparation for seriation ordering
+    dists[len(series), :] = 0
+    dists[:, len(series)] = 0
+    assert (dists >= 0).all()
+    print("Ordering the series")
+    route = seriate(dists)
+    return dists, devseries, devstats, route
+
+
+def hdbscan_cluster_routed_series(dists, route):
+    try:
+        from hdbscan import HDBSCAN
+    except ImportError as e:
+        print("Cannot import ortools: %s\nInstall it from "
+              "https://developers.google.com/optimization/install/python/" % e)
+        sys.exit(1)
+
+    opt_dist_chain = numpy.cumsum(numpy.array(
+        [0] + [dists[route[i], route[i + 1]] for i in range(len(route) - 1)]))
+    clusters = HDBSCAN(min_cluster_size=2).fit_predict(opt_dist_chain[:, numpy.newaxis])
+    return clusters
+
+
+def seriate(dists):
+    try:
+        from ortools.constraint_solver import pywrapcp, routing_enums_pb2
+    except ImportError as e:
+        print("Cannot import ortools: %s\nInstall it from "
+              "https://developers.google.com/optimization/install/python/" % e)
+        sys.exit(1)
+
+    # solve the TSP on the distance matrix
+    routing = pywrapcp.RoutingModel(dists.shape[0], 1, dists.shape[0] - 1)
+
+    def dist_callback(x, y):
+        # ortools wants integers, so we approximate here
+        return int(dists[x][y] * 1000)
+
+    routing.SetArcCostEvaluatorOfAllVehicles(dist_callback)
+    search_parameters = pywrapcp.RoutingModel.DefaultSearchParameters()
+    search_parameters.local_search_metaheuristic = (
+        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
+    search_parameters.time_limit_ms = 2000
+    assignment = routing.SolveWithParameters(search_parameters)
+    index = routing.Start(0)
+    route = []
+    while not routing.IsEnd(index):
+        node = routing.IndexToNode(index)
+        if node < dists.shape[0] - 1:
+            route.append(node)
+        index = assignment.Value(routing.NextVar(index))
+    return route
+
+
+def show_devs_efforts(args, name, start_date, end_date, people, days, max_people):
     from scipy.signal import convolve, slepian
 
-    days, people = data
     start_date = datetime.fromtimestamp(start_date)
     start_date = datetime(start_date.year, start_date.month, start_date.day)
     end_date = datetime.fromtimestamp(end_date)
@@ -1458,10 +1479,9 @@ def show_devs_efforts(args, name, start_date, end_date, data, max_people):
     deploy_plot("Efforts through time (changed lines of code)", args.output, args.style)
 
 
-def show_old_vs_new(args, name, start_date, end_date, data):
+def show_old_vs_new(args, name, start_date, end_date, people, days):
     from scipy.signal import convolve, slepian
 
-    days, people = data
     start_date = datetime.fromtimestamp(start_date)
     start_date = datetime(start_date.year, start_date.month, start_date.day)
     end_date = datetime.fromtimestamp(end_date)
@@ -1486,8 +1506,7 @@ def show_old_vs_new(args, name, start_date, end_date, data):
     deploy_plot("Additions vs changes", args.output, args.style)
 
 
-def show_languages(args, name, start_date, end_date, data):
-    days, people = data
+def show_languages(args, name, start_date, end_date, people, days):
     devlangs = defaultdict(lambda: defaultdict(lambda: numpy.zeros(3, dtype=int)))
     for day, devs in days.items():
         for dev, stats in devs.items():
@@ -1501,6 +1520,133 @@ def show_languages(args, name, start_date, end_date, data):
         for vals, lang in ls:
             if lang:
                 print("%s: %d" % (lang, vals))
+
+
+class ParallelDevData:
+    def __init__(self):
+        self.commits_rank = -1
+        self.commits = -1
+        self.lines_rank = -1
+        self.lines = -1
+        self.ownership_rank = -1
+        self.ownership = -1
+        self.couples_index = -1
+        self.couples_cluster = -1
+        self.commit_coocc_index = -1
+        self.commit_coocc_cluster = -1
+
+    def __str__(self):
+        return str(self.__dict__)
+
+    def __repr__(self):
+        return str(self)
+
+
+def load_devs_parallel(ownership, couples, devs, max_people):
+    try:
+        from hdbscan import HDBSCAN
+    except ImportError as e:
+        print("Cannot import ortools: %s\nInstall it from "
+              "https://developers.google.com/optimization/install/python/" % e)
+        sys.exit(1)
+
+    people, owned = ownership
+    _, cmatrix = couples
+    _, days = devs
+
+    print("calculating - commits")
+    commits = defaultdict(int)
+    for day, devs in days.items():
+        for dev, stats in devs.items():
+            commits[people[dev]] += stats.Commits
+    chosen = [k for v, k in sorted(((v, k) for k, v in commits.items()), reverse=True)[:max_people]]
+    result = {k: ParallelDevData() for k in chosen}
+    for k, v in result.items():
+        v.commits_rank = chosen.index(k)
+        v.commits = commits[k]
+
+    print("calculating - lines")
+    lines = defaultdict(int)
+    for day, devs in days.items():
+        for dev, stats in devs.items():
+            lines[people[dev]] += stats.Added + stats.Removed + stats.Changed
+    lines_index = {k: i for i, (_, k) in enumerate(sorted(
+        ((v, k) for k, v in lines.items() if k in chosen), reverse=True))}
+    for k, v in result.items():
+        v.lines_rank = lines_index[k]
+        v.lines = lines[k]
+
+    print("calculating - ownership")
+    owned_index = {k: i for i, (_, k) in enumerate(sorted(
+        ((owned[k][-1].sum(), k) for k in chosen), reverse=True))}
+    for k, v in result.items():
+        v.ownership_rank = owned_index[k]
+        v.ownership = owned[k][-1].sum()
+
+    print("calculating - couples")
+    embeddings = numpy.genfromtxt(fname="couples_people_data.tsv", delimiter="\t")[
+        [people.index(k) for k in chosen]]
+    embeddings /= numpy.linalg.norm(embeddings, axis=1)[:, None]
+    cos = embeddings.dot(embeddings.T)
+    cos[cos > 1] = 1  # tiny precision faults
+    dists = numpy.zeros((len(chosen) + 1,) * 2)
+    dists[:len(chosen), :len(chosen)] = numpy.arccos(cos)
+    clusters = HDBSCAN(min_cluster_size=2, metric="precomputed").fit_predict(
+        dists[:len(chosen), :len(chosen)])
+    for k, v in result.items():
+        v.couples_cluster = clusters[chosen.index(k)]
+
+    couples_order = seriate(dists)
+    roll_options = []
+    for i in range(len(couples_order)):
+        loss = 0
+        for k, v in result.items():
+            loss += abs(v.ownership_rank -
+                        ((couples_order.index(chosen.index(k)) + i) % len(chosen)))
+        roll_options.append(loss)
+    best_roll = numpy.argmin(roll_options)
+    couples_order = list(numpy.roll(couples_order, best_roll))
+    for k, v in result.items():
+        v.couples_index = couples_order.index(chosen.index(k))
+
+    print("calculating - commit series")
+    dists, devseries, _, orig_route = order_commits(chosen, days, people)
+    keys = list(devseries.keys())
+    route = [keys[node] for node in orig_route]
+    for roll in range(len(route)):
+        loss = 0
+        for k, v in result.items():
+            i = route.index(people.index(k))
+            loss += abs(v.couples_index - ((i + roll) % len(route)))
+        roll_options[roll] = loss
+    best_roll = numpy.argmin(roll_options)
+    route = list(numpy.roll(route, best_roll))
+    orig_route = list(numpy.roll(orig_route, best_roll))
+    clusters = hdbscan_cluster_routed_series(dists, orig_route)
+    for k, v in result.items():
+        v.commit_coocc_index = route.index(people.index(k))
+        v.commit_coocc_index = clusters[v.commit_coocc_index]
+
+    print(result)
+    return result, chosen
+
+
+def show_devs_parallel(args, name, start_date, end_date, data):
+    matplotlib, pyplot = import_pyplot(args.backend, args.style)
+    pyplot.xlim((0, 6))
+    pyplot.ylim((0, 1))
+
+    x = numpy.linspace(0.1, 0.9, 1000)
+    y = numpy.linspace(0.1, 0.9, 1000)
+    points = numpy.array([x, y]).T.reshape(-1, 1, 2)
+    segments = numpy.concatenate([points[:-1], points[1:]], axis=1)
+
+    from matplotlib.collections import LineCollection
+    lc = LineCollection(segments)
+    lc.set_array(numpy.linspace(0, 1, segments.shape[0]))
+    pyplot.gca().add_collection(lc)
+
+    deploy_plot("Developers", args.output, args.style)
 
 
 def _format_number(n):
@@ -1655,7 +1801,7 @@ def main():
         except KeyError:
             print(devs_warning)
             return
-        show_devs(args, reader.get_name(), *reader.get_header(), data)
+        show_devs(args, reader.get_name(), *reader.get_header(), *data)
 
     def devs_efforts():
         try:
@@ -1663,7 +1809,7 @@ def main():
         except KeyError:
             print(devs_warning)
             return
-        show_devs_efforts(args, reader.get_name(), *reader.get_header(), data,
+        show_devs_efforts(args, reader.get_name(), *reader.get_header(), *data,
                           max_people=args.max_people)
 
     def old_vs_new():
@@ -1672,7 +1818,7 @@ def main():
         except KeyError:
             print(devs_warning)
             return
-        show_old_vs_new(args, reader.get_name(), *reader.get_header(), data)
+        show_old_vs_new(args, reader.get_name(), *reader.get_header(), *data)
 
     def languages():
         try:
@@ -1680,7 +1826,26 @@ def main():
         except KeyError:
             print(devs_warning)
             return
-        show_languages(args, reader.get_name(), *reader.get_header(), data)
+        show_languages(args, reader.get_name(), *reader.get_header(), *data)
+
+    def devs_parallel():
+        try:
+            ownership = reader.get_ownership_burndown()
+        except KeyError:
+            print(burndown_people_warning)
+            return
+        try:
+            couples = reader.get_people_coocc()
+        except KeyError:
+            print(couples_warning)
+            return
+        try:
+            devs = reader.get_devs()
+        except KeyError:
+            print(devs_warning)
+            return
+        show_devs_parallel(args, reader.get_name(), *reader.get_header(),
+                           load_devs_parallel(ownership, couples, devs, args.max_people))
 
     modes = {
         "run-times": run_times,
@@ -1698,6 +1863,7 @@ def main():
         "devs-efforts": devs_efforts,
         "old-vs-new": old_vs_new,
         "languages": languages,
+        "devs-parallel": devs_parallel,
     }
     try:
         modes[args.mode]()
@@ -1715,6 +1881,7 @@ def main():
         sentiment()
         devs()
         devs_efforts()
+        devs_parallel()
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
