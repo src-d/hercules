@@ -62,8 +62,8 @@ def parse_args():
     parser.add_argument("-m", "--mode",
                         choices=["burndown-project", "burndown-file", "burndown-person",
                                  "churn-matrix", "ownership", "couples-files", "couples-people",
-                                 "couples-shotness", "shotness", "sentiment",
-                                 "devs", "old-vs-new", "all", "run-times", "languages"],
+                                 "couples-shotness", "shotness", "sentiment", "devs",
+                                 "devs-efforts", "old-vs-new", "all", "run-times", "languages"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
@@ -662,9 +662,11 @@ def load_ownership(header, sequence, contents, max_people):
 
     if people.shape[0] > max_people:
         order = numpy.argsort(-people.sum(axis=1))
-        people = people[order[:max_people]]
-        sequence = [sequence[i] for i in order[:max_people]]
-        print("Warning: truncated people to most owning %d" % max_people)
+        chosen_people = people[order[:max_people + 1]]
+        chosen_people[max_people] = people[order[max_people:]].sum(axis=0)
+        people = chosen_people
+        sequence = [sequence[i] for i in order[:max_people]] + ["others"]
+        print("Warning: truncated people to the most owning %d" % max_people)
     for i, name in enumerate(sequence):
         if len(name) > 40:
             sequence[i] = name[:37] + "..."
@@ -921,7 +923,9 @@ def plot_ownership(args, repo, names, people, date_range, last):
 
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
 
-    pyplot.stackplot(date_range, people, labels=names)
+    polys = pyplot.stackplot(date_range, people, labels=names)
+    if names[-1] == "others":
+        polys[-1].set_hatch("/")
     pyplot.xlim(parse_date(args.start_date, date_range[0]), parse_date(args.end_date, last))
 
     if args.relative:
@@ -1406,6 +1410,54 @@ def show_devs(args, name, start_date, end_date, data):
     deploy_plot(title, args.output, args.style)
 
 
+def show_devs_efforts(args, name, start_date, end_date, data, max_people):
+    from scipy.signal import convolve, slepian
+
+    days, people = data
+    start_date = datetime.fromtimestamp(start_date)
+    start_date = datetime(start_date.year, start_date.month, start_date.day)
+    end_date = datetime.fromtimestamp(end_date)
+    end_date = datetime(end_date.year, end_date.month, end_date.day)
+
+    efforts_by_dev = defaultdict(int)
+    for day, devs in days.items():
+        for dev, stats in devs.items():
+            efforts_by_dev[dev] += stats.Added + stats.Removed + stats.Changed
+    if len(efforts_by_dev) > max_people:
+        efforts_by_dev = sorted(((v, k) for k, v in efforts_by_dev.items()), reverse=True)
+        chosen = {v for k, v in efforts_by_dev[:max_people]}
+        print("Warning: truncated people to the most active %d" % max_people)
+    else:
+        chosen = set(efforts_by_dev)
+    chosen_efforts = sorted(((efforts_by_dev[k], k) for k in chosen), reverse=True)
+    chosen_order = {k: i for i, (_, k) in enumerate(chosen_efforts)}
+
+    efforts = numpy.zeros((len(chosen) + 1, (end_date - start_date).days + 1), dtype=numpy.float32)
+    for day, devs in days.items():
+        for dev, stats in devs.items():
+            dev = chosen_order.get(dev, len(chosen_order))
+            efforts[dev][day] += stats.Added + stats.Removed + stats.Changed
+    window = slepian(10, 0.5)
+    window /= window.sum()
+    for i in range(efforts.shape[0]):
+        efforts[i] = convolve(efforts[i], window, "same")
+    matplotlib, pyplot = import_pyplot(args.backend, args.style)
+    plot_x = [start_date + timedelta(days=i) for i in range(efforts.shape[1])]
+
+    people = [people[k] for _, k in chosen_efforts] + ["others"]
+    for i, name in enumerate(people):
+        if len(name) > 40:
+            people[i] = name[:37] + "..."
+
+    polys = pyplot.stackplot(plot_x, efforts, labels=people)
+    if len(polys) == max_people + 1:
+        polys[-1].set_hatch("/")
+    legend = pyplot.legend(loc=2, fontsize=args.font_size)
+    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
+                     args.font_size, args.size)
+    deploy_plot("Efforts through time (changed lines of code)", args.output, args.style)
+
+
 def show_old_vs_new(args, name, start_date, end_date, data):
     from scipy.signal import convolve, slepian
 
@@ -1605,6 +1657,15 @@ def main():
             return
         show_devs(args, reader.get_name(), *reader.get_header(), data)
 
+    def devs_efforts():
+        try:
+            data = reader.get_devs()
+        except KeyError:
+            print(devs_warning)
+            return
+        show_devs_efforts(args, reader.get_name(), *reader.get_header(), data,
+                          max_people=args.max_people)
+
     def old_vs_new():
         try:
             data = reader.get_devs()
@@ -1634,6 +1695,7 @@ def main():
         "shotness": shotness,
         "sentiment": sentiment,
         "devs": devs,
+        "devs-efforts": devs_efforts,
         "old-vs-new": old_vs_new,
         "languages": languages,
     }
@@ -1652,6 +1714,7 @@ def main():
         shotness()
         sentiment()
         devs()
+        devs_efforts()
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
