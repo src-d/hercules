@@ -1446,8 +1446,8 @@ def show_devs_efforts(args, name, start_date, end_date, people, days, max_people
         for dev, stats in devs.items():
             efforts_by_dev[dev] += stats.Added + stats.Removed + stats.Changed
     if len(efforts_by_dev) > max_people:
-        efforts_by_dev = sorted(((v, k) for k, v in efforts_by_dev.items()), reverse=True)
-        chosen = {v for k, v in efforts_by_dev[:max_people]}
+        chosen = {v for k, v in sorted(
+            ((v, k) for k, v in efforts_by_dev.items()), reverse=True)[:max_people]}
         print("Warning: truncated people to the most active %d" % max_people)
     else:
         chosen = set(efforts_by_dev)
