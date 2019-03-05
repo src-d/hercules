@@ -1640,27 +1640,49 @@ def load_devs_parallel(ownership, couples, devs, max_people):
     clusters = hdbscan_cluster_routed_series(dists, orig_route)
     for k, v in result.items():
         v.commit_coocc_index = route.index(people.index(k))
-        v.commit_coocc_index = clusters[v.commit_coocc_index]
+        v.commit_coocc_cluster = clusters[v.commit_coocc_index]
 
-    print(result)
-    return result, chosen
+    return result
 
 
-def show_devs_parallel(args, name, start_date, end_date, data):
+def show_devs_parallel(args, name, start_date, end_date, devs):
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
-    pyplot.xlim((0, 6))
-    pyplot.ylim((0, 1))
-
-    x = numpy.linspace(0.1, 0.9, 1000)
-    y = numpy.linspace(0.1, 0.9, 1000)
-    points = numpy.array([x, y]).T.reshape(-1, 1, 2)
-    segments = numpy.concatenate([points[:-1], points[1:]], axis=1)
-
     from matplotlib.collections import LineCollection
-    lc = LineCollection(segments)
-    lc.set_array(numpy.linspace(0, 1, segments.shape[0]))
-    pyplot.gca().add_collection(lc)
 
+    def solve_equations(x1, y1, x2, y2):
+        xcube = (x1 - x2) ** 3
+        a = 2 * (y2 - y1) / xcube
+        b = 3 * (y1 - y2) * (x1 + x2) / xcube
+        c = 6 * (y2 - y1) * x1 * x2 / xcube
+        d = y1 - a * x1 ** 3 - b * x1 ** 2 - c * x1
+        return a, b, c, d
+
+    # biggest = {k: max(getattr(d, k) for d in devs.values())
+    #            for k in ("commits", "lines", "ownership")}
+    for k, dev in devs.items():
+        points = numpy.array([
+            (1, dev.commits_rank),
+            (2, dev.lines_rank),
+            (3, dev.ownership_rank),
+            (4, dev.couples_index),
+            (5, dev.commit_coocc_index)],
+            dtype=float)
+        points[:, 1] = points[:, 1] / len(devs)
+        splines = []
+        for i in range(len(points) - 1):
+            a, b, c, d = solve_equations(*points[i], *points[i + 1])
+            x = numpy.linspace(i + 1, i + 2, 100)
+            smooth_points = numpy.array(
+                [x, a * x ** 3 + b * x ** 2 + c * x + d]).T.reshape(-1, 1, 2)
+            splines.append(smooth_points)
+        points = numpy.concatenate(splines)
+        segments = numpy.concatenate([points[:-1], points[1:]], axis=1)
+        lc = LineCollection(segments)
+        lc.set_array(numpy.linspace(0, 0.1, segments.shape[0]))
+        pyplot.gca().add_collection(lc)
+
+    pyplot.xlim(0, 6)
+    pyplot.ylim(-0.1, 1.1)
     deploy_plot("Developers", args.output, args.background)
 
 
