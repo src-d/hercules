@@ -313,6 +313,22 @@ python3 labours.py -m old-vs-new -o <name>
 `--devs` from the previous section allows to plot how many lines were added and how many existing changed
 (deleted or replaced) through time. This plot is smoothed.
 
+#### Efforts through time
+
+![kubernetes/kubernetes](doc/k8s_efforts.png)
+<p align="center">kubernetes/kubernetes efforts through time.</p>
+
+```
+hercules --devs [-people-dict=/path/to/identities]
+python3 labours.py -m devs-efforts -o <name>
+```
+
+Besides, `--devs` allows to plot how many lines have been changed (added or removed) by each developer.
+The upper part of the plot is an accumulated (integrated) lower part. It is impossible to have the same scale
+for both parts, so the lower values are scaled, and hence there are no lower Y axis ticks.
+There is a difference between the efforts plot and the ownership plot, although changing lines correlate
+with owning lines.
+
 #### Sentiment (positive and negative code)
 
 ![Django sentiment](doc/sentiment.png)
