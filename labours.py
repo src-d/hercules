@@ -740,7 +740,7 @@ def get_plot_path(base, name):
     return output
 
 
-def deploy_plot(title, output, background):
+def deploy_plot(title, output, background, tight=True):
     import matplotlib.pyplot as pyplot
 
     if not output:
@@ -749,10 +749,11 @@ def deploy_plot(title, output, background):
     else:
         if title:
             pyplot.title(title, color="black" if background == "white" else "white")
-        try:
-            pyplot.tight_layout()
-        except:  # noqa: E722
-            print("Warning: failed to set the tight layout")
+        if tight:
+            try:
+                pyplot.tight_layout()
+            except:  # noqa: E722
+                print("Warning: failed to set the tight layout")
         pyplot.savefig(output, transparent=True)
     pyplot.clf()
 
@@ -848,7 +849,7 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
             if target == "project":
                 name = "project"
             output = get_plot_path(args.output, name)
-    deploy_plot(title, output, args.style)
+    deploy_plot(title, output, args.background)
 
 
 def plot_many_burndown(args, target, header, parts):
@@ -907,7 +908,7 @@ def plot_churn_matrix(args, repo, people, matrix):
     if args.output:
         # FIXME(vmarkovtsev): otherwise the title is screwed in savefig()
         title = ""
-    deploy_plot(title, output, args.style)
+    deploy_plot(title, output, args.background)
 
 
 def plot_ownership(args, repo, names, people, date_range, last):
@@ -944,7 +945,7 @@ def plot_ownership(args, repo, names, people, date_range, last):
         output = get_plot_path(args.output, "people")
     else:
         output = args.output
-    deploy_plot("%s code ownership through time" % repo, output, args.style)
+    deploy_plot("%s code ownership through time" % repo, output, args.background)
 
 
 IDEAL_SHARD_SIZE = 4096
@@ -1234,7 +1235,7 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     overall_neg = sum(2 * (d[1].Value - 0.5) for d in data if d[1].Value > 0.5)
     title = "%s sentiment +%.1f -%.1f δ=%.1f" % (
         name, overall_pos, overall_neg, overall_pos - overall_neg)
-    deploy_plot(title, args.output, args.style)
+    deploy_plot(title, args.output, args.background)
 
 
 def show_devs(args, name, start_date, end_date, people, days):
@@ -1331,7 +1332,7 @@ def show_devs(args, name, start_date, end_date, people, days):
     axes[-1].set_facecolor((1.0,) * 3 + (0.0,))
 
     title = ("%s commits" % name) if not args.output else ""
-    deploy_plot(title, args.output, args.style)
+    deploy_plot(title, args.output, args.background)
 
 
 def order_commits(chosen_people, days, people):
@@ -1455,13 +1456,18 @@ def show_devs_efforts(args, name, start_date, end_date, people, days, max_people
 
     efforts = numpy.zeros((len(chosen) + 1, (end_date - start_date).days + 1), dtype=numpy.float32)
     for day, devs in days.items():
-        for dev, stats in devs.items():
-            dev = chosen_order.get(dev, len(chosen_order))
-            efforts[dev][day] += stats.Added + stats.Removed + stats.Changed
+        if day < efforts.shape[1]:
+            for dev, stats in devs.items():
+                dev = chosen_order.get(dev, len(chosen_order))
+                efforts[dev][day] += stats.Added + stats.Removed + stats.Changed
+    efforts_cum = numpy.cumsum(efforts, axis=1)
     window = slepian(10, 0.5)
     window /= window.sum()
-    for i in range(efforts.shape[0]):
-        efforts[i] = convolve(efforts[i], window, "same")
+    for e in (efforts, efforts_cum):
+        for i in range(e.shape[0]):
+            ending = e[i][-len(window) * 2:].copy()
+            e[i] = convolve(e[i], window, "same")
+            e[i][-len(ending):] = ending
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
     plot_x = [start_date + timedelta(days=i) for i in range(efforts.shape[1])]
 
@@ -1470,13 +1476,21 @@ def show_devs_efforts(args, name, start_date, end_date, people, days, max_people
         if len(name) > 40:
             people[i] = name[:37] + "..."
 
-    polys = pyplot.stackplot(plot_x, efforts, labels=people)
+    polys = pyplot.stackplot(plot_x, efforts_cum, labels=people)
     if len(polys) == max_people + 1:
         polys[-1].set_hatch("/")
-    legend = pyplot.legend(loc=2, fontsize=args.font_size)
+    polys = pyplot.stackplot(plot_x, -efforts * efforts_cum.max() / efforts.max())
+    if len(polys) == max_people + 1:
+        polys[-1].set_hatch("/")
+    yticks = []
+    for tick in pyplot.gca().yaxis.iter_ticks():
+        if tick[1] >= 0:
+            yticks.append(tick[1])
+    pyplot.gca().yaxis.set_ticks(yticks)
+    legend = pyplot.legend(loc=2, ncol=2, fontsize=args.font_size)
     apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
-                     args.font_size, args.size)
-    deploy_plot("Efforts through time (changed lines of code)", args.output, args.style)
+                     args.font_size, args.size or "16,10")
+    deploy_plot("Efforts through time (changed lines of code)", args.output, args.background)
 
 
 def show_old_vs_new(args, name, start_date, end_date, people, days):
@@ -1503,7 +1517,7 @@ def show_old_vs_new(args, name, start_date, end_date, people, days):
     pyplot.legend(loc=2, fontsize=args.font_size)
     for tick in chain(pyplot.gca().xaxis.get_major_ticks(), pyplot.gca().yaxis.get_major_ticks()):
         tick.label.set_fontsize(args.font_size)
-    deploy_plot("Additions vs changes", args.output, args.style)
+    deploy_plot("Additions vs changes", args.output, args.background)
 
 
 def show_languages(args, name, start_date, end_date, people, days):
@@ -1646,7 +1660,7 @@ def show_devs_parallel(args, name, start_date, end_date, data):
     lc.set_array(numpy.linspace(0, 1, segments.shape[0]))
     pyplot.gca().add_collection(lc)
 
-    deploy_plot("Developers", args.output, args.style)
+    deploy_plot("Developers", args.output, args.background)
 
 
 def _format_number(n):
