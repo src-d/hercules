@@ -1896,7 +1896,7 @@ def main():
         sentiment()
         devs()
         devs_efforts()
-        devs_parallel()
+        # devs_parallel()
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
