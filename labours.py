@@ -1573,7 +1573,8 @@ def load_devs_parallel(ownership, couples, devs, max_people):
     for day, devs in days.items():
         for dev, stats in devs.items():
             commits[people[dev]] += stats.Commits
-    chosen = [k for v, k in sorted(((v, k) for k, v in commits.items()), reverse=True)[:max_people]]
+    chosen = [k for v, k in sorted(((v, k) for k, v in commits.items()),
+                                   reverse=True)[:max_people]]
     result = {k: ParallelDevData() for k in chosen}
     for k, v in result.items():
         v.commits_rank = chosen.index(k)
@@ -1615,8 +1616,8 @@ def load_devs_parallel(ownership, couples, devs, max_people):
     for i in range(len(couples_order)):
         loss = 0
         for k, v in result.items():
-            loss += abs(v.ownership_rank -
-                        ((couples_order.index(chosen.index(k)) + i) % len(chosen)))
+            loss += abs(
+                v.ownership_rank - (couples_order.index(chosen.index(k)) + i) % len(chosen))
         roll_options.append(loss)
     best_roll = numpy.argmin(roll_options)
     couples_order = list(numpy.roll(couples_order, best_roll))
