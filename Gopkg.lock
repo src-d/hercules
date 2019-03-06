@@ -11,6 +11,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:7248f832d2ec4b41627eb8bd55645bc42048a392ddeb647fd0abb2b69f1ded1a"
+  name = "github.com/Jeffail/tunny"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "59cfa8fcb19f5acba8db07a0dd3cb2fa7edbc228"
+
+[[projects]]
+  branch = "master"
   digest = "1:666e6921bb482fe300dc23d2ac545e4bc8ad08a493ffad37ea8d7edbf8fc05c5"
   name = "github.com/Masterminds/semver"
   packages = ["."]
@@ -147,14 +155,6 @@
   packages = ["io"]
   pruneopts = "UT"
   revision = "d14ea06fba99483203c19d92cfcd13ebe73135f4"
-
-[[projects]]
-  branch = "master"
-  digest = "1:7248f832d2ec4b41627eb8bd55645bc42048a392ddeb647fd0abb2b69f1ded1a"
-  name = "github.com/jeffail/tunny"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "59cfa8fcb19f5acba8db07a0dd3cb2fa7edbc228"
 
 [[projects]]
   branch = "master"
@@ -620,11 +620,11 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/Jeffail/tunny",
     "github.com/Masterminds/sprig",
     "github.com/fatih/camelcase",
     "github.com/gogo/protobuf/proto",
     "github.com/gogo/protobuf/sortkeys",
-    "github.com/jeffail/tunny",
     "github.com/minio/highwayhash",
     "github.com/mitchellh/go-homedir",
     "github.com/pkg/errors",

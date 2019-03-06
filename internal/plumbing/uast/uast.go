@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Jeffail/tunny"
 	"github.com/gogo/protobuf/proto"
-	"github.com/jeffail/tunny"
-	"gopkg.in/bblfsh/client-go.v3"
+	bblfsh "gopkg.in/bblfsh/client-go.v3"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
 	"gopkg.in/src-d/go-git.v4"

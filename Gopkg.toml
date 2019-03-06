@@ -20,7 +20,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/jeffail/tunny"
+  name = "github.com/Jeffail/tunny"
 
 [[constraint]]
   branch = "master"
