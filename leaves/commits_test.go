@@ -53,7 +53,7 @@ func TestCommitsConfigure(t *testing.T) {
 	assert.Equal(t, ca.reversedPeopleDict, ca.Requires())
 }
 
-func TestCommitsConsumeFinalize(t *testing.T) {
+func TestCommitsConsume(t *testing.T) {
 	ca := CommitsAnalysis{}
 	assert.Nil(t, ca.Initialize(test.Repository))
 	deps := map[string]interface{}{}
