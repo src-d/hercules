@@ -200,7 +200,10 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	sort.Sort(addedBlobs)
 	sort.Sort(deletedBlobs)
 
-	var finished, finishedA, finishedB bool
+	finished := make(chan bool, 2)
+	finishedA := make(chan bool, 1)
+	finishedB := make(chan bool, 1)
+	errs := make(chan error)
 	matchesA := make(object.Changes, 0, changes.Len())
 	matchesB := make(object.Changes, 0, changes.Len())
 	addedBlobsA := addedBlobs
@@ -210,9 +213,9 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	deletedBlobsB := make(sortableBlobs, len(deletedBlobs))
 	copy(deletedBlobsB, deletedBlobs)
 	wg := sync.WaitGroup{}
-	matchA := func() error {
+	matchA := func() {
 		defer func() {
-			finished = true
+			finished <- true
 			wg.Done()
 		}()
 		aStart := 0
@@ -236,8 +239,11 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 			})
 			var ci int
 			for ci, a = range candidates {
-				if finished {
-					return nil
+				select {
+				case <-finished:
+					return
+				default:
+					break
 				}
 				if ci > maxCandidates {
 					break
@@ -245,7 +251,8 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				blobsAreClose, err := ra.blobsAreClose(
 					myBlob, cache[addedBlobsA[a].change.To.TreeEntry.Hash])
 				if err != nil {
-					return err
+					errs <- err
+					return
 				}
 				if blobsAreClose {
 					foundMatch = true
@@ -263,12 +270,11 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				addedBlobsA = append(addedBlobsA[:a], addedBlobsA[a+1:]...)
 			}
 		}
-		finishedA = true
-		return nil
+		finishedA <- true
 	}
-	matchB := func() error {
+	matchB := func() {
 		defer func() {
-			finished = true
+			finished <- true
 			wg.Done()
 		}()
 		dStart := 0
@@ -291,8 +297,11 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 			})
 			var ci int
 			for ci, d = range candidates {
-				if finished {
-					return nil
+				select {
+				case <-finished:
+					return
+				default:
+					break
 				}
 				if ci > maxCandidates {
 					break
@@ -300,7 +309,8 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				blobsAreClose, err := ra.blobsAreClose(
 					myBlob, cache[deletedBlobsB[d].change.From.TreeEntry.Hash])
 				if err != nil {
-					return err
+					errs <- err
+					return
 				}
 				if blobsAreClose {
 					foundMatch = true
@@ -318,31 +328,28 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 				deletedBlobsB = append(deletedBlobsB[:d], deletedBlobsB[d+1:]...)
 			}
 		}
-		finishedB = true
-		return nil
+		finishedB <- true
 	}
 	// run two functions in parallel, and take the result from the one which finished earlier
 	wg.Add(2)
-	var err error
-	go func() { err = matchA() }()
-	go func() { err = matchB() }()
+	go func() { matchA() }()
+	go func() { matchB() }()
 	wg.Wait()
-	if err != nil {
-		return nil, err
-	}
 	var matches object.Changes
-	if finishedA {
+	select {
+	case err := <-errs:
+		return nil, err
+	case <-finishedA:
 		addedBlobs = addedBlobsA
 		deletedBlobs = deletedBlobsA
 		matches = matchesA
-	} else {
-		if !finishedB {
-			panic("Impossible happened: two functions returned without an error " +
-				"but no results from both")
-		}
+	case <-finishedB:
 		addedBlobs = addedBlobsB
 		deletedBlobs = deletedBlobsB
 		matches = matchesB
+	default:
+		panic("Impossible happened: two functions returned without an error " +
+			"but no results from both")
 	}
 
 	// Stage 3 - we give up, everything left are independent additions and deletions
