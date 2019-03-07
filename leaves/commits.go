@@ -18,9 +18,8 @@ import (
 // CommitsAnalysis extracts statistics for each commit
 type CommitsAnalysis struct {
 	core.NoopMerger
-	core.OneShotMergeProcessor
 
-	// days maps days to developers to stats
+	// commits stores statistics for each commit
 	commits []*CommitStat
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
@@ -35,7 +34,7 @@ type CommitsResult struct {
 	reversedPeopleDict []string
 }
 
-// FileStat is a statistic for a file
+// FileStat is the statistics for a file in a commit
 type FileStat struct {
 	Name     string
 	Language string
@@ -91,13 +90,12 @@ func (ca *CommitsAnalysis) Flag() string {
 
 // Description returns the text which explains what the analysis is doing.
 func (ca *CommitsAnalysis) Description() string {
-	return "Extracts statistics for each commit."
+	return "Extracts statistics for each commit. Identical to `git log --stat`"
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ca *CommitsAnalysis) Initialize(repository *git.Repository) error {
-	ca.OneShotMergeProcessor.Initialize()
 	return nil
 }
 
@@ -107,24 +105,18 @@ func (ca *CommitsAnalysis) Initialize(repository *git.Repository) error {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (ca *CommitsAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	if !ca.ShouldConsumeCommit(deps) {
-		return nil, nil
-	}
 	if deps[core.DependencyIsMerge].(bool) {
 		return nil, nil
 	}
-
 	commit := deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
 	lineStats := deps[items.DependencyLineStats].(map[object.ChangeEntry]items.LineStats)
 	langs := deps[items.DependencyLanguages].(map[plumbing.Hash]string)
-
 	cs := CommitStat{
 		Hash:   commit.Hash.String(),
 		When:   commit.Author.When.Unix(),
 		Author: author,
 	}
-
 	for entry, stats := range lineStats {
 		cs.Files = append(cs.Files, FileStat{
 			Name:      entry.Name,
@@ -132,9 +124,7 @@ func (ca *CommitsAnalysis) Consume(deps map[string]interface{}) (map[string]inte
 			LineStats: stats,
 		})
 	}
-
 	ca.commits = append(ca.commits, &cs)
-
 	return nil, nil
 }
 
@@ -160,16 +150,6 @@ func (ca *CommitsAnalysis) Serialize(result interface{}, binary bool, writer io.
 	}
 	ca.serializeText(&commitsResult, writer)
 	return nil
-}
-
-// Deserialize converts the specified protobuf bytes to DevsResult.
-func (ca *CommitsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
-	panic("not implemented")
-}
-
-// MergeResults combines two DevsAnalysis-es together.
-func (ca *CommitsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAnalysisResult) interface{} {
-	panic("not implemented")
 }
 
 func (ca *CommitsAnalysis) serializeText(result *CommitsResult, writer io.Writer) {
