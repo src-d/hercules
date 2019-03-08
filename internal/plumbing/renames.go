@@ -332,8 +332,8 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	}
 	// run two functions in parallel, and take the result from the one which finished earlier
 	wg.Add(2)
-	go func() { matchA() }()
-	go func() { matchB() }()
+	go matchA()
+	go matchB()
 	wg.Wait()
 	var matches object.Changes
 	select {
