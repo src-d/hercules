@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -70,6 +71,7 @@ func TestFileDiffRefinerConsume(t *testing.T) {
 	bytes2, err := ioutil.ReadFile(path.Join("..", "..", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
+	dmp.DiffTimeout = time.Hour
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
 	fileDiffs := map[string]plumbing.FileDiffData{}
@@ -112,6 +114,7 @@ func TestFileDiffRefinerConsumeNoUast(t *testing.T) {
 	bytes2, err := ioutil.ReadFile(path.Join("..", "..", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
+	dmp.DiffTimeout = time.Hour
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
 	fileDiffs := map[string]plumbing.FileDiffData{}

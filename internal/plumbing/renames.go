@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -332,8 +333,8 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	}
 	// run two functions in parallel, and take the result from the one which finished earlier
 	wg.Add(2)
-	go func() { matchA() }()
-	go func() { matchB() }()
+	go matchA()
+	go matchB()
 	wg.Wait()
 	var matches object.Changes
 	select {
@@ -403,6 +404,7 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 	// compute the line-by-line diff, then the char-level diffs of the del-ins blocks
 	// yes, this algorithm is greedy and not exact
 	dmp := diffmatchpatch.New()
+	dmp.DiffTimeout = time.Hour
 	srcLineRunes, dstLineRunes, _ := dmp.DiffLinesToRunes(src, dst)
 	// the third returned value, []string, is the mapping from runes to lines
 	// we cannot use it because it is approximate and has string collisions
@@ -426,6 +428,7 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 				if internal.Max(srcPositions[posSrc]-srcPositions[prevPosSrc],
 					dstPositions[nextPosDst]-dstPositions[posDst]) < RenameAnalysisByteDiffSizeThreshold {
 					localDmp := diffmatchpatch.New()
+					localDmp.DiffTimeout = time.Hour
 					localSrc := src[srcPositions[prevPosSrc]:srcPositions[posSrc]]
 					localDst := dst[dstPositions[posDst]:dstPositions[nextPosDst]]
 					localDiffs := localDmp.DiffMainRunes(

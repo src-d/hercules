@@ -33,7 +33,7 @@ echo\n\' > /browser && \
     pip3 install --no-cache-dir --no-build-isolation -r /root/src/gopkg.in/src-d/hercules.v9/requirements.txt https://github.com/mind/wheels/releases/download/tf1.7-cpu/tensorflow-1.7.0-cp36-cp36m-linux_x86_64.whl && \
     rm -rf /root/* && \
     apt-get remove -y software-properties-common golang-1.10-go python3-dev libyaml-dev libxml2-dev curl git make unzip g++ && \
-    apt-get remove -y *-doc *-man && \
+    apt-get remove -qy *-doc *-man && \
     rm -rf /usr/share/doc /usr/share/man && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* && \

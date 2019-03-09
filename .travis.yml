@@ -65,7 +65,7 @@ script:
   - golint -set_exit_status $(go list ./... | grep -v /vendor/)
   - flake8
   - go test -coverpkg=all -v -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v9/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt
-  - go test -race gopkg.in/src-d/hercules.v9/... # run race test separately to preserve -covermode=count
+  - # race checks increase the elapsed time by 10 minutes, we run them only in AppVeyor
   - $GOPATH/bin/hercules version
   - $GOPATH/bin/hercules --burndown --couples --devs --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
