@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -190,6 +191,54 @@ func TestRenameAnalysisSortRenameCandidates(t *testing.T) {
 	})
 	assert.Equal(t, candidates[0], 3)
 	assert.Equal(t, candidates[1], 1)
+}
+
+func TestBlobsAreCloseFlakyBug(t *testing.T) {
+	gitBlob1, err := test.Repository.BlobObject(plumbing.NewHash(
+		"29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2"))
+	if err != nil {
+		t.Fatalf("get 29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2 %v", err)
+	}
+	gitBlob2, err := test.Repository.BlobObject(plumbing.NewHash(
+		"baa64828831d174f40140e4b3cfa77d1e917a2c1"))
+	if err != nil {
+		t.Fatalf("get baa64828831d174f40140e4b3cfa77d1e917a2c1 %v", err)
+	}
+	blob1 := &CachedBlob{*gitBlob1, nil}
+	blob2 := &CachedBlob{*gitBlob2, nil}
+	err = blob1.Cache()
+	if err != nil {
+		t.Fatalf("read 29c9fafd6a2fae8cd20298c3f60115bc31a4c0f2 %v", err)
+	}
+	err = blob2.Cache()
+	if err != nil {
+		t.Fatalf("read baa64828831d174f40140e4b3cfa77d1e917a2c1 %v", err)
+	}
+	wg := sync.WaitGroup{}
+	gr := 10 // number of concurrent goroutines
+	wg.Add(gr)
+	for i := 0; i < gr; i++ {
+		go func() {
+			ra := fixtureRenameAnalysis()
+			ra.SimilarityThreshold = 37
+			result, err := ra.blobsAreClose(blob1, blob2)
+			assert.Nil(t, err)
+			assert.True(t, result)
+			result, err = ra.blobsAreClose(blob2, blob1)
+			assert.Nil(t, err)
+			assert.True(t, result)
+
+			ra.SimilarityThreshold = 39
+			result, err = ra.blobsAreClose(blob1, blob2)
+			assert.Nil(t, err)
+			assert.False(t, result)
+			result, err = ra.blobsAreClose(blob2, blob1)
+			assert.Nil(t, err)
+			assert.False(t, result)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 func TestBlobsAreCloseText(t *testing.T) {

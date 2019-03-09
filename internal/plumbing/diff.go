@@ -2,6 +2,7 @@ package plumbing
 
 import (
 	"strings"
+	"time"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/src-d/go-git.v4"
@@ -128,6 +129,7 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
 			strFrom, strTo := string(blobFrom.Data), string(blobTo.Data)
 			dmp := diffmatchpatch.New()
+			dmp.DiffTimeout = time.Hour
 			src, dst, _ := dmp.DiffLinesToRunes(stripWhitespace(strFrom, diff.WhitespaceIgnore), stripWhitespace(strTo, diff.WhitespaceIgnore))
 			diffs := dmp.DiffMainRunes(src, dst, false)
 

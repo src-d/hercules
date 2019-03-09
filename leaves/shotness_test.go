@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -30,7 +31,7 @@ func fixtureShotness() *ShotnessAnalysis {
 
 func TestShotnessMeta(t *testing.T) {
 	sh := &ShotnessAnalysis{}
-	sh.Initialize(test.Repository)
+	assert.Nil(t, sh.Initialize(test.Repository))
 	assert.NotNil(t, sh.nodes)
 	assert.NotNil(t, sh.files)
 	assert.Equal(t, sh.Name(), "Shotness")
@@ -41,13 +42,13 @@ func TestShotnessMeta(t *testing.T) {
 	assert.Len(t, sh.ListConfigurationOptions(), 2)
 	assert.Equal(t, sh.ListConfigurationOptions()[0].Name, ConfigShotnessXpathStruct)
 	assert.Equal(t, sh.ListConfigurationOptions()[1].Name, ConfigShotnessXpathName)
-	sh.Configure(nil)
+	assert.Nil(t, sh.Configure(nil))
 	assert.Equal(t, sh.XpathStruct, DefaultShotnessXpathStruct)
 	assert.Equal(t, sh.XpathName, DefaultShotnessXpathName)
 	facts := map[string]interface{}{}
 	facts[ConfigShotnessXpathStruct] = "xpath!"
 	facts[ConfigShotnessXpathName] = "another!"
-	sh.Configure(facts)
+	assert.Nil(t, sh.Configure(facts))
 	assert.Equal(t, sh.XpathStruct, "xpath!")
 	assert.Equal(t, sh.XpathName, "another!")
 	features := sh.Features()
@@ -90,6 +91,7 @@ func bakeShotness(t *testing.T, eraseEndPosition bool) (*ShotnessAnalysis, Shotn
 	bytes2, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
+	dmp.DiffTimeout = time.Hour
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
 	state[core.DependencyCommit] = &object.Commit{}
@@ -144,6 +146,7 @@ func TestShotnessConsume(t *testing.T) {
 	bytes2, err := ioutil.ReadFile(path.Join("..", "internal", "test_data", "2.java"))
 	assert.Nil(t, err)
 	dmp := diffmatchpatch.New()
+	dmp.DiffTimeout = time.Hour
 	src, dst, _ := dmp.DiffLinesToRunes(string(bytes1), string(bytes2))
 	state := map[string]interface{}{}
 	state[core.DependencyCommit] = &object.Commit{}
@@ -239,7 +242,7 @@ func TestShotnessConsumeNoEnd(t *testing.T) {
 func TestShotnessSerializeText(t *testing.T) {
 	sh, result := bakeShotness(t, false)
 	buffer := &bytes.Buffer{}
-	sh.Serialize(result, false, buffer)
+	assert.Nil(t, sh.Serialize(result, false, buffer))
 	assert.Equal(t, buffer.String(), `  - name: testAddEntry
     file: test.java
     internal_role: uast:FunctionGroup
@@ -318,7 +321,7 @@ func TestShotnessSerializeText(t *testing.T) {
 func TestShotnessSerializeBinary(t *testing.T) {
 	sh, result := bakeShotness(t, false)
 	buffer := &bytes.Buffer{}
-	sh.Serialize(result, true, buffer)
+	assert.Nil(t, sh.Serialize(result, true, buffer))
 	message := pb.ShotnessAnalysisResults{}
 	err := proto.Unmarshal(buffer.Bytes(), &message)
 	assert.Nil(t, err)
