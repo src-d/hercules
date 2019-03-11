@@ -583,7 +583,7 @@ def load_burndown(header, name, matrix, resample):
 
     start, last, sampling, granularity = header
     assert sampling > 0
-    assert granularity >= sampling
+    assert granularity > 0
     start = datetime.fromtimestamp(start)
     last = datetime.fromtimestamp(last)
     print(name, "lifetime index:", calculate_average_lifetime(matrix))
