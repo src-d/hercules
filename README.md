@@ -329,12 +329,12 @@ for both parts, so the lower values are scaled, and hence there are no lower Y a
 There is a difference between the efforts plot and the ownership plot, although changing lines correlate
 with owning lines.
 
-#### Sentiment (positive and negative code)
+#### Sentiment (positive and negative comments)
 
 ![Django sentiment](doc/sentiment.png)
-<p align="center"><code>hercules --sentiment --pb https://github.com/django/django | python3 labours.py -m sentiment -f pb</code></p>
+<p align="center">It can be clearly seen that Django comments were positive/optimistic in the beginning, but later became negative/pessimistic.<br><code>hercules --sentiment --pb https://github.com/django/django | python3 labours.py -m sentiment -f pb</code></p>
 
-We extract new or changed comments from source code on every commit, apply [BiDiSentiment](https://github.com/vmarkovtsev/bidisentiment)
+We extract new and changed comments from source code on every commit, apply [BiDiSentiment](https://github.com/vmarkovtsev/bidisentiment)
 general purpose sentiment recurrent neural network and plot the results. Requires
 [libtensorflow](https://www.tensorflow.org/install/install_go).
 E.g. [`sadly, we need to hide the rect from the documentation finder for now`](https://github.com/pygame/pygame/commit/b6091d38c8a5639d311858660b38841d96598509#diff-eae59f175858fcef57cb17e733981c73R27) is negative and

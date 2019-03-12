@@ -1174,31 +1174,37 @@ def show_shotness_stats(data):
 
 
 def show_sentiment_stats(args, name, resample, start_date, data):
+    from scipy.signal import convolve, slepian
+
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
 
     start_date = datetime.fromtimestamp(start_date)
     data = sorted(data.items())
-    xdates = [start_date + timedelta(days=d[0]) for d in data]
-    xpos = []
-    ypos = []
-    xneg = []
-    yneg = []
-    for x, (_, y) in zip(xdates, data):
-        y = 0.5 - y.Value
-        if y > 0:
-            xpos.append(x)
-            ypos.append(y)
-        else:
-            xneg.append(x)
-            yneg.append(y)
-    pyplot.bar(xpos, ypos, color="g", label="Positive")
-    pyplot.bar(xneg, yneg, color="r", label="Negative")
+    mood = numpy.zeros(data[-1][0] + 1, dtype=numpy.float32)
+    timeline = numpy.array([start_date + timedelta(days=i) for i in range(mood.shape[0])])
+    for d, val in data:
+        mood[d] = (0.5 - val.Value) * 2
+    resolution = 32
+    window = slepian(len(timeline) // resolution, 0.5)
+    window /= window.sum()
+    mood_smooth = convolve(mood, window, "same")
+    pos = mood_smooth.copy()
+    pos[pos < 0] = 0
+    neg = mood_smooth.copy()
+    neg[neg >= 0] = 0
+    resolution = 4
+    window = numpy.ones(len(timeline) // resolution)
+    window /= window.sum()
+    avg = convolve(mood, window, "same")
+    pyplot.fill_between(timeline, pos, color="#8DB843", label="Positive")
+    pyplot.fill_between(timeline, neg, color="#E14C35", label="Negative")
+    pyplot.plot(timeline, avg, color="grey", label="Average", linewidth=5)
     legend = pyplot.legend(loc=1, fontsize=args.font_size)
-    pyplot.ylabel("Lines of code")
+    pyplot.ylabel("Comment sentiment")
     pyplot.xlabel("Time")
     apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
                      args.font_size, args.size)
-    pyplot.xlim(parse_date(args.start_date, xdates[0]), parse_date(args.end_date, xdates[-1]))
+    pyplot.xlim(parse_date(args.start_date, timeline[0]), parse_date(args.end_date, timeline[-1]))
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
     if "M" not in resample:
@@ -1223,12 +1229,12 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     # hacking time!
     labels = pyplot.gca().get_xticklabels()
     if startindex >= 0:
-        labels[startindex].set_text(xdates[0].date())
+        labels[startindex].set_text(timeline[0].date())
         labels[startindex].set_text = lambda _: None
         labels[startindex].set_rotation(30)
         labels[startindex].set_ha("right")
     if endindex >= 0:
-        labels[endindex].set_text(xdates[-1].date())
+        labels[endindex].set_text(timeline[-1].date())
         labels[endindex].set_text = lambda _: None
         labels[endindex].set_rotation(30)
         labels[endindex].set_ha("right")
