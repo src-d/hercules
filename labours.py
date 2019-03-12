@@ -706,7 +706,7 @@ def import_pyplot(backend, style):
 def apply_plot_style(figure, axes, legend, background, font_size, axes_size):
     foreground = "black" if background == "white" else "white"
     if axes_size is None:
-        axes_size = (12, 9)
+        axes_size = (16, 12)
     else:
         axes_size = tuple(float(p) for p in axes_size.split(","))
     figure.set_size_inches(*axes_size)
@@ -938,7 +938,8 @@ def plot_ownership(args, repo, names, people, date_range, last):
         legend_loc = 3
     else:
         legend_loc = 2
-    legend = pyplot.legend(loc=legend_loc, fontsize=args.font_size)
+    ncol = 1 if len(names) < 15 else 2
+    legend = pyplot.legend(loc=legend_loc, fontsize=args.font_size, ncol=ncol)
     apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
                      args.font_size, args.size)
     if args.mode == "all" and args.output:
