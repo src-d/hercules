@@ -16,7 +16,7 @@ import (
 
 	"github.com/Jeffail/tunny"
 	"github.com/gogo/protobuf/proto"
-	bblfsh "gopkg.in/bblfsh/client-go.v3"
+	"gopkg.in/bblfsh/client-go.v3"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
 	"gopkg.in/src-d/go-git.v4"
@@ -334,12 +334,6 @@ func (uc *Changes) Requires() []string {
 	return arr[:]
 }
 
-// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
-func (uc *Changes) Features() []string {
-	arr := [...]string{FeatureUast}
-	return arr[:]
-}
-
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (uc *Changes) ListConfigurationOptions() []core.ConfigurationOption {
 	return []core.ConfigurationOption{}
@@ -443,12 +437,6 @@ func (saver *ChangesSaver) Provides() []string {
 // entities are Provides() upstream.
 func (saver *ChangesSaver) Requires() []string {
 	arr := [...]string{DependencyUastChanges}
-	return arr[:]
-}
-
-// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
-func (saver *ChangesSaver) Features() []string {
-	arr := [...]string{FeatureUast}
 	return arr[:]
 }
 

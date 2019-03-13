@@ -114,6 +114,82 @@ func (item *dummyPipelineItem2) Fork(n int) []PipelineItem {
 func (item *dummyPipelineItem2) Merge(branches []PipelineItem) {
 }
 
+type dummyPipelineItem3 struct{}
+
+func (item *dummyPipelineItem3) Name() string {
+	return "dummy3"
+}
+
+func (item *dummyPipelineItem3) Provides() []string {
+	arr := [...]string{"dummy3"}
+	return arr[:]
+}
+
+func (item *dummyPipelineItem3) Requires() []string {
+	return []string{"dummy"}
+}
+
+func (item *dummyPipelineItem3) Configure(facts map[string]interface{}) error {
+	return nil
+}
+
+func (item *dummyPipelineItem3) ListConfigurationOptions() []ConfigurationOption {
+	return nil
+}
+
+func (item *dummyPipelineItem3) Initialize(repository *git.Repository) error {
+	return nil
+}
+
+func (item *dummyPipelineItem3) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	return map[string]interface{}{"dummy": nil}, nil
+}
+
+func (item *dummyPipelineItem3) Fork(n int) []PipelineItem {
+	return nil
+}
+
+func (item *dummyPipelineItem3) Merge(branches []PipelineItem) {
+}
+
+type dummyPipelineItem4 struct{}
+
+func (item *dummyPipelineItem4) Name() string {
+	return "dummy4"
+}
+
+func (item *dummyPipelineItem4) Provides() []string {
+	arr := [...]string{"dummy4"}
+	return arr[:]
+}
+
+func (item *dummyPipelineItem4) Requires() []string {
+	return []string{"dummy3"}
+}
+
+func (item *dummyPipelineItem4) Configure(facts map[string]interface{}) error {
+	return nil
+}
+
+func (item *dummyPipelineItem4) ListConfigurationOptions() []ConfigurationOption {
+	return nil
+}
+
+func (item *dummyPipelineItem4) Initialize(repository *git.Repository) error {
+	return nil
+}
+
+func (item *dummyPipelineItem4) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	return map[string]interface{}{"dummy": nil}, nil
+}
+
+func (item *dummyPipelineItem4) Fork(n int) []PipelineItem {
+	return nil
+}
+
+func (item *dummyPipelineItem4) Merge(branches []PipelineItem) {
+}
+
 func TestRegistrySummon(t *testing.T) {
 	reg := getRegistry()
 	assert.Len(t, reg.Summon("whatever"), 0)
@@ -187,6 +263,18 @@ func TestRegistryFeatures(t *testing.T) {
 	assert.True(t, val)
 }
 
+func TestRegistryCollectAllDependencies(t *testing.T) {
+	reg := getRegistry()
+	reg.Register(&dummyPipelineItem{})
+	reg.Register(&dummyPipelineItem3{})
+	reg.Register(&dummyPipelineItem4{})
+	assert.Len(t, reg.CollectAllDependencies(&dummyPipelineItem{}), 0)
+	deps := reg.CollectAllDependencies(&dummyPipelineItem4{})
+	assert.Len(t, deps, 2)
+	assert.Equal(t, deps[0].Name(), (&dummyPipelineItem{}).Name())
+	assert.Equal(t, deps[1].Name(), (&dummyPipelineItem3{}).Name())
+}
+
 func TestRegistryLeaves(t *testing.T) {
 	reg := getRegistry()
 	reg.Register(&testPipelineItem{})
@@ -213,11 +301,17 @@ func TestRegistryFeaturedItems(t *testing.T) {
 	reg.Register(&testPipelineItem{})
 	reg.Register(&dependingTestPipelineItem{})
 	reg.Register(&dummyPipelineItem{})
+	reg.Register(&dummyPipelineItem3{})
+	reg.Register(&dummyPipelineItem4{})
 	featured := reg.GetFeaturedItems()
 	assert.Len(t, featured, 1)
-	assert.Len(t, featured["power"], 2)
-	assert.Equal(t, featured["power"][0].Name(), (&testPipelineItem{}).Name())
-	assert.Equal(t, featured["power"][1].Name(), (&dummyPipelineItem{}).Name())
+	power := featured["power"]
+	assert.Len(t, power, 5)
+	assert.Equal(t, power[0].Name(), (&testPipelineItem{}).Name())
+	assert.Equal(t, power[1].Name(), (&dependingTestPipelineItem{}).Name())
+	assert.Equal(t, power[2].Name(), (&dummyPipelineItem{}).Name())
+	assert.Equal(t, power[3].Name(), (&dummyPipelineItem3{}).Name())
+	assert.Equal(t, power[4].Name(), (&dummyPipelineItem4{}).Name())
 }
 
 func TestRegistryPathMasquerade(t *testing.T) {

@@ -84,41 +84,57 @@ func (registry *PipelineItemRegistry) GetPlumbingItems() []PipelineItem {
 	return items
 }
 
-type orderedFeaturedItems []FeaturedPipelineItem
-
-func (ofi orderedFeaturedItems) Len() int {
-	return len([]FeaturedPipelineItem(ofi))
-}
-
-func (ofi orderedFeaturedItems) Less(i, j int) bool {
-	cofi := []FeaturedPipelineItem(ofi)
-	return cofi[i].Name() < cofi[j].Name()
-}
-
-func (ofi orderedFeaturedItems) Swap(i, j int) {
-	cofi := []FeaturedPipelineItem(ofi)
-	cofi[i], cofi[j] = cofi[j], cofi[i]
-}
-
 // GetFeaturedItems returns all FeaturedPipelineItem-s registered.
-func (registry *PipelineItemRegistry) GetFeaturedItems() map[string][]FeaturedPipelineItem {
-	features := map[string][]FeaturedPipelineItem{}
+func (registry *PipelineItemRegistry) GetFeaturedItems() map[string][]PipelineItem {
+	features := map[string][]PipelineItem{}
 	for _, t := range registry.registered {
-		if fiface, ok := reflect.New(t.Elem()).Interface().(FeaturedPipelineItem); ok {
-			for _, f := range fiface.Features() {
-				list := features[f]
-				if list == nil {
-					list = []FeaturedPipelineItem{}
+		item := reflect.New(t.Elem()).Interface().(PipelineItem)
+		deps := registry.CollectAllDependencies(item)
+		deps = append(deps, item)
+		depFeatures := map[string]bool{}
+		for _, dep := range deps {
+			if fiface, ok := dep.(FeaturedPipelineItem); ok {
+				for _, f := range fiface.Features() {
+					depFeatures[f] = true
 				}
-				list = append(list, fiface)
-				features[f] = list
+			}
+		}
+		for f := range depFeatures {
+			features[f] = append(features[f], item)
+		}
+	}
+
+	for _, vals := range features {
+		sort.Slice(vals, func(i, j int) bool {
+			return vals[i].Name() < vals[j].Name()
+		})
+	}
+	return features
+}
+
+// CollectAllDependencies recursively builds the list of all the items on which the specified item
+// depends.
+func (registry *PipelineItemRegistry) CollectAllDependencies(item PipelineItem) []PipelineItem {
+	deps := map[string]PipelineItem{}
+	for stack := []PipelineItem{item}; len(stack) > 0; {
+		head := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		for _, reqID := range head.Requires() {
+			req := registry.Summon(reqID)[0]
+			if _, exists := deps[reqID]; !exists {
+				deps[reqID] = req
+				stack = append(stack, req)
 			}
 		}
 	}
-	for _, vals := range features {
-		sort.Sort(orderedFeaturedItems(vals))
+	result := make([]PipelineItem, 0, len(deps))
+	for _, val := range deps {
+		result = append(result, val)
 	}
-	return features
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name() < result[j].Name()
+	})
+	return result
 }
 
 var pathFlagTypeMasquerade bool

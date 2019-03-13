@@ -55,8 +55,6 @@ func TestCommentSentimentMeta(t *testing.T) {
 	}
 	assert.Len(t, opts, matches)
 	assert.Equal(t, sent.Flag(), "sentiment")
-	assert.Len(t, sent.Features(), 1)
-	assert.Equal(t, sent.Features()[0], uast_items.FeatureUast)
 }
 
 func TestCommentSentimentConfigure(t *testing.T) {

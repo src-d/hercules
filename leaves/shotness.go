@@ -95,12 +95,6 @@ func (shotness *ShotnessAnalysis) Requires() []string {
 	return arr[:]
 }
 
-// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
-func (shotness *ShotnessAnalysis) Features() []string {
-	arr := [...]string{uast_items.FeatureUast}
-	return arr[:]
-}
-
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (shotness *ShotnessAnalysis) ListConfigurationOptions() []core.ConfigurationOption {
 	opts := [...]core.ConfigurationOption{{
