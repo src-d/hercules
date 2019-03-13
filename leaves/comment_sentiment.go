@@ -84,12 +84,6 @@ func (sent *CommentSentimentAnalysis) Requires() []string {
 	return arr[:]
 }
 
-// Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
-func (sent *CommentSentimentAnalysis) Features() []string {
-	arr := [...]string{uast_items.FeatureUast}
-	return arr[:]
-}
-
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (sent *CommentSentimentAnalysis) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{

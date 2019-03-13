@@ -204,9 +204,6 @@ func TestUASTChangesMeta(t *testing.T) {
 	assert.Equal(t, ch.Requires()[1], items.DependencyTreeChanges)
 	opts := ch.ListConfigurationOptions()
 	assert.Len(t, opts, 0)
-	feats := ch.Features()
-	assert.Len(t, feats, 1)
-	assert.Equal(t, feats[0], FeatureUast)
 }
 
 func TestUASTChangesRegistration(t *testing.T) {
@@ -336,9 +333,6 @@ func TestUASTChangesSaverMeta(t *testing.T) {
 	opts := chs.ListConfigurationOptions()
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigUASTChangesSaverOutputPath)
-	feats := chs.Features()
-	assert.Len(t, feats, 1)
-	assert.Equal(t, feats[0], FeatureUast)
 	assert.Equal(t, chs.Flag(), "dump-uast-changes")
 }
 

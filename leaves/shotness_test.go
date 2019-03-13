@@ -51,9 +51,6 @@ func TestShotnessMeta(t *testing.T) {
 	assert.Nil(t, sh.Configure(facts))
 	assert.Equal(t, sh.XpathStruct, "xpath!")
 	assert.Equal(t, sh.XpathName, "another!")
-	features := sh.Features()
-	assert.Len(t, features, 1)
-	assert.Equal(t, features[0], uast_items.FeatureUast)
 }
 
 func TestShotnessRegistration(t *testing.T) {
