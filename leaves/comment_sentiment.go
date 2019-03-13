@@ -161,7 +161,7 @@ func (sent *CommentSentimentAnalysis) Consume(deps map[string]interface{}) (map[
 	}
 	changes := deps[uast_items.DependencyUastChanges].([]uast_items.Change)
 	day := deps[items.DependencyDay].(int)
-	commentNodes := sent.xpather.Extract(changes)
+	commentNodes, _ := sent.xpather.Extract(changes)
 	comments := sent.mergeComments(commentNodes)
 	dayComments := sent.commentsByDay[day]
 	if dayComments == nil {

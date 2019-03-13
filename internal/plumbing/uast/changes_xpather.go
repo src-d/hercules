@@ -22,9 +22,9 @@ var hashKey = []byte{
 	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 }
 
-// Extract returns the list of new or changed UAST nodes filtered by XPath.
-func (xpather ChangesXPather) Extract(changes []Change) []nodes.Node {
-	var result []nodes.Node
+// Extract returns the list of (inserted, removed) UAST nodes filtered by XPath.
+func (xpather ChangesXPather) Extract(changes []Change) ([]nodes.Node, []nodes.Node) {
+	var resultAdded, resultRemoved []nodes.Node
 	for _, change := range changes {
 		if change.After == nil {
 			continue
@@ -33,16 +33,19 @@ func (xpather ChangesXPather) Extract(changes []Change) []nodes.Node {
 		newNodes := xpather.filter(change.After, change.Change.To.TreeEntry.Hash)
 		oldHashes := xpather.hash(oldNodes)
 		newHashes := xpather.hash(newNodes)
-		// remove any untouched nodes
-		for hash := range oldHashes {
-			delete(newHashes, hash)
-		}
 		// there can be hash collisions; we ignore them
-		for _, node := range newHashes {
-			result = append(result, node)
+		for hash, node := range newHashes {
+			if _, exists := oldHashes[hash]; !exists {
+				resultAdded = append(resultAdded, node)
+			}
+		}
+		for hash, node := range oldHashes {
+			if _, exists := newHashes[hash]; !exists {
+				resultRemoved = append(resultRemoved, node)
+			}
 		}
 	}
-	return result
+	return resultAdded, resultRemoved
 }
 
 func (xpather ChangesXPather) filter(root nodes.Node, origin plumbing.Hash) []nodes.Node {

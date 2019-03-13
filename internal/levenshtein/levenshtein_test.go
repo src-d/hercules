@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license.
 
-package plumbing
+package levenshtein
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ var distanceTests = []struct {
 
 func TestDistance(t *testing.T) {
 
-	lev := &LevenshteinContext{}
+	lev := &Context{}
 
 	for index, distanceTest := range distanceTests {
 		result := lev.Distance(distanceTest.first, distanceTest.second)
@@ -49,7 +49,7 @@ func BenchmarkDistance(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	c := &LevenshteinContext{}
+	c := &Context{}
 
 	for i := 0; i < b.N; i++ {
 		total += c.Distance(s1, s2)
@@ -68,7 +68,7 @@ func BenchmarkDistanceOriginal(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	ctx := LevenshteinContext{}
+	ctx := Context{}
 	for i := 0; i < b.N; i++ {
 		total += ctx.Distance(s1, s2)
 	}

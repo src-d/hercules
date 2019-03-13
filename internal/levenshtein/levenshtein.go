@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license.
 
-package plumbing
+package levenshtein
 
-// LevenshteinContext is the object which allows to calculate the Levenshtein distance
+// Context is the object which allows to calculate the Levenshtein distance
 // with Distance() method. It is needed to ensure 0 memory allocations.
-type LevenshteinContext struct {
+type Context struct {
 	intSlice []int
 }
 
-func (c *LevenshteinContext) getIntSlice(l int) []int {
+func (c *Context) getIntSlice(l int) []int {
 	if cap(c.intSlice) < l {
 		c.intSlice = make([]int, l)
 	}
@@ -26,7 +26,7 @@ func (c *LevenshteinContext) getIntSlice(l int) []int {
 // This implementation is optimized to use O(min(m,n)) space.
 // It is based on the optimized C version found here:
 // http://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#C
-func (c *LevenshteinContext) Distance(str1, str2 string) int {
+func (c *Context) Distance(str1, str2 string) int {
 	s1 := []rune(str1)
 	s2 := []rune(str2)
 
