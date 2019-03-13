@@ -16,6 +16,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 	"gopkg.in/src-d/hercules.v9/internal"
 	"gopkg.in/src-d/hercules.v9/internal/core"
+	"gopkg.in/src-d/hercules.v9/internal/levenshtein"
 )
 
 // RenameAnalysis improves TreeDiff's results by searching for changed blobs under different
@@ -562,7 +563,7 @@ type candidateDistance struct {
 
 func sortRenameCandidates(candidates []int, origin string, nameGetter func(int) string) {
 	distances := make([]candidateDistance, len(candidates))
-	ctx := LevenshteinContext{}
+	ctx := levenshtein.Context{}
 	for i, x := range candidates {
 		name := filepath.Base(nameGetter(x))
 		distances[i] = candidateDistance{x, ctx.Distance(origin, name)}

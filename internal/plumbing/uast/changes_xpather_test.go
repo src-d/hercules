@@ -4,10 +4,12 @@ package uast
 
 import (
 	"log"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/client-go.v3"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	uast_test "gopkg.in/src-d/hercules.v9/internal/plumbing/uast/test"
 	"gopkg.in/src-d/hercules.v9/internal/test"
 )
@@ -27,7 +29,18 @@ func TestChangesXPatherExtractChanged(t *testing.T) {
 		{Before: nil, After: root2, Change: gitChange},
 		{Before: root1, After: nil, Change: gitChange},
 	}
-	xpather := ChangesXPather{XPath: "//*[@role='Comment']"}
-	nodes := xpather.Extract(uastChanges)
-	assert.True(t, len(nodes) > 0)
+	xpather := ChangesXPather{XPath: "//uast:Comment"}
+	nodesAdded, nodesRemoved := xpather.Extract(uastChanges)
+	sort.Slice(nodesRemoved, func(i, j int) bool {
+		return nodesRemoved[i].(nodes.Object)["Text"].(nodes.String) <
+			nodesRemoved[j].(nodes.Object)["Text"].(nodes.String)
+	})
+	for _, n := range nodesAdded {
+		assert.True(t, len(n.(nodes.Object)["Text"].(nodes.String)) > 0)
+	}
+	for _, n := range nodesRemoved[1:] {
+		assert.True(t, len(n.(nodes.Object)["Text"].(nodes.String)) > 0)
+	}
+	assert.True(t, len(nodesAdded) > 0)
+	assert.True(t, len(nodesRemoved) > 0)
 }
