@@ -1,3 +1,5 @@
+// +build !disable_babelfish
+
 package research
 
 import (
