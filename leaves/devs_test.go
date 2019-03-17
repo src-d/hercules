@@ -31,7 +31,7 @@ func TestDevsMeta(t *testing.T) {
 	assert.Equal(t, len(d.Requires()), 5)
 	assert.Equal(t, d.Requires()[0], identity.DependencyAuthor)
 	assert.Equal(t, d.Requires()[1], items.DependencyTreeChanges)
-	assert.Equal(t, d.Requires()[2], items.DependencyDay)
+	assert.Equal(t, d.Requires()[2], items.DependencyTick)
 	assert.Equal(t, d.Requires()[3], items.DependencyLanguages)
 	assert.Equal(t, d.Requires()[4], items.DependencyLineStats)
 	assert.Equal(t, d.Flag(), "devs")
@@ -77,7 +77,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 
 	// stage 1
 	deps[identity.DependencyAuthor] = 0
-	deps[items.DependencyDay] = 0
+	deps[items.DependencyTick] = 0
 	cache := map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
@@ -228,7 +228,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Equal(t, dev.Languages["Go"].Removed, 9*2)
 	assert.Equal(t, dev.Languages["Go"].Changed, 67*2)
 
-	deps[items.DependencyDay] = 1
+	deps[items.DependencyTick] = 1
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)

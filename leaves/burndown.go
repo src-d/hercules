@@ -31,12 +31,12 @@ import (
 // It is a LeafPipelineItem.
 // Reference: https://erikbern.com/2016/12/05/the-half-life-of-code.html
 type BurndownAnalysis struct {
-	// Granularity sets the size of each band - the number of days it spans.
+	// Granularity sets the size of each band - the number of ticks it spans.
 	// Smaller values provide better resolution but require more work and eat more
-	// memory. 30 days is usually enough.
+	// memory. 30 ticks is usually enough.
 	Granularity int
 	// Sampling sets how detailed is the statistic - the size of the interval in
-	// days between consecutive measurements. It may not be greater than Granularity. Try 15 or 30.
+	// ticks between consecutive measurements. It may not be greater than Granularity. Try 15 or 30.
 	Sampling int
 
 	// TrackFiles enables or disables the fine-grained per-file burndown analysis.
@@ -67,9 +67,9 @@ type BurndownAnalysis struct {
 	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 	// globalHistory is the daily deltas of daily line counts.
-	// E.g. day 0: day 0 +50 lines
-	//      day 10: day 0 -10 lines; day 10 +20 lines
-	//      day 12: day 0 -5 lines; day 10 -3 lines; day 12 +10 lines
+	// E.g. tick 0: tick 0 +50 lines
+	//      tick 10: tick 0 -10 lines; tick 10 +20 lines
+	//      tick 12: tick 0 -5 lines; tick 10 -3 lines; tick 12 +10 lines
 	// map [0] [0] = 50
 	// map[10] [0] = -10
 	// map[10][10] = 20
@@ -95,11 +95,11 @@ type BurndownAnalysis struct {
 	renames map[string]string
 	// matrix is the mutual deletions and self insertions.
 	matrix []map[int]int64
-	// day is the most recent day index processed.
-	day int
-	// previousDay is the day from the previous sample period -
-	// different from DaysSinceStart.previousDay.
-	previousDay int
+	// tick is the most recent tick index processed.
+	tick int
+	// previousTick is the tick from the previous sample period -
+	// different from TicksSinceStart.previousTick.
+	previousTick int
 	// references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 }
@@ -160,7 +160,7 @@ const (
 	ConfigBurndownHibernationDirectory = "Burndown.HibernationDirectory"
 	// ConfigBurndownDebug enables some extra debug assertions.
 	ConfigBurndownDebug = "Burndown.Debug"
-	// DefaultBurndownGranularity is the default number of days for BurndownAnalysis.Granularity
+	// DefaultBurndownGranularity is the default number of ticks for BurndownAnalysis.Granularity
 	// and BurndownAnalysis.Sampling.
 	DefaultBurndownGranularity = 30
 	// authorSelf is the internal author index which is used in BurndownAnalysis.Finalize() to
@@ -192,7 +192,7 @@ func (analyser *BurndownAnalysis) Provides() []string {
 func (analyser *BurndownAnalysis) Requires() []string {
 	arr := [...]string{
 		items.DependencyFileDiff, items.DependencyTreeChanges, items.DependencyBlobCache,
-		items.DependencyDay, identity.DependencyAuthor}
+		items.DependencyTick, identity.DependencyAuthor}
 	return arr[:]
 }
 
@@ -200,12 +200,12 @@ func (analyser *BurndownAnalysis) Requires() []string {
 func (analyser *BurndownAnalysis) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
 		Name:        ConfigBurndownGranularity,
-		Description: "How many days there are in a single band.",
+		Description: "How many time ticks there are in a single band.",
 		Flag:        "granularity",
 		Type:        core.IntConfigurationOption,
 		Default:     DefaultBurndownGranularity}, {
 		Name:        ConfigBurndownSampling,
-		Description: "How frequently to record the state in days.",
+		Description: "How frequently to record the state in time ticks.",
 		Flag:        "sampling",
 		Type:        core.IntConfigurationOption,
 		Default:     DefaultBurndownGranularity}, {
@@ -298,12 +298,12 @@ func (analyser *BurndownAnalysis) Description() string {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 	if analyser.Granularity <= 0 {
-		log.Printf("Warning: adjusted the granularity to %d days\n",
+		log.Printf("Warning: adjusted the granularity to %d ticks\n",
 			DefaultBurndownGranularity)
 		analyser.Granularity = DefaultBurndownGranularity
 	}
 	if analyser.Sampling <= 0 {
-		log.Printf("Warning: adjusted the sampling to %d days\n",
+		log.Printf("Warning: adjusted the sampling to %d ticks\n",
 			DefaultBurndownGranularity)
 		analyser.Sampling = DefaultBurndownGranularity
 	}
@@ -326,8 +326,8 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 	analyser.mergedAuthor = identity.AuthorMissing
 	analyser.renames = map[string]string{}
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
-	analyser.day = 0
-	analyser.previousDay = 0
+	analyser.tick = 0
+	analyser.previousTick = 0
 	return nil
 }
 
@@ -341,14 +341,14 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 		panic("BurndownAnalysis.Consume() was called on a hibernated instance")
 	}
 	author := deps[identity.DependencyAuthor].(int)
-	day := deps[items.DependencyDay].(int)
+	tick := deps[items.DependencyTick].(int)
 	if !deps[core.DependencyIsMerge].(bool) {
-		analyser.day = day
-		analyser.onNewDay()
+		analyser.tick = tick
+		analyser.onNewTick()
 	} else {
 		// effectively disables the status updates if the commit is a merge
 		// we will analyse the conflicts resolution in Merge()
-		analyser.day = burndown.TreeMergeMark
+		analyser.tick = burndown.TreeMergeMark
 		analyser.mergedFiles = map[string]bool{}
 		analyser.mergedAuthor = author
 	}
@@ -370,8 +370,8 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 			return nil, err
 		}
 	}
-	// in case there is a merge analyser.day equals to TreeMergeMark
-	analyser.day = day
+	// in case there is a merge analyser.tick equals to TreeMergeMark
+	analyser.tick = tick
 	return nil, nil
 }
 
@@ -431,7 +431,9 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 			// it could be also removed in the merge commit itself
 			continue
 		}
-		files[0].Merge(analyser.packPersonWithDay(analyser.mergedAuthor, analyser.day), files[1:]...)
+		files[0].Merge(
+			analyser.packPersonWithTick(analyser.mergedAuthor, analyser.tick),
+			files[1:]...)
 		for _, burn := range all {
 			if burn.files[key] != files[0] {
 				if burn.files[key] != nil {
@@ -441,7 +443,7 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 			}
 		}
 	}
-	analyser.onNewDay()
+	analyser.onNewTick()
 }
 
 // Hibernate compresses the bound RBTree memory with the files.
@@ -486,14 +488,14 @@ func (analyser *BurndownAnalysis) Boot() error {
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (analyser *BurndownAnalysis) Finalize() interface{} {
-	globalHistory, lastDay := analyser.groupSparseHistory(analyser.globalHistory, -1)
+	globalHistory, lastTick := analyser.groupSparseHistory(analyser.globalHistory, -1)
 	fileHistories := map[string]DenseHistory{}
 	fileOwnership := map[string]map[int]int{}
 	for key, history := range analyser.fileHistories {
 		if len(history) == 0 {
 			continue
 		}
-		fileHistories[key], _ = analyser.groupSparseHistory(history, lastDay)
+		fileHistories[key], _ = analyser.groupSparseHistory(history, lastTick)
 		file := analyser.files[key]
 		previousLine := 0
 		previousAuthor := identity.AuthorMissing
@@ -505,7 +507,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 				ownership[previousAuthor] += length
 			}
 			previousLine = line
-			previousAuthor, _ = analyser.unpackPersonWithDay(int(value))
+			previousAuthor, _ = analyser.unpackPersonWithTick(int(value))
 			if previousAuthor == identity.AuthorMissing {
 				previousAuthor = -1
 			}
@@ -515,7 +517,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 	for i, history := range analyser.peopleHistories {
 		if len(history) > 0 {
 			// there can be people with only trivial merge commits and without own lines
-			peopleHistories[i], _ = analyser.groupSparseHistory(history, lastDay)
+			peopleHistories[i], _ = analyser.groupSparseHistory(history, lastTick)
 		} else {
 			peopleHistories[i] = make(DenseHistory, len(globalHistory))
 			for j, gh := range globalHistory {
@@ -712,15 +714,15 @@ func (analyser *BurndownAnalysis) MergeResults(
 }
 
 func roundTime(unix int64, dir bool) int {
-	days := float64(unix) / (3600 * 24)
+	ticks := float64(unix) / (3600 * 24)
 	if dir {
-		return int(math.Ceil(days))
+		return int(math.Ceil(ticks))
 	}
-	return int(math.Floor(days))
+	return int(math.Floor(ticks))
 }
 
 // mergeMatrices takes two [number of samples][number of bands] matrices,
-// resamples them to days so that they become square, sums and resamples back to the
+// resamples them to ticks so that they become square, sums and resamples back to the
 // least of (sampling1, sampling2) and (granularity1, granularity2).
 func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int,
 	c1, c2 *core.CommonAnalysisResult) DenseHistory {
@@ -769,7 +771,7 @@ func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, s
 	return result
 }
 
-// Explode `matrix` so that it is daily sampled and has daily bands, shift by `offset` days
+// Explode `matrix` so that it is daily sampled and has daily bands, shift by `offset` ticks
 // and add to the accumulator. `daily` size is square and is guaranteed to fit `matrix` by
 // the caller.
 // Rows: *at least* len(matrix) * sampling + offset
@@ -935,7 +937,7 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily 
 	for y := len(matrix) * sampling; y+offset < len(daily); y++ {
 		copy(daily[y+offset], daily[len(matrix)*sampling-1+offset])
 	}
-	// the original matrix has been resampled by day
+	// the original matrix has been resampled by tick
 	// add it to the accumulator
 	for y, row := range daily {
 		for x, val := range row {
@@ -1054,87 +1056,88 @@ func checkClose(c io.Closer) {
 	}
 }
 
-// We do a hack and store the day in the first 14 bits and the author index in the last 18.
+// We do a hack and store the tick in the first 14 bits and the author index in the last 18.
 // Strictly speaking, int can be 64-bit and then the author index occupies 32+18 bits.
 // This hack is needed to simplify the values storage inside File-s. We can compare
-// different values together and they are compared as days for the same author.
-func (analyser *BurndownAnalysis) packPersonWithDay(person int, day int) int {
+// different values together and they are compared as ticks for the same author.
+func (analyser *BurndownAnalysis) packPersonWithTick(person int, tick int) int {
 	if analyser.PeopleNumber == 0 {
-		return day
+		return tick
 	}
-	result := day & burndown.TreeMergeMark
+	result := tick & burndown.TreeMergeMark
 	result |= person << burndown.TreeMaxBinPower
-	// This effectively means max (16383 - 1) days (>44 years) and (262143 - 3) devs.
-	// One day less because burndown.TreeMergeMark = ((1 << 14) - 1) is a special day.
+	// This effectively means max (16383 - 1) ticks (>44 years) and (262143 - 3) devs.
+	// One tick less because burndown.TreeMergeMark = ((1 << 14) - 1) is a special tick.
 	// Three devs less because:
-	// - math.MaxUint32 is the special rbtree value with day == TreeMergeMark (-1)
+	// - math.MaxUint32 is the special rbtree value with tick == TreeMergeMark (-1)
 	// - identity.AuthorMissing (-2)
 	// - authorSelf (-3)
 	return result
 }
 
-func (analyser *BurndownAnalysis) unpackPersonWithDay(value int) (int, int) {
+func (analyser *BurndownAnalysis) unpackPersonWithTick(value int) (int, int) {
 	if analyser.PeopleNumber == 0 {
 		return identity.AuthorMissing, value
 	}
 	return value >> burndown.TreeMaxBinPower, value & burndown.TreeMergeMark
 }
 
-func (analyser *BurndownAnalysis) onNewDay() {
-	if analyser.day > analyser.previousDay {
-		analyser.previousDay = analyser.day
+func (analyser *BurndownAnalysis) onNewTick() {
+	if analyser.tick > analyser.previousTick {
+		analyser.previousTick = analyser.tick
 	}
 	analyser.mergedAuthor = identity.AuthorMissing
 }
 
 func (analyser *BurndownAnalysis) updateGlobal(currentTime, previousTime, delta int) {
-	_, currentDay := analyser.unpackPersonWithDay(currentTime)
-	_, previousDay := analyser.unpackPersonWithDay(previousTime)
-	currentHistory := analyser.globalHistory[currentDay]
+	_, curTick := analyser.unpackPersonWithTick(currentTime)
+	_, prevTick := analyser.unpackPersonWithTick(previousTime)
+
+	currentHistory := analyser.globalHistory[curTick]
 	if currentHistory == nil {
 		currentHistory = map[int]int64{}
-		analyser.globalHistory[currentDay] = currentHistory
+		analyser.globalHistory[curTick] = currentHistory
 	}
-	currentHistory[previousDay] += int64(delta)
+	currentHistory[prevTick] += int64(delta)
 }
 
 // updateFile is bound to the specific `history` in the closure.
 func (analyser *BurndownAnalysis) updateFile(
 	history sparseHistory, currentTime, previousTime, delta int) {
 
-	_, currentDay := analyser.unpackPersonWithDay(currentTime)
-	_, previousDay := analyser.unpackPersonWithDay(previousTime)
+	_, curTick := analyser.unpackPersonWithTick(currentTime)
+	_, prevTick := analyser.unpackPersonWithTick(previousTime)
 
-	currentHistory := history[currentDay]
+	currentHistory := history[curTick]
 	if currentHistory == nil {
 		currentHistory = map[int]int64{}
-		history[currentDay] = currentHistory
+		history[curTick] = currentHistory
 	}
-	currentHistory[previousDay] += int64(delta)
+	currentHistory[prevTick] += int64(delta)
 }
 
 func (analyser *BurndownAnalysis) updateAuthor(currentTime, previousTime, delta int) {
-	previousAuthor, previousDay := analyser.unpackPersonWithDay(previousTime)
+	previousAuthor, prevTick := analyser.unpackPersonWithTick(previousTime)
 	if previousAuthor == identity.AuthorMissing {
 		return
 	}
-	_, currentDay := analyser.unpackPersonWithDay(currentTime)
+	_, curTick := analyser.unpackPersonWithTick(currentTime)
 	history := analyser.peopleHistories[previousAuthor]
 	if history == nil {
 		history = sparseHistory{}
 		analyser.peopleHistories[previousAuthor] = history
 	}
-	currentHistory := history[currentDay]
+	currentHistory := history[curTick]
 	if currentHistory == nil {
 		currentHistory = map[int]int64{}
-		history[currentDay] = currentHistory
+		history[curTick] = currentHistory
 	}
-	currentHistory[previousDay] += int64(delta)
+	currentHistory[prevTick] += int64(delta)
 }
 
 func (analyser *BurndownAnalysis) updateMatrix(currentTime, previousTime, delta int) {
-	newAuthor, _ := analyser.unpackPersonWithDay(currentTime)
-	oldAuthor, _ := analyser.unpackPersonWithDay(previousTime)
+	newAuthor, _ := analyser.unpackPersonWithTick(currentTime)
+	oldAuthor, _ := analyser.unpackPersonWithTick(previousTime)
 
 	if oldAuthor == identity.AuthorMissing {
 		return
@@ -1156,7 +1159,8 @@ func (analyser *BurndownAnalysis) updateMatrix(currentTime, previousTime, delta 
 }
 
 func (analyser *BurndownAnalysis) newFile(
-	hash plumbing.Hash, name string, author int, day int, size int) (*burndown.File, error) {
+	hash plumbing.Hash, name string, author int, tick int, size int) (*burndown.File, error) {
+
 	updaters := make([]burndown.Updater, 1)
 	updaters[0] = analyser.updateGlobal
 	if analyser.TrackFiles {
@@ -1173,9 +1177,9 @@ func (analyser *BurndownAnalysis) newFile(
 	if analyser.PeopleNumber > 0 {
 		updaters = append(updaters, analyser.updateAuthor)
 		updaters = append(updaters, analyser.updateMatrix)
-		day = analyser.packPersonWithDay(author, day)
+		tick = analyser.packPersonWithTick(author, tick)
 	}
-	return burndown.NewFile(day, size, analyser.fileAllocator, updaters...), nil
+	return burndown.NewFile(tick, size, analyser.fileAllocator, updaters...), nil
 }
 
 func (analyser *BurndownAnalysis) handleInsertion(
@@ -1192,12 +1196,12 @@ func (analyser *BurndownAnalysis) handleInsertion(
 		return fmt.Errorf("file %s already exists", name)
 	}
 	var hash plumbing.Hash
-	if analyser.day != burndown.TreeMergeMark {
+	if analyser.tick != burndown.TreeMergeMark {
 		hash = blob.Hash
 	}
-	file, err = analyser.newFile(hash, name, author, analyser.day, lines)
+	file, err = analyser.newFile(hash, name, author, analyser.tick, lines)
 	analyser.files[name] = file
-	if analyser.day == burndown.TreeMergeMark {
+	if analyser.tick == burndown.TreeMergeMark {
 		analyser.mergedFiles[name] = true
 	}
 	return err
@@ -1222,7 +1226,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	if !exists {
 		return nil
 	}
-	file.Update(analyser.packPersonWithDay(author, analyser.day), 0, 0, lines)
+	file.Update(analyser.packPersonWithTick(author, analyser.tick), 0, 0, lines)
 	file.Delete()
 	delete(analyser.files, name)
 	delete(analyser.fileHistories, name)
@@ -1237,7 +1241,7 @@ func (analyser *BurndownAnalysis) handleDeletion(
 			}
 		}
 	}
-	if analyser.day == burndown.TreeMergeMark {
+	if analyser.tick == burndown.TreeMergeMark {
 		analyser.mergedFiles[name] = false
 	}
 	return nil
@@ -1247,7 +1251,7 @@ func (analyser *BurndownAnalysis) handleModification(
 	change *object.Change, author int, cache map[plumbing.Hash]*items.CachedBlob,
 	diffs map[string]items.FileDiffData) error {
 
-	if analyser.day == burndown.TreeMergeMark {
+	if analyser.tick == burndown.TreeMergeMark {
 		analyser.mergedFiles[change.To.Name] = true
 	}
 	file, exists := analyser.files[change.From.Name]
@@ -1297,10 +1301,10 @@ func (analyser *BurndownAnalysis) handleModification(
 	apply := func(edit diffmatchpatch.Diff) {
 		length := utf8.RuneCountInString(edit.Text)
 		if edit.Type == diffmatchpatch.DiffInsert {
-			file.Update(analyser.packPersonWithDay(author, analyser.day), position, length, 0)
+			file.Update(analyser.packPersonWithTick(author, analyser.tick), position, length, 0)
 			position += length
 		} else {
-			file.Update(analyser.packPersonWithDay(author, analyser.day), position, 0, length)
+			file.Update(analyser.packPersonWithTick(author, analyser.tick), position, 0, length)
 		}
 		if analyser.Debug {
 			file.Validate()
@@ -1315,7 +1319,7 @@ func (analyser *BurndownAnalysis) handleModification(
 		length := utf8.RuneCountInString(edit.Text)
 		debugError := func() {
 			log.Printf("%s: internal diff error\n", change.To.Name)
-			log.Printf("Update(%d, %d, %d (0), %d (0))\n", analyser.day, position,
+			log.Printf("Update(%d, %d, %d (0), %d (0))\n", analyser.tick, position,
 				length, utf8.RuneCountInString(pending.Text))
 			if dumpBefore != "" {
 				log.Printf("====TREE BEFORE====\n%s====END====\n", dumpBefore)
@@ -1335,7 +1339,7 @@ func (analyser *BurndownAnalysis) handleModification(
 					debugError()
 					return errors.New("DiffInsert may not appear after DiffInsert")
 				}
-				file.Update(analyser.packPersonWithDay(author, analyser.day), position, length,
+				file.Update(analyser.packPersonWithTick(author, analyser.tick), position, length,
 					utf8.RuneCountInString(pending.Text))
 				if analyser.Debug {
 					file.Validate()
@@ -1378,7 +1382,7 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 	}
 	delete(analyser.files, from)
 	analyser.files[to] = file
-	if analyser.day == burndown.TreeMergeMark {
+	if analyser.tick == burndown.TreeMergeMark {
 		analyser.mergedFiles[from] = false
 	}
 
@@ -1428,37 +1432,37 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 }
 
 func (analyser *BurndownAnalysis) groupSparseHistory(
-	history sparseHistory, lastDay int) (DenseHistory, int) {
+	history sparseHistory, lastTick int) (DenseHistory, int) {
 
 	if len(history) == 0 {
 		panic("empty history")
 	}
-	var days []int
-	for day := range history {
-		days = append(days, day)
+	var ticks []int
+	for tick := range history {
+		ticks = append(ticks, tick)
 	}
-	sort.Ints(days)
-	if lastDay >= 0 {
-		if days[len(days)-1] < lastDay {
-			days = append(days, lastDay)
-		} else if days[len(days)-1] > lastDay {
-			panic("days corruption")
+	sort.Ints(ticks)
+	if lastTick >= 0 {
+		if ticks[len(ticks)-1] < lastTick {
+			ticks = append(ticks, lastTick)
+		} else if ticks[len(ticks)-1] > lastTick {
+			panic("ticks corruption")
 		}
 	} else {
-		lastDay = days[len(days)-1]
+		lastTick = ticks[len(ticks)-1]
 	}
 	// [y][x]
 	// y - sampling
 	// x - granularity
-	samples := lastDay/analyser.Sampling + 1
-	bands := lastDay/analyser.Granularity + 1
+	samples := lastTick/analyser.Sampling + 1
+	bands := lastTick/analyser.Granularity + 1
 	result := make(DenseHistory, samples)
 	for i := 0; i < bands; i++ {
 		result[i] = make([]int64, bands)
 	}
 	prevsi := 0
-	for _, day := range days {
-		si := day / analyser.Sampling
+	for _, tick := range ticks {
+		si := tick / analyser.Sampling
 		if si > prevsi {
 			state := result[prevsi]
 			for i := prevsi + 1; i <= si; i++ {
@@ -1467,11 +1471,11 @@ func (analyser *BurndownAnalysis) groupSparseHistory(
 			prevsi = si
 		}
 		sample := result[si]
-		for bday, value := range history[day] {
-			sample[bday/analyser.Granularity] += value
+		for t, value := range history[tick] {
+			sample[t/analyser.Granularity] += value
 		}
 	}
-	return result, lastDay
+	return result, lastTick
 }
 
 func init() {

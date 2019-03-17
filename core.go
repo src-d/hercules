@@ -122,9 +122,9 @@ const (
 	DependencyAuthor = identity.DependencyAuthor
 	// DependencyBlobCache identifies the dependency provided by BlobCache.
 	DependencyBlobCache = plumbing.DependencyBlobCache
-	// DependencyDay is the name of the dependency which DaysSinceStart provides - the number
-	// of days since the first commit in the analysed sequence.
-	DependencyDay = plumbing.DependencyDay
+	// DependencyTick is the name of the dependency which TicksSinceStart provides - the number
+	// of ticks since the first commit in the analysed sequence.
+	DependencyTick = plumbing.DependencyTick
 	// DependencyFileDiff is the name of the dependency provided by FileDiff.
 	DependencyFileDiff = plumbing.DependencyFileDiff
 	// DependencyTreeChanges is the name of the dependency provided by TreeDiff.
@@ -133,8 +133,8 @@ const (
 	DependencyUastChanges = uast.DependencyUastChanges
 	// DependencyUasts is the name of the dependency provided by Extractor.
 	DependencyUasts = uast.DependencyUasts
-	// FactCommitsByDay contains the mapping between day indices and the corresponding commits.
-	FactCommitsByDay = plumbing.FactCommitsByDay
+	// FactCommitsByTick contains the mapping between tick indices and the corresponding commits.
+	FactCommitsByTick = plumbing.FactCommitsByTick
 	// FactIdentityDetectorPeopleCount is the name of the fact which is inserted in
 	// identity.Detector.Configure(). It is equal to the overall number of unique authors
 	// (the length of ReversedPeopleDict).

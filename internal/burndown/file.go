@@ -31,7 +31,7 @@ type File struct {
 // TreeEnd denotes the value of the last leaf in the tree.
 const TreeEnd = math.MaxUint32
 
-// TreeMaxBinPower is the binary power value which corresponds to the maximum day which
+// TreeMaxBinPower is the binary power value which corresponds to the maximum tick which
 // can be stored in the tree.
 const TreeMaxBinPower = 14
 

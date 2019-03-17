@@ -38,7 +38,7 @@ func TestBurndownMeta(t *testing.T) {
 	assert.Len(t, bd.Provides(), 0)
 	required := [...]string{
 		items.DependencyFileDiff, items.DependencyTreeChanges, items.DependencyBlobCache,
-		items.DependencyDay, identity.DependencyAuthor}
+		items.DependencyTick, identity.DependencyAuthor}
 	for _, name := range required {
 		assert.Contains(t, bd.Requires(), name)
 	}
@@ -142,7 +142,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 
 	// stage 1
 	deps[identity.DependencyAuthor] = 0
-	deps[items.DependencyDay] = 0
+	deps[items.DependencyTick] = 0
 	cache := map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
@@ -202,7 +202,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	result, err = bd.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
-	assert.Equal(t, bd.previousDay, 0)
+	assert.Equal(t, bd.previousTick, 0)
 	assert.Len(t, bd.files, 3)
 	assert.Equal(t, bd.files["cmd/hercules/main.go"].Len(), 207)
 	assert.Equal(t, bd.files["analyser.go"].Len(), 926)
@@ -237,7 +237,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
 	deps[core.DependencyIsMerge] = false
-	deps[items.DependencyDay] = 30
+	deps[items.DependencyTick] = 30
 	cache = map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")
@@ -304,7 +304,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	result, err = bd.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
-	assert.Equal(t, bd.previousDay, 30)
+	assert.Equal(t, bd.previousTick, 30)
 	assert.Len(t, bd.files, 2)
 	assert.Equal(t, bd.files["cmd/hercules/main.go"].Len(), 290)
 	assert.Equal(t, bd.files["burndown.go"].Len(), 543)
@@ -360,7 +360,7 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 
 func TestBurndownConsumeMergeAuthorMissing(t *testing.T) {
 	deps := map[string]interface{}{}
-	deps[items.DependencyDay] = 0
+	deps[items.DependencyTick] = 0
 	cache := map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
@@ -476,7 +476,7 @@ func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
 	deps := map[string]interface{}{}
 	// stage 1
 	deps[identity.DependencyAuthor] = firstAuthor
-	deps[items.DependencyDay] = 0
+	deps[items.DependencyTick] = 0
 	cache := map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	AddHash(t, cache, "c29112dbd697ad9b401333b80c18a63951bc18d9")
@@ -537,7 +537,7 @@ func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
 	// stage 2
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
 	deps[identity.DependencyAuthor] = secondAuthor
-	deps[items.DependencyDay] = 30
+	deps[items.DependencyTick] = 30
 	cache = map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "291286b4ac41952cbd1389fda66420ec03c1a9fe")
 	AddHash(t, cache, "baa64828831d174f40140e4b3cfa77d1e917a2c1")

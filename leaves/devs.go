@@ -74,7 +74,7 @@ func (devs *DevsAnalysis) Provides() []string {
 // entities are Provides() upstream.
 func (devs *DevsAnalysis) Requires() []string {
 	arr := [...]string{
-		identity.DependencyAuthor, items.DependencyTreeChanges, items.DependencyDay,
+		identity.DependencyAuthor, items.DependencyTreeChanges, items.DependencyTick,
 		items.DependencyLanguages, items.DependencyLineStats}
 	return arr[:]
 }
@@ -133,7 +133,7 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	if len(treeDiff) == 0 && !devs.ConsiderEmptyCommits {
 		return nil, nil
 	}
-	day := deps[items.DependencyDay].(int)
+	day := deps[items.DependencyTick].(int)
 	devsDay, exists := devs.days[day]
 	if !exists {
 		devsDay = map[int]*DevDay{}
