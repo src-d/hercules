@@ -27,8 +27,8 @@ type DevsAnalysis struct {
 	// into account.
 	ConsiderEmptyCommits bool
 
-	// days maps days to developers to stats
-	days map[int]map[int]*DevDay
+	// ticks maps ticks to developers to stats
+	ticks map[int]map[int]*DevTick
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 }
@@ -36,16 +36,16 @@ type DevsAnalysis struct {
 // DevsResult is returned by DevsAnalysis.Finalize() and carries the daily statistics
 // per developer.
 type DevsResult struct {
-	// Days is <day index> -> <developer index> -> daily stats
-	Days map[int]map[int]*DevDay
+	// Ticks is <tick index> -> <developer index> -> daily stats
+	Ticks map[int]map[int]*DevTick
 
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 }
 
-// DevDay is the statistics for a development day and a particular developer.
-type DevDay struct {
-	// Commits is the number of commits made by a particular developer in a particular day.
+// DevTick is the statistics for a development tick and a particular developer.
+type DevTick struct {
+	// Commits is the number of commits made by a particular developer in a particular tick.
 	Commits int
 	items.LineStats
 	// LanguagesDetection carries fine-grained line stats per programming language.
@@ -114,7 +114,7 @@ func (devs *DevsAnalysis) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (devs *DevsAnalysis) Initialize(repository *git.Repository) error {
-	devs.days = map[int]map[int]*DevDay{}
+	devs.ticks = map[int]map[int]*DevTick{}
 	devs.OneShotMergeProcessor.Initialize()
 	return nil
 }
@@ -133,16 +133,16 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 	if len(treeDiff) == 0 && !devs.ConsiderEmptyCommits {
 		return nil, nil
 	}
-	day := deps[items.DependencyTick].(int)
-	devsDay, exists := devs.days[day]
+	tick := deps[items.DependencyTick].(int)
+	devstick, exists := devs.ticks[tick]
 	if !exists {
-		devsDay = map[int]*DevDay{}
-		devs.days[day] = devsDay
+		devstick = map[int]*DevTick{}
+		devs.ticks[tick] = devstick
 	}
-	dd, exists := devsDay[author]
+	dd, exists := devstick[author]
 	if !exists {
-		dd = &DevDay{Languages: map[string]items.LineStats{}}
-		devsDay[author] = dd
+		dd = &DevTick{Languages: map[string]items.LineStats{}}
+		devstick[author] = dd
 	}
 	dd.Commits++
 	if deps[core.DependencyIsMerge].(bool) {
@@ -170,7 +170,7 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (devs *DevsAnalysis) Finalize() interface{} {
 	return DevsResult{
-		Days:               devs.days,
+		Ticks:              devs.ticks,
 		reversedPeopleDict: devs.reversedPeopleDict,
 	}
 }
@@ -198,16 +198,16 @@ func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	days := map[int]map[int]*DevDay{}
-	for day, dd := range message.Days {
-		rdd := map[int]*DevDay{}
-		days[int(day)] = rdd
+	ticks := map[int]map[int]*DevTick{}
+	for tick, dd := range message.Ticks {
+		rdd := map[int]*DevTick{}
+		ticks[int(tick)] = rdd
 		for dev, stats := range dd.Devs {
 			if dev == -1 {
 				dev = identity.AuthorMissing
 			}
 			languages := map[string]items.LineStats{}
-			rdd[int(dev)] = &DevDay{
+			rdd[int(dev)] = &DevTick{
 				Commits: int(stats.Commits),
 				LineStats: items.LineStats{
 					Added:   int(stats.Stats.Added),
@@ -226,7 +226,7 @@ func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 		}
 	}
 	result := DevsResult{
-		Days:               days,
+		Ticks:              ticks,
 		reversedPeopleDict: message.DevIndex,
 	}
 	return result, nil
@@ -269,13 +269,13 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 			invDevIndex2[pair.Index2-1] = i
 		}
 	}
-	newDays := map[int]map[int]*DevDay{}
-	merged.Days = newDays
-	for day, dd := range cr1.Days {
-		newdd, exists := newDays[day]
+	newticks := map[int]map[int]*DevTick{}
+	merged.Ticks = newticks
+	for tick, dd := range cr1.Ticks {
+		newdd, exists := newticks[tick]
 		if !exists {
-			newdd = map[int]*DevDay{}
-			newDays[day] = newdd
+			newdd = map[int]*DevTick{}
+			newticks[tick] = newdd
 		}
 		for dev, stats := range dd {
 			newdev := dev
@@ -284,7 +284,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 			}
 			newstats, exists := newdd[newdev]
 			if !exists {
-				newstats = &DevDay{Languages: map[string]items.LineStats{}}
+				newstats = &DevTick{Languages: map[string]items.LineStats{}}
 				newdd[newdev] = newstats
 			}
 			newstats.Commits += stats.Commits
@@ -301,11 +301,11 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 			}
 		}
 	}
-	for day, dd := range cr2.Days {
-		newdd, exists := newDays[day]
+	for tick, dd := range cr2.Ticks {
+		newdd, exists := newticks[tick]
 		if !exists {
-			newdd = map[int]*DevDay{}
-			newDays[day] = newdd
+			newdd = map[int]*DevTick{}
+			newticks[tick] = newdd
 		}
 		for dev, stats := range dd {
 			newdev := dev
@@ -314,7 +314,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 			}
 			newstats, exists := newdd[newdev]
 			if !exists {
-				newstats = &DevDay{Languages: map[string]items.LineStats{}}
+				newstats = &DevTick{Languages: map[string]items.LineStats{}}
 				newdd[newdev] = newstats
 			}
 			newstats.Commits += stats.Commits
@@ -335,30 +335,30 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 }
 
 func (devs *DevsAnalysis) serializeText(result *DevsResult, writer io.Writer) {
-	fmt.Fprintln(writer, "  days:")
-	days := make([]int, len(result.Days))
+	fmt.Fprintln(writer, "  ticks:")
+	ticks := make([]int, len(result.Ticks))
 	{
 		i := 0
-		for day := range result.Days {
-			days[i] = day
+		for tick := range result.Ticks {
+			ticks[i] = tick
 			i++
 		}
 	}
-	sort.Ints(days)
-	for _, day := range days {
-		fmt.Fprintf(writer, "    %d:\n", day)
-		rday := result.Days[day]
-		devseq := make([]int, len(rday))
+	sort.Ints(ticks)
+	for _, tick := range ticks {
+		fmt.Fprintf(writer, "    %d:\n", tick)
+		rtick := result.Ticks[tick]
+		devseq := make([]int, len(rtick))
 		{
 			i := 0
-			for dev := range rday {
+			for dev := range rtick {
 				devseq[i] = dev
 				i++
 			}
 		}
 		sort.Ints(devseq)
 		for _, dev := range devseq {
-			stats := rday[dev]
+			stats := rtick[dev]
 			if dev == identity.AuthorMissing {
 				dev = -1
 			}
@@ -385,17 +385,17 @@ func (devs *DevsAnalysis) serializeText(result *DevsResult, writer io.Writer) {
 func (devs *DevsAnalysis) serializeBinary(result *DevsResult, writer io.Writer) error {
 	message := pb.DevsAnalysisResults{}
 	message.DevIndex = result.reversedPeopleDict
-	message.Days = map[int32]*pb.DayDevs{}
-	for day, devs := range result.Days {
-		dd := &pb.DayDevs{}
-		message.Days[int32(day)] = dd
-		dd.Devs = map[int32]*pb.DevDay{}
+	message.Ticks = map[int32]*pb.TickDevs{}
+	for tick, devs := range result.Ticks {
+		dd := &pb.TickDevs{}
+		message.Ticks[int32(tick)] = dd
+		dd.Devs = map[int32]*pb.DevTick{}
 		for dev, stats := range devs {
 			if dev == identity.AuthorMissing {
 				dev = -1
 			}
 			languages := map[string]*pb.LineStats{}
-			dd.Devs[int32(dev)] = &pb.DevDay{
+			dd.Devs[int32(dev)] = &pb.DevTick{
 				Commits: int32(stats.Commits),
 				Stats: &pb.LineStats{
 					Added:   int32(stats.Added),

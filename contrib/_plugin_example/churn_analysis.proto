@@ -3,7 +3,7 @@ option go_package = "main";
 
 message EditsMessage {
     // all three are of the same length
-    repeated uint32 days = 1;
+    repeated uint32 ticks = 1;
     repeated uint32 additions = 2;
     repeated uint32 removals = 3;
 }

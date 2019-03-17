@@ -68,7 +68,7 @@ func TestDevsConfigure(t *testing.T) {
 
 func TestDevsInitialize(t *testing.T) {
 	d := fixtureDevs()
-	assert.NotNil(t, d.days)
+	assert.NotNil(t, d.ticks)
 }
 
 func TestDevsConsumeFinalize(t *testing.T) {
@@ -148,8 +148,8 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
-	assert.Len(t, devs.days, 1)
-	day := devs.days[0]
+	assert.Len(t, devs.ticks, 1)
+	day := devs.ticks[0]
 	assert.Len(t, day, 1)
 	dev := day[0]
 	assert.Equal(t, dev.Commits, 1)
@@ -167,8 +167,8 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
-	assert.Len(t, devs.days, 1)
-	day = devs.days[0]
+	assert.Len(t, devs.ticks, 1)
+	day = devs.ticks[0]
 	assert.Len(t, day, 1)
 	dev = day[0]
 	assert.Equal(t, dev.Commits, 2)
@@ -187,8 +187,8 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
-	assert.Len(t, devs.days, 1)
-	day = devs.days[0]
+	assert.Len(t, devs.ticks, 1)
+	day = devs.ticks[0]
 	assert.Len(t, day, 2)
 	for i := 0; i < 2; i++ {
 		dev = day[i]
@@ -208,8 +208,8 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
-	assert.Len(t, devs.days, 1)
-	day = devs.days[0]
+	assert.Len(t, devs.ticks, 1)
+	day = devs.ticks[0]
 	assert.Len(t, day, 2)
 	dev = day[0]
 	assert.Equal(t, dev.Commits, 2)
@@ -232,8 +232,8 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	result, err = devs.Consume(deps)
 	assert.Nil(t, result)
 	assert.Nil(t, err)
-	assert.Len(t, devs.days, 2)
-	day = devs.days[0]
+	assert.Len(t, devs.ticks, 2)
+	day = devs.ticks[0]
 	assert.Len(t, day, 2)
 	dev = day[0]
 	assert.Equal(t, dev.Commits, 2)
@@ -251,7 +251,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Equal(t, dev.Languages["Go"].Added, 847*2)
 	assert.Equal(t, dev.Languages["Go"].Removed, 9*2)
 	assert.Equal(t, dev.Languages["Go"].Changed, 67*2)
-	day = devs.days[1]
+	day = devs.ticks[1]
 	assert.Len(t, day, 1)
 	dev = day[1]
 	assert.Equal(t, dev.Commits, 1)
@@ -269,10 +269,10 @@ func ls(added, removed, changed int) items.LineStats {
 
 func TestDevsFinalize(t *testing.T) {
 	devs := fixtureDevs()
-	devs.days[1] = map[int]*DevDay{}
-	devs.days[1][1] = &DevDay{10, ls(20, 30, 40), nil}
+	devs.ticks[1] = map[int]*DevTick{}
+	devs.ticks[1][1] = &DevTick{10, ls(20, 30, 40), nil}
 	x := devs.Finalize().(DevsResult)
-	assert.Equal(t, x.Days, devs.days)
+	assert.Equal(t, x.Ticks, devs.ticks)
 	assert.Equal(t, x.reversedPeopleDict, devs.reversedPeopleDict)
 }
 
@@ -284,12 +284,12 @@ func TestDevsFork(t *testing.T) {
 
 func TestDevsSerialize(t *testing.T) {
 	devs := fixtureDevs()
-	devs.days[1] = map[int]*DevDay{}
-	devs.days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(2, 3, 4)}}
-	devs.days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(25, 35, 45)}}
-	devs.days[10] = map[int]*DevDay{}
-	devs.days[10][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"": ls(12, 13, 14)}}
-	devs.days[10][identity.AuthorMissing] = &DevDay{
+	devs.ticks[1] = map[int]*DevTick{}
+	devs.ticks[1][0] = &DevTick{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(2, 3, 4)}}
+	devs.ticks[1][1] = &DevTick{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(25, 35, 45)}}
+	devs.ticks[10] = map[int]*DevTick{}
+	devs.ticks[10][0] = &DevTick{11, ls(21, 31, 41), map[string]items.LineStats{"": ls(12, 13, 14)}}
+	devs.ticks[10][identity.AuthorMissing] = &DevTick{
 		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
 	res := devs.Finalize().(DevsResult)
 	buffer := &bytes.Buffer{}
@@ -313,31 +313,31 @@ func TestDevsSerialize(t *testing.T) {
 	msg := pb.DevsAnalysisResults{}
 	assert.Nil(t, proto.Unmarshal(buffer.Bytes(), &msg))
 	assert.Equal(t, msg.DevIndex, devs.reversedPeopleDict)
-	assert.Len(t, msg.Days, 2)
-	assert.Len(t, msg.Days[1].Devs, 2)
-	assert.Equal(t, msg.Days[1].Devs[0], &pb.DevDay{
+	assert.Len(t, msg.Ticks, 2)
+	assert.Len(t, msg.Ticks[1].Devs, 2)
+	assert.Equal(t, msg.Ticks[1].Devs[0], &pb.DevTick{
 		Commits: 10, Stats: &pb.LineStats{Added: 20, Removed: 30, Changed: 40},
 		Languages: map[string]*pb.LineStats{"Go": {Added: 2, Removed: 3, Changed: 4}}})
-	assert.Equal(t, msg.Days[1].Devs[1], &pb.DevDay{
+	assert.Equal(t, msg.Ticks[1].Devs[1], &pb.DevTick{
 		Commits: 1, Stats: &pb.LineStats{Added: 2, Removed: 3, Changed: 4},
 		Languages: map[string]*pb.LineStats{"Go": {Added: 25, Removed: 35, Changed: 45}}})
-	assert.Len(t, msg.Days[10].Devs, 2)
-	assert.Equal(t, msg.Days[10].Devs[0], &pb.DevDay{
+	assert.Len(t, msg.Ticks[10].Devs, 2)
+	assert.Equal(t, msg.Ticks[10].Devs[0], &pb.DevTick{
 		Commits: 11, Stats: &pb.LineStats{Added: 21, Removed: 31, Changed: 41},
 		Languages: map[string]*pb.LineStats{"": {Added: 12, Removed: 13, Changed: 14}}})
-	assert.Equal(t, msg.Days[10].Devs[-1], &pb.DevDay{
+	assert.Equal(t, msg.Ticks[10].Devs[-1], &pb.DevTick{
 		Commits: 100, Stats: &pb.LineStats{Added: 200, Removed: 300, Changed: 400},
 		Languages: map[string]*pb.LineStats{"Go": {Added: 32, Removed: 33, Changed: 34}}})
 }
 
 func TestDevsDeserialize(t *testing.T) {
 	devs := fixtureDevs()
-	devs.days[1] = map[int]*DevDay{}
-	devs.days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
-	devs.days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
-	devs.days[10] = map[int]*DevDay{}
-	devs.days[10][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
-	devs.days[10][identity.AuthorMissing] = &DevDay{
+	devs.ticks[1] = map[int]*DevTick{}
+	devs.ticks[1][0] = &DevTick{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
+	devs.ticks[1][1] = &DevTick{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
+	devs.ticks[10] = map[int]*DevTick{}
+	devs.ticks[10][0] = &DevTick{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
+	devs.ticks[10][identity.AuthorMissing] = &DevTick{
 		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(42, 43, 44)}}
 	res := devs.Finalize().(DevsResult)
 	buffer := &bytes.Buffer{}
@@ -353,51 +353,51 @@ func TestDevsMergeResults(t *testing.T) {
 	people1 := [...]string{"1@srcd", "2@srcd"}
 	people2 := [...]string{"3@srcd", "1@srcd"}
 	r1 := DevsResult{
-		Days:               map[int]map[int]*DevDay{},
+		Ticks:              map[int]map[int]*DevTick{},
 		reversedPeopleDict: people1[:],
 	}
-	r1.Days[1] = map[int]*DevDay{}
-	r1.Days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
-	r1.Days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
-	r1.Days[10] = map[int]*DevDay{}
-	r1.Days[10][0] = &DevDay{11, ls(21, 31, 41), nil}
-	r1.Days[10][identity.AuthorMissing] = &DevDay{
+	r1.Ticks[1] = map[int]*DevTick{}
+	r1.Ticks[1][0] = &DevTick{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
+	r1.Ticks[1][1] = &DevTick{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
+	r1.Ticks[10] = map[int]*DevTick{}
+	r1.Ticks[10][0] = &DevTick{11, ls(21, 31, 41), nil}
+	r1.Ticks[10][identity.AuthorMissing] = &DevTick{
 		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
-	r1.Days[11] = map[int]*DevDay{}
-	r1.Days[11][1] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(42, 43, 44)}}
+	r1.Ticks[11] = map[int]*DevTick{}
+	r1.Ticks[11][1] = &DevTick{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(42, 43, 44)}}
 	r2 := DevsResult{
-		Days:               map[int]map[int]*DevDay{},
+		Ticks:              map[int]map[int]*DevTick{},
 		reversedPeopleDict: people2[:],
 	}
-	r2.Days[1] = map[int]*DevDay{}
-	r2.Days[1][0] = &DevDay{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
-	r2.Days[1][1] = &DevDay{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
-	r2.Days[2] = map[int]*DevDay{}
-	r2.Days[2][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
-	r2.Days[2][identity.AuthorMissing] = &DevDay{
+	r2.Ticks[1] = map[int]*DevTick{}
+	r2.Ticks[1][0] = &DevTick{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
+	r2.Ticks[1][1] = &DevTick{1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}}
+	r2.Ticks[2] = map[int]*DevTick{}
+	r2.Ticks[2][0] = &DevTick{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}}
+	r2.Ticks[2][identity.AuthorMissing] = &DevTick{
 		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(42, 43, 44)}}
-	r2.Days[10] = map[int]*DevDay{}
-	r2.Days[10][0] = &DevDay{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(52, 53, 54)}}
-	r2.Days[10][identity.AuthorMissing] = &DevDay{
+	r2.Ticks[10] = map[int]*DevTick{}
+	r2.Ticks[10][0] = &DevTick{11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(52, 53, 54)}}
+	r2.Ticks[10][identity.AuthorMissing] = &DevTick{
 		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(62, 63, 64)}}
 
 	devs := fixtureDevs()
 	rm := devs.MergeResults(r1, r2, nil, nil).(DevsResult)
 	peoplerm := [...]string{"1@srcd", "2@srcd", "3@srcd"}
 	assert.Equal(t, rm.reversedPeopleDict, peoplerm[:])
-	assert.Len(t, rm.Days, 4)
-	assert.Equal(t, rm.Days[11], map[int]*DevDay{
+	assert.Len(t, rm.Ticks, 4)
+	assert.Equal(t, rm.Ticks[11], map[int]*DevTick{
 		1: {10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(42, 43, 44)}}})
-	assert.Equal(t, rm.Days[2], map[int]*DevDay{
+	assert.Equal(t, rm.Ticks[2], map[int]*DevTick{
 		identity.AuthorMissing: {100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(42, 43, 44)}},
 		2:                      {11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}},
 	})
-	assert.Equal(t, rm.Days[1], map[int]*DevDay{
+	assert.Equal(t, rm.Ticks[1], map[int]*DevTick{
 		0: {11, ls(22, 33, 44), map[string]items.LineStats{"Go": ls(34, 36, 38)}},
 		1: {1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}},
 		2: {10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}},
 	})
-	assert.Equal(t, rm.Days[10], map[int]*DevDay{
+	assert.Equal(t, rm.Ticks[10], map[int]*DevTick{
 		0: {11, ls(21, 31, 41), map[string]items.LineStats{}},
 		2: {11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(52, 53, 54)}},
 		identity.AuthorMissing: {
