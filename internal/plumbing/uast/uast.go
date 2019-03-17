@@ -59,6 +59,10 @@ const (
 	// ConfigUASTIgnoreMissingDrivers is the name of the configuration option (Extractor.Configure())
 	// which sets the ignored missing driver names.
 	ConfigUASTIgnoreMissingDrivers = "UAST.IgnoreMissingDrivers"
+	// DefaultBabelfishEndpoint is the default address of the Babelfish parsing server.
+	DefaultBabelfishEndpoint = "0.0.0.0:9432"
+	// DefaultBabelfishTimeout is the default value of the RPC timeout in seconds.
+	DefaultBabelfishTimeout = 20
 	// FeatureUast is the name of the Pipeline feature which activates all the items related to UAST.
 	FeatureUast = "uast"
 	// DependencyUasts is the name of the dependency provided by Extractor.
@@ -66,6 +70,8 @@ const (
 )
 
 var (
+	// DefaultBabelfishWorkers is the default number of parsing RPC goroutines.
+	DefaultBabelfishWorkers = runtime.NumCPU() * 2
 	// DefaultIgnoredMissingDrivers is the languages which are ignored if the Babelfish driver is missing.
 	DefaultIgnoredMissingDrivers = []string{"markdown", "text", "yaml", "json"}
 )
@@ -126,17 +132,17 @@ func (exr *Extractor) ListConfigurationOptions() []core.ConfigurationOption {
 		Description: "How many days there are in a single band.",
 		Flag:        "bblfsh",
 		Type:        core.StringConfigurationOption,
-		Default:     "0.0.0.0:9432"}, {
+		Default:     DefaultBabelfishEndpoint}, {
 		Name:        ConfigUASTTimeout,
 		Description: "Babelfish's server timeout in seconds.",
 		Flag:        "bblfsh-timeout",
 		Type:        core.IntConfigurationOption,
-		Default:     20}, {
+		Default:     DefaultBabelfishTimeout}, {
 		Name:        ConfigUASTPoolSize,
 		Description: "Number of goroutines to extract UASTs.",
 		Flag:        "bblfsh-pool-size",
 		Type:        core.IntConfigurationOption,
-		Default:     runtime.NumCPU() * 2}, {
+		Default:     DefaultBabelfishWorkers}, {
 		Name:        ConfigUASTFailOnErrors,
 		Description: "Panic if there is a UAST extraction error.",
 		Flag:        "bblfsh-fail-on-error",
@@ -182,8 +188,15 @@ func (exr *Extractor) Configure(facts map[string]interface{}) error {
 func (exr *Extractor) Initialize(repository *git.Repository) error {
 	if exr.Context == nil {
 		exr.Context = func() (context.Context, context.CancelFunc) {
-			return context.Background(), nil
+			return context.WithTimeout(context.Background(),
+				time.Duration(DefaultBabelfishTimeout)*time.Second)
 		}
+	}
+	if exr.Endpoint == "" {
+		exr.Endpoint = DefaultBabelfishEndpoint
+	}
+	if exr.PoolSize == 0 {
+		exr.PoolSize = DefaultBabelfishWorkers
 	}
 	poolSize := exr.PoolSize
 	if poolSize == 0 {
