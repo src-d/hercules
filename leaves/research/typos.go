@@ -55,6 +55,10 @@ const (
 	// DefaultMaximumAllowedTypoDistance is the default value of the maximum Levenshtein distance
 	// between two identifiers to consider them a typo-fix pair.
 	DefaultMaximumAllowedTypoDistance = 4
+	// ConfigTyposDatasetMaximumAllowedDistance is the name of the configuration option
+	// (`TyposDatasetBuilder.Configure()`) which sets the maximum Levenshtein distance between
+	// two identifiers to consider them a typo-fix pair.
+	ConfigTyposDatasetMaximumAllowedDistance = "TyposDatasetBuilder.MaximumAllowedDistance"
 )
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -80,11 +84,22 @@ func (tdb *TyposDatasetBuilder) Requires() []string {
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
 func (tdb *TyposDatasetBuilder) ListConfigurationOptions() []core.ConfigurationOption {
-	return nil
+	options := [...]core.ConfigurationOption{{
+		Name: ConfigTyposDatasetMaximumAllowedDistance,
+		Description: "Maximum Levenshtein distance between two identifiers to consider them " +
+			"a typo-fix pair.",
+		Flag:    "typos-max-distance",
+		Type:    core.IntConfigurationOption,
+		Default: DefaultMaximumAllowedTypoDistance},
+	}
+	return options[:]
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (tdb *TyposDatasetBuilder) Configure(facts map[string]interface{}) error {
+	if val, exists := facts[ConfigTyposDatasetMaximumAllowedDistance].(int); exists {
+		tdb.MaximumAllowedDistance = val
+	}
 	return nil
 }
 
@@ -101,7 +116,7 @@ func (tdb *TyposDatasetBuilder) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (tdb *TyposDatasetBuilder) Initialize(repository *git.Repository) error {
-	if tdb.MaximumAllowedDistance == 0 {
+	if tdb.MaximumAllowedDistance <= 0 {
 		tdb.MaximumAllowedDistance = DefaultMaximumAllowedTypoDistance
 	}
 	tdb.lcontext = &levenshtein.Context{}
