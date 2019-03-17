@@ -295,7 +295,7 @@ func TestDevsSerialize(t *testing.T) {
 	buffer := &bytes.Buffer{}
 	err := devs.Serialize(res, false, buffer)
 	assert.Nil(t, err)
-	assert.Equal(t, `  days:
+	assert.Equal(t, `  ticks:
     1:
       0: [10, 20, 30, 40, {Go: [2, 3, 4]}]
       1: [1, 2, 3, 4, {Go: [25, 35, 45]}]

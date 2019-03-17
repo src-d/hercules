@@ -28,7 +28,7 @@ func TestPipelineSerialize(t *testing.T) {
 	dot := string(bdot)
 	assert.Equal(t, `digraph Hercules {
   "6 BlobCache" -> "7 [blob_cache]"
-  "0 DaysSinceStart" -> "3 [day]"
+  "0 TicksSinceStart" -> "3 [tick]"
   "9 FileDiff" -> "11 [file_diff]"
   "15 FileDiffRefiner" -> "16 Burndown"
   "1 IdentityDetector" -> "4 [author]"
@@ -47,7 +47,7 @@ func TestPipelineSerialize(t *testing.T) {
   "14 [changed_uasts]" -> "15 FileDiffRefiner"
   "5 [changes]" -> "6 BlobCache"
   "5 [changes]" -> "8 RenameAnalysis"
-  "3 [day]" -> "16 Burndown"
+  "3 [tick]" -> "16 Burndown"
   "11 [file_diff]" -> "15 FileDiffRefiner"
   "12 [uasts]" -> "13 UASTChanges"
 }`, dot)
@@ -68,7 +68,7 @@ func TestPipelineSerializeNoUast(t *testing.T) {
 	dot := string(bdot)
 	assert.Equal(t, `digraph Hercules {
   "6 BlobCache" -> "7 [blob_cache]"
-  "0 DaysSinceStart" -> "3 [day]"
+  "0 TicksSinceStart" -> "3 [tick]"
   "9 FileDiff" -> "10 [file_diff]"
   "1 IdentityDetector" -> "4 [author]"
   "8 RenameAnalysis" -> "11 Burndown"
@@ -80,7 +80,7 @@ func TestPipelineSerializeNoUast(t *testing.T) {
   "7 [blob_cache]" -> "8 RenameAnalysis"
   "5 [changes]" -> "6 BlobCache"
   "5 [changes]" -> "8 RenameAnalysis"
-  "3 [day]" -> "11 Burndown"
+  "3 [tick]" -> "11 Burndown"
   "10 [file_diff]" -> "11 Burndown"
 }`, dot)
 }
