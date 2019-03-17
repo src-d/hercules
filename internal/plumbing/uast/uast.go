@@ -32,11 +32,12 @@ import (
 // It is a PipelineItem.
 type Extractor struct {
 	core.NoopMerger
-	Endpoint       string
-	Context        func() (context.Context, context.CancelFunc)
-	PoolSize       int
-	FailOnErrors   bool
-	ProcessedFiles map[string]int
+	Endpoint              string
+	Context               func() (context.Context, context.CancelFunc)
+	PoolSize              int
+	FailOnErrors          bool
+	ProcessedFiles        map[string]int
+	IgnoredMissingDrivers map[string]bool
 
 	clients []*bblfsh.Client
 	pool    *tunny.Pool
@@ -45,20 +46,34 @@ type Extractor struct {
 const (
 	// ConfigUASTEndpoint is the name of the configuration option (Extractor.Configure())
 	// which sets the Babelfish server address.
-	ConfigUASTEndpoint = "ConfigUASTEndpoint"
+	ConfigUASTEndpoint = "UAST.Endpoint"
 	// ConfigUASTTimeout is the name of the configuration option (Extractor.Configure())
 	// which sets the maximum amount of time to wait for a Babelfish server response.
-	ConfigUASTTimeout = "ConfigUASTTimeout"
+	ConfigUASTTimeout = "UAST.Timeout"
 	// ConfigUASTPoolSize is the name of the configuration option (Extractor.Configure())
 	// which sets the number of goroutines to run for UAST parse queries.
-	ConfigUASTPoolSize = "ConfigUASTPoolSize"
+	ConfigUASTPoolSize = "UAST.PoolSize"
 	// ConfigUASTFailOnErrors is the name of the configuration option (Extractor.Configure())
 	// which enables early exit in case of any Babelfish UAST parsing errors.
-	ConfigUASTFailOnErrors = "ConfigUASTFailOnErrors"
+	ConfigUASTFailOnErrors = "UAST.FailOnErrors"
+	// ConfigUASTIgnoreMissingDrivers is the name of the configuration option (Extractor.Configure())
+	// which sets the ignored missing driver names.
+	ConfigUASTIgnoreMissingDrivers = "UAST.IgnoreMissingDrivers"
+	// DefaultBabelfishEndpoint is the default address of the Babelfish parsing server.
+	DefaultBabelfishEndpoint = "0.0.0.0:9432"
+	// DefaultBabelfishTimeout is the default value of the RPC timeout in seconds.
+	DefaultBabelfishTimeout = 20
 	// FeatureUast is the name of the Pipeline feature which activates all the items related to UAST.
 	FeatureUast = "uast"
 	// DependencyUasts is the name of the dependency provided by Extractor.
 	DependencyUasts = "uasts"
+)
+
+var (
+	// DefaultBabelfishWorkers is the default number of parsing RPC goroutines.
+	DefaultBabelfishWorkers = runtime.NumCPU() * 2
+	// DefaultIgnoredMissingDrivers is the languages which are ignored if the Babelfish driver is missing.
+	DefaultIgnoredMissingDrivers = []string{"markdown", "text", "yaml", "json"}
 )
 
 type uastTask struct {
@@ -117,22 +132,27 @@ func (exr *Extractor) ListConfigurationOptions() []core.ConfigurationOption {
 		Description: "How many days there are in a single band.",
 		Flag:        "bblfsh",
 		Type:        core.StringConfigurationOption,
-		Default:     "0.0.0.0:9432"}, {
+		Default:     DefaultBabelfishEndpoint}, {
 		Name:        ConfigUASTTimeout,
 		Description: "Babelfish's server timeout in seconds.",
 		Flag:        "bblfsh-timeout",
 		Type:        core.IntConfigurationOption,
-		Default:     20}, {
+		Default:     DefaultBabelfishTimeout}, {
 		Name:        ConfigUASTPoolSize,
 		Description: "Number of goroutines to extract UASTs.",
 		Flag:        "bblfsh-pool-size",
 		Type:        core.IntConfigurationOption,
-		Default:     runtime.NumCPU() * 2}, {
+		Default:     DefaultBabelfishWorkers}, {
 		Name:        ConfigUASTFailOnErrors,
 		Description: "Panic if there is a UAST extraction error.",
 		Flag:        "bblfsh-fail-on-error",
 		Type:        core.BoolConfigurationOption,
-		Default:     false},
+		Default:     false}, {
+		Name:        ConfigUASTIgnoreMissingDrivers,
+		Description: "Do not warn about missing drivers for the specified languages.",
+		Flag:        "bblfsh-ignored-drivers",
+		Type:        core.StringsConfigurationOption,
+		Default:     DefaultIgnoredMissingDrivers},
 	}
 	return options[:]
 }
@@ -154,6 +174,12 @@ func (exr *Extractor) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigUASTFailOnErrors].(bool); exists {
 		exr.FailOnErrors = val
 	}
+	if val, exists := facts[ConfigUASTIgnoreMissingDrivers].([]string); exists {
+		exr.IgnoredMissingDrivers = map[string]bool{}
+		for _, name := range val {
+			exr.IgnoredMissingDrivers[name] = true
+		}
+	}
 	return nil
 }
 
@@ -162,8 +188,15 @@ func (exr *Extractor) Configure(facts map[string]interface{}) error {
 func (exr *Extractor) Initialize(repository *git.Repository) error {
 	if exr.Context == nil {
 		exr.Context = func() (context.Context, context.CancelFunc) {
-			return context.Background(), nil
+			return context.WithTimeout(context.Background(),
+				time.Duration(DefaultBabelfishTimeout)*time.Second)
 		}
+	}
+	if exr.Endpoint == "" {
+		exr.Endpoint = DefaultBabelfishEndpoint
+	}
+	if exr.PoolSize == 0 {
+		exr.PoolSize = DefaultBabelfishWorkers
 	}
 	poolSize := exr.PoolSize
 	if poolSize == 0 {
@@ -196,6 +229,12 @@ func (exr *Extractor) Initialize(repository *git.Repository) error {
 		panic("UAST goroutine pool was not created")
 	}
 	exr.ProcessedFiles = map[string]int{}
+	if exr.IgnoredMissingDrivers == nil {
+		exr.IgnoredMissingDrivers = map[string]bool{}
+		for _, name := range DefaultIgnoredMissingDrivers {
+			exr.IgnoredMissingDrivers[name] = true
+		}
+	}
 	return nil
 }
 
@@ -250,7 +289,7 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 		if exr.FailOnErrors {
 			return nil, errors.New(joined)
 		}
-		fmt.Fprintln(os.Stderr, joined)
+		log.Println(joined)
 	}
 	return map[string]interface{}{DependencyUasts: uasts}, nil
 }
@@ -284,6 +323,11 @@ func (exr *Extractor) extractTask(client *bblfsh.Client, data interface{}) inter
 	task.Lock.Lock()
 	defer task.Lock.Unlock()
 	if err != nil {
+		for lang := range exr.IgnoredMissingDrivers {
+			if strings.HasSuffix(err.Error(), "\""+lang+"\"") {
+				return nil
+			}
+		}
 		*task.Errors = append(*task.Errors,
 			fmt.Errorf("\nfile %s, blob %s: %v", task.Name, task.Hash.String(), err))
 		return nil

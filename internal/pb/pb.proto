@@ -165,6 +165,18 @@ message CommitsAnalysisResults {
     repeated string author_index = 2;
 }
 
+message Typo {
+    string wrong = 1;
+    string correct = 2;
+    string commit = 3;
+    string file = 4;
+    int32 line = 5;
+}
+
+message TyposDataset {
+    repeated Typo typos = 1;
+}
+
 message AnalysisResults {
     Metadata header = 1;
     // the mapped values are dynamic messages which require the second parsing pass.
