@@ -9,8 +9,8 @@ import (
 	"gopkg.in/src-d/hercules.v9/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
 	"gopkg.in/src-d/hercules.v9/internal/yaml"
-	_ "gopkg.in/src-d/hercules.v9/leaves"  // add burndown and other analyses
-	_ "gopkg.in/src-d/hercules.v9/leaves/research"  // add "research" analyses
+	_ "gopkg.in/src-d/hercules.v9/leaves"          // add burndown and other analyses
+	_ "gopkg.in/src-d/hercules.v9/leaves/research" // add "research" analyses
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.
