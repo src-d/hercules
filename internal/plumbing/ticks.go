@@ -76,7 +76,7 @@ func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigTicksSinceStartTickSize].(int); exists {
 		ticks.TickSize = time.Duration(val) * time.Hour
 	} else {
-		ticks.TickSize = DefaultTicksSinceStartTickSize
+		ticks.TickSize = DefaultTicksSinceStartTickSize * time.Hour
 	}
 	if ticks.commits == nil {
 		ticks.commits = map[int][]plumbing.Hash{}
@@ -90,7 +90,7 @@ func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ticks *TicksSinceStart) Initialize(repository *git.Repository) error {
 	if ticks.TickSize == 0 {
-		ticks.TickSize = DefaultTicksSinceStartTickSize
+		ticks.TickSize = DefaultTicksSinceStartTickSize * time.Hour
 	}
 	ticks.tick0 = &time.Time{}
 	ticks.previousTick = 0

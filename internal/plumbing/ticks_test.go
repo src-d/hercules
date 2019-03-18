@@ -66,8 +66,8 @@ func TestTicksSinceStartConsume(t *testing.T) {
 	deps[core.DependencyIndex] = 10
 	res, err = tss.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res[DependencyTick].(int), 1)
-	assert.Equal(t, tss.previousTick, 1)
+	assert.Equal(t, 1, res[DependencyTick].(int))
+	assert.Equal(t, 1, tss.previousTick)
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
@@ -75,8 +75,8 @@ func TestTicksSinceStartConsume(t *testing.T) {
 	deps[core.DependencyIndex] = 20
 	res, err = tss.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res[DependencyTick].(int), 1)
-	assert.Equal(t, tss.previousTick, 1)
+	assert.Equal(t, 1, res[DependencyTick].(int))
+	assert.Equal(t, 1, tss.previousTick)
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"a8b665a65d7aced63f5ba2ff6d9b71dac227f8cf"))
@@ -84,8 +84,8 @@ func TestTicksSinceStartConsume(t *testing.T) {
 	deps[core.DependencyIndex] = 20
 	res, err = tss.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res[DependencyTick].(int), 2)
-	assert.Equal(t, tss.previousTick, 2)
+	assert.Equal(t, 2, res[DependencyTick].(int))
+	assert.Equal(t, 2, tss.previousTick)
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"186ff0d7e4983637bb3762a24d6d0a658e7f4712"))
@@ -93,8 +93,8 @@ func TestTicksSinceStartConsume(t *testing.T) {
 	deps[core.DependencyIndex] = 30
 	res, err = tss.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res[DependencyTick].(int), 2)
-	assert.Equal(t, tss.previousTick, 2)
+	assert.Equal(t, 2, res[DependencyTick].(int))
+	assert.Equal(t, 2, tss.previousTick)
 
 	assert.Len(t, tss.commits, 3)
 	assert.Equal(t, tss.commits[0], []plumbing.Hash{plumbing.NewHash(
