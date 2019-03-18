@@ -53,6 +53,8 @@ message BurndownAnalysisResults {
     CompressedSparseRowMatrix people_interaction = 6;
     // How many lines belong to relevant developers for each file. The order is the same as in `files`.
     repeated FilesOwnership files_ownership = 7;
+    // how long each tick is, as an int64 nanosecond count (Go's time.Duration)
+    int64 tick_size = 8;
 }
 
 message CompressedSparseRowMatrix {

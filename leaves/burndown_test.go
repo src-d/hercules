@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path"
 	"testing"
+	"time"
 
 	"gopkg.in/src-d/hercules.v9/internal/burndown"
 	"gopkg.in/src-d/hercules.v9/internal/core"
@@ -471,6 +472,7 @@ func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
 		Sampling:     30,
 		PeopleNumber: 2,
 		TrackFiles:   true,
+		tickSize:     24 * time.Hour,
 	}
 	assert.Nil(t, bd.Initialize(test.Repository))
 	deps := map[string]interface{}{}
@@ -648,6 +650,7 @@ func TestBurndownSerialize(t *testing.T) {
 	bd.Serialize(out, true, buffer)
 	msg := pb.BurndownAnalysisResults{}
 	proto.Unmarshal(buffer.Bytes(), &msg)
+	assert.Equal(t, msg.TickSize, int64(24*time.Hour))
 	assert.Equal(t, msg.Granularity, int32(30))
 	assert.Equal(t, msg.Sampling, int32(30))
 	assert.Equal(t, msg.Project.Name, "project")
@@ -1050,6 +1053,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 		reversedPeopleDict: people1[:],
 		sampling:           15,
 		granularity:        20,
+		TickSize:           24 * time.Hour,
 	}
 	c1 := core.CommonAnalysisResult{
 		BeginTime:     600566400, // 1989 Jan 12
@@ -1095,6 +1099,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 		FileHistories:      map[string][][]int64{},
 		PeopleHistories:    nil,
 		PeopleMatrix:       nil,
+		TickSize:           24 * time.Hour,
 		reversedPeopleDict: people2[:],
 		sampling:           14,
 		granularity:        19,
@@ -1141,6 +1146,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	merged := bd.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
 	assert.Equal(t, merged.sampling, 14)
+	assert.Equal(t, merged.TickSize, 24*time.Hour)
 	assert.Len(t, merged.GlobalHistory, 5)
 	for _, row := range merged.GlobalHistory {
 		assert.Len(t, row, 4)
@@ -1180,6 +1186,7 @@ func TestBurndownMergeNils(t *testing.T) {
 		FileHistories:      map[string][][]int64{},
 		PeopleHistories:    nil,
 		PeopleMatrix:       nil,
+		TickSize:           24 * time.Hour,
 		reversedPeopleDict: nil,
 		sampling:           15,
 		granularity:        20,
@@ -1195,6 +1202,7 @@ func TestBurndownMergeNils(t *testing.T) {
 		FileHistories:      nil,
 		PeopleHistories:    nil,
 		PeopleMatrix:       nil,
+		TickSize:           24 * time.Hour,
 		reversedPeopleDict: nil,
 		sampling:           14,
 		granularity:        19,
@@ -1209,6 +1217,7 @@ func TestBurndownMergeNils(t *testing.T) {
 	merged := bd.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
 	assert.Equal(t, merged.sampling, 14)
+	assert.Equal(t, merged.TickSize, 24*time.Hour)
 	assert.Nil(t, merged.GlobalHistory)
 	assert.Nil(t, merged.FileHistories)
 	assert.Nil(t, merged.PeopleHistories)
@@ -1287,6 +1296,7 @@ func TestBurndownDeserialize(t *testing.T) {
 	assert.True(t, len(result.PeopleMatrix) > 0)
 	assert.Equal(t, result.granularity, 30)
 	assert.Equal(t, result.sampling, 30)
+	assert.Equal(t, result.TickSize, 24*time.Hour)
 }
 
 func TestBurndownEmptyFileHistory(t *testing.T) {

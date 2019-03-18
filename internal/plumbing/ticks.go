@@ -30,6 +30,9 @@ const (
 	// FactCommitsByTick contains the mapping between day indices and the corresponding commits.
 	FactCommitsByTick = "TicksSinceStart.Commits"
 
+	// FactTickSize contains the time.Duration of each tick.
+	FactTickSize = "TicksSinceStart.TickSize"
+
 	// ConfigTicksSinceStartTickSize sets the size of each 'tick' in hours.
 	ConfigTicksSinceStartTickSize = "TicksSinceStart.TickSize"
 
@@ -79,6 +82,7 @@ func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 		ticks.commits = map[int][]plumbing.Hash{}
 	}
 	facts[FactCommitsByTick] = ticks.commits
+	facts[FactTickSize] = ticks.TickSize
 	return nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gogo/protobuf/proto"
@@ -100,6 +101,8 @@ type BurndownAnalysis struct {
 	// previousTick is the tick from the previous sample period -
 	// different from TicksSinceStart.previousTick.
 	previousTick int
+	// tickSize indicates the size of each tick.
+	tickSize time.Duration
 	// references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 }
@@ -126,6 +129,8 @@ type BurndownResult struct {
 	// The rest of the elements are equal the number of line removals by the corresponding
 	// authors in reversedPeopleDict: 2 -> 0, 3 -> 1, etc.
 	PeopleMatrix DenseHistory
+	// The size of each tick.
+	TickSize time.Duration
 
 	// The following members are private.
 
@@ -279,6 +284,9 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) error 
 	}
 	if val, exists := facts[ConfigBurndownDebug].(bool); exists {
 		analyser.Debug = val
+	}
+	if val, exists := facts[items.FactTickSize].(time.Duration); exists {
+		analyser.tickSize = val
 	}
 	return nil
 }
@@ -547,6 +555,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		FileOwnership:      fileOwnership,
 		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,
+		TickSize:           analyser.tickSize,
 		reversedPeopleDict: analyser.reversedPeopleDict,
 		sampling:           analyser.Sampling,
 		granularity:        analyser.Granularity,
@@ -571,7 +580,6 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 	if err != nil {
 		return nil, err
 	}
-	result := BurndownResult{}
 	convertCSR := func(mat *pb.BurndownSparseMatrix) DenseHistory {
 		res := make(DenseHistory, mat.NumberOfRows)
 		for i := 0; i < int(mat.NumberOfRows); i++ {
@@ -582,9 +590,15 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 		}
 		return res
 	}
-	result.GlobalHistory = convertCSR(msg.Project)
-	result.FileHistories = map[string]DenseHistory{}
-	result.FileOwnership = map[string]map[int]int{}
+	result := BurndownResult{
+		GlobalHistory: convertCSR(msg.Project),
+		FileHistories: map[string]DenseHistory{},
+		FileOwnership: map[string]map[int]int{},
+		TickSize:      time.Duration(msg.GetTickSize()),
+
+		granularity: int(msg.Granularity),
+		sampling:    int(msg.Sampling),
+	}
 	for i, mat := range msg.Files {
 		result.FileHistories[mat.Name] = convertCSR(mat)
 		ownership := map[int]int{}
@@ -608,8 +622,6 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 			result.PeopleMatrix[i][msg.PeopleInteraction.Indices[j]] = msg.PeopleInteraction.Data[j]
 		}
 	}
-	result.sampling = int(msg.Sampling)
-	result.granularity = int(msg.Granularity)
 	return result, nil
 }
 
@@ -628,6 +640,11 @@ func (analyser *BurndownAnalysis) MergeResults(
 		merged.granularity = bar1.granularity
 	} else {
 		merged.granularity = bar2.granularity
+	}
+	if bar1.TickSize < bar2.TickSize {
+		merged.TickSize = bar1.TickSize
+	} else {
+		merged.TickSize = bar2.TickSize
 	}
 	var people map[string][3]int
 	people, merged.reversedPeopleDict = identity.Detector{}.MergeReversedDicts(
@@ -1001,6 +1018,7 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	message := pb.BurndownAnalysisResults{
 		Granularity: int32(result.granularity),
 		Sampling:    int32(result.sampling),
+		TickSize:    int64(result.TickSize),
 	}
 	if len(result.GlobalHistory) > 0 {
 		message.Project = pb.ToBurndownSparseMatrix(result.GlobalHistory, "project")
