@@ -50,11 +50,12 @@ func TestUASTExtractorMeta(t *testing.T) {
 	assert.Equal(t, exr.Requires()[0], items.DependencyTreeChanges)
 	assert.Equal(t, exr.Requires()[1], items.DependencyBlobCache)
 	opts := exr.ListConfigurationOptions()
-	assert.Len(t, opts, 4)
+	assert.Len(t, opts, 5)
 	assert.Equal(t, opts[0].Name, ConfigUASTEndpoint)
 	assert.Equal(t, opts[1].Name, ConfigUASTTimeout)
 	assert.Equal(t, opts[2].Name, ConfigUASTPoolSize)
 	assert.Equal(t, opts[3].Name, ConfigUASTFailOnErrors)
+	assert.Equal(t, opts[4].Name, ConfigUASTIgnoreMissingDrivers)
 	feats := exr.Features()
 	assert.Len(t, feats, 1)
 	assert.Equal(t, feats[0], FeatureUast)
@@ -68,11 +69,13 @@ func TestUASTExtractorConfiguration(t *testing.T) {
 	facts[ConfigUASTTimeout] = 15
 	facts[ConfigUASTPoolSize] = 7
 	facts[ConfigUASTFailOnErrors] = true
+	facts[ConfigUASTIgnoreMissingDrivers] = []string{"test"}
 	exr.Configure(facts)
 	assert.Equal(t, exr.Endpoint, facts[ConfigUASTEndpoint])
 	assert.NotNil(t, exr.Context)
 	assert.Equal(t, exr.PoolSize, facts[ConfigUASTPoolSize])
 	assert.Equal(t, exr.FailOnErrors, true)
+	assert.Equal(t, exr.IgnoredMissingDrivers, map[string]bool{"test": true})
 }
 
 func TestUASTExtractorRegistration(t *testing.T) {
@@ -92,7 +95,7 @@ func TestUASTExtractorNoBabelfish(t *testing.T) {
 
 func TestUASTExtractorConsume(t *testing.T) {
 	exr := fixtureUASTExtractor()
-	changes := make(object.Changes, 3)
+	changes := make(object.Changes, 4)
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
 		"96c6ece9b2f3c7c51b83516400d278dea5605100"))
@@ -136,6 +139,16 @@ func TestUASTExtractorConsume(t *testing.T) {
 		},
 	},
 	}
+	changes[3] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
+		Name: "README.md",
+		Tree: treeTo,
+		TreeEntry: object.TreeEntry{
+			Name: "README.md",
+			Mode: 0100644,
+			Hash: plumbing.NewHash("5248c86995f6d60eb57730da18b5e020a4341863"),
+		},
+	},
+	}
 	cache := map[plumbing.Hash]*items.CachedBlob{}
 	for _, hash := range []string{
 		"baa64828831d174f40140e4b3cfa77d1e917a2c1",
@@ -143,6 +156,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 		"c29112dbd697ad9b401333b80c18a63951bc18d9",
 		"f7d918ec500e2f925ecde79b51cc007bac27de72",
 		"81f2b6d1fa5357f90e9dead150cd515720897545",
+		"5248c86995f6d60eb57730da18b5e020a4341863",
 	} {
 		AddHash(t, cache, hash)
 	}
@@ -157,6 +171,12 @@ func TestUASTExtractorConsume(t *testing.T) {
 	res, err = exr.Consume(deps)
 	assert.Len(t, res[DependencyUasts], 1)
 	assert.Nil(t, err)
+
+	exr.FailOnErrors = true
+	res, err = exr.Consume(deps)
+	assert.Nil(t, res)
+	assert.NotNil(t, err)
+	exr.FailOnErrors = false
 
 	hash := plumbing.NewHash("5d78f57d732aed825764347ec6f3ab74d50d0619")
 	changes[1] = &object.Change{From: object.ChangeEntry{}, To: object.ChangeEntry{
@@ -176,6 +196,17 @@ func TestUASTExtractorConsume(t *testing.T) {
 	uasts := res[DependencyUasts].(map[plumbing.Hash]nodes.Node)
 	assert.Equal(t, len(uasts), 1)
 	assert.Equal(t, len(uasts[hash].(nodes.Object)["body"].(nodes.Array)), 24)
+
+	exr.IgnoredMissingDrivers = map[string]bool{}
+	changes[2] = changes[3]
+	deps[items.DependencyTreeChanges] = changes[:3]
+	res, err = exr.Consume(deps)
+	assert.Nil(t, err)
+	exr.FailOnErrors = true
+	res, err = exr.Consume(deps)
+	assert.Nil(t, res)
+	assert.NotNil(t, err)
+	exr.FailOnErrors = false
 }
 
 func TestUASTExtractorFork(t *testing.T) {

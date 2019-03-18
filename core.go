@@ -9,7 +9,8 @@ import (
 	"gopkg.in/src-d/hercules.v9/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
 	"gopkg.in/src-d/hercules.v9/internal/yaml"
-	"gopkg.in/src-d/hercules.v9/leaves"
+	_ "gopkg.in/src-d/hercules.v9/leaves"          // add burndown and other analyses
+	_ "gopkg.in/src-d/hercules.v9/leaves/research" // add "research" analyses
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.
@@ -170,9 +171,4 @@ func PathifyFlagValue(flag *pflag.Flag) {
 // to "path". This operation cannot be canceled and is intended to be used for better --help output.
 func EnablePathFlagTypeMasquerade() {
 	core.EnablePathFlagTypeMasquerade()
-}
-
-func init() {
-	// hack to link with .leaves
-	_ = leaves.BurndownAnalysis{}
 }
