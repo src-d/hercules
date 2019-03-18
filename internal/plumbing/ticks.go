@@ -72,8 +72,7 @@ func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigTicksSinceStartTickSize].(int); exists {
 		ticks.tickSize = time.Duration(val) * time.Hour
 	} else {
-		// default to 1 day
-		ticks.tickSize = 24 * time.Hour
+		ticks.tickSize = DefaultTicksSinceStartTickSize
 	}
 	if ticks.commits == nil {
 		ticks.commits = map[int][]plumbing.Hash{}
@@ -85,6 +84,9 @@ func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ticks *TicksSinceStart) Initialize(repository *git.Repository) error {
+	if ticks.tickSize == 0 {
+		ticks.tickSize = DefaultTicksSinceStartTickSize
+	}
 	ticks.tick0 = &time.Time{}
 	ticks.previousTick = 0
 	if len(ticks.commits) > 0 {
