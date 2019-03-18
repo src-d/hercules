@@ -320,6 +320,11 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 			analyser.Granularity)
 		analyser.Sampling = analyser.Granularity
 	}
+	if analyser.tickSize == 0 {
+		def := items.DefaultTicksSinceStartTickSize * time.Hour
+		log.Printf("Warning: tick size was not set, adjusted to %v\n", def)
+		analyser.tickSize = items.DefaultTicksSinceStartTickSize * time.Hour
+	}
 	analyser.repository = repository
 	analyser.globalHistory = sparseHistory{}
 	analyser.fileHistories = map[string]sparseHistory{}
@@ -654,7 +659,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			merged.GlobalHistory = mergeMatrices(
+			merged.GlobalHistory = analyser.mergeMatrices(
 				bar1.GlobalHistory, bar2.GlobalHistory,
 				bar1.granularity, bar1.sampling,
 				bar2.granularity, bar2.sampling,
@@ -677,7 +682,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 					if ptrs[2] >= 0 {
 						m2 = bar2.PeopleHistories[ptrs[2]]
 					}
-					merged.PeopleHistories[i] = mergeMatrices(
+					merged.PeopleHistories[i] = analyser.mergeMatrices(
 						m1, m2,
 						bar1.granularity, bar1.sampling,
 						bar2.granularity, bar2.sampling,
@@ -730,8 +735,8 @@ func (analyser *BurndownAnalysis) MergeResults(
 	return merged
 }
 
-func roundTime(unix int64, dir bool) int {
-	ticks := float64(unix) / (3600 * 24)
+func (analyser *BurndownAnalysis) roundTime(unix int64, dir bool) int {
+	ticks := float64(unix) / analyser.tickSize.Seconds()
 	if dir {
 		return int(math.Ceil(ticks))
 	}
@@ -741,7 +746,7 @@ func roundTime(unix int64, dir bool) int {
 // mergeMatrices takes two [number of samples][number of bands] matrices,
 // resamples them to ticks so that they become square, sums and resamples back to the
 // least of (sampling1, sampling2) and (granularity1, granularity2).
-func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int,
+func (analyser *BurndownAnalysis) mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int,
 	c1, c2 *core.CommonAnalysisResult) DenseHistory {
 	commonMerged := c1.Copy()
 	commonMerged.Merge(c2)
@@ -758,18 +763,19 @@ func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, s
 		granularity = granularity2
 	}
 
-	size := roundTime(commonMerged.EndTime, true) - roundTime(commonMerged.BeginTime, false)
-	daily := make([][]float32, size+granularity)
-	for i := range daily {
-		daily[i] = make([]float32, size+sampling)
+	size := analyser.roundTime(commonMerged.EndTime, true) -
+		analyser.roundTime(commonMerged.BeginTime, false)
+	perTick := make([][]float32, size+granularity)
+	for i := range perTick {
+		perTick[i] = make([]float32, size+sampling)
 	}
 	if len(m1) > 0 {
-		addBurndownMatrix(m1, granularity1, sampling1, daily,
-			roundTime(c1.BeginTime, false)-roundTime(commonMerged.BeginTime, false))
+		addBurndownMatrix(m1, granularity1, sampling1, perTick,
+			analyser.roundTime(c1.BeginTime, false)-analyser.roundTime(commonMerged.BeginTime, false))
 	}
 	if len(m2) > 0 {
-		addBurndownMatrix(m2, granularity2, sampling2, daily,
-			roundTime(c2.BeginTime, false)-roundTime(commonMerged.BeginTime, false))
+		addBurndownMatrix(m2, granularity2, sampling2, perTick,
+			analyser.roundTime(c2.BeginTime, false)-analyser.roundTime(commonMerged.BeginTime, false))
 	}
 
 	// convert daily to [][]int64
@@ -780,7 +786,7 @@ func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, s
 		for j := 0; j < len(result[i]); j++ {
 			accum := float32(0)
 			for k := j * granularity; k < (j+1)*granularity; k++ {
-				accum += daily[sampledIndex][k]
+				accum += perTick[sampledIndex][k]
 			}
 			result[i][j] = int64(accum)
 		}
@@ -794,7 +800,7 @@ func mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, s
 // Rows: *at least* len(matrix) * sampling + offset
 // Columns: *at least* len(matrix[...]) * granularity + offset
 // `matrix` can be sparse, so that the last columns which are equal to 0 are truncated.
-func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily [][]float32, offset int) {
+func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accPerTick [][]float32, offset int) {
 	// Determine the maximum number of bands; the actual one may be larger but we do not care
 	maxCols := 0
 	for _, row := range matrix {
@@ -803,17 +809,17 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily 
 		}
 	}
 	neededRows := len(matrix)*sampling + offset
-	if len(accdaily) < neededRows {
-		log.Panicf("merge bug: too few daily rows: required %d, have %d",
-			neededRows, len(accdaily))
+	if len(accPerTick) < neededRows {
+		log.Panicf("merge bug: too few per-tick rows: required %d, have %d",
+			neededRows, len(accPerTick))
 	}
-	if len(accdaily[0]) < maxCols {
-		log.Panicf("merge bug: too few daily cols: required %d, have %d",
-			maxCols, len(accdaily[0]))
+	if len(accPerTick[0]) < maxCols {
+		log.Panicf("merge bug: too few per-tick cols: required %d, have %d",
+			maxCols, len(accPerTick[0]))
 	}
-	daily := make([][]float32, len(accdaily))
-	for i, row := range accdaily {
-		daily[i] = make([]float32, len(row))
+	perTick := make([][]float32, len(accPerTick))
+	for i, row := range accPerTick {
+		perTick[i] = make([]float32, len(row))
 	}
 	for x := 0; x < maxCols; x++ {
 		for y := 0; y < len(matrix); y++ {
@@ -828,9 +834,9 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily 
 				k := float32(matrix[y][x]) / startVal // <= 1
 				scale := float32((y+1)*sampling - startIndex)
 				for i := x * granularity; i < (x+1)*granularity; i++ {
-					initial := daily[startIndex-1+offset][i+offset]
+					initial := perTick[startIndex-1+offset][i+offset]
 					for j := startIndex; j < (y+1)*sampling; j++ {
-						daily[j+offset][i+offset] = initial * (1 + (k-1)*float32(j-startIndex+1)/scale)
+						perTick[j+offset][i+offset] = initial * (1 + (k-1)*float32(j-startIndex+1)/scale)
 					}
 				}
 			}
@@ -849,13 +855,13 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily 
 				avg := (finishVal - initial) / float32(finishIndex-startIndex)
 				for j := y * sampling; j < finishIndex; j++ {
 					for i := startIndex; i <= j; i++ {
-						daily[j+offset][i+offset] = avg
+						perTick[j+offset][i+offset] = avg
 					}
 				}
 				// copy [x*g..y*s)
 				for j := y * sampling; j < finishIndex; j++ {
 					for i := x * granularity; i < y*sampling; i++ {
-						daily[j+offset][i+offset] = daily[j-1+offset][i+offset]
+						perTick[j+offset][i+offset] = perTick[j-1+offset][i+offset]
 					}
 				}
 			}
@@ -891,7 +897,7 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily 
 					avg := float32(matrix[y][x]) / float32((y+1)*sampling-x*granularity)
 					for j := x * granularity; j < (y+1)*sampling; j++ {
 						for i := x * granularity; i <= j; i++ {
-							daily[j+offset][i+offset] = avg
+							perTick[j+offset][i+offset] = avg
 						}
 					}
 				}
@@ -951,14 +957,14 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accdaily 
 			}
 		}
 	}
-	for y := len(matrix) * sampling; y+offset < len(daily); y++ {
-		copy(daily[y+offset], daily[len(matrix)*sampling-1+offset])
+	for y := len(matrix) * sampling; y+offset < len(perTick); y++ {
+		copy(perTick[y+offset], perTick[len(matrix)*sampling-1+offset])
 	}
 	// the original matrix has been resampled by tick
 	// add it to the accumulator
-	for y, row := range daily {
+	for y, row := range perTick {
 		for x, val := range row {
-			accdaily[y][x] += val
+			accPerTick[y][x] += val
 		}
 	}
 }

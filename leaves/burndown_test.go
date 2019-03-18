@@ -69,6 +69,7 @@ func TestBurndownConfigure(t *testing.T) {
 	facts[ConfigBurndownHibernationThreshold] = 100
 	facts[ConfigBurndownHibernationToDisk] = true
 	facts[ConfigBurndownHibernationDirectory] = "xxx"
+	facts[items.FactTickSize] = 24 * time.Hour
 	facts[identity.FactIdentityDetectorPeopleCount] = 5
 	facts[identity.FactIdentityDetectorReversedPeopleDict] = bd.Requires()
 	assert.Nil(t, bd.Configure(facts))
@@ -80,6 +81,7 @@ func TestBurndownConfigure(t *testing.T) {
 	assert.True(t, bd.HibernationToDisk)
 	assert.Equal(t, bd.HibernationDirectory, "xxx")
 	assert.Equal(t, bd.Debug, true)
+	assert.Equal(t, bd.tickSize, 24*time.Hour)
 	assert.Equal(t, bd.reversedPeopleDict, bd.Requires())
 	facts[ConfigBurndownTrackPeople] = false
 	facts[identity.FactIdentityDetectorPeopleCount] = 50
@@ -1142,7 +1144,9 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	res2.PeopleMatrix[1][1] = 600
 	res2.PeopleMatrix[1][2] = 700
 	res2.PeopleMatrix[1][3] = 800
-	bd := BurndownAnalysis{}
+	bd := BurndownAnalysis{
+		tickSize: 24 * time.Hour,
+	}
 	merged := bd.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
 	assert.Equal(t, merged.sampling, 14)
@@ -1213,7 +1217,9 @@ func TestBurndownMergeNils(t *testing.T) {
 		CommitsNumber: 10,
 		RunTime:       100000,
 	}
-	bd := BurndownAnalysis{}
+	bd := BurndownAnalysis{
+		tickSize: 24 * time.Hour,
+	}
 	merged := bd.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
 	assert.Equal(t, merged.sampling, 14)
@@ -1366,17 +1372,17 @@ func TestBurndownAddBurndownMatrix(t *testing.T) {
 		[]int64{7181, 18750, 55841, 0},
 		[]int64{6345, 16704, 17110, 55981},
 	}
-	daily := make([][]float32, 4*30)
-	for i := range daily {
-		daily[i] = make([]float32, 4*30)
+	perTick := make([][]float32, 4*30)
+	for i := range perTick {
+		perTick[i] = make([]float32, 4*30)
 	}
-	addBurndownMatrix(h, 30, 30, daily, 0)
+	addBurndownMatrix(h, 30, 30, perTick, 0)
 	sum := func(x, y int) int64 {
 		var accum float32
 		row := (y+1)*30 - 1
 		offset := x * 30
 		for i := offset; i < offset+30; i++ {
-			accum += daily[row][i]
+			accum += perTick[row][i]
 		}
 		return int64(accum)
 	}
@@ -1458,13 +1464,14 @@ func TestBurndownMergeMatrices(t *testing.T) {
 		CommitsNumber: 6982,
 		RunTime:       1567214,
 	}
-	nh := mergeMatrices(h, nil, 30, 30, 30, 30, cr, cr)
+	bd := BurndownAnalysis{tickSize: 24 * time.Hour}
+	nh := bd.mergeMatrices(h, nil, 30, 30, 30, 30, cr, cr)
 	for y, row := range nh {
 		for x, v := range row {
 			assert.InDelta(t, v, h[y][x], 1, fmt.Sprintf("y=%d x=%d", y, x))
 		}
 	}
-	nh = mergeMatrices(h, h, 30, 30, 30, 30, cr, cr)
+	nh = bd.mergeMatrices(h, h, 30, 30, 30, 30, cr, cr)
 	for y, row := range nh {
 		for x, v := range row {
 			assert.InDelta(t, v, h[y][x]*2, 1, fmt.Sprintf("y=%d x=%d", y, x))
@@ -1514,7 +1521,9 @@ func TestBurndownMergePeopleHistories(t *testing.T) {
 		CommitsNumber: 10,
 		RunTime:       100000,
 	}
-	bd := BurndownAnalysis{}
+	bd := BurndownAnalysis{
+		tickSize: 24 * time.Hour,
+	}
 	merged := bd.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	mh := [][]int64{
 		{560, 0, 0, 0},
