@@ -68,7 +68,7 @@ func (churn *ChurnAnalysis) Provides() []string {
 // file_diff - line diff for each commit change
 // changes - list of changed files for each commit
 // blob_cache - set of blobs affected by each commit
-// dick - number of ticks since start for each commit
+// tick - number of ticks since start for each commit
 // author - author of the commit
 func (churn *ChurnAnalysis) Requires() []string {
 	arr := [...]string{
