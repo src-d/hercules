@@ -16,7 +16,7 @@ import (
 
 func fixtureTicksSinceStart(config ...map[string]interface{}) *TicksSinceStart {
 	tss := TicksSinceStart{
-		tickSize: 24 * time.Hour,
+		TickSize: 24 * time.Hour,
 	}
 	if len(config) != 1 {
 		config = []map[string]interface{}{{}}

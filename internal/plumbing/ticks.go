@@ -14,8 +14,9 @@ import (
 // It is a PipelineItem.
 type TicksSinceStart struct {
 	core.NoopMerger
+	TickSize time.Duration
+
 	remote       string
-	tickSize     time.Duration
 	tick0        *time.Time
 	previousTick int
 	commits      map[int][]plumbing.Hash
@@ -70,9 +71,9 @@ func (ticks *TicksSinceStart) ListConfigurationOptions() []core.ConfigurationOpt
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigTicksSinceStartTickSize].(int); exists {
-		ticks.tickSize = time.Duration(val) * time.Hour
+		ticks.TickSize = time.Duration(val) * time.Hour
 	} else {
-		ticks.tickSize = DefaultTicksSinceStartTickSize
+		ticks.TickSize = DefaultTicksSinceStartTickSize
 	}
 	if ticks.commits == nil {
 		ticks.commits = map[int][]plumbing.Hash{}
@@ -84,8 +85,8 @@ func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ticks *TicksSinceStart) Initialize(repository *git.Repository) error {
-	if ticks.tickSize == 0 {
-		ticks.tickSize = DefaultTicksSinceStartTickSize
+	if ticks.TickSize == 0 {
+		ticks.TickSize = DefaultTicksSinceStartTickSize
 	}
 	ticks.tick0 = &time.Time{}
 	ticks.previousTick = 0
@@ -123,7 +124,7 @@ func (ticks *TicksSinceStart) Consume(deps map[string]interface{}) (map[string]i
 		}
 	}
 
-	tick := int(commit.Committer.When.Sub(*ticks.tick0) / ticks.tickSize)
+	tick := int(commit.Committer.When.Sub(*ticks.tick0) / ticks.TickSize)
 	if tick < ticks.previousTick {
 		// rebase works miracles, but we need the monotonous time
 		tick = ticks.previousTick
