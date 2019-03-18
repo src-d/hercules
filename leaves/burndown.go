@@ -635,7 +635,14 @@ func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *core.CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)
 	bar2 := r2.(BurndownResult)
-	merged := BurndownResult{}
+	if bar1.TickSize != analyser.tickSize || bar2.TickSize != analyser.tickSize {
+		return fmt.Errorf("mismatching tick sizes (r1: %d, r2: %d, analyser: %d) received",
+			bar1.TickSize, bar2.TickSize, analyser.tickSize)
+	}
+
+	merged := BurndownResult{
+		TickSize: analyser.tickSize,
+	}
 	if bar1.sampling < bar2.sampling {
 		merged.sampling = bar1.sampling
 	} else {
@@ -645,11 +652,6 @@ func (analyser *BurndownAnalysis) MergeResults(
 		merged.granularity = bar1.granularity
 	} else {
 		merged.granularity = bar2.granularity
-	}
-	if bar1.TickSize < bar2.TickSize {
-		merged.TickSize = bar1.TickSize
-	} else {
-		merged.TickSize = bar2.TickSize
 	}
 	var people map[string][3]int
 	people, merged.reversedPeopleDict = identity.Detector{}.MergeReversedDicts(

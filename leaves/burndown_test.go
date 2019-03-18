@@ -2,6 +2,7 @@ package leaves
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1184,6 +1185,33 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	assert.Nil(t, bd.serializeBinary(&merged, ioutil.Discard))
 }
 
+func TestBurndownMergeGlobalHistory_withDifferentTickSizes(t *testing.T) {
+	res1 := BurndownResult{
+		TickSize: 13 * time.Hour,
+	}
+	c1 := core.CommonAnalysisResult{
+		BeginTime:     600566400, // 1989 Jan 12
+		EndTime:       604713600, // 1989 March 1
+		CommitsNumber: 10,
+		RunTime:       100000,
+	}
+	res2 := BurndownResult{
+		TickSize: 24 * time.Hour,
+	}
+	c2 := core.CommonAnalysisResult{
+		BeginTime:     601084800, // 1989 Jan 18
+		EndTime:       605923200, // 1989 March 15
+		CommitsNumber: 10,
+		RunTime:       100000,
+	}
+	bd := BurndownAnalysis{
+		tickSize: 24 * time.Hour,
+	}
+	merged := bd.MergeResults(res1, res2, &c1, &c2)
+	assert.IsType(t, errors.New(""), merged)
+	assert.Contains(t, merged.(error).Error(), "mismatching tick sizes")
+}
+
 func TestBurndownMergeNils(t *testing.T) {
 	res1 := BurndownResult{
 		GlobalHistory:      nil,
@@ -1496,6 +1524,7 @@ func TestBurndownMergePeopleHistories(t *testing.T) {
 		FileHistories:      map[string][][]int64{},
 		PeopleHistories:    [][][]int64{h1, h1},
 		PeopleMatrix:       nil,
+		TickSize:           24 * time.Hour,
 		reversedPeopleDict: []string{"one", "three"},
 		sampling:           15, // 3
 		granularity:        20, // 3
@@ -1511,6 +1540,7 @@ func TestBurndownMergePeopleHistories(t *testing.T) {
 		FileHistories:      nil,
 		PeopleHistories:    [][][]int64{h2, h2},
 		PeopleMatrix:       nil,
+		TickSize:           24 * time.Hour,
 		reversedPeopleDict: []string{"one", "two"},
 		sampling:           14,
 		granularity:        19,
