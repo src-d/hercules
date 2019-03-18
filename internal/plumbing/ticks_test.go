@@ -203,11 +203,13 @@ func TestTicksSinceStartConsumeZero(t *testing.T) {
 	// depending on where the contributor clones this project from, the remote
 	// reported in the error could either be from gopkg.in or github.com
 	if !strings.Contains(output, "github.com") && !strings.Contains(output, "gopkg.in") {
-		assert.Failf(t, "output should contain either 'github.com' or 'gopkg.in':\n%s", output)
+		assert.Failf(t, "output should contain either 'github.com' or 'gopkg.in'", "got: '%s'", output)
 	}
 	assert.Equal(t, res[DependencyTick].(int), 0)
 	assert.Equal(t, tss.previousTick, 0)
-	assert.Equal(t, tss.tick0.Year(), 1969)
+	if (tss.tick0.Year() != 1969) && (tss.tick0.Year() != 1970) {
+		assert.Failf(t, "tick0 should be unix-0 time (in either 1969 or 1970)", "got: '%v'", tss.tick0)
+	}
 	assert.Equal(t, tss.tick0.Minute(), 0)
 	assert.Equal(t, tss.tick0.Second(), 0)
 }
