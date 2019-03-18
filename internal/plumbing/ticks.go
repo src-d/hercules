@@ -141,6 +141,7 @@ func (ticks *TicksSinceStart) Consume(deps map[string]interface{}) (map[string]i
 		for i := range tickCommits {
 			if tickCommits[len(tickCommits)-i-1] == commit.Hash {
 				exists = true
+				break
 			}
 		}
 	}
