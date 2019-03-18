@@ -620,6 +620,7 @@ func TestBurndownSerialize(t *testing.T) {
 	assert.Nil(t, bd.Serialize(out, false, buffer))
 	assert.Equal(t, buffer.String(), `  granularity: 30
   sampling: 30
+  tick_size: 24h0m0s
   "project": |-
     1145    0
      464  369
@@ -708,6 +709,7 @@ func TestBurndownSerializeAuthorMissing(t *testing.T) {
 	assert.Nil(t, bd.Serialize(out, false, buffer))
 	assert.Equal(t, buffer.String(), `  granularity: 30
   sampling: 30
+  tick_size: 24h0m0s
   "project": |-
     1145    0
      464  369

@@ -974,6 +974,7 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accPerTic
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
 	fmt.Fprintln(writer, "  granularity:", result.granularity)
 	fmt.Fprintln(writer, "  sampling:", result.sampling)
+	fmt.Fprintln(writer, "  tick_size:", result.TickSize)
 	yaml.PrintMatrix(writer, result.GlobalHistory, 2, "project", true)
 	if len(result.FileHistories) > 0 {
 		fmt.Fprintln(writer, "  files:")
