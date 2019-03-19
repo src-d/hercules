@@ -570,7 +570,10 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 // Serialize converts the analysis result as returned by Finalize() to text or bytes.
 // The text format is YAML and the bytes format is Protocol Buffers.
 func (analyser *BurndownAnalysis) Serialize(result interface{}, binary bool, writer io.Writer) error {
-	burndownResult := result.(BurndownResult)
+	burndownResult, ok := result.(BurndownResult)
+	if !ok {
+		return fmt.Errorf("result is not a burndown result: '%v'", result)
+	}
 	if binary {
 		return analyser.serializeBinary(&burndownResult, writer)
 	}
@@ -635,11 +638,15 @@ func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *core.CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)
 	bar2 := r2.(BurndownResult)
-	if bar1.TickSize != analyser.tickSize || bar2.TickSize != analyser.tickSize {
-		return fmt.Errorf("mismatching tick sizes (r1: %d, r2: %d, analyser: %d) received",
-			bar1.TickSize, bar2.TickSize, analyser.tickSize)
+	if bar1.TickSize != bar2.TickSize {
+		return fmt.Errorf("mismatching tick sizes (r1: %d, r2: %d) received",
+			bar1.TickSize, bar2.TickSize)
 	}
-
+	// for backwards-compatibility, if no tick size is present set to default
+	analyser.tickSize = bar1.TickSize
+	if analyser.tickSize == 0 {
+		analyser.tickSize = items.DefaultTicksSinceStartTickSize * time.Hour
+	}
 	merged := BurndownResult{
 		TickSize: analyser.tickSize,
 	}
