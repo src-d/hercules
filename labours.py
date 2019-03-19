@@ -364,7 +364,7 @@ class ProtobufReader(Reader):
                                 stats.stats.changed, {k: [v.added, v.removed, v.changed]
                                                       for k, v in stats.languages.items()})
                     for dev, stats in day.devs.items()}
-                for d, day in self.contents["Devs"].days.items()}
+                for d, day in self.contents["Devs"].ticks.items()}
         return people, days
 
     def _parse_burndown_matrix(self, matrix):

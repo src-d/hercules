@@ -33,7 +33,7 @@ type ChurnAnalysis struct {
 }
 
 type editInfo struct {
-	Day     int
+	Tick    int
 	Added   int
 	Removed int
 }
@@ -45,7 +45,7 @@ type ChurnAnalysisResult struct {
 }
 
 type Edits struct {
-	Days      []int
+	Ticks     []int
 	Additions []int
 	Removals  []int
 }
@@ -68,14 +68,14 @@ func (churn *ChurnAnalysis) Provides() []string {
 // file_diff - line diff for each commit change
 // changes - list of changed files for each commit
 // blob_cache - set of blobs affected by each commit
-// day - number of days since start for each commit
+// tick - number of ticks since start for each commit
 // author - author of the commit
 func (churn *ChurnAnalysis) Requires() []string {
 	arr := [...]string{
 		hercules.DependencyFileDiff,
 		hercules.DependencyTreeChanges,
 		hercules.DependencyBlobCache,
-		hercules.DependencyDay,
+		hercules.DependencyTick,
 		hercules.DependencyAuthor}
 	return arr[:]
 }
@@ -129,7 +129,7 @@ func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]int
 	fileDiffs := deps[hercules.DependencyFileDiff].(map[string]hercules.FileDiffData)
 	treeDiffs := deps[hercules.DependencyTreeChanges].(object.Changes)
 	cache := deps[hercules.DependencyBlobCache].(map[plumbing.Hash]*hercules.CachedBlob)
-	day := deps[hercules.DependencyDay].(int)
+	tick := deps[hercules.DependencyTick].(int)
 	author := deps[hercules.DependencyAuthor].(int)
 	for _, change := range treeDiffs {
 		action, err := change.Action()
@@ -161,7 +161,7 @@ func (churn *ChurnAnalysis) Consume(deps map[string]interface{}) (map[string]int
 		if err != nil {
 			return nil, err
 		}
-		ei := editInfo{Day: day, Added: added, Removed: removed}
+		ei := editInfo{Tick: tick, Added: added, Removed: removed}
 		churn.global = append(churn.global, ei)
 		if churn.TrackPeople {
 			seq, exists := churn.people[author]
@@ -230,13 +230,13 @@ func (churn *ChurnAnalysis) serializeBinary(result *ChurnAnalysisResult, writer 
 func editInfosToEdits(eis []editInfo) Edits {
 	aux := map[int]*editInfo{}
 	for _, ei := range eis {
-		ptr := aux[ei.Day]
+		ptr := aux[ei.Tick]
 		if ptr == nil {
-			ptr = &editInfo{Day: ei.Day}
+			ptr = &editInfo{Tick: ei.Tick}
 		}
 		ptr.Added += ei.Added
 		ptr.Removed += ei.Removed
-		aux[ei.Day] = ptr
+		aux[ei.Tick] = ptr
 	}
 	seq := []int{}
 	for key := range aux {
@@ -244,14 +244,14 @@ func editInfosToEdits(eis []editInfo) Edits {
 	}
 	sort.Ints(seq)
 	edits := Edits{
-		Days:      make([]int, len(seq)),
+		Ticks:     make([]int, len(seq)),
 		Additions: make([]int, len(seq)),
 		Removals:  make([]int, len(seq)),
 	}
-	for i, day := range seq {
-		edits.Days[i] = day
-		edits.Additions[i] = aux[day].Added
-		edits.Removals[i] = aux[day].Removed
+	for i, tick := range seq {
+		edits.Ticks[i] = tick
+		edits.Additions[i] = aux[tick].Added
+		edits.Removals[i] = aux[tick].Removed
 	}
 	return edits
 }
@@ -268,14 +268,14 @@ func printEdits(edits Edits, writer io.Writer, indent int) {
 			}
 		}
 	}
-	printArray(edits.Days, "days")
+	printArray(edits.Ticks, "ticks")
 	printArray(edits.Additions, "additions")
 	printArray(edits.Removals, "removals")
 }
 
 func editsToEditsMessage(edits Edits) *EditsMessage {
 	message := &EditsMessage{
-		Days:      make([]uint32, len(edits.Days)),
+		Ticks:     make([]uint32, len(edits.Ticks)),
 		Additions: make([]uint32, len(edits.Additions)),
 		Removals:  make([]uint32, len(edits.Removals)),
 	}
@@ -284,7 +284,7 @@ func editsToEditsMessage(edits Edits) *EditsMessage {
 			where[i] = uint32(v)
 		}
 	}
-	copyInts(edits.Days, message.Days)
+	copyInts(edits.Ticks, message.Ticks)
 	copyInts(edits.Additions, message.Additions)
 	copyInts(edits.Removals, message.Removals)
 	return message

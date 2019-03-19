@@ -21,7 +21,7 @@ import (
 	"gopkg.in/src-d/hercules.v9/internal/pb"
 	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
 	uast_items "gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
-	"gopkg.in/vmarkovtsev/BiDiSentiment.v1"
+	sentiment "gopkg.in/vmarkovtsev/BiDiSentiment.v1"
 )
 
 // CommentSentimentAnalysis measures comment sentiment through time.
@@ -31,17 +31,17 @@ type CommentSentimentAnalysis struct {
 	MinCommentLength int
 	Gap              float32
 
-	commentsByDay map[int][]string
-	commitsByDay  map[int][]plumbing.Hash
-	xpather       *uast_items.ChangesXPather
+	commentsByTick map[int][]string
+	commitsByTick  map[int][]plumbing.Hash
+	xpather        *uast_items.ChangesXPather
 }
 
-// CommentSentimentResult contains the sentiment values per day, where 1 means very negative
+// CommentSentimentResult contains the sentiment values per tick, where 1 means very negative
 // and 0 means very positive.
 type CommentSentimentResult struct {
-	EmotionsByDay map[int]float32
-	CommentsByDay map[int][]string
-	commitsByDay  map[int][]plumbing.Hash
+	EmotionsByTick map[int]float32
+	CommentsByTick map[int][]string
+	commitsByTick  map[int][]plumbing.Hash
 }
 
 const (
@@ -80,7 +80,7 @@ func (sent *CommentSentimentAnalysis) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (sent *CommentSentimentAnalysis) Requires() []string {
-	arr := [...]string{uast_items.DependencyUastChanges, items.DependencyDay}
+	arr := [...]string{uast_items.DependencyUastChanges, items.DependencyTick}
 	return arr[:]
 }
 
@@ -123,7 +123,7 @@ func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) er
 		sent.MinCommentLength = val.(int)
 	}
 	sent.validate()
-	sent.commitsByDay = facts[items.FactCommitsByDay].(map[int][]plumbing.Hash)
+	sent.commitsByTick = facts[items.FactCommitsByTick].(map[int][]plumbing.Hash)
 	return nil
 }
 
@@ -143,7 +143,7 @@ func (sent *CommentSentimentAnalysis) validate() {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) error {
-	sent.commentsByDay = map[int][]string{}
+	sent.commentsByTick = map[int][]string{}
 	sent.xpather = &uast_items.ChangesXPather{XPath: "//uast:Comment"}
 	sent.validate()
 	sent.OneShotMergeProcessor.Initialize()
@@ -160,33 +160,33 @@ func (sent *CommentSentimentAnalysis) Consume(deps map[string]interface{}) (map[
 		return nil, nil
 	}
 	changes := deps[uast_items.DependencyUastChanges].([]uast_items.Change)
-	day := deps[items.DependencyDay].(int)
+	tick := deps[items.DependencyTick].(int)
 	commentNodes, _ := sent.xpather.Extract(changes)
 	comments := sent.mergeComments(commentNodes)
-	dayComments := sent.commentsByDay[day]
-	if dayComments == nil {
-		dayComments = []string{}
+	tickComments := sent.commentsByTick[tick]
+	if tickComments == nil {
+		tickComments = []string{}
 	}
-	dayComments = append(dayComments, comments...)
-	sent.commentsByDay[day] = dayComments
+	tickComments = append(tickComments, comments...)
+	sent.commentsByTick[tick] = tickComments
 	return nil, nil
 }
 
 // Finalize returns the result of the analysis. Further Consume() calls are not expected.
 func (sent *CommentSentimentAnalysis) Finalize() interface{} {
 	result := CommentSentimentResult{
-		EmotionsByDay: map[int]float32{},
-		CommentsByDay: map[int][]string{},
-		commitsByDay:  sent.commitsByDay,
+		EmotionsByTick: map[int]float32{},
+		CommentsByTick: map[int][]string{},
+		commitsByTick:  sent.commitsByTick,
 	}
-	days := make([]int, 0, len(sent.commentsByDay))
-	for day := range sent.commentsByDay {
-		days = append(days, day)
+	ticks := make([]int, 0, len(sent.commentsByTick))
+	for tick := range sent.commentsByTick {
+		ticks = append(ticks, tick)
 	}
-	sort.Ints(days)
+	sort.Ints(ticks)
 	var texts []string
-	for _, key := range days {
-		texts = append(texts, sent.commentsByDay[key]...)
+	for _, key := range ticks {
+		texts = append(texts, sent.commentsByTick[key]...)
 	}
 	session, err := sentiment.OpenSession()
 	if err != nil {
@@ -217,10 +217,10 @@ func (sent *CommentSentimentAnalysis) Finalize() interface{} {
 		panic(err)
 	}
 	pos := 0
-	for _, key := range days {
+	for _, key := range ticks {
 		sum := float32(0)
-		comments := make([]string, 0, len(sent.commentsByDay[key]))
-		for _, comment := range sent.commentsByDay[key] {
+		comments := make([]string, 0, len(sent.commentsByTick[key]))
+		for _, comment := range sent.commentsByTick[key] {
 			if weights[pos] < 0.5*(1-sent.Gap) || weights[pos] > 0.5*(1+sent.Gap) {
 				sum += weights[pos]
 				comments = append(comments, comment)
@@ -228,8 +228,8 @@ func (sent *CommentSentimentAnalysis) Finalize() interface{} {
 			pos++
 		}
 		if len(comments) > 0 {
-			result.EmotionsByDay[key] = sum / float32(len(comments))
-			result.CommentsByDay[key] = comments
+			result.EmotionsByTick[key] = sum / float32(len(comments))
+			result.CommentsByTick[key] = comments
 		}
 	}
 	return result
@@ -252,36 +252,36 @@ func (sent *CommentSentimentAnalysis) Serialize(result interface{}, binary bool,
 }
 
 func (sent *CommentSentimentAnalysis) serializeText(result *CommentSentimentResult, writer io.Writer) {
-	days := make([]int, 0, len(result.EmotionsByDay))
-	for day := range result.EmotionsByDay {
-		days = append(days, day)
+	ticks := make([]int, 0, len(result.EmotionsByTick))
+	for tick := range result.EmotionsByTick {
+		ticks = append(ticks, tick)
 	}
-	sort.Ints(days)
-	for _, day := range days {
-		commits := result.commitsByDay[day]
+	sort.Ints(ticks)
+	for _, tick := range ticks {
+		commits := result.commitsByTick[tick]
 		hashes := make([]string, len(commits))
 		for i, hash := range commits {
 			hashes[i] = hash.String()
 		}
 		fmt.Fprintf(writer, "  %d: [%.4f, [%s], \"%s\"]\n",
-			day, result.EmotionsByDay[day], strings.Join(hashes, ","),
-			strings.Join(result.CommentsByDay[day], "|"))
+			tick, result.EmotionsByTick[tick], strings.Join(hashes, ","),
+			strings.Join(result.CommentsByTick[tick], "|"))
 	}
 }
 
 func (sent *CommentSentimentAnalysis) serializeBinary(
 	result *CommentSentimentResult, writer io.Writer) error {
 	message := pb.CommentSentimentResults{
-		SentimentByDay: map[int32]*pb.Sentiment{},
+		SentimentByTick: map[int32]*pb.Sentiment{},
 	}
-	for key, val := range result.EmotionsByDay {
-		commits := make([]string, len(result.commitsByDay[key]))
-		for i, commit := range result.commitsByDay[key] {
+	for key, val := range result.EmotionsByTick {
+		commits := make([]string, len(result.commitsByTick[key]))
+		for i, commit := range result.commitsByTick[key] {
 			commits[i] = commit.String()
 		}
-		message.SentimentByDay[int32(key)] = &pb.Sentiment{
+		message.SentimentByTick[int32(key)] = &pb.Sentiment{
 			Value:    val,
-			Comments: result.CommentsByDay[key],
+			Comments: result.CommentsByTick[key],
 			Commits:  commits,
 		}
 	}

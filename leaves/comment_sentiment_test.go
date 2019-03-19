@@ -10,7 +10,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/bblfsh/client-go.v3"
+	bblfsh "gopkg.in/bblfsh/client-go.v3"
 	"gopkg.in/bblfsh/client-go.v3/tools"
 	"gopkg.in/bblfsh/sdk.v2/uast"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
@@ -30,7 +30,7 @@ func fixtureCommentSentiment() *CommentSentimentAnalysis {
 		MinCommentLength: DefaultCommentSentimentCommentMinLength,
 	}
 	facts := map[string]interface{}{
-		items.FactCommitsByDay: map[int][]plumbing.Hash{},
+		items.FactCommitsByTick: map[int][]plumbing.Hash{},
 	}
 	sent.Configure(facts)
 	sent.Initialize(test.Repository)
@@ -41,7 +41,7 @@ func TestCommentSentimentMeta(t *testing.T) {
 	sent := CommentSentimentAnalysis{}
 	assert.Equal(t, sent.Name(), "Sentiment")
 	assert.Equal(t, len(sent.Provides()), 0)
-	required := [...]string{uast_items.DependencyUastChanges, items.DependencyDay}
+	required := [...]string{uast_items.DependencyUastChanges, items.DependencyTick}
 	for _, name := range required {
 		assert.Contains(t, sent.Requires(), name)
 	}
@@ -62,7 +62,7 @@ func TestCommentSentimentConfigure(t *testing.T) {
 	facts := map[string]interface{}{}
 	facts[ConfigCommentSentimentMinLength] = 77
 	facts[ConfigCommentSentimentGap] = float32(0.77)
-	facts[items.FactCommitsByDay] = map[int][]plumbing.Hash{}
+	facts[items.FactCommitsByTick] = map[int][]plumbing.Hash{}
 	sent.Configure(facts)
 	assert.Equal(t, sent.Gap, float32(0.77))
 	assert.Equal(t, sent.MinCommentLength, 77)
@@ -100,13 +100,13 @@ func TestCommentSentimentFork(t *testing.T) {
 func TestCommentSentimentSerializeText(t *testing.T) {
 	sent := fixtureCommentSentiment()
 	result := CommentSentimentResult{
-		EmotionsByDay: map[int]float32{},
-		CommentsByDay: map[int][]string{},
-		commitsByDay:  map[int][]plumbing.Hash{},
+		EmotionsByTick: map[int]float32{},
+		CommentsByTick: map[int][]string{},
+		commitsByTick:  map[int][]plumbing.Hash{},
 	}
-	result.EmotionsByDay[9] = 0.5
-	result.CommentsByDay[9] = []string{"test", "hello"}
-	result.commitsByDay[9] = []plumbing.Hash{plumbing.NewHash("4f7c7a154638a0f2468276c56188d90c9cef0dfc")}
+	result.EmotionsByTick[9] = 0.5
+	result.CommentsByTick[9] = []string{"test", "hello"}
+	result.commitsByTick[9] = []plumbing.Hash{plumbing.NewHash("4f7c7a154638a0f2468276c56188d90c9cef0dfc")}
 	buffer := &bytes.Buffer{}
 	sent.Serialize(result, false, buffer)
 	assert.Equal(t, buffer.String(), "  9: [0.5000, [4f7c7a154638a0f2468276c56188d90c9cef0dfc], \"test|hello\"]\n")
@@ -115,32 +115,32 @@ func TestCommentSentimentSerializeText(t *testing.T) {
 func TestCommentSentimentSerializeBinary(t *testing.T) {
 	sent := fixtureCommentSentiment()
 	result := CommentSentimentResult{
-		EmotionsByDay: map[int]float32{},
-		CommentsByDay: map[int][]string{},
-		commitsByDay:  map[int][]plumbing.Hash{},
+		EmotionsByTick: map[int]float32{},
+		CommentsByTick: map[int][]string{},
+		commitsByTick:  map[int][]plumbing.Hash{},
 	}
-	result.EmotionsByDay[9] = 0.5
-	result.CommentsByDay[9] = []string{"test", "hello"}
-	result.commitsByDay[9] = []plumbing.Hash{plumbing.NewHash("4f7c7a154638a0f2468276c56188d90c9cef0dfc")}
+	result.EmotionsByTick[9] = 0.5
+	result.CommentsByTick[9] = []string{"test", "hello"}
+	result.commitsByTick[9] = []plumbing.Hash{plumbing.NewHash("4f7c7a154638a0f2468276c56188d90c9cef0dfc")}
 	buffer := &bytes.Buffer{}
 	sent.Serialize(result, true, buffer)
 	msg := pb.CommentSentimentResults{}
 	proto.Unmarshal(buffer.Bytes(), &msg)
-	assert.Len(t, msg.SentimentByDay, 1)
-	assert.Equal(t, msg.SentimentByDay[int32(9)].Commits, []string{"4f7c7a154638a0f2468276c56188d90c9cef0dfc"})
-	assert.Equal(t, msg.SentimentByDay[int32(9)].Comments, []string{"test", "hello"})
-	assert.Equal(t, msg.SentimentByDay[int32(9)].Value, float32(0.5))
+	assert.Len(t, msg.SentimentByTick, 1)
+	assert.Equal(t, msg.SentimentByTick[int32(9)].Commits, []string{"4f7c7a154638a0f2468276c56188d90c9cef0dfc"})
+	assert.Equal(t, msg.SentimentByTick[int32(9)].Comments, []string{"test", "hello"})
+	assert.Equal(t, msg.SentimentByTick[int32(9)].Value, float32(0.5))
 }
 
 func TestCommentSentimentFinalize(t *testing.T) {
 	sent := fixtureCommentSentiment()
-	sent.commitsByDay = testSentimentCommits
-	sent.commentsByDay = testSentimentComments
+	sent.commitsByTick = testSentimentCommits
+	sent.commentsByTick = testSentimentComments
 	result := sent.Finalize().(CommentSentimentResult)
 	for key, vals := range testSentimentComments {
-		assert.Equal(t, vals, result.CommentsByDay[key])
-		assert.True(t, result.EmotionsByDay[key] >= 0)
-		assert.True(t, result.EmotionsByDay[key] <= 1)
+		assert.Equal(t, vals, result.CommentsByTick[key])
+		assert.True(t, result.EmotionsByTick[key] >= 0)
+		assert.True(t, result.EmotionsByTick[key] <= 1)
 	}
 }
 
@@ -166,7 +166,7 @@ func TestCommentSentimentConsume(t *testing.T) {
 	}
 	gitChange := test.FakeChangeForName("labours.py", hash1, hash2)
 	deps := map[string]interface{}{
-		items.DependencyDay: 0,
+		items.DependencyTick: 0,
 		uast_items.DependencyUastChanges: []uast_items.Change{
 			{Before: root1, After: root2, Change: gitChange},
 		},
@@ -176,8 +176,8 @@ func TestCommentSentimentConsume(t *testing.T) {
 	result, err := sent.Consume(deps)
 	assert.Nil(t, err)
 	assert.Nil(t, result)
-	assert.Len(t, sent.commentsByDay, 1)
-	assert.Len(t, sent.commentsByDay[0], 4)
+	assert.Len(t, sent.commentsByTick, 1)
+	assert.Len(t, sent.commentsByTick[0], 4)
 }
 
 var (

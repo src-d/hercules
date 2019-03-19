@@ -39,7 +39,7 @@ message FilesOwnership {
 }
 
 message BurndownAnalysisResults {
-    // how many days are in each band [burndown_project, burndown_file, burndown_developer]
+    // how many ticks are in each band [burndown_project, burndown_file, burndown_developer]
     int32 granularity = 1;
     // how frequently we measure the state of each band [burndown_project, burndown_file, burndown_developer]
     int32 sampling = 2;
@@ -53,6 +53,8 @@ message BurndownAnalysisResults {
     CompressedSparseRowMatrix people_interaction = 6;
     // How many lines belong to relevant developers for each file. The order is the same as in `files`.
     repeated FilesOwnership files_ownership = 7;
+    // how long each tick is, as an int64 nanosecond count (Go's time.Duration)
+    int64 tick_size = 8;
 }
 
 message CompressedSparseRowMatrix {
@@ -122,18 +124,18 @@ message LineStats {
     int32 changed = 3;
 }
 
-message DevDay {
+message DevTick {
     int32 commits = 1;
     LineStats stats = 2;
     map<string, LineStats> languages = 3;
 }
 
-message DayDevs {
-    map<int32, DevDay> devs = 1;
+message TickDevs {
+    map<int32, DevTick> devs = 1;
 }
 
 message DevsAnalysisResults {
-    map<int32, DayDevs> days = 1;
+    map<int32, TickDevs> ticks = 1;
     repeated string dev_index = 2;
 }
 
@@ -144,7 +146,7 @@ message Sentiment {
 }
 
 message CommentSentimentResults {
-    map<int32, Sentiment> sentiment_by_day = 1;
+    map<int32, Sentiment> sentiment_by_tick = 1;
 }
 
 message CommitFile {
