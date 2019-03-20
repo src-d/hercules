@@ -8,8 +8,8 @@ import (
 	"gopkg.in/bblfsh/sdk.v2/uast"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/hercules.v9/internal/core"
-	"gopkg.in/src-d/hercules.v9/internal/plumbing"
+	"gopkg.in/src-d/hercules.v10/internal/core"
+	"gopkg.in/src-d/hercules.v10/internal/plumbing"
 )
 
 // FileDiffRefiner uses UASTs to improve the human interpretability of diffs.

@@ -17,11 +17,11 @@ import (
 	progress "gopkg.in/cheggaaa/pb.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v9/internal/core"
-	"gopkg.in/src-d/hercules.v9/internal/pb"
-	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
-	sentiment "gopkg.in/vmarkovtsev/BiDiSentiment.v1"
+	"gopkg.in/src-d/hercules.v10/internal/core"
+	"gopkg.in/src-d/hercules.v10/internal/pb"
+	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
+	"gopkg.in/vmarkovtsev/BiDiSentiment.v1"
 )
 
 // CommentSentimentAnalysis measures comment sentiment through time.

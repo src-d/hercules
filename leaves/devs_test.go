@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v9/internal/core"
-	"gopkg.in/src-d/hercules.v9/internal/pb"
-	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
-	"gopkg.in/src-d/hercules.v9/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v9/internal/test"
-	"gopkg.in/src-d/hercules.v9/internal/test/fixtures"
+	"gopkg.in/src-d/hercules.v10/internal/core"
+	"gopkg.in/src-d/hercules.v10/internal/pb"
+	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
+	"gopkg.in/src-d/hercules.v10/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v10/internal/test"
+	"gopkg.in/src-d/hercules.v10/internal/test/fixtures"
 )
 
 func fixtureDevs() *DevsAnalysis {

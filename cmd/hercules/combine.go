@@ -14,8 +14,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	progress "gopkg.in/cheggaaa/pb.v1"
-	"gopkg.in/src-d/hercules.v9"
-	"gopkg.in/src-d/hercules.v9/internal/pb"
+	"gopkg.in/src-d/hercules.v10"
+	"gopkg.in/src-d/hercules.v10/internal/pb"
 )
 
 // combineCmd represents the combine command

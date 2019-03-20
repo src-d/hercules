@@ -9,7 +9,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v9/internal/core"
+	"gopkg.in/src-d/hercules.v10/internal/core"
 )
 
 // FileDiff calculates the difference of files which were modified.

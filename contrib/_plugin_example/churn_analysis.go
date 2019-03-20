@@ -13,7 +13,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v9"
+	"gopkg.in/src-d/hercules.v10"
 )
 
 // ChurnAnalysis contains the intermediate state which is mutated by Consume(). It should implement
