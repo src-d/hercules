@@ -4,13 +4,13 @@ import (
 	"github.com/spf13/pflag"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v9/internal/core"
-	"gopkg.in/src-d/hercules.v9/internal/plumbing"
-	"gopkg.in/src-d/hercules.v9/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v9/internal/yaml"
-	_ "gopkg.in/src-d/hercules.v9/leaves"          // add burndown and other analyses
-	_ "gopkg.in/src-d/hercules.v9/leaves/research" // add "research" analyses
+	"gopkg.in/src-d/hercules.v10/internal/core"
+	"gopkg.in/src-d/hercules.v10/internal/plumbing"
+	"gopkg.in/src-d/hercules.v10/internal/plumbing/identity"
+	"gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v10/internal/yaml"
+	_ "gopkg.in/src-d/hercules.v10/leaves"          // add burndown and other analyses
+	_ "gopkg.in/src-d/hercules.v10/leaves/research" // add "research" analyses
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.

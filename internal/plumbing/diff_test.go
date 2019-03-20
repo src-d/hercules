@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v9"
-	"gopkg.in/src-d/hercules.v9/internal"
-	"gopkg.in/src-d/hercules.v9/internal/core"
-	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
-	"gopkg.in/src-d/hercules.v9/internal/test"
-	"gopkg.in/src-d/hercules.v9/internal/test/fixtures"
+	"gopkg.in/src-d/hercules.v10"
+	"gopkg.in/src-d/hercules.v10/internal"
+	"gopkg.in/src-d/hercules.v10/internal/core"
+	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
+	"gopkg.in/src-d/hercules.v10/internal/test"
+	"gopkg.in/src-d/hercules.v10/internal/test/fixtures"
 )
 
 func TestFileDiffMeta(t *testing.T) {

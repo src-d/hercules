@@ -13,11 +13,11 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v9/internal/core"
-	"gopkg.in/src-d/hercules.v9/internal/levenshtein"
-	"gopkg.in/src-d/hercules.v9/internal/pb"
-	items "gopkg.in/src-d/hercules.v9/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v9/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v10/internal/core"
+	"gopkg.in/src-d/hercules.v10/internal/levenshtein"
+	"gopkg.in/src-d/hercules.v10/internal/pb"
+	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
+	uast_items "gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
 )
 
 // TyposDatasetBuilder collects pairs of typo-fix in source code identifiers.

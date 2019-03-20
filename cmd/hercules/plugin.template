@@ -24,7 +24,7 @@ import (
 
   "github.com/gogo/protobuf/proto"
   "gopkg.in/src-d/go-git.v4"
-  "gopkg.in/src-d/hercules.v9"
+  "gopkg.in/src-d/hercules.v10"
 )
 
 // {{.name}} contains the intermediate state which is mutated by Consume(). It should implement

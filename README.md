@@ -4,7 +4,7 @@
 <h1 align="center">Hercules</h1>
 <p align="center">
       Fast, insightful and highly customizable Git history analysis.<br><br>
-      <a href="http://godoc.org/gopkg.in/src-d/hercules.v9"><img src="https://godoc.org/gopkg.in/src-d/hercules.v9?status.svg" alt="GoDoc"></a>
+      <a href="http://godoc.org/gopkg.in/src-d/hercules.v10"><img src="https://godoc.org/gopkg.in/src-d/hercules.v10?status.svg" alt="GoDoc"></a>
       <a href="https://travis-ci.com/src-d/hercules"><img src="https://travis-ci.com/src-d/hercules.svg?branch=master" alt="Travis build Status"></a>
       <a href="https://ci.appveyor.com/project/vmarkovtsev/hercules"><img src="https://ci.appveyor.com/api/projects/status/49f0lm3v2y6xyph3?svg=true" alt="AppVeyor build status"></a>
       <a href="https://hub.docker.com/r/srcd/hercules"><img src="https://img.shields.io/docker/build/srcd/hercules.svg" alt="Docker build status"></a>
@@ -33,7 +33,7 @@ The second is the Python script which draws some predefined plots. These two too
 a pipe. It is possible to write custom analyses using the plugin system. It is also possible
 to merge several analysis results together. The commit history includes branches, merges, etc.
 
-Blog posts: [1](https://blog.sourced.tech/post/hercules.v9), [2](https://blog.sourced.tech/post/hercules).
+Blog posts: [1](https://blog.sourced.tech/post/hercules.v10), [2](https://blog.sourced.tech/post/hercules).
 [Presentation](http://vmarkovtsev.github.io/gowayfest-2018-minsk/).
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
@@ -59,8 +59,8 @@ Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke
 You are going to need Go (>= v1.10), [`protoc`](https://github.com/google/protobuf/releases),
 and [`dep`](https://github.com/golang/dep).
 ```
-go get -d gopkg.in/src-d/hercules.v9/cmd/hercules
-cd $GOPATH/src/gopkg.in/src-d/hercules.v9
+go get -d gopkg.in/src-d/hercules.v10/cmd/hercules
+cd $GOPATH/src/gopkg.in/src-d/hercules.v10
 make
 ```
 
