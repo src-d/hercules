@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"unicode/utf8"
 
 	"github.com/gogo/protobuf/proto"
@@ -34,6 +35,8 @@ type TyposDatasetBuilder struct {
 	lcontext *levenshtein.Context
 	// xpather filters identifiers.
 	xpather uast_items.ChangesXPather
+	// remote carries the repository remote URL (for debugging)
+	remote string
 }
 
 // TyposResult is returned by TyposDatasetBuilder.Finalize() and carries the found typo-fix
@@ -121,6 +124,7 @@ func (tdb *TyposDatasetBuilder) Initialize(repository *git.Repository) error {
 	}
 	tdb.lcontext = &levenshtein.Context{}
 	tdb.xpather.XPath = "//uast:Identifier"
+	tdb.remote = core.GetSensibleRemote(repository)
 	return nil
 }
 
@@ -150,33 +154,35 @@ func (tdb *TyposDatasetBuilder) Consume(deps map[string]interface{}) (map[string
 		linesAfter := bytes.Split(cache[change.Change.To.TreeEntry.Hash].Data, []byte{'\n'})
 		diff := diffs[change.Change.To.Name]
 		var lineNumBefore, lineNumAfter int
-		clear := false
 		var candidates []candidate
 		focusedLinesBefore := map[int]bool{}
 		focusedLinesAfter := map[int]bool{}
+		removedSize := 0
 		for _, edit := range diff.Diffs {
 			size := utf8.RuneCountInString(edit.Text)
 			switch edit.Type {
 			case diffmatchpatch.DiffDelete:
 				lineNumBefore += size
-				clear = size == 1
+				removedSize = size
 			case diffmatchpatch.DiffInsert:
-				if size == 1 && clear {
-					dist := tdb.lcontext.Distance(
-						string(linesBefore[lineNumBefore-1]),
-						string(linesAfter[lineNumAfter]))
-					if dist <= tdb.MaximumAllowedDistance {
-						candidates = append(candidates, candidate{lineNumBefore - 1, lineNumAfter})
-						focusedLinesBefore[lineNumBefore-1] = true
-						focusedLinesAfter[lineNumAfter] = true
+				if size == removedSize {
+					for i := 0; i < size; i++ {
+						lb := lineNumBefore - size + i
+						la := lineNumAfter + i
+						dist := tdb.lcontext.Distance(string(linesBefore[lb]), string(linesAfter[la]))
+						if dist <= tdb.MaximumAllowedDistance {
+							candidates = append(candidates, candidate{lb, la})
+							focusedLinesBefore[lb] = true
+							focusedLinesAfter[la] = true
+						}
 					}
 				}
 				lineNumAfter += size
-				clear = false
+				removedSize = 0
 			case diffmatchpatch.DiffEqual:
 				lineNumBefore += size
 				lineNumAfter += size
-				clear = false
+				removedSize = 0
 			}
 		}
 		if len(candidates) == 0 {
@@ -190,25 +196,33 @@ func (tdb *TyposDatasetBuilder) Consume(deps map[string]interface{}) (map[string
 		removedIdentifiers := map[int][]nodes.Node{}
 		for _, n := range nodesAdded {
 			pos := uast.PositionsOf(n.(nodes.Object))
-			if pos.Start() != nil {
-				line := int(pos.Start().Line) - 1
-				if focusedLinesAfter[line] {
-					addedIdentifiers[line] = append(addedIdentifiers[line], n)
-				}
+			if pos.Start() == nil {
+				log.Printf("repo %s commit %s file %s adds identifier %s with no position",
+					tdb.remote, commit.String(), change.Change.To.Name,
+					n.(nodes.Object)["Name"].(nodes.String))
+				continue
+			}
+			line := int(pos.Start().Line) - 1
+			if focusedLinesAfter[line] {
+				addedIdentifiers[line] = append(addedIdentifiers[line], n)
 			}
 		}
 		for _, n := range nodesRemoved {
 			pos := uast.PositionsOf(n.(nodes.Object))
+			if pos.Start() == nil {
+				log.Printf("repo %s commit %s file %s removes identifier %s with no position",
+					tdb.remote, commit.String(), change.Change.To.Name,
+					n.(nodes.Object)["Name"].(nodes.String))
+				continue
+			}
 			line := int(pos.Start().Line) - 1
-			if pos.Start() != nil {
-				if focusedLinesBefore[line] {
-					removedIdentifiers[line] = append(removedIdentifiers[line], n)
-				}
+			if focusedLinesBefore[line] {
+				removedIdentifiers[line] = append(removedIdentifiers[line], n)
 			}
 		}
 		for _, c := range candidates {
-			nodesBefore := addedIdentifiers[c.Before]
-			nodesAfter := removedIdentifiers[c.After]
+			nodesBefore := removedIdentifiers[c.Before]
+			nodesAfter := addedIdentifiers[c.After]
 			if len(nodesBefore) == 1 && len(nodesAfter) == 1 {
 				idBefore := string(nodesBefore[0].(nodes.Object)["Name"].(nodes.String))
 				idAfter := string(nodesAfter[0].(nodes.Object)["Name"].(nodes.String))

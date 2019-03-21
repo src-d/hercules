@@ -103,9 +103,7 @@ func (ticks *TicksSinceStart) Initialize(repository *git.Repository) error {
 			delete(ticks.commits, key)
 		}
 	}
-	if r, err := repository.Remotes(); err == nil && len(r) > 0 {
-		ticks.remote = r[0].Config().URLs[0]
-	}
+	ticks.remote = core.GetSensibleRemote(repository)
 	return nil
 }
 
