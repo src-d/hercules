@@ -158,11 +158,11 @@ Note: it will generate separate graph for every file. You might don't want to ru
 #### People
 
 ```
-hercules --burndown --burndown-people [-people-dict=/path/to/identities]
+hercules --burndown --burndown-people [--people-dict=/path/to/identities]
 python3 labours.py -m burndown-person
 ```
 
-Burndown statistics for the repository's contributors. If `-people-dict` is not specified, the identities are
+Burndown statistics for the repository's contributors. If `--people-dict` is not specified, the identities are
 discovered by the following algorithm:
 
 0. We start from the root commit towards the HEAD. Emails and names are converted to lower case.
@@ -172,7 +172,7 @@ and add the unknown name to the list of that developer's names.
 3. If we process an unknown email but known name, match to the developer with the matching name,
 and add the unknown email to the list of that developer's emails.
 
-If `-people-dict` is specified, it should point to a text file with the custom identities. The
+If `--people-dict` is specified, it should point to a text file with the custom identities. The
 format is: every line is a single developer, it contains all the matching emails and names separated
 by `|`. The case is ignored.
 
@@ -182,7 +182,7 @@ by `|`. The case is ignored.
 <p align="center">Wireshark top 20 devs - churn matrix</p>
 
 ```
-hercules --burndown --burndown-people [-people-dict=/path/to/identities]
+hercules --burndown --burndown-people [--people-dict=/path/to/identities]
 python3 labours.py -m churn-matrix
 ```
 
@@ -194,7 +194,7 @@ The format is the matrix with N rows and (N+2) columns, where N is the number of
 
 1. First column is the number of lines the developer wrote.
 2. Second column is how many lines were written by the developer and deleted by unidentified developers
-(if `-people-dict` is not specified, it is always 0).
+(if `--people-dict` is not specified, it is always 0).
 3. The rest of the columns show how many lines were written by the developer and deleted by identified
 developers.
 
@@ -206,7 +206,7 @@ The sequence of developers is stored in `people_sequence` YAML node.
 <p align="center">Ember.js top 20 devs - code ownership</p>
 
 ```
-hercules --burndown --burndown-people [-people-dict=/path/to/identities]
+hercules --burndown --burndown-people [--people-dict=/path/to/identities]
 python3 labours.py -m ownership
 ```
 
@@ -219,7 +219,7 @@ how many lines are alive at the sampled moments in time for each identified deve
 <p align="center">torvalds/linux files' coupling in Tensorflow Projector</p>
 
 ```
-hercules --couples [-people-dict=/path/to/identities]
+hercules --couples [--people-dict=/path/to/identities]
 python3 labours.py -m couples -o <name> [--couples-tmp-dir=/tmp]
 ```
 
@@ -271,7 +271,7 @@ Couples analysis automatically loads "shotness" data if available.
 <p align="center">tensorflow/tensorflow aligned commit series of top 50 developers by commit number.</p>
 
 ```
-hercules --devs [-people-dict=/path/to/identities]
+hercules --devs [--people-dict=/path/to/identities]
 python3 labours.py -m devs -o <name>
 ```
 
@@ -306,7 +306,7 @@ insights from the `tensorflow/tensorflow` plot above:
 <p align="center">tensorflow/tensorflow added and changed lines through time.</p>
 
 ```
-hercules --devs [-people-dict=/path/to/identities]
+hercules --devs [--people-dict=/path/to/identities]
 python3 labours.py -m old-vs-new -o <name>
 ```
 
@@ -319,7 +319,7 @@ python3 labours.py -m old-vs-new -o <name>
 <p align="center">kubernetes/kubernetes efforts through time.</p>
 
 ```
-hercules --devs [-people-dict=/path/to/identities]
+hercules --devs [--people-dict=/path/to/identities]
 python3 labours.py -m devs-efforts -o <name>
 ```
 
@@ -353,7 +353,7 @@ Such a build requires [`libtensorflow`](https://www.tensorflow.org/install/insta
 #### Everything in a single pass
 
 ```
-hercules --burndown --burndown-files --burndown-people --couples --shotness --devs [-people-dict=/path/to/identities]
+hercules --burndown --burndown-files --burndown-people --couples --shotness --devs [--people-dict=/path/to/identities]
 python3 labours.py -m all
 ```
 
@@ -363,7 +363,7 @@ Hercules has a plugin system and allows to run custom analyses. See [PLUGINS.md]
 
 ### Merging
 
-`hercules combine` is the command which joins several analysis results in Protocol Buffers format together. 
+`hercules combine` is the command which joins several analysis results in Protocol Buffers format together.
 
 ```
 hercules --burndown --pb https://github.com/src-d/go-git > go-git.pb
@@ -435,7 +435,7 @@ instead (`hercules --pb` and `labours.py -f pb`).
    pip uninstall pyyaml
    pip --no-cache-dir install pyyaml
    ```
-   
+
 ### Burndown Out-Of-Memory
 
 If the analyzed repository is big and extensively uses branching, the burndown stats collection may
