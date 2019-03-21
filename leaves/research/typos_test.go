@@ -8,6 +8,9 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/bblfsh/client-go.v3/tools"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v10/internal/core"
@@ -69,7 +72,7 @@ func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash strin
 	cache[objhash] = cb
 }
 
-func TestTyposDatasetConsume(t *testing.T) {
+func bakeTyposDeps(t *testing.T) map[string]interface{} {
 	deps := map[string]interface{}{}
 	cache := map[plumbing.Hash]*items.CachedBlob{}
 	AddHash(t, cache, "b9a12fd144274c99c7c9a0a32a0268f8b36d2f2c")
@@ -133,25 +136,72 @@ func TestTyposDatasetConsume(t *testing.T) {
 	diffResult, err := fd.Consume(deps)
 	assert.Nil(t, err)
 	deps[items.DependencyFileDiff] = diffResult[items.DependencyFileDiff]
+	return deps
+}
 
+func TestTyposDatasetConsume(t *testing.T) {
+	deps := bakeTyposDeps(t)
 	tbd := &TyposDatasetBuilder{}
 	assert.Nil(t, tbd.Initialize(test.Repository))
 	res, err := tbd.Consume(deps)
 	assert.Nil(t, res)
 	assert.Nil(t, err)
-	assert.Len(t, tbd.typos, 4)
-	assert.Equal(t, tbd.typos[0].Wrong, "TestZeroInitializeFile")
-	assert.Equal(t, tbd.typos[0].Correct, "TestZeroInitialize")
+	assert.Len(t, tbd.typos, 26)
+	assert.Equal(t, tbd.typos[0].Wrong, "TestInitialize")
+	assert.Equal(t, tbd.typos[0].Correct, "TestInitializeFile")
 	assert.Equal(t, tbd.typos[0].Commit, plumbing.NewHash(
 		"84165d3b02647fae12cc026c7a580045246e8c98"))
 	assert.Equal(t, tbd.typos[0].File, "file_test.go")
-	assert.Equal(t, tbd.typos[0].Line, 74)
+	assert.Equal(t, tbd.typos[0].Line, 19)
 
 	deps[core.DependencyIsMerge] = true
 	res, err = tbd.Consume(deps)
 	assert.Nil(t, res)
 	assert.Nil(t, err)
-	assert.Len(t, tbd.typos, 4)
+	assert.Len(t, tbd.typos, 26)
+}
+
+func dropPositions(root nodes.Node, target string) {
+	for element := range tools.Iterate(tools.NewIterator(root, tools.PreOrder)) {
+		obj, isobj := element.(nodes.Object)
+		if !isobj {
+			continue
+		}
+		nameval, exists := obj["Name"]
+		if !exists {
+			continue
+		}
+		if name, isstr := nameval.(nodes.String); !isstr || string(name) != target {
+			continue
+		}
+		posval, exists := obj[uast.KeyPos]
+		if !exists {
+			continue
+		}
+		posobj, isobj := posval.(nodes.Object)
+		if !isobj {
+			continue
+		}
+		for k, v := range posobj {
+			po, _ := v.(nodes.Object)
+			if uast.AsPosition(po) != nil {
+				posobj[k] = nil
+			}
+		}
+	}
+}
+
+func TestTyposDatasetConsumeMissingPosition(t *testing.T) {
+	deps := bakeTyposDeps(t)
+	uastChanges := deps[uast_items.DependencyUastChanges].([]uast_items.Change)
+	dropPositions(uastChanges[0].Before, "TestZeroInitialize")
+	dropPositions(uastChanges[0].After, "TestZeroInitializeFile")
+	tbd := &TyposDatasetBuilder{}
+	assert.Nil(t, tbd.Initialize(test.Repository))
+	res, err := tbd.Consume(deps)
+	assert.Nil(t, res)
+	assert.Nil(t, err)
+	assert.Len(t, tbd.typos, 25)
 }
 
 func fixtureTyposDataset() *TyposDatasetBuilder {
