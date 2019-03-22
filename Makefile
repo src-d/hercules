@@ -24,8 +24,8 @@ internal/pb/pb.pb.go: internal/pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo.exe
 	protoc --gogo_out=internal/pb --proto_path=internal/pb internal/pb/pb.proto
 endif
 
-internal/pb/pb_pb2.py: internal/pb/pb.proto
-	protoc --python_out internal/pb --proto_path=internal/pb internal/pb/pb.proto
+python/hercules/pb_pb2.py: internal/pb/pb.proto
+	protoc --python_out python/hercules --proto_path=internal/pb internal/pb/pb.proto
 
 cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 	cd cmd/hercules && go generate
@@ -33,5 +33,5 @@ cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 vendor:
 	dep ensure -v
 
-${GOPATH}/bin/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go internal/pb/pb_pb2.py cmd/hercules/plugin_template_source.go
+${GOPATH}/bin/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go python/hercules/pb_pb2.py cmd/hercules/plugin_template_source.go
 	go get -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v10.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v10/cmd/hercules

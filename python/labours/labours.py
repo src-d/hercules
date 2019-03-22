@@ -263,9 +263,9 @@ class YamlReader(Reader):
 class ProtobufReader(Reader):
     def read(self, file):
         try:
-            from internal.pb.pb_pb2 import AnalysisResults
+            from hercules.pb_pb2 import AnalysisResults
         except ImportError as e:
-            print("\n\n>>> You need to generate internal/pb/pb_pb2.py - run \"make\"\n",
+            print("\n\n>>> You need to generate python/hercules/pb/pb_pb2.py - run \"make\"\n",
                   file=sys.stderr)
             raise e from None
         self.data = AnalysisResults()
@@ -382,10 +382,10 @@ class ProtobufReader(Reader):
 
 READERS = {"yaml": YamlReader, "yml": YamlReader, "pb": ProtobufReader}
 PB_MESSAGES = {
-    "Burndown": "internal.pb.pb_pb2.BurndownAnalysisResults",
-    "Couples": "internal.pb.pb_pb2.CouplesAnalysisResults",
-    "Shotness": "internal.pb.pb_pb2.ShotnessAnalysisResults",
-    "Devs": "internal.pb.pb_pb2.DevsAnalysisResults",
+    "Burndown": "hercules.pb_pb2.BurndownAnalysisResults",
+    "Couples": "hercules.pb_pb2.CouplesAnalysisResults",
+    "Shotness": "hercules.pb_pb2.ShotnessAnalysisResults",
+    "Devs": "hercules.pb_pb2.DevsAnalysisResults",
 }
 
 
@@ -1343,6 +1343,7 @@ def show_devs(args, name, start_date, end_date, people, days):
 
 
 def order_commits(chosen_people, days, people):
+    from seriate import seriate
     try:
         from fastdtw import fastdtw
     except ImportError as e:
@@ -1379,17 +1380,13 @@ def order_commits(chosen_people, days, people):
         arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to window size
         series[i] = list(arr.transpose())
     # calculate the distance matrix using dynamic time warping metric
-    dists = numpy.full((len(series) + 1, len(series) + 1), -100500, dtype=numpy.float32)
+    dists = numpy.full((len(series),) * 2, -100500, dtype=numpy.float32)
     for x in range(len(series)):
         dists[x, x] = 0
         for y in range(x + 1, len(series)):
             # L1 norm
             dist, _ = fastdtw(series[x], series[y], radius=5, dist=1)
             dists[x, y] = dists[y, x] = dist
-    # preparation for seriation ordering
-    dists[len(series), :] = 0
-    dists[:, len(series)] = 0
-    assert (dists >= 0).all()
     print("Ordering the series")
     route = seriate(dists)
     return dists, devseries, devstats, route
@@ -1407,37 +1404,6 @@ def hdbscan_cluster_routed_series(dists, route):
         [0] + [dists[route[i], route[i + 1]] for i in range(len(route) - 1)]))
     clusters = HDBSCAN(min_cluster_size=2).fit_predict(opt_dist_chain[:, numpy.newaxis])
     return clusters
-
-
-def seriate(dists):
-    try:
-        from ortools.constraint_solver import pywrapcp, routing_enums_pb2
-    except ImportError as e:
-        print("Cannot import ortools: %s\nInstall it from "
-              "https://developers.google.com/optimization/install/python/" % e)
-        sys.exit(1)
-
-    # solve the TSP on the distance matrix
-    routing = pywrapcp.RoutingModel(dists.shape[0], 1, dists.shape[0] - 1)
-
-    def dist_callback(x, y):
-        # ortools wants integers, so we approximate here
-        return int(dists[x][y] * 1000)
-
-    routing.SetArcCostEvaluatorOfAllVehicles(dist_callback)
-    search_parameters = pywrapcp.RoutingModel.DefaultSearchParameters()
-    search_parameters.local_search_metaheuristic = (
-        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
-    search_parameters.time_limit_ms = 2000
-    assignment = routing.SolveWithParameters(search_parameters)
-    index = routing.Start(0)
-    route = []
-    while not routing.IsEnd(index):
-        node = routing.IndexToNode(index)
-        if node < dists.shape[0] - 1:
-            route.append(node)
-        index = assignment.Value(routing.NextVar(index))
-    return route
 
 
 def show_devs_efforts(args, name, start_date, end_date, people, days, max_people):
@@ -1564,6 +1530,7 @@ class ParallelDevData:
 
 
 def load_devs_parallel(ownership, couples, devs, max_people):
+    from seriate import seriate
     try:
         from hdbscan import HDBSCAN
     except ImportError as e:
@@ -1611,10 +1578,8 @@ def load_devs_parallel(ownership, couples, devs, max_people):
     embeddings /= numpy.linalg.norm(embeddings, axis=1)[:, None]
     cos = embeddings.dot(embeddings.T)
     cos[cos > 1] = 1  # tiny precision faults
-    dists = numpy.zeros((len(chosen) + 1,) * 2)
-    dists[:len(chosen), :len(chosen)] = numpy.arccos(cos)
-    clusters = HDBSCAN(min_cluster_size=2, metric="precomputed").fit_predict(
-        dists[:len(chosen), :len(chosen)])
+    dists = numpy.arccos(cos)
+    clusters = HDBSCAN(min_cluster_size=2, metric="precomputed").fit_predict(dists)
     for k, v in result.items():
         v.couples_cluster = clusters[chosen.index(k)]
 

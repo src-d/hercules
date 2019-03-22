@@ -47,8 +47,8 @@ before_install:
   - export PATH=~/usr/bin:$GOPATH/bin:$PATH
   - make --version
   - pip3 --version
-  - pip3 install --user cython
-  - pip3 install --user --no-build-isolation -r requirements.txt tensorflow flake8
+  - pip3 install cython
+  - pip3 install tensorflow flake8 ./python
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
   - docker exec -it bblfshd bblfshctl driver install python bblfsh/python-driver:latest
   - docker exec -it bblfshd bblfshctl driver install go bblfsh/go-driver:latest
@@ -63,7 +63,7 @@ script:
   - if [ $TRAVIS_GO_VERSION == "1.11.x" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
   - go vet -tags tensorflow ./...
   - golint -set_exit_status $(go list ./... | grep -v /vendor/)
-  - flake8
+  - cd python && flake8 && cd ..
   - go test -coverpkg=all -v -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v10/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt
   - # race checks increase the elapsed time by 10 minutes, we run them only in AppVeyor
   - $GOPATH/bin/hercules version
@@ -72,8 +72,8 @@ script:
   - $GOPATH/bin/hercules combine 1.pb 2.pb > 12.pb
   - ($GOPATH/bin/hercules generate-plugin -n MyPlug -o myplug && cd myplug && make)
   - (cd contrib/_plugin_example && make)
-  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet https://github.com/src-d/hercules | python3 labours.py -m all -o out --backend Agg --disable-projector
-  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet --pb https://github.com/src-d/hercules | python3 labours.py -f pb -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet https://github.com/src-d/hercules | labours -m all -o out --backend Agg --disable-projector
+  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet --pb https://github.com/src-d/hercules | labours -f pb -m all -o out --backend Agg --disable-projector
   - # $GOPATH/bin/hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules > /dev/null
   - set +e
   - if [ $TRAVIS_GO_VERSION == "1.11.x" ]; then bash <(curl -s https://codecov.io/bash); fi
@@ -119,19 +119,31 @@ jobs:
         - unzip -d ~/.local protoc.zip && rm protoc.zip
         - go get -v github.com/golang/dep/cmd/dep
         - export PATH=$GOPATH/bin:$PATH
-      script: skip
+        - pip install twine pyopenssl
+      script:
+        - test $(python3 python/setup.py --version) == $TRAVIS_TAG
       install:
+        - set -e
         - travis_retry make
+        - cd python
+        - python3 setup.py bdist_wheel
+        - cd ..
       after_success:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
       deploy:
-        provider: releases
-        api_key:
-          secure: $GITHUB_TOKEN
-        file: "$GOPATH/bin/hercules.linux_amd64.gz"
-        skip_cleanup: true
-        on:
-          tags: true
+        - provider: releases
+          api_key:
+            secure: $GITHUB_TOKEN
+          file: "$GOPATH/bin/hercules.linux_amd64.gz"
+          skip_cleanup: true
+          on:
+            tags: true
+        - provider: script
+          script: twine upload python/dist/*py3-none-any* -u $PYPI_LOGIN -p $PYPI_PASS
+          skip_cleanup: true
+          on:
+            tags: true
+
 
 notifications:
   email: false

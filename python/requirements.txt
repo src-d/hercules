@@ -1,12 +1,12 @@
 clint>=0.5.1,<1.0
 matplotlib>=2.0,<4.0
-numpy>=1.16.0,<2.0
+numpy==1.16.0
 pandas>=0.20.0,<1.0
-PyYAML>=4.2b1,<5.0
+PyYAML==4.2b1
 scipy>=0.19.0,<2.0
 protobuf>=3.5.0,<4.0
 munch>=2.0
 hdbscan==0.8.18
-ortools==6.9.5824
+seriate==1.0.0
 fastdtw==0.3.2
 python-dateutil==2.8.0
