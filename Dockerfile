@@ -20,8 +20,6 @@ RUN apt-get update && \
     make && \
     rm /usr/local/bin/protoc && rm /usr/local/readme.txt && rm -rf /usr/local/include/google && \
     cp /root/bin/hercules /usr/local/bin && \
-    cp -r /root/src/gopkg.in/src-d/hercules.v10/*.py /root/src/gopkg.in/src-d/hercules.v10/internal /usr/local/bin && \
-    sed -i 's/parser.add_argument("--backend",/parser.add_argument("--backend", default="Agg",/' /usr/local/bin/labours.py && \
     echo '#!/bin/bash\n\
 \n\
 echo\n\
@@ -30,7 +28,9 @@ echo\n\' > /browser && \
     chmod +x /browser && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 - pip==18.1 && \
     pip3 install --no-cache-dir --no-build-isolation cython && \
-    pip3 install --no-cache-dir --no-build-isolation -r /root/src/gopkg.in/src-d/hercules.v10/requirements.txt https://github.com/mind/wheels/releases/download/tf1.7-cpu/tensorflow-1.7.0-cp36-cp36m-linux_x86_64.whl && \
+    sed -i 's/parser.add_argument("--backend",/parser.add_argument("--backend", default="Agg",/' /root/src/gopkg.in/src-d/hercules.v10/python/labours/labours.py && \
+    pip3 install --no-cache-dir /root/src/gopkg.in/src-d/hercules.v10/python && \
+    pip3 install --no-cache-dir "tensorflow<2.0" && \
     rm -rf /root/* && \
     apt-get remove -y software-properties-common golang-1.10-go python3-dev libyaml-dev libxml2-dev curl git make unzip g++ && \
     apt-get remove -qy *-doc *-man && \

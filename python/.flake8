@@ -3,4 +3,4 @@ ignore=D,B007
 max-line-length=99
 inline-quotes="
 import-order-style=appnexus
-exclude=.git,internal/pb/pb_pb2.py,vendor
+exclude=labours/pb_pb2.py

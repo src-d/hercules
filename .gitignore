@@ -5,6 +5,8 @@ pb/pb.pb.go
 pb/pb_pb2.py
 coverage.txt
 
+**/*.egg-info
+**/__pycache__
 **/.DS_Store
 .idea
 
