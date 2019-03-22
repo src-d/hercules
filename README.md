@@ -27,7 +27,7 @@
 Hercules is an amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries are included.
 It is powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
 
-There are two command-line tools: `hercules` and `labours.py`. The first is the program
+There are two command-line tools: `hercules` and `labours`. The first is the program
 written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md) over the full commit history.
 The second is the Python script which draws some predefined plots. These two tools are normally used together through
 a pipe. It is possible to write custom analyses using the plugin system. It is also possible
@@ -40,15 +40,15 @@ Blog posts: [1](https://blog.sourced.tech/post/hercules.v10), [2](https://blog.s
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
 
 ![git/git image](doc/linux.png)
-<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --first-parent --pb https://github.com/torvalds/linux | python3 labours.py -f pb -m burndown-project</code> in 1h 40min.</p>
+<p align="center">torvalds/linux line burndown (granularity 30, sampling 30, resampled by year). Generated with <code>hercules --burndown --first-parent --pb https://github.com/torvalds/linux | labours -f pb -m burndown-project</code> in 1h 40min.</p>
 
 ## Installation
 
 Grab `hercules` binary from the [Releases page](https://github.com/src-d/hercules/releases).
-`labours.py` requires the Python packages listed in [requirements.txt](requirements.txt):
+`labours` is installable from [PyPi](https://pypi.org/):
 
 ```
-pip3 install -r requirements.txt
+pip3 install labours
 ```
 
 [`pip3`](https://pip.pypa.io/en/stable/installing/) is the Python package manager.
@@ -62,6 +62,7 @@ and [`dep`](https://github.com/golang/dep).
 go get -d gopkg.in/src-d/hercules.v10/cmd/hercules
 cd $GOPATH/src/gopkg.in/src-d/hercules.v10
 make
+pip3 install -e ./python
 ```
 
 Replace `$GOPATH` with `%GOPATH%` on Windows.
@@ -85,21 +86,21 @@ Some examples:
 
 ```
 # Use "memory" go-git backend and display the burndown plot. "memory" is the fastest but the repository's git data must fit into RAM.
-hercules --burndown https://github.com/src-d/go-git | python3 labours.py -m burndown-project --resample month
+hercules --burndown https://github.com/src-d/go-git | labours -m burndown-project --resample month
 # Use "file system" go-git backend and print some basic information about the repository.
 hercules /path/to/cloned/go-git
 # Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache, use Protocol Buffers and display the burndown plot without resampling.
-hercules --burndown --pb https://github.com/git/git /tmp/repo-cache | python3 labours.py -m burndown-project -f pb --resample raw
+hercules --burndown --pb https://github.com/git/git /tmp/repo-cache | labours -m burndown-project -f pb --resample raw
 
 # Now something fun
 # Get the linear history from git rev-list, reverse it
 # Pipe to hercules, produce burndown snapshots for every 30 days grouped by 30 days
-# Save the raw data to cache.yaml, so that later is possible to python3 labours.py -i cache.yaml
-# Pipe the raw data to labours.py, set text font size to 16pt, use Agg matplotlib backend and save the plot to output.png
-git rev-list HEAD | tac | hercules --commits - --burndown https://github.com/git/git | tee cache.yaml | python3 labours.py -m burndown-project --font-size 16 --backend Agg --output git.png
+# Save the raw data to cache.yaml, so that later is possible to labours -i cache.yaml
+# Pipe the raw data to labours, set text font size to 16pt, use Agg matplotlib backend and save the plot to output.png
+git rev-list HEAD | tac | hercules --commits - --burndown https://github.com/git/git | tee cache.yaml | labours -m burndown-project --font-size 16 --backend Agg --output git.png
 ```
 
-`labours.py -i /path/to/yaml` allows to read the output from `hercules` which was saved on disk.
+`labours -i /path/to/yaml` allows to read the output from `hercules` which was saved on disk.
 
 #### Caching
 
@@ -117,7 +118,7 @@ hercules --some-analysis /tmp/repo-cache
 #### Docker image
 
 ```
-docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours.py -f pb -m burndown-project -o /io/git_git.png
+docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours -f pb -m burndown-project -o /io/git_git.png
 ```
 
 ### Built-in analyses
@@ -126,7 +127,7 @@ docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/gi
 
 ```
 hercules --burndown
-python3 labours.py -m burndown-project
+labours -m burndown-project
 ```
 
 Line burndown statistics for the whole repository.
@@ -139,7 +140,7 @@ Granularity is the number of days each band in the stack consists of. Sampling
 is the frequency with which the burnout state is snapshotted. The smaller the
 value, the more smooth is the plot but the more work is done.
 
-There is an option to resample the bands inside `labours.py`, so that you can
+There is an option to resample the bands inside `labours`, so that you can
 define a very precise distribution and visualize it different ways. Besides,
 resampling aligns the bands across periodic boundaries, e.g. months or years.
 Unresampled bands are apparently not aligned and start from the project's birth date.
@@ -148,7 +149,7 @@ Unresampled bands are apparently not aligned and start from the project's birth 
 
 ```
 hercules --burndown --burndown-files
-python3 labours.py -m burndown-file
+labours -m burndown-file
 ```
 
 Burndown statistics for every file in the repository which is alive in the latest revision.
@@ -159,7 +160,7 @@ Note: it will generate separate graph for every file. You might don't want to ru
 
 ```
 hercules --burndown --burndown-people [--people-dict=/path/to/identities]
-python3 labours.py -m burndown-person
+labours -m burndown-person
 ```
 
 Burndown statistics for the repository's contributors. If `--people-dict` is not specified, the identities are
@@ -183,7 +184,7 @@ by `|`. The case is ignored.
 
 ```
 hercules --burndown --burndown-people [--people-dict=/path/to/identities]
-python3 labours.py -m churn-matrix
+labours -m churn-matrix
 ```
 
 Beside the burndown information, `--burndown-people` collects the added and deleted line statistics per
@@ -207,7 +208,7 @@ The sequence of developers is stored in `people_sequence` YAML node.
 
 ```
 hercules --burndown --burndown-people [--people-dict=/path/to/identities]
-python3 labours.py -m ownership
+labours -m ownership
 ```
 
 `--burndown-people` also allows to draw the code share through time stacked area plot. That is,
@@ -220,14 +221,14 @@ how many lines are alive at the sampled moments in time for each identified deve
 
 ```
 hercules --couples [--people-dict=/path/to/identities]
-python3 labours.py -m couples -o <name> [--couples-tmp-dir=/tmp]
+labours -m couples -o <name> [--couples-tmp-dir=/tmp]
 ```
 
 **Important**: it requires Tensorflow to be installed, please follow [official instructions](https://www.tensorflow.org/install/).
 
 The files are coupled if they are changed in the same commit. The developers are coupled if they
 change the same file. `hercules` records the number of couples throughout the whole commit history
-and outputs the two corresponding co-occurrence matrices. `labours.py` then trains
+and outputs the two corresponding co-occurrence matrices. `labours` then trains
 [Swivel embeddings](https://github.com/src-d/tensorflow-swivel) - dense vectors which reflect the
 co-occurrence probability through the Euclidean distance. The training requires a working
 [Tensorflow](http://tensorflow.org) installation. The intermediate files are stored in the
@@ -257,13 +258,13 @@ manual to switch to something else.
 
 ```
 hercules --shotness [--shotness-xpath-*]
-python3 labours.py -m shotness
+labours -m shotness
 ```
 
 Couples analysis automatically loads "shotness" data if available.
 
 ![Jinja2 functions grouped by structural hotness](doc/jinja.png)
-<p align="center"><code>hercules --shotness --pb https://github.com/pallets/jinja | python3 labours.py -m couples -f pb</code></p>
+<p align="center"><code>hercules --shotness --pb https://github.com/pallets/jinja | labours -m couples -f pb</code></p>
 
 #### Aligned commit series
 
@@ -272,7 +273,7 @@ Couples analysis automatically loads "shotness" data if available.
 
 ```
 hercules --devs [--people-dict=/path/to/identities]
-python3 labours.py -m devs -o <name>
+labours -m devs -o <name>
 ```
 
 We record how many commits made, as well as lines added, removed and changed per day for each developer.
@@ -307,7 +308,7 @@ insights from the `tensorflow/tensorflow` plot above:
 
 ```
 hercules --devs [--people-dict=/path/to/identities]
-python3 labours.py -m old-vs-new -o <name>
+labours -m old-vs-new -o <name>
 ```
 
 `--devs` from the previous section allows to plot how many lines were added and how many existing changed
@@ -320,7 +321,7 @@ python3 labours.py -m old-vs-new -o <name>
 
 ```
 hercules --devs [--people-dict=/path/to/identities]
-python3 labours.py -m devs-efforts -o <name>
+labours -m devs-efforts -o <name>
 ```
 
 Besides, `--devs` allows to plot how many lines have been changed (added or removed) by each developer.
@@ -332,7 +333,7 @@ with owning lines.
 #### Sentiment (positive and negative comments)
 
 ![Django sentiment](doc/sentiment.png)
-<p align="center">It can be clearly seen that Django comments were positive/optimistic in the beginning, but later became negative/pessimistic.<br><code>hercules --sentiment --pb https://github.com/django/django | python3 labours.py -m sentiment -f pb</code></p>
+<p align="center">It can be clearly seen that Django comments were positive/optimistic in the beginning, but later became negative/pessimistic.<br><code>hercules --sentiment --pb https://github.com/django/django | labours -m sentiment -f pb</code></p>
 
 We extract new and changed comments from source code on every commit, apply [BiDiSentiment](https://github.com/vmarkovtsev/bidisentiment)
 general purpose sentiment recurrent neural network and plot the results. Requires
@@ -354,7 +355,7 @@ Such a build requires [`libtensorflow`](https://www.tensorflow.org/install/insta
 
 ```
 hercules --burndown --burndown-files --burndown-people --couples --shotness --devs [--people-dict=/path/to/identities]
-python3 labours.py -m all
+labours -m all
 ```
 
 ### Plugins
@@ -368,17 +369,17 @@ Hercules has a plugin system and allows to run custom analyses. See [PLUGINS.md]
 ```
 hercules --burndown --pb https://github.com/src-d/go-git > go-git.pb
 hercules --burndown --pb https://github.com/src-d/hercules > hercules.pb
-hercules combine go-git.pb hercules.pb | python3 labours.py -f pb -m burndown-project --resample M
+hercules combine go-git.pb hercules.pb | labours -f pb -m burndown-project --resample M
 ```
 
 ### Bad unicode errors
 
-YAML does not support the whole range of Unicode characters and the parser on `labours.py` side
+YAML does not support the whole range of Unicode characters and the parser on `labours` side
 may raise exceptions. Filter the output from `hercules` through `fix_yaml_unicode.py` to discard
 such offending characters.
 
 ```
-hercules --burndown --burndown-people https://github.com/... | python3 fix_yaml_unicode.py | python3 labours.py -m people
+hercules --burndown --burndown-people https://github.com/... | python3 fix_yaml_unicode.py | labours -m people
 ```
 
 ### Plotting
@@ -386,10 +387,10 @@ hercules --burndown --burndown-people https://github.com/... | python3 fix_yaml_
 These options affects all plots:
 
 ```
-python3 labours.py [--style=white|black] [--backend=] [--size=Y,X]
+labours [--style=white|black] [--backend=] [--size=Y,X]
 ```
 
-`--style` sets the general style of the plot (see `labours.py --help`).
+`--style` sets the general style of the plot (see `labours --help`).
 `--background` changes the plot background to be either white or black.
 `--backend` chooses the Matplotlib backend.
 `--size` sets the size of the figure in inches. The default is `12,9`.
@@ -403,7 +404,7 @@ echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
 These options are effective in burndown charts only:
 
 ```
-python3 labours.py [--text-size] [--relative]
+labours [--text-size] [--relative]
 ```
 
 `--text-size` changes the font size, `--relative` activate the stretched burndown layout.
@@ -423,7 +424,7 @@ please report there and specify `--first-parent` as a workaround.
 1. Parsing YAML in Python is slow when the number of internal objects is big. `hercules`' output
 for the Linux kernel in "couples" mode is 1.5 GB and takes more than an hour / 180GB RAM to be
 parsed. However, most of the repositories are parsed within a minute. Try using Protocol Buffers
-instead (`hercules --pb` and `labours.py -f pb`).
+instead (`hercules --pb` and `labours -f pb`).
 1. To speed up yaml parsing
    ```
    # Debian, Ubuntu
