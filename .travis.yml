@@ -119,14 +119,16 @@ jobs:
         - unzip -d ~/.local protoc.zip && rm protoc.zip
         - go get -v github.com/golang/dep/cmd/dep
         - export PATH=$GOPATH/bin:$PATH
-        - pip install twine pyopenssl
+        - (wget -O - https://bootstrap.pypa.io/get-pip.py || wget -O - https://raw.githubusercontent.com/pypa/get-pip/master/get-pip.py) | sudo python3 - pip==18.1
+        - sudo pip3 install twine pyopenssl
       script:
-        - test $(python3 python/setup.py --version) == $TRAVIS_TAG
+        - test v$(python3 python/setup.py --version) == $TRAVIS_TAG
       install:
         - set -e
         - travis_retry make
         - cd python
         - python3 setup.py bdist_wheel
+        - cp dist/*py3-none-any* $GOPATH/bin
         - cd ..
       after_success:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
@@ -139,7 +141,7 @@ jobs:
           on:
             tags: true
         - provider: script
-          script: twine upload python/dist/*py3-none-any* -u $PYPI_LOGIN -p $PYPI_PASS
+          script: twine upload $GOPATH/bin/*py3-none-any* -u $PYPI_LOGIN -p $PYPI_PASS
           skip_cleanup: true
           on:
             tags: true
