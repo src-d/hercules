@@ -26,16 +26,19 @@
 ## Overview
 
 Hercules is an amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries are included.
-It is powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
+Powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
 
-There are two command-line tools: `hercules` and `labours`. The first is the program
-written in Go which takes a Git repository and runs a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md) over the full commit history.
-The second is the Python script which draws some predefined plots. These two tools are normally used together through
+There are two command-line tools: `hercules` and `labours`. The first is a program
+written in Go which takes a Git repository and executes a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md) over the full commit history.
+The second is a Python script which shows some predefined plots over the collected data. These two tools are normally used together through
 a pipe. It is possible to write custom analyses using the plugin system. It is also possible
-to merge several analysis results together. The commit history includes branches, merges, etc.
+to merge several analysis results together - relevant for organizations. 
+The analyzed commit history includes branches, merges, etc.
 
-Blog posts: [1](https://blog.sourced.tech/post/hercules.v10), [2](https://blog.sourced.tech/post/hercules).
-[Presentation](http://vmarkovtsev.github.io/gowayfest-2018-minsk/).
+Hercules has been successfully used for several internal projects at [source{d}](https://sourced.tech).
+There are blog posts: [1](https://blog.sourced.tech/post/hercules.v10), [2](https://blog.sourced.tech/post/hercules) and
+a [presentation](http://vmarkovtsev.github.io/gowayfest-2018-minsk/). Please [contribute](#contributions)
+by testing, fixing bugs, adding [new analyses](https://github.com/src-d/hercules/issues?q=is%3Aissue+is%3Aopen+label%3Anew-analysis), or coding swagger!
 
 ![Hercules DAG of Burndown analysis](doc/dag.png)
 <p align="center">The DAG of burndown and couples analyses with UAST diff refining. Generated with <code>hercules --burndown --burndown-people --couples --feature=uast --dry-run --dump-dag doc/dag.dot https://github.com/src-d/hercules</code></p>
