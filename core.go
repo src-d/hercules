@@ -79,6 +79,8 @@ const (
 	// ConfigPipelineCommits is the name of the Pipeline configuration option (Pipeline.Initialize())
 	// which allows to specify the custom commit sequence. By default, Pipeline.Commits() is used.
 	ConfigPipelineCommits = core.ConfigPipelineCommits
+	// ConfigTickSize is the number of hours per 'tick'
+	ConfigTickSize = plumbing.ConfigTicksSinceStartTickSize
 )
 
 // NewPipeline initializes a new instance of Pipeline struct.
