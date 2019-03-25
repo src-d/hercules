@@ -237,10 +237,10 @@ func TestTyposDatasetSerialize(t *testing.T) {
 	buffer := &bytes.Buffer{}
 	err := ca.Serialize(res, false, buffer)
 	assert.Nil(t, err)
-	assert.Equal(t, `  - wrong: Fo
-    correct: Foo
+	assert.Equal(t, `  - wrong: "Fo"
+    correct: "Foo"
     commit: 0000000000000000000000000000000000000000
-    file: bar.go
+    file: "bar.go"
     line: 7
 `, buffer.String())
 

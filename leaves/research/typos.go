@@ -19,6 +19,7 @@ import (
 	"gopkg.in/src-d/hercules.v10/internal/pb"
 	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
 	uast_items "gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
+	"gopkg.in/src-d/hercules.v10/internal/yaml"
 )
 
 // TyposDatasetBuilder collects pairs of typo-fix in source code identifiers.
@@ -272,10 +273,10 @@ func (tdb *TyposDatasetBuilder) Serialize(result interface{}, binary bool, write
 
 func (tdb *TyposDatasetBuilder) serializeText(result *TyposResult, writer io.Writer) {
 	for _, t := range result.Typos {
-		fmt.Fprintf(writer, "  - wrong: %s\n", t.Wrong)
-		fmt.Fprintf(writer, "    correct: %s\n", t.Correct)
+		fmt.Fprintf(writer, "  - wrong: %s\n", yaml.SafeString(t.Wrong))
+		fmt.Fprintf(writer, "    correct: %s\n", yaml.SafeString(t.Correct))
 		fmt.Fprintf(writer, "    commit: %s\n", t.Commit.String())
-		fmt.Fprintf(writer, "    file: %s\n", t.File)
+		fmt.Fprintf(writer, "    file: %s\n", yaml.SafeString(t.File))
 		fmt.Fprintf(writer, "    line: %d\n", t.Line)
 	}
 }
