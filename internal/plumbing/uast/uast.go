@@ -294,6 +294,13 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 	return map[string]interface{}{DependencyUasts: uasts}, nil
 }
 
+// Dispose closes the open GRPC channels.
+func (exr *Extractor) Dispose() {
+	for _, client := range exr.clients {
+		client.Close()
+	}
+}
+
 // Fork clones this PipelineItem.
 func (exr *Extractor) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(exr, n)
