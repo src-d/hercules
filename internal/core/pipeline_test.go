@@ -21,6 +21,7 @@ import (
 type testPipelineItem struct {
 	Initialized      bool
 	DepsConsumed     bool
+	Disposed         bool
 	Forked           bool
 	Merged           *bool
 	CommitMatches    bool
@@ -116,6 +117,10 @@ func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]i
 		}
 	}
 	return map[string]interface{}{"test": item}, nil
+}
+
+func (item *testPipelineItem) Dispose() {
+	item.Disposed = true
 }
 
 func (item *testPipelineItem) Fork(n int) []PipelineItem {
@@ -304,6 +309,7 @@ func TestPipelineRun(t *testing.T) {
 		assert.True(t, val >= 0, key)
 	}
 	assert.True(t, item.DepsConsumed)
+	assert.True(t, item.Disposed)
 	assert.True(t, item.CommitMatches)
 	assert.True(t, item.IndexMatches)
 	assert.Equal(t, 1, *item.MergeState)
