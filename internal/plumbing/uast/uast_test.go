@@ -43,6 +43,7 @@ func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash strin
 
 func TestUASTExtractorMeta(t *testing.T) {
 	exr := fixtureUASTExtractor()
+	defer exr.Dispose()
 	assert.Equal(t, exr.Name(), "UAST")
 	assert.Equal(t, len(exr.Provides()), 1)
 	assert.Equal(t, exr.Provides()[0], DependencyUasts)
@@ -63,14 +64,15 @@ func TestUASTExtractorMeta(t *testing.T) {
 
 func TestUASTExtractorConfiguration(t *testing.T) {
 	exr := fixtureUASTExtractor()
+	defer exr.Dispose()
 	facts := map[string]interface{}{}
-	exr.Configure(facts)
+	assert.Nil(t, exr.Configure(facts))
 	facts[ConfigUASTEndpoint] = "localhost:9432"
 	facts[ConfigUASTTimeout] = 15
 	facts[ConfigUASTPoolSize] = 7
 	facts[ConfigUASTFailOnErrors] = true
 	facts[ConfigUASTIgnoreMissingDrivers] = []string{"test"}
-	exr.Configure(facts)
+	assert.Nil(t, exr.Configure(facts))
 	assert.Equal(t, exr.Endpoint, facts[ConfigUASTEndpoint])
 	assert.NotNil(t, exr.Context)
 	assert.Equal(t, exr.PoolSize, facts[ConfigUASTPoolSize])
@@ -95,6 +97,7 @@ func TestUASTExtractorNoBabelfish(t *testing.T) {
 
 func TestUASTExtractorConsume(t *testing.T) {
 	exr := fixtureUASTExtractor()
+	defer exr.Dispose()
 	changes := make(object.Changes, 4)
 	// 2b1ed978194a94edeabbca6de7ff3b5771d4d665
 	treeFrom, _ := test.Repository.TreeObject(plumbing.NewHash(
@@ -211,6 +214,7 @@ func TestUASTExtractorConsume(t *testing.T) {
 
 func TestUASTExtractorFork(t *testing.T) {
 	exr1 := fixtureUASTExtractor()
+	defer exr1.Dispose()
 	clones := exr1.Fork(1)
 	assert.Len(t, clones, 1)
 	exr2 := clones[0].(*Extractor)

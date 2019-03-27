@@ -128,6 +128,17 @@ type FeaturedPipelineItem interface {
 	Features() []string
 }
 
+// DisposablePipelineItem enables resources cleanup after finishing running the pipeline.
+type DisposablePipelineItem interface {
+	PipelineItem
+	// Dispose frees any previously allocated unmanaged resources. No Consume() calls are possible
+	// afterwards. The item needs to be Initialize()-d again.
+	// This method is invoked once for each item in the pipeline, **in a single forked instance**.
+	// Thus it is the responsibility of the item's programmer to deal with forks and merges, if
+	// necessary.
+	Dispose()
+}
+
 // LeafPipelineItem corresponds to the top level pipeline items which produce the end results.
 type LeafPipelineItem interface {
 	PipelineItem
@@ -855,6 +866,9 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	result := map[LeafPipelineItem]interface{}{}
 	if !pipeline.DryRun {
 		for index, item := range getMasterBranch(branches) {
+			if casted, ok := item.(DisposablePipelineItem); ok {
+				casted.Dispose()
+			}
 			if casted, ok := item.(LeafPipelineItem); ok {
 				result[pipeline.items[index].(LeafPipelineItem)] = casted.Finalize()
 			}
