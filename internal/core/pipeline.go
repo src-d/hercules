@@ -273,6 +273,9 @@ type Pipeline struct {
 
 	// Feature flags which enable the corresponding items.
 	features map[string]bool
+
+	// The logger for printing output.
+	l Logger
 }
 
 const (
@@ -318,8 +321,12 @@ func NewPipeline(repository *git.Repository) *Pipeline {
 		items:      []PipelineItem{},
 		facts:      map[string]interface{}{},
 		features:   map[string]bool{},
+		l:          NewLogger(),
 	}
 }
+
+// SetLogger updates the pipeline's logger.
+func (pipeline *Pipeline) SetLogger(l Logger) { pipeline.l = l }
 
 // GetFact returns the value of the fact with the specified name.
 func (pipeline *Pipeline) GetFact(name string) interface{} {
