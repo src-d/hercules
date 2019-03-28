@@ -460,11 +460,12 @@ func TestPipelineDeps(t *testing.T) {
 	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, result[item1].(bool))
 	assert.Equal(t, result[item2], item2)
 	item1.TestNilConsumeReturn = true
-	assert.Panics(t, func() { pipeline.Run(commits) })
+	_, err = pipeline.Run(commits)
+	assert.Error(t, err)
 }
 
 func TestPipelineDeployFeatures(t *testing.T) {
