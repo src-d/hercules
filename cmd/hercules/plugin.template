@@ -34,6 +34,8 @@ type {{.name}} struct {
   hercules.NoopMerger
   // Process each merge commit only once
   hercules.OneShotMergeProcessor
+  // Logger for consistent output
+  l hercules.Logger
 }
 
 // {{.name}}Result is returned by Finalize() and represents the analysis result.
@@ -81,11 +83,17 @@ func ({{.varname}} *{{.name}}) Description() string {
 
 // Configure applies the parameters specified in the command line. Map keys correspond to "Name".
 func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) error {
+  if l, exists := facts[hercules.ConfigLogger].(hercules.Logger); exists {
+		{{.varname}}.l = l
+	}
   return nil
 }
 
 // Initialize resets the internal temporary data structures and prepares the object for Consume().
 func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) error {
+  if {{.varname}}.l == nil {
+    l = hercules.NewLogger()
+  }
   {{.varname}}.OneShotMergeProcessor.Initialize()
   return nil
 }
