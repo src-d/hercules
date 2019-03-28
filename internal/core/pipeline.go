@@ -569,7 +569,8 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 		for _, key := range item.Requires() {
 			key = "[" + key + "]"
 			if graph.AddEdge(key, name) == 0 {
-				log.Panicf("Unsatisfied dependency: %s -> %s", key, item.Name())
+				pipeline.l.Errorf("Unsatisfied dependency: %s -> %s", key, item.Name())
+				return
 			}
 		}
 	}
@@ -622,7 +623,8 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 	}
 	strplan, ok := graph.Toposort()
 	if !ok {
-		panic("Failed to resolve pipeline dependencies: unable to topologically sort the items.")
+		pipeline.l.Errorf("Failed to resolve pipeline dependencies: unable to topologically sort the items.")
+		return
 	}
 	pipeline.items = make([]PipelineItem, 0, len(pipeline.items))
 	for _, key := range strplan {
@@ -635,7 +637,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 		// fmt.Fprint(os.Stderr, graphCopy.DebugDump())
 		ioutil.WriteFile(dumpPath, []byte(graphCopy.Serialize(strplan)), 0666)
 		absPath, _ := filepath.Abs(dumpPath)
-		log.Printf("Wrote the DAG to %s\n", absPath)
+		pipeline.l.Infof("Wrote the DAG to %s\n", absPath)
 	}
 }
 
@@ -648,7 +650,7 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 		if !cleanReturn {
 			remotes, _ := pipeline.repository.Remotes()
 			if len(remotes) > 0 {
-				log.Printf("Failed to initialize the pipeline on %s", remotes[0].Config().URLs)
+				pipeline.l.Errorf("Failed to initialize the pipeline on %s", remotes[0].Config().URLs)
 			}
 		}
 	}()
@@ -664,13 +666,16 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 		var err error
 		facts[ConfigPipelineCommits], err = pipeline.Commits(false)
 		if err != nil {
-			log.Panicf("failed to list the commits: %v", err)
+			pipeline.l.Errorf("failed to list the commits: %v", err)
+			return err
 		}
 	}
 	pipeline.PrintActions, _ = facts[ConfigPipelinePrintActions].(bool)
 	if val, exists := facts[ConfigPipelineHibernationDistance].(int); exists {
 		if val < 0 {
-			log.Panicf("--hibernation-distance cannot be negative (got %d)", val)
+			err := fmt.Errorf("--hibernation-distance cannot be negative (got %d)", val)
+			pipeline.l.Error(err)
+			return err
 		}
 		pipeline.HibernationDistance = val
 	}
@@ -721,7 +726,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 		if !cleanReturn {
 			remotes, _ := pipeline.repository.Remotes()
 			if len(remotes) > 0 {
-				log.Printf("Failed to run the pipeline on %s", remotes[0].Config().URLs)
+				pipeline.l.Errorf("Failed to run the pipeline on %s", remotes[0].Config().URLs)
 			}
 		}
 	}()
@@ -797,14 +802,16 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				update, err := item.Consume(state)
 				runTimePerItem[item.Name()] += time.Now().Sub(startTime).Seconds()
 				if err != nil {
-					log.Printf("%s failed on commit #%d (%d) %s\n",
-						item.Name(), commitIndex+1, index+1, step.Commit.Hash.String())
+					pipeline.l.Errorf("%s failed on commit #%d (%d) %s: %v\n",
+						item.Name(), commitIndex+1, index+1, step.Commit.Hash.String(), err)
 					return nil, err
 				}
 				for _, key := range item.Provides() {
 					val, ok := update[key]
 					if !ok {
-						log.Panicf("%s: Consume() did not return %s", item.Name(), key)
+						err := fmt.Errorf("%s: Consume() did not return %s", item.Name(), key)
+						pipeline.l.Error(err)
+						return nil, err
 					}
 					state[key] = val
 				}
@@ -843,7 +850,8 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 						startTime := time.Now()
 						err := hi.Hibernate()
 						if err != nil {
-							log.Panicf("Failed to hibernate %s: %v\n", item.Name(), err)
+							pipeline.l.Errorf("Failed to hibernate %s: %v\n", item.Name(), err)
+							return nil, err
 						}
 						runTimePerItem[item.Name()+".Hibernation"] += time.Now().Sub(startTime).Seconds()
 					}
@@ -856,7 +864,8 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 						startTime := time.Now()
 						err := hi.Boot()
 						if err != nil {
-							log.Panicf("Failed to boot %s: %v\n", item.Name(), err)
+							pipeline.l.Errorf("Failed to boot %s: %v\n", item.Name(), err)
+							return nil, err
 						}
 						runTimePerItem[item.Name()+".Hibernation"] += time.Now().Sub(startTime).Seconds()
 					}
