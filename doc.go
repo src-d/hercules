@@ -37,6 +37,15 @@ Finally extract the result:
 
 The actual usage example is cmd/hercules/root.go - the command line tool's code.
 
+You can provide additional options via `facts` on initialization. For example,
+to provide your own logger, enable people-tracking, and set a custom tick size:
+
+  pipe.Initialize(map[string]interface{}{
+    hercules.ConfigLogger:            zap.NewExample().Sugar(),
+    hercules.ConfigTickSize:          12,
+    leaves.ConfigBurndownTrackPeople: true,
+  })
+
 Hercules depends heavily on https://github.com/src-d/go-git and leverages the
 diff algorithm through https://github.com/sergi/go-diff.
 
