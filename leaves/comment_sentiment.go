@@ -5,7 +5,6 @@ package leaves
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -21,7 +20,7 @@ import (
 	"gopkg.in/src-d/hercules.v10/internal/pb"
 	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
 	uast_items "gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
-	"gopkg.in/vmarkovtsev/BiDiSentiment.v1"
+	sentiment "gopkg.in/vmarkovtsev/BiDiSentiment.v1"
 )
 
 // CommentSentimentAnalysis measures comment sentiment through time.
@@ -34,6 +33,8 @@ type CommentSentimentAnalysis struct {
 	commentsByTick map[int][]string
 	commitsByTick  map[int][]plumbing.Hash
 	xpather        *uast_items.ChangesXPather
+
+	l core.Logger
 }
 
 // CommentSentimentResult contains the sentiment values per tick, where 1 means very negative
@@ -116,6 +117,9 @@ func (sent *CommentSentimentAnalysis) Description() string {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		sent.l = l
+	}
 	if val, exists := facts[ConfigCommentSentimentGap]; exists {
 		sent.Gap = val.(float32)
 	}
@@ -129,12 +133,12 @@ func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) er
 
 func (sent *CommentSentimentAnalysis) validate() {
 	if sent.Gap < 0 || sent.Gap >= 1 {
-		log.Printf("Sentiment gap is too big: %f => reset to the default %f",
+		sent.l.Warnf("Sentiment gap is too big: %f => reset to the default %f",
 			sent.Gap, DefaultCommentSentimentGap)
 		sent.Gap = DefaultCommentSentimentGap
 	}
 	if sent.MinCommentLength < 10 {
-		log.Printf("Comment minimum length is too small: %d => reset to the default %d",
+		sent.l.Warnf("Comment minimum length is too small: %d => reset to the default %d",
 			sent.MinCommentLength, DefaultCommentSentimentCommentMinLength)
 		sent.MinCommentLength = DefaultCommentSentimentCommentMinLength
 	}
@@ -143,6 +147,7 @@ func (sent *CommentSentimentAnalysis) validate() {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (sent *CommentSentimentAnalysis) Initialize(repository *git.Repository) error {
+	sent.l = core.NewLogger()
 	sent.commentsByTick = map[int][]string{}
 	sent.xpather = &uast_items.ChangesXPather{XPath: "//uast:Comment"}
 	sent.validate()

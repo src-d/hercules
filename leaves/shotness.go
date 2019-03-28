@@ -3,7 +3,6 @@ package leaves
 import (
 	"fmt"
 	"io"
-	"log"
 	"sort"
 	"unicode/utf8"
 
@@ -31,6 +30,8 @@ type ShotnessAnalysis struct {
 
 	nodes map[string]*nodeShotness
 	files map[string]map[string]*nodeShotness
+
+	l core.Logger
 }
 
 const (
@@ -129,6 +130,9 @@ func (shotness *ShotnessAnalysis) Description() string {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		shotness.l = l
+	}
 	if val, exists := facts[ConfigShotnessXpathStruct]; exists {
 		shotness.XpathStruct = val.(string)
 	} else {
@@ -145,6 +149,7 @@ func (shotness *ShotnessAnalysis) Configure(facts map[string]interface{}) error 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (shotness *ShotnessAnalysis) Initialize(repository *git.Repository) error {
+	shotness.l = core.NewLogger()
 	shotness.nodes = map[string]*nodeShotness{}
 	shotness.files = map[string]map[string]*nodeShotness{}
 	shotness.OneShotMergeProcessor.Initialize()
@@ -209,7 +214,7 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 		if change.Before == nil {
 			nodes, err := shotness.extractNodes(change.After)
 			if err != nil {
-				log.Printf("Shotness: commit %s file %s failed to filter UAST: %s\n",
+				shotness.l.Warnf("Shotness: commit %s file %s failed to filter UAST: %s\n",
 					commit.Hash.String(), toName, err.Error())
 				continue
 			}
@@ -245,14 +250,14 @@ func (shotness *ShotnessAnalysis) Consume(deps map[string]interface{}) (map[stri
 		// pass through new UAST
 		nodesBefore, err := shotness.extractNodes(change.Before)
 		if err != nil {
-			log.Printf("Shotness: commit ^%s file %s failed to filter UAST: %s\n",
+			shotness.l.Warnf("Shotness: commit ^%s file %s failed to filter UAST: %s\n",
 				commit.Hash.String(), change.Change.From.Name, err.Error())
 			continue
 		}
 		reversedNodesBefore := reverseNodeMap(nodesBefore)
 		nodesAfter, err := shotness.extractNodes(change.After)
 		if err != nil {
-			log.Printf("Shotness: commit %s file %s failed to filter UAST: %s\n",
+			shotness.l.Warnf("Shotness: commit %s file %s failed to filter UAST: %s\n",
 				commit.Hash.String(), toName, err.Error())
 			continue
 		}

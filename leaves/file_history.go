@@ -25,6 +25,8 @@ type FileHistoryAnalysis struct {
 	core.OneShotMergeProcessor
 	files      map[string]*FileHistory
 	lastCommit *object.Commit
+
+	l core.Logger
 }
 
 // FileHistoryResult is returned by Finalize() and represents the analysis result.
@@ -79,12 +81,16 @@ func (history *FileHistoryAnalysis) Description() string {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (history *FileHistoryAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		history.l = l
+	}
 	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (history *FileHistoryAnalysis) Initialize(repository *git.Repository) error {
+	history.l = core.NewLogger()
 	history.files = map[string]*FileHistory{}
 	history.OneShotMergeProcessor.Initialize()
 	return nil

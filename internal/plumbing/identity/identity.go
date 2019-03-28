@@ -21,6 +21,8 @@ type Detector struct {
 	PeopleDict map[string]int
 	// ReversedPeopleDict maps developer id -> description
 	ReversedPeopleDict []string
+
+	l core.Logger
 }
 
 const (
@@ -84,6 +86,11 @@ func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption 
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (detector *Detector) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		detector.l = l
+	} else {
+		detector.l = core.NewLogger()
+	}
 	if val, exists := facts[FactIdentityDetectorPeopleDict].(map[string]int); exists {
 		detector.PeopleDict = val
 	}
@@ -116,6 +123,7 @@ func (detector *Detector) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (detector *Detector) Initialize(repository *git.Repository) error {
+	detector.l = core.NewLogger()
 	return nil
 }
 

@@ -5,6 +5,9 @@ import (
 	"os"
 )
 
+// ConfigLogger is the key for the pipeline's logger
+const ConfigLogger = "Core.Logger"
+
 // Logger defines the output interface used by Hercules components.
 type Logger interface {
 	Info(...interface{})

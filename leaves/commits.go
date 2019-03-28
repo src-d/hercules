@@ -23,6 +23,8 @@ type CommitsAnalysis struct {
 	commits []*CommitStat
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+
+	l core.Logger
 }
 
 // CommitsResult is returned by CommitsAnalysis.Finalize() and carries the statistics
@@ -77,6 +79,9 @@ func (ca *CommitsAnalysis) ListConfigurationOptions() []core.ConfigurationOption
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (ca *CommitsAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		ca.l = l
+	}
 	if val, exists := facts[identity.FactIdentityDetectorReversedPeopleDict].([]string); exists {
 		ca.reversedPeopleDict = val
 	}
@@ -96,6 +101,7 @@ func (ca *CommitsAnalysis) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ca *CommitsAnalysis) Initialize(repository *git.Repository) error {
+	ca.l = core.NewLogger()
 	return nil
 }
 

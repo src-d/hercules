@@ -29,6 +29,8 @@ type TreeDiff struct {
 	previousTree   *object.Tree
 	previousCommit plumbing.Hash
 	repository     *git.Repository
+
+	l core.Logger
 }
 
 const (
@@ -120,6 +122,9 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (treediff *TreeDiff) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		treediff.l = l
+	}
 	if val, exists := facts[ConfigTreeDiffEnableBlacklist].(bool); exists && val {
 		treediff.SkipFiles = facts[ConfigTreeDiffBlacklistedPrefixes].([]string)
 	}
@@ -142,6 +147,7 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (treediff *TreeDiff) Initialize(repository *git.Repository) error {
+	treediff.l = core.NewLogger()
 	treediff.previousTree = nil
 	treediff.repository = repository
 	if treediff.Languages == nil {

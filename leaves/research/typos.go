@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"unicode/utf8"
 
 	"github.com/gogo/protobuf/proto"
@@ -38,6 +37,8 @@ type TyposDatasetBuilder struct {
 	xpather uast_items.ChangesXPather
 	// remote carries the repository remote URL (for debugging)
 	remote string
+
+	l core.Logger
 }
 
 // TyposResult is returned by TyposDatasetBuilder.Finalize() and carries the found typo-fix
@@ -101,6 +102,9 @@ func (tdb *TyposDatasetBuilder) ListConfigurationOptions() []core.ConfigurationO
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (tdb *TyposDatasetBuilder) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		tdb.l = l
+	}
 	if val, exists := facts[ConfigTyposDatasetMaximumAllowedDistance].(int); exists {
 		tdb.MaximumAllowedDistance = val
 	}
@@ -120,6 +124,7 @@ func (tdb *TyposDatasetBuilder) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (tdb *TyposDatasetBuilder) Initialize(repository *git.Repository) error {
+	tdb.l = core.NewLogger()
 	if tdb.MaximumAllowedDistance <= 0 {
 		tdb.MaximumAllowedDistance = DefaultMaximumAllowedTypoDistance
 	}
@@ -198,7 +203,7 @@ func (tdb *TyposDatasetBuilder) Consume(deps map[string]interface{}) (map[string
 		for _, n := range nodesAdded {
 			pos := uast.PositionsOf(n.(nodes.Object))
 			if pos.Start() == nil {
-				log.Printf("repo %s commit %s file %s adds identifier %s with no position",
+				tdb.l.Infof("repo %s commit %s file %s adds identifier %s with no position",
 					tdb.remote, commit.String(), change.Change.To.Name,
 					n.(nodes.Object)["Name"].(nodes.String))
 				continue
@@ -211,7 +216,7 @@ func (tdb *TyposDatasetBuilder) Consume(deps map[string]interface{}) (map[string
 		for _, n := range nodesRemoved {
 			pos := uast.PositionsOf(n.(nodes.Object))
 			if pos.Start() == nil {
-				log.Printf("repo %s commit %s file %s removes identifier %s with no position",
+				tdb.l.Infof("repo %s commit %s file %s removes identifier %s with no position",
 					tdb.remote, commit.String(), change.Change.To.Name,
 					n.(nodes.Object)["Name"].(nodes.String))
 				continue

@@ -31,6 +31,8 @@ type DevsAnalysis struct {
 	ticks map[int]map[int]*DevTick
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+
+	l core.Logger
 }
 
 // DevsResult is returned by DevsAnalysis.Finalize() and carries the daily statistics
@@ -92,6 +94,9 @@ func (devs *DevsAnalysis) ListConfigurationOptions() []core.ConfigurationOption 
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (devs *DevsAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		devs.l = l
+	}
 	if val, exists := facts[ConfigDevsConsiderEmptyCommits].(bool); exists {
 		devs.ConsiderEmptyCommits = val
 	}
@@ -114,6 +119,7 @@ func (devs *DevsAnalysis) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (devs *DevsAnalysis) Initialize(repository *git.Repository) error {
+	devs.l = core.NewLogger()
 	devs.ticks = map[int]map[int]*DevTick{}
 	devs.OneShotMergeProcessor.Initialize()
 	return nil

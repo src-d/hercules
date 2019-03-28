@@ -15,6 +15,8 @@ import (
 // LanguagesDetection run programming language detection over the changed files.
 type LanguagesDetection struct {
 	core.NoopMerger
+
+	l core.Logger
 }
 
 const (
@@ -50,12 +52,18 @@ func (langs *LanguagesDetection) ListConfigurationOptions() []core.Configuration
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (langs *LanguagesDetection) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		langs.l = l
+	} else {
+		langs.l = core.NewLogger()
+	}
 	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (langs *LanguagesDetection) Initialize(repository *git.Repository) error {
+	langs.l = core.NewLogger()
 	return nil
 }
 

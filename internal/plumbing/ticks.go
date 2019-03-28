@@ -1,7 +1,6 @@
 package plumbing
 
 import (
-	"log"
 	"time"
 
 	"gopkg.in/src-d/go-git.v4"
@@ -20,6 +19,8 @@ type TicksSinceStart struct {
 	tick0        *time.Time
 	previousTick int
 	commits      map[int][]plumbing.Hash
+
+	l core.Logger
 }
 
 const (
@@ -73,6 +74,9 @@ func (ticks *TicksSinceStart) ListConfigurationOptions() []core.ConfigurationOpt
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		ticks.l = l
+	}
 	if val, exists := facts[ConfigTicksSinceStartTickSize].(int); exists {
 		ticks.TickSize = time.Duration(val) * time.Hour
 	} else {
@@ -89,6 +93,7 @@ func (ticks *TicksSinceStart) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ticks *TicksSinceStart) Initialize(repository *git.Repository) error {
+	ticks.l = core.NewLogger()
 	if ticks.TickSize == 0 {
 		ticks.TickSize = DefaultTicksSinceStartTickSize * time.Hour
 	}
@@ -120,8 +125,7 @@ func (ticks *TicksSinceStart) Consume(deps map[string]interface{}) (map[string]i
 		// our precision is 1 day
 		*ticks.tick0 = commit.Committer.When
 		if ticks.tick0.Unix() < 631152000 { // 01.01.1990, that was 30 years ago
-			log.Println()
-			log.Printf("Warning: suspicious committer timestamp in %s > %s: %d",
+			ticks.l.Warnf("suspicious committer timestamp in %s > %s: %d",
 				ticks.remote, commit.Hash.String(), ticks.tick0.Unix())
 		}
 	}

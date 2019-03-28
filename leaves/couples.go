@@ -38,6 +38,8 @@ type CouplesAnalysis struct {
 	lastCommit *object.Commit
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+
+	l core.Logger
 }
 
 // CouplesResult is returned by CouplesAnalysis.Finalize() and carries couples matrices from
@@ -99,6 +101,9 @@ func (couples *CouplesAnalysis) ListConfigurationOptions() []core.ConfigurationO
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		couples.l = l
+	}
 	if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
 		couples.PeopleNumber = val
 		couples.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
@@ -121,6 +126,7 @@ func (couples *CouplesAnalysis) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (couples *CouplesAnalysis) Initialize(repository *git.Repository) error {
+	couples.l = core.NewLogger()
 	couples.people = make([]map[string]int, couples.PeopleNumber+1)
 	for i := range couples.people {
 		couples.people[i] = map[string]int{}

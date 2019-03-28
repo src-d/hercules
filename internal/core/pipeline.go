@@ -336,9 +336,6 @@ func NewPipeline(repository *git.Repository) *Pipeline {
 	}
 }
 
-// SetLogger updates the pipeline's logger.
-func (pipeline *Pipeline) SetLogger(l Logger) { pipeline.l = l }
-
 // GetFact returns the value of the fact with the specified name.
 func (pipeline *Pipeline) GetFact(name string) interface{} {
 	return pipeline.facts[name]
@@ -657,6 +654,11 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 	}()
 	if facts == nil {
 		facts = map[string]interface{}{}
+	}
+	if l, exists := facts[ConfigLogger].(Logger); exists {
+		pipeline.l = l
+	} else {
+		facts[ConfigLogger] = pipeline.l
 	}
 	if _, exists := facts[ConfigPipelineCommits]; !exists {
 		var err error

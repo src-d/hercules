@@ -105,6 +105,8 @@ type BurndownAnalysis struct {
 	tickSize time.Duration
 	// references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+
+	l core.Logger
 }
 
 // BurndownResult carries the result of running BurndownAnalysis - it is returned by
@@ -253,6 +255,11 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []core.Configuratio
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		analyser.l = l
+	} else {
+		analyser.l = core.NewLogger()
+	}
 	if val, exists := facts[ConfigBurndownGranularity].(int); exists {
 		analyser.Granularity = val
 	}
@@ -305,24 +312,25 @@ func (analyser *BurndownAnalysis) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
+	analyser.l = core.NewLogger()
 	if analyser.Granularity <= 0 {
-		log.Printf("Warning: adjusted the granularity to %d ticks\n",
+		analyser.l.Warnf("adjusted the granularity to %d ticks\n",
 			DefaultBurndownGranularity)
 		analyser.Granularity = DefaultBurndownGranularity
 	}
 	if analyser.Sampling <= 0 {
-		log.Printf("Warning: adjusted the sampling to %d ticks\n",
+		analyser.l.Warnf("adjusted the sampling to %d ticks\n",
 			DefaultBurndownGranularity)
 		analyser.Sampling = DefaultBurndownGranularity
 	}
 	if analyser.Sampling > analyser.Granularity {
-		log.Printf("Warning: granularity may not be less than sampling, adjusted to %d\n",
+		analyser.l.Warnf("granularity may not be less than sampling, adjusted to %d\n",
 			analyser.Granularity)
 		analyser.Sampling = analyser.Granularity
 	}
 	if analyser.tickSize == 0 {
 		def := items.DefaultTicksSinceStartTickSize * time.Hour
-		log.Printf("Warning: tick size was not set, adjusted to %v\n", def)
+		analyser.l.Warnf("tick size was not set, adjusted to %v\n", def)
 		analyser.tickSize = items.DefaultTicksSinceStartTickSize * time.Hour
 	}
 	analyser.repository = repository
@@ -1321,7 +1329,7 @@ func (analyser *BurndownAnalysis) handleModification(
 
 	thisDiffs := diffs[change.To.Name]
 	if file.Len() != thisDiffs.OldLinesOfCode {
-		log.Printf("====TREE====\n%s", file.Dump())
+		analyser.l.Infof("====TREE====\n%s", file.Dump())
 		return fmt.Errorf("%s: internal integrity error src %d != %d %s -> %s",
 			change.To.Name, thisDiffs.OldLinesOfCode, file.Len(),
 			change.From.TreeEntry.Hash.String(), change.To.TreeEntry.Hash.String())
@@ -1352,13 +1360,13 @@ func (analyser *BurndownAnalysis) handleModification(
 		}
 		length := utf8.RuneCountInString(edit.Text)
 		debugError := func() {
-			log.Printf("%s: internal diff error\n", change.To.Name)
-			log.Printf("Update(%d, %d, %d (0), %d (0))\n", analyser.tick, position,
+			analyser.l.Errorf("%s: internal diff error\n", change.To.Name)
+			analyser.l.Errorf("Update(%d, %d, %d (0), %d (0))\n", analyser.tick, position,
 				length, utf8.RuneCountInString(pending.Text))
 			if dumpBefore != "" {
-				log.Printf("====TREE BEFORE====\n%s====END====\n", dumpBefore)
+				analyser.l.Errorf("====TREE BEFORE====\n%s====END====\n", dumpBefore)
 			}
-			log.Printf("====TREE AFTER====\n%s====END====\n", file.Dump())
+			analyser.l.Errorf("====TREE AFTER====\n%s====END====\n", file.Dump())
 		}
 		switch edit.Type {
 		case diffmatchpatch.DiffEqual:

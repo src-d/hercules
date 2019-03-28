@@ -1,7 +1,6 @@
 package plumbing
 
 import (
-	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,6 +29,8 @@ type RenameAnalysis struct {
 	SimilarityThreshold int
 
 	repository *git.Repository
+
+	l core.Logger
 }
 
 const (
@@ -92,6 +93,9 @@ func (ra *RenameAnalysis) ListConfigurationOptions() []core.ConfigurationOption 
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (ra *RenameAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		ra.l = l
+	}
 	if val, exists := facts[ConfigRenameAnalysisSimilarityThreshold].(int); exists {
 		ra.SimilarityThreshold = val
 	}
@@ -101,8 +105,9 @@ func (ra *RenameAnalysis) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ra *RenameAnalysis) Initialize(repository *git.Repository) error {
+	ra.l = core.NewLogger()
 	if ra.SimilarityThreshold < 0 || ra.SimilarityThreshold > 100 {
-		log.Printf("Warning: adjusted the similarity threshold to %d\n",
+		ra.l.Warnf("adjusted the similarity threshold to %d\n",
 			RenameAnalysisDefaultThreshold)
 		ra.SimilarityThreshold = RenameAnalysisDefaultThreshold
 	}
@@ -384,9 +389,8 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 	cleanReturn := false
 	defer func() {
 		if !cleanReturn {
-			log.Println()
-			log.Println(blob1.Hash.String())
-			log.Println(blob2.Hash.String())
+			ra.l.Warnf("unclean return detected for blobs '%s' and '%s'\n",
+				blob1.Hash.String(), blob2.Hash.String())
 		}
 	}()
 	_, err1 := blob1.CountLines()
