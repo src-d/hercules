@@ -3,7 +3,6 @@ package plumbing
 import (
 	"fmt"
 	"io"
-	"log"
 	"path"
 	"regexp"
 	"strings"
@@ -171,7 +170,9 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 		}
 	}
 	if !pass && treediff.previousCommit != plumbing.ZeroHash {
-		log.Panicf("%s > %s", treediff.previousCommit.String(), commit.Hash.String())
+		err := fmt.Errorf("%s > %s", treediff.previousCommit.String(), commit.Hash.String())
+		treediff.l.Error(err)
+		return nil, err
 	}
 	tree, err := commit.Tree()
 	if err != nil {

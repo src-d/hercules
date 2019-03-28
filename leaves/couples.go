@@ -3,7 +3,6 @@ package leaves
 import (
 	"fmt"
 	"io"
-	"log"
 	"sort"
 
 	"github.com/gogo/protobuf/proto"
@@ -218,14 +217,18 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 	for i, name := range filesSequence {
 		file, err := couples.lastCommit.File(name)
 		if err != nil {
-			log.Panicf("cannot find file %s in commit %s: %v",
+			err := fmt.Errorf("cannot find file %s in commit %s: %v",
 				name, couples.lastCommit.Hash.String(), err)
+			couples.l.Error(err)
+			return err
 		}
 		blob := items.CachedBlob{Blob: file.Blob}
 		err = blob.Cache()
 		if err != nil {
-			log.Panicf("cannot read blob %s of file %s: %v",
+			err := fmt.Errorf("cannot read blob %s of file %s: %v",
 				blob.Hash.String(), name, err)
+			couples.l.Error(err)
+			return err
 		}
 		filesLines[i], _ = blob.CountLines()
 	}
@@ -307,8 +310,10 @@ func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, erro
 		}
 	}
 	if len(message.FileCouples.Index) != len(message.FilesLines) {
-		log.Panicf("Couples PB message integrity violation: file_couples (%d) != file_lines (%d)",
+		err := fmt.Errorf("Couples PB message integrity violation: file_couples (%d) != file_lines (%d)",
 			len(message.FileCouples.Index), len(message.FilesLines))
+		couples.l.Error(err)
+		return nil, err
 	}
 	for i, v := range message.FilesLines {
 		result.FilesLines[i] = int(v)
