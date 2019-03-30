@@ -265,9 +265,10 @@ func (detector *Detector) GeneratePeopleDict(commits []*object.Commit) {
 	detector.ReversedPeopleDict = reverseDict
 }
 
-// MergeReversedDicts joins two identity lists together, excluding duplicates, in-order.
+// MergeReversedDictsLiteral joins two string lists together, excluding duplicates, in-order.
+// The string comparisons are the usual ones.
 // The returned mapping's values are: final index, index in first, index in second (-1 for a miss).
-func (detector Detector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]int, []string) {
+func (detector Detector) MergeReversedDictsLiteral(rd1, rd2 []string) (map[string][3]int, []string) {
 	people := map[string][3]int{}
 	for i, pid := range rd1 {
 		ptrs := people[pid]
@@ -290,6 +291,14 @@ func (detector Detector) MergeReversedDicts(rd1, rd2 []string) (map[string][3]in
 		mrd[ptrs[0]] = name
 	}
 	return people, mrd
+}
+
+// MergeReversedDictsIdentities joins two identity lists together, excluding duplicates.
+// The strings are split by "|" and we find the connected components..
+// The returned mapping's values are: final index, index in first, index in second (-1 for a miss).
+func (detector Detector) MergeReversedDictsIdentities(rd1, rd2 []string) (map[string][3]int, []string) {
+
+	return nil, nil
 }
 
 func init() {
