@@ -240,7 +240,7 @@ class YamlReader(Reader):
         people = self.data["Devs"]["people"]
         days = {int(d): {int(dev): DevDay(*(int(x) for x in day[:-1]), day[-1])
                          for dev, day in devs.items()}
-                for d, devs in self.data["Devs"]["days"].items()}
+                for d, devs in self.data["Devs"]["ticks"].items()}
         return people, days
 
     def _parse_burndown_matrix(self, matrix):
