@@ -240,7 +240,7 @@ class YamlReader(Reader):
         people = self.data["Devs"]["people"]
         days = {int(d): {int(dev): DevDay(*(int(x) for x in day[:-1]), day[-1])
                          for dev, day in devs.items()}
-                for d, devs in self.data["Devs"]["days"].items()}
+                for d, devs in self.data["Devs"]["ticks"].items()}
         return people, days
 
     def _parse_burndown_matrix(self, matrix):
@@ -1349,6 +1349,13 @@ def order_commits(chosen_people, days, people):
     except ImportError as e:
         print("Cannot import fastdtw: %s\nInstall it from https://github.com/slaypni/fastdtw" % e)
         sys.exit(1)
+    # FIXME(vmarkovtsev): remove once https://github.com/slaypni/fastdtw/pull/28 is merged&released
+    try:
+        sys.modules["fastdtw.fastdtw"].__norm = lambda p: lambda a, b: numpy.linalg.norm(
+            numpy.atleast_1d(a) - numpy.atleast_1d(b), p)
+    except KeyError:
+        # the native extension does not have this bug
+        pass
 
     devseries = defaultdict(list)
     devstats = defaultdict(lambda: DevDay(0, 0, 0, 0, {}))
@@ -1377,15 +1384,21 @@ def order_commits(chosen_people, days, people):
                  windows[-1, 5] / windows[-1].max(),
                  windows[-1, 6] / windows[-1].max()]
             ))
-        arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to window size
-        series[i] = list(arr.transpose())
+        arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to the window size
+        series[i] = arr.transpose()
     # calculate the distance matrix using dynamic time warping metric
     dists = numpy.full((len(series),) * 2, -100500, dtype=numpy.float32)
-    for x in range(len(series)):
+    for x, serx in enumerate(series):
         dists[x, x] = 0
-        for y in range(x + 1, len(series)):
+        for y, sery in enumerate(series[x + 1:], start=x + 1):
+            min_day = int(min(serx[0][0], sery[0][0]))
+            max_day = int(max(serx[-1][0], sery[-1][0]))
+            arrx = numpy.zeros(max_day - min_day + 1, dtype=numpy.float32)
+            arry = numpy.zeros_like(arrx)
+            arrx[serx[:, 0].astype(int) - min_day] = serx[:, 1]
+            arry[sery[:, 0].astype(int) - min_day] = sery[:, 1]
             # L1 norm
-            dist, _ = fastdtw(series[x], series[y], radius=5, dist=1)
+            dist, _ = fastdtw(arrx, arry, radius=5, dist=1)
             dists[x, y] = dists[y, x] = dist
     print("Ordering the series")
     route = seriate(dists)

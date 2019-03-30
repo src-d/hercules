@@ -660,8 +660,8 @@ func (analyser *BurndownAnalysis) MergeResults(
 	} else {
 		merged.granularity = bar2.granularity
 	}
-	var people map[string][3]int
-	people, merged.reversedPeopleDict = identity.Detector{}.MergeReversedDicts(
+	var people map[string]identity.MergedIndex
+	people, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
 		bar1.reversedPeopleDict, bar2.reversedPeopleDict)
 	var wg sync.WaitGroup
 	if len(bar1.GlobalHistory) > 0 || len(bar2.GlobalHistory) > 0 {
@@ -685,11 +685,11 @@ func (analyser *BurndownAnalysis) MergeResults(
 				go func(i int) {
 					defer wg.Done()
 					var m1, m2 DenseHistory
-					if ptrs[1] >= 0 {
-						m1 = bar1.PeopleHistories[ptrs[1]]
+					if ptrs.First >= 0 {
+						m1 = bar1.PeopleHistories[ptrs.First]
 					}
-					if ptrs[2] >= 0 {
-						m2 = bar2.PeopleHistories[ptrs[2]]
+					if ptrs.Second >= 0 {
+						m2 = bar2.PeopleHistories[ptrs.Second]
 					}
 					merged.PeopleHistories[i] = analyser.mergeMatrices(
 						m1, m2,
@@ -723,18 +723,18 @@ func (analyser *BurndownAnalysis) MergeResults(
 					merged.PeopleMatrix[i] = make([]int64, len(merged.reversedPeopleDict)+2)
 				}
 				for i, key := range bar1.reversedPeopleDict {
-					mi := people[key][0] // index in merged.reversedPeopleDict
+					mi := people[key].Final // index in merged.reversedPeopleDict
 					copy(merged.PeopleMatrix[mi][:2], bar1.PeopleMatrix[i][:2])
 					for j, val := range bar1.PeopleMatrix[i][2:] {
-						merged.PeopleMatrix[mi][2+people[bar1.reversedPeopleDict[j]][0]] = val
+						merged.PeopleMatrix[mi][2+people[bar1.reversedPeopleDict[j]].Final] = val
 					}
 				}
 				for i, key := range bar2.reversedPeopleDict {
-					mi := people[key][0] // index in merged.reversedPeopleDict
+					mi := people[key].Final // index in merged.reversedPeopleDict
 					merged.PeopleMatrix[mi][0] += bar2.PeopleMatrix[i][0]
 					merged.PeopleMatrix[mi][1] += bar2.PeopleMatrix[i][1]
 					for j, val := range bar2.PeopleMatrix[i][2:] {
-						merged.PeopleMatrix[mi][2+people[bar2.reversedPeopleDict[j]][0]] += val
+						merged.PeopleMatrix[mi][2+people[bar2.reversedPeopleDict[j]].Final] += val
 					}
 				}
 			}
