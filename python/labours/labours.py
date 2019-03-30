@@ -1349,6 +1349,13 @@ def order_commits(chosen_people, days, people):
     except ImportError as e:
         print("Cannot import fastdtw: %s\nInstall it from https://github.com/slaypni/fastdtw" % e)
         sys.exit(1)
+    # FIXME(vmarkovtsev): remove once https://github.com/slaypni/fastdtw/pull/28 is merged&released
+    try:
+        sys.modules["fastdtw.fastdtw"].__norm = lambda p: lambda a, b: numpy.linalg.norm(
+            numpy.atleast_1d(a) - numpy.atleast_1d(b), p)
+    except KeyError:
+        # the native extension does not have this bug
+        pass
 
     devseries = defaultdict(list)
     devstats = defaultdict(lambda: DevDay(0, 0, 0, 0, {}))
