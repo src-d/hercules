@@ -3,6 +3,8 @@ package core
 import (
 	"log"
 	"os"
+	"runtime/debug"
+	"strings"
 )
 
 // ConfigLogger is the key for the pipeline's logger
@@ -48,7 +50,29 @@ func (d *DefaultLogger) Warn(v ...interface{}) { d.W.Print(v...) }
 func (d *DefaultLogger) Warnf(f string, v ...interface{}) { d.W.Printf(f, v...) }
 
 // Error writes to the error logger
-func (d *DefaultLogger) Error(v ...interface{}) { d.E.Print(v...) }
+func (d *DefaultLogger) Error(v ...interface{}) {
+	d.E.Print(v...)
+	d.logStacktraceToErr()
+}
 
 // Errorf writes to the error logger
-func (d *DefaultLogger) Errorf(f string, v ...interface{}) { d.E.Printf(f, v...) }
+func (d *DefaultLogger) Errorf(f string, v ...interface{}) {
+	d.E.Printf(f, v...)
+	d.logStacktraceToErr()
+}
+
+// logStacktraceToErr prints a stacktrace to the logger's error output.
+// It skips 4 levels that aren't meaningful to a logged stacktrace:
+// * debug.Stack()
+// * core.captureStacktrace()
+// * DefaultLogger::logStacktraceToErr()
+// * DefaultLogger::Error() or DefaultLogger::Errorf()
+func (d *DefaultLogger) logStacktraceToErr() {
+	d.E.Println("stacktrace:\n" + strings.Join(captureStacktrace(0), "\n"))
+}
+
+func captureStacktrace(skip int) []string {
+	stack := string(debug.Stack())
+	lines := strings.Split(stack, "\n")
+	return lines[2*skip+1:]
+}
