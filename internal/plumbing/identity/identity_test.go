@@ -46,11 +46,11 @@ func TestIdentityDetectorMeta(t *testing.T) {
 func TestIdentityDetectorConfigure(t *testing.T) {
 	id := fixtureIdentityDetector()
 	facts := map[string]interface{}{}
-	m1 := map[string]int{}
-	m2 := []string{}
+	m1 := map[string]int{"one": 0}
+	m2 := []string{"one"}
 	facts[FactIdentityDetectorPeopleDict] = m1
 	facts[FactIdentityDetectorReversedPeopleDict] = m2
-	id.Configure(facts)
+	assert.Nil(t, id.Configure(facts))
 	assert.Equal(t, m1, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, m2, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
@@ -66,7 +66,7 @@ Vadim|vadim@sourced.tech`)
 	delete(facts, FactIdentityDetectorPeopleDict)
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
 	facts[ConfigIdentityDetectorPeopleDictPath] = tmpf.Name()
-	id.Configure(facts)
+	assert.Nil(t, id.Configure(facts))
 	assert.Len(t, id.PeopleDict, 2)
 	assert.Len(t, id.ReversedPeopleDict, 1)
 	assert.Equal(t, id.ReversedPeopleDict[0], "Vadim")
@@ -74,7 +74,7 @@ Vadim|vadim@sourced.tech`)
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
 	id = fixtureIdentityDetector()
 	id.PeopleDict = nil
-	id.Configure(facts)
+	assert.Nil(t, id.Configure(facts))
 	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.Len(t, id.PeopleDict, 4)
@@ -85,7 +85,7 @@ Vadim|vadim@sourced.tech`)
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
 	id = fixtureIdentityDetector()
 	id.ReversedPeopleDict = nil
-	id.Configure(facts)
+	assert.Nil(t, id.Configure(facts))
 	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.Len(t, id.PeopleDict, 4)
@@ -108,7 +108,7 @@ Vadim|vadim@sourced.tech`)
 	id = fixtureIdentityDetector()
 	id.PeopleDict = nil
 	id.ReversedPeopleDict = nil
-	id.Configure(facts)
+	assert.Nil(t, id.Configure(facts))
 	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.True(t, len(id.PeopleDict) >= 3)
@@ -381,26 +381,59 @@ func TestIdentityDetectorGeneratePeopleDictMailmap(t *testing.T) {
 		"strange guy|vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
 }
 
-func TestIdentityDetectorMergeReversedDicts(t *testing.T) {
-	pa1 := [...]string{"one", "two"}
-	pa2 := [...]string{"two", "three"}
-	people, merged := Detector{}.MergeReversedDicts(pa1[:], pa2[:])
+func TestIdentityDetectorMergeReversedDictsLiteral(t *testing.T) {
+	pa1 := [...]string{"one|one@one", "two|aaa@two"}
+	pa2 := [...]string{"two|aaa@two", "three|one@one"}
+	people, merged := MergeReversedDictsLiteral(pa1[:], pa2[:])
 	assert.Len(t, people, 3)
 	assert.Len(t, merged, 3)
-	assert.Equal(t, people["one"], [3]int{0, 0, -1})
-	assert.Equal(t, people["two"], [3]int{1, 1, 0})
-	assert.Equal(t, people["three"], [3]int{2, -1, 1})
-	vm := [...]string{"one", "two", "three"}
-	assert.Equal(t, merged, vm[:])
-	pa1 = [...]string{"two", "one"}
-	people, merged = Detector{}.MergeReversedDicts(pa1[:], pa2[:])
+	assert.Equal(t, people["one|one@one"], MergedIndex{0, 0, -1})
+	assert.Equal(t, people["two|aaa@two"], MergedIndex{1, 1, 0})
+	assert.Equal(t, people["three|one@one"], MergedIndex{2, -1, 1})
+	assert.Equal(t, merged, []string{"one|one@one", "two|aaa@two", "three|one@one"})
+	pa1 = [...]string{"two|aaa@two", "one|one@one"}
+	people, merged = MergeReversedDictsLiteral(pa1[:], pa2[:])
 	assert.Len(t, people, 3)
 	assert.Len(t, merged, 3)
-	assert.Equal(t, people["one"], [3]int{1, 1, -1})
-	assert.Equal(t, people["two"], [3]int{0, 0, 0})
-	assert.Equal(t, people["three"], [3]int{2, -1, 1})
-	vm = [...]string{"two", "one", "three"}
-	assert.Equal(t, merged, vm[:])
+	assert.Equal(t, people["one|one@one"], MergedIndex{1, 1, -1})
+	assert.Equal(t, people["two|aaa@two"], MergedIndex{0, 0, 0})
+	assert.Equal(t, people["three|one@one"], MergedIndex{2, -1, 1})
+	assert.Equal(t, merged, []string{"two|aaa@two", "one|one@one", "three|one@one"})
+}
+
+func TestIdentityDetectorMergeReversedDictsIdentities(t *testing.T) {
+	pa1 := [...]string{"one|one@one", "two|aaa@two"}
+	pa2 := [...]string{"two|aaa@two", "three|one@one"}
+	people, merged := MergeReversedDictsIdentities(pa1[:], pa2[:])
+	assert.Len(t, people, 3)
+	assert.Len(t, merged, 2)
+	assert.Equal(t, people["one|one@one"], MergedIndex{0, 0, -1})
+	assert.Equal(t, people["two|aaa@two"], MergedIndex{1, 1, 0})
+	assert.Equal(t, people["three|one@one"], MergedIndex{0, -1, 1})
+	assert.Equal(t, merged, []string{"one|three|one@one", "two|aaa@two"})
+}
+
+func TestIdentityDetectorMergeReversedDictsIdentitiesStrikeBack(t *testing.T) {
+	pa1 := [...]string{"one|one@one", "two|aaa@two", "three|three@three"}
+	pa2 := [...]string{"two|aaa@two", "three|one@one"}
+	people, merged := MergeReversedDictsIdentities(pa1[:], pa2[:])
+	assert.Len(t, people, 4)
+	assert.Len(t, merged, 2)
+	assert.Equal(t, people["one|one@one"], MergedIndex{0, 0, -1})
+	assert.Equal(t, people["two|aaa@two"], MergedIndex{1, 1, 0})
+	assert.Equal(t, people["three|one@one"], MergedIndex{0, -1, 1})
+	assert.Equal(t, people["three|three@three"], MergedIndex{0, 2, -1})
+	assert.Equal(t, merged, []string{"one|three|one@one|three@three", "two|aaa@two"})
+
+	pa1 = [...]string{"one|one@one", "two|aaa@two", "three|aaa@two"}
+	people, merged = MergeReversedDictsIdentities(pa1[:], pa2[:])
+	assert.Len(t, people, 4)
+	assert.Len(t, merged, 1)
+	assert.Equal(t, people["one|one@one"], MergedIndex{0, 0, -1})
+	assert.Equal(t, people["two|aaa@two"], MergedIndex{0, 1, 0})
+	assert.Equal(t, people["three|one@one"], MergedIndex{0, -1, 1})
+	assert.Equal(t, people["three|aaa@two"], MergedIndex{0, 2, -1})
+	assert.Equal(t, merged, []string{"one|three|two|aaa@two|one@one"})
 }
 
 func TestIdentityDetectorFork(t *testing.T) {

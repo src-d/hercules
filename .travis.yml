@@ -9,6 +9,7 @@ go_import_path: gopkg.in/src-d/hercules.v10
 go:
   - 1.10.x
   - 1.11.x
+  - 1.12.x
 
 services:
   - docker
@@ -26,8 +27,6 @@ before_cache:
 
 matrix:
   fast_finish: true
-  allow_failures:
-    - go: tip
 
 stages:
   - test
@@ -60,7 +59,7 @@ install:
   - travis_retry make TAGS=tensorflow
 script:
   - set -e
-  - if [ $TRAVIS_GO_VERSION == "1.11.x" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
+  - if [ $TRAVIS_GO_VERSION != "1.10.x" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
   - go vet -tags tensorflow ./...
   - golint -set_exit_status $(go list ./... | grep -v /vendor/)
   - cd python && flake8 && cd ..
@@ -90,7 +89,7 @@ jobs:
     - stage: deploy
       os: osx
       osx_image: xcode9.3
-      go: 1.11.x
+      go: 1.12.x
       go_import_path: gopkg.in/src-d/hercules.v10
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
@@ -112,7 +111,7 @@ jobs:
           tags: true
     - stage: deploy
       os: linux
-      go: 1.11.x
+      go: 1.12.x
       go_import_path: gopkg.in/src-d/hercules.v10
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip

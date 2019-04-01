@@ -243,38 +243,9 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 	cr1 := r1.(DevsResult)
 	cr2 := r2.(DevsResult)
 	merged := DevsResult{}
-	type devIndexPair struct {
-		Index1 int
-		Index2 int
-	}
-	devIndex := map[string]devIndexPair{}
-	for dev, devName := range cr1.reversedPeopleDict {
-		devIndex[devName] = devIndexPair{Index1: dev + 1, Index2: devIndex[devName].Index2}
-	}
-	for dev, devName := range cr2.reversedPeopleDict {
-		devIndex[devName] = devIndexPair{Index1: devIndex[devName].Index1, Index2: dev + 1}
-	}
-	jointDevSeq := make([]string, len(devIndex))
-	{
-		i := 0
-		for dev := range devIndex {
-			jointDevSeq[i] = dev
-			i++
-		}
-	}
-	sort.Strings(jointDevSeq)
-	merged.reversedPeopleDict = jointDevSeq
-	invDevIndex1 := map[int]int{}
-	invDevIndex2 := map[int]int{}
-	for i, dev := range jointDevSeq {
-		pair := devIndex[dev]
-		if pair.Index1 > 0 {
-			invDevIndex1[pair.Index1-1] = i
-		}
-		if pair.Index2 > 0 {
-			invDevIndex2[pair.Index2-1] = i
-		}
-	}
+	var mergedIndex map[string]identity.MergedIndex
+	mergedIndex, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
+		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
 	newticks := map[int]map[int]*DevTick{}
 	merged.Ticks = newticks
 	for tick, dd := range cr1.Ticks {
@@ -286,7 +257,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 		for dev, stats := range dd {
 			newdev := dev
 			if newdev != identity.AuthorMissing {
-				newdev = invDevIndex1[dev]
+				newdev = mergedIndex[cr1.reversedPeopleDict[dev]].Final
 			}
 			newstats, exists := newdd[newdev]
 			if !exists {
@@ -316,7 +287,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 		for dev, stats := range dd {
 			newdev := dev
 			if newdev != identity.AuthorMissing {
-				newdev = invDevIndex2[dev]
+				newdev = mergedIndex[cr2.reversedPeopleDict[dev]].Final
 			}
 			newstats, exists := newdd[newdev]
 			if !exists {
