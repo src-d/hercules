@@ -84,8 +84,8 @@ func ({{.varname}} *{{.name}}) Description() string {
 // Configure applies the parameters specified in the command line. Map keys correspond to "Name".
 func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) error {
   if l, exists := facts[hercules.ConfigLogger].(hercules.Logger); exists {
-		{{.varname}}.l = l
-	}
+    {{.varname}}.l = l
+  }
   return nil
 }
 
