@@ -69,7 +69,7 @@ func (d *DefaultLogger) Errorf(f string, v ...interface{}) {
 // * DefaultLogger::logStacktraceToErr()
 // * DefaultLogger::Error() or DefaultLogger::Errorf()
 func (d *DefaultLogger) logStacktraceToErr() {
-	d.E.Println("stacktrace:\n" + strings.Join(captureStacktrace(0), "\n"))
+	d.E.Println("stacktrace:\n" + strings.Join(captureStacktrace(4), "\n"))
 }
 
 func captureStacktrace(skip int) []string {
