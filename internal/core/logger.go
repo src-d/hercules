@@ -75,5 +75,9 @@ func (d *DefaultLogger) logStacktraceToErr() {
 func captureStacktrace(skip int) []string {
 	stack := string(debug.Stack())
 	lines := strings.Split(stack, "\n")
-	return lines[2*skip+1:]
+	linesToSkip := 2*skip + 1
+	if linesToSkip > len(lines) {
+		return lines
+	}
+	return lines[linesToSkip:]
 }
