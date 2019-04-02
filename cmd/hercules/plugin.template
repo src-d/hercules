@@ -91,9 +91,7 @@ func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) error {
 
 // Initialize resets the internal temporary data structures and prepares the object for Consume().
 func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) error {
-  if {{.varname}}.l == nil {
-    {{.varname}}.l = hercules.NewLogger()
-  }
+  {{.varname}}.l = hercules.NewLogger()
   {{.varname}}.OneShotMergeProcessor.Initialize()
   return nil
 }
