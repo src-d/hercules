@@ -41,13 +41,13 @@ func NewLogger() *DefaultLogger {
 func (d *DefaultLogger) Info(v ...interface{}) { d.I.Println(v...) }
 
 // Infof writes to info logger
-func (d *DefaultLogger) Infof(f string, v ...interface{}) { d.I.Printf(f+"\n", v...) }
+func (d *DefaultLogger) Infof(f string, v ...interface{}) { d.I.Printf(f, v...) }
 
 // Warn writes to the warning logger
 func (d *DefaultLogger) Warn(v ...interface{}) { d.W.Println(v...) }
 
 // Warnf writes to the warning logger
-func (d *DefaultLogger) Warnf(f string, v ...interface{}) { d.W.Printf(f+"\n", v...) }
+func (d *DefaultLogger) Warnf(f string, v ...interface{}) { d.W.Printf(f, v...) }
 
 // Error writes to the error logger
 func (d *DefaultLogger) Error(v ...interface{}) {
@@ -57,7 +57,7 @@ func (d *DefaultLogger) Error(v ...interface{}) {
 
 // Errorf writes to the error logger
 func (d *DefaultLogger) Errorf(f string, v ...interface{}) {
-	d.E.Printf(f+"\n", v...)
+	d.E.Printf(f, v...)
 	d.logStacktraceToErr()
 }
 
