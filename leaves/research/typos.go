@@ -203,7 +203,7 @@ func (tdb *TyposDatasetBuilder) Consume(deps map[string]interface{}) (map[string
 		for _, n := range nodesAdded {
 			pos := uast.PositionsOf(n.(nodes.Object))
 			if pos.Start() == nil {
-				tdb.l.Infof("repo %s commit %s file %s adds identifier %s with no position",
+				tdb.l.Warnf("repo %s commit %s file %s adds identifier %s with no position",
 					tdb.remote, commit.String(), change.Change.To.Name,
 					n.(nodes.Object)["Name"].(nodes.String))
 				continue
@@ -216,7 +216,7 @@ func (tdb *TyposDatasetBuilder) Consume(deps map[string]interface{}) (map[string
 		for _, n := range nodesRemoved {
 			pos := uast.PositionsOf(n.(nodes.Object))
 			if pos.Start() == nil {
-				tdb.l.Infof("repo %s commit %s file %s removes identifier %s with no position",
+				tdb.l.Warnf("repo %s commit %s file %s removes identifier %s with no position",
 					tdb.remote, commit.String(), change.Change.To.Name,
 					n.(nodes.Object)["Name"].(nodes.String))
 				continue
