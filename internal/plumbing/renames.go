@@ -389,7 +389,7 @@ func (ra *RenameAnalysis) blobsAreClose(blob1 *CachedBlob, blob2 *CachedBlob) (b
 	cleanReturn := false
 	defer func() {
 		if !cleanReturn {
-			ra.l.Warnf("unclean return detected for blobs '%s' and '%s'\n",
+			ra.l.Warnf("\nunclean return detected for blobs '%s' and '%s'\n",
 				blob1.Hash.String(), blob2.Hash.String())
 		}
 	}()
