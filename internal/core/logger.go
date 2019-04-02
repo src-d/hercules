@@ -31,8 +31,8 @@ type DefaultLogger struct {
 // NewLogger returns a configured default logger.
 func NewLogger() *DefaultLogger {
 	return &DefaultLogger{
-		I: log.New(os.Stdout, "[INFO] ", log.LstdFlags),
-		W: log.New(os.Stdout, "[WARN] ", log.LstdFlags),
+		I: log.New(os.Stderr, "[INFO] ", log.LstdFlags),
+		W: log.New(os.Stderr, "[WARN] ", log.LstdFlags),
 		E: log.New(os.Stderr, "[ERROR] ", log.LstdFlags),
 	}
 }
