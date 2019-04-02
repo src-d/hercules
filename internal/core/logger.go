@@ -37,25 +37,26 @@ func NewLogger() *DefaultLogger {
 	}
 }
 
-// Info writes to info logger
+// Info writes to "info" logger.
 func (d *DefaultLogger) Info(v ...interface{}) { d.I.Println(v...) }
 
-// Infof writes to info logger
+// Infof writes to "info" logger with printf-style formatting.
 func (d *DefaultLogger) Infof(f string, v ...interface{}) { d.I.Printf(f, v...) }
 
-// Warn writes to the warning logger
+// Warn writes to the "warning" logger.
 func (d *DefaultLogger) Warn(v ...interface{}) { d.W.Println(v...) }
 
-// Warnf writes to the warning logger
+// Warnf writes to the "warning" logger with printf-style formatting.
 func (d *DefaultLogger) Warnf(f string, v ...interface{}) { d.W.Printf(f, v...) }
 
-// Error writes to the error logger
+// Error writes to the "error" logger and logs the current stacktrace.
 func (d *DefaultLogger) Error(v ...interface{}) {
 	d.E.Println(v...)
 	d.logStacktraceToErr()
 }
 
-// Errorf writes to the error logger
+// Errorf writes to the "error" logger with printf-style formatting and logs the
+// current stacktrace.
 func (d *DefaultLogger) Errorf(f string, v ...interface{}) {
 	d.E.Printf(f, v...)
 	d.logStacktraceToErr()
