@@ -219,7 +219,7 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 		if err != nil {
 			err := fmt.Errorf("cannot find file %s in commit %s: %v",
 				name, couples.lastCommit.Hash.String(), err)
-			couples.l.Error(err)
+			couples.l.Critical(err)
 			return err
 		}
 		blob := items.CachedBlob{Blob: file.Blob}
@@ -227,7 +227,7 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 		if err != nil {
 			err := fmt.Errorf("cannot read blob %s of file %s: %v",
 				blob.Hash.String(), name, err)
-			couples.l.Error(err)
+			couples.l.Critical(err)
 			return err
 		}
 		filesLines[i], _ = blob.CountLines()
@@ -312,7 +312,7 @@ func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, erro
 	if len(message.FileCouples.Index) != len(message.FilesLines) {
 		err := fmt.Errorf("Couples PB message integrity violation: file_couples (%d) != file_lines (%d)",
 			len(message.FileCouples.Index), len(message.FilesLines))
-		couples.l.Error(err)
+		couples.l.Critical(err)
 		return nil, err
 	}
 	for i, v := range message.FilesLines {

@@ -171,7 +171,7 @@ func (treediff *TreeDiff) Consume(deps map[string]interface{}) (map[string]inter
 	}
 	if !pass && treediff.previousCommit != plumbing.ZeroHash {
 		err := fmt.Errorf("%s > %s", treediff.previousCommit.String(), commit.Hash.String())
-		treediff.l.Error(err)
+		treediff.l.Critical(err)
 		return nil, err
 	}
 	tree, err := commit.Tree()

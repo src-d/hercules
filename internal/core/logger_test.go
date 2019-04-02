@@ -43,15 +43,24 @@ func TestLogger(t *testing.T) {
 
 	l.Error(v...)
 	assert.Contains(t, eBuf.String(), "[ERROR]")
-	assert.Contains(t, eBuf.String(), "internal/core.TestLogger")
-	assert.Contains(t, eBuf.String(), "internal/core/logger_test.go:44")
 	eBuf.Reset()
 
 	l.Errorf(f, v...)
 	assert.Contains(t, eBuf.String(), "[ERROR]")
 	assert.Contains(t, eBuf.String(), "-")
+	eBuf.Reset()
+
+	l.Critical(v...)
+	assert.Contains(t, eBuf.String(), "[ERROR]")
 	assert.Contains(t, eBuf.String(), "internal/core.TestLogger")
-	assert.Contains(t, eBuf.String(), "internal/core/logger_test.go:50")
+	assert.Contains(t, eBuf.String(), "internal/core/logger_test.go:53")
+	eBuf.Reset()
+
+	l.Criticalf(f, v...)
+	assert.Contains(t, eBuf.String(), "[ERROR]")
+	assert.Contains(t, eBuf.String(), "-")
+	assert.Contains(t, eBuf.String(), "internal/core.TestLogger")
+	assert.Contains(t, eBuf.String(), "internal/core/logger_test.go:59")
 	println(eBuf.String())
 	eBuf.Reset()
 }

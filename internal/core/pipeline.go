@@ -552,7 +552,8 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 						}
 						fmt.Fprintln(os.Stderr, "]")
 					}
-					panic("Failed to resolve pipeline dependencies: ambiguous graph.")
+					pipeline.l.Critical("Failed to resolve pipeline dependencies: ambiguous graph.")
+					return
 				}
 				ambiguousMap[key] = graph.FindParents(key)
 			}
@@ -569,7 +570,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 		for _, key := range item.Requires() {
 			key = "[" + key + "]"
 			if graph.AddEdge(key, name) == 0 {
-				pipeline.l.Errorf("Unsatisfied dependency: %s -> %s", key, item.Name())
+				pipeline.l.Criticalf("Unsatisfied dependency: %s -> %s", key, item.Name())
 				return
 			}
 		}
@@ -623,7 +624,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) {
 	}
 	strplan, ok := graph.Toposort()
 	if !ok {
-		pipeline.l.Errorf("Failed to resolve pipeline dependencies: unable to topologically sort the items.")
+		pipeline.l.Critical("Failed to resolve pipeline dependencies: unable to topologically sort the items.")
 		return
 	}
 	pipeline.items = make([]PipelineItem, 0, len(pipeline.items))
@@ -810,7 +811,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 					val, ok := update[key]
 					if !ok {
 						err := fmt.Errorf("%s: Consume() did not return %s", item.Name(), key)
-						pipeline.l.Error(err)
+						pipeline.l.Critical(err)
 						return nil, err
 					}
 					state[key] = val
