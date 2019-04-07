@@ -94,6 +94,8 @@ type BurndownAnalysis struct {
 	mergedAuthor int
 	// renames is a quick and dirty solution for the "future branch renames" problem.
 	renames map[string]string
+	// deletions is a quick and dirty solution for the "real merge removals" problem.
+	deletions map[string]bool
 	// matrix is the mutual deletions and self insertions.
 	matrix []map[int]int64
 	// tick is the most recent tick index processed.
@@ -245,7 +247,7 @@ func (analyser *BurndownAnalysis) ListConfigurationOptions() []core.Configuratio
 		Type:    core.PathConfigurationOption,
 		Default: ""}, {
 		Name:        ConfigBurndownDebug,
-		Description: "Validate the trees on each step.",
+		Description: "Validate the trees at each step.",
 		Flag:        "burndown-debug",
 		Type:        core.BoolConfigurationOption,
 		Default:     false},
@@ -346,6 +348,7 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 	analyser.mergedFiles = map[string]bool{}
 	analyser.mergedAuthor = identity.AuthorMissing
 	analyser.renames = map[string]string{}
+	analyser.deletions = map[string]bool{}
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
 	analyser.tick = 0
 	analyser.previousTick = 0
@@ -1243,6 +1246,7 @@ func (analyser *BurndownAnalysis) handleInsertion(
 	}
 	file, err = analyser.newFile(hash, name, author, analyser.tick, lines)
 	analyser.files[name] = file
+	delete(analyser.deletions, name)
 	if analyser.tick == burndown.TreeMergeMark {
 		analyser.mergedFiles[name] = true
 	}
@@ -1268,7 +1272,17 @@ func (analyser *BurndownAnalysis) handleDeletion(
 	if !exists {
 		return nil
 	}
-	file.Update(analyser.packPersonWithTick(author, analyser.tick), 0, 0, lines)
+	// Parallel independent file removals are incorrectly handled. The solution seems to be quite
+	// complex, but feel free to suggest your ideas.
+	// These edge cases happen *very* rarely, so we don't bother for now.
+	tick := analyser.tick
+	// Are we merging and this file has never been actually deleted in any branch?
+	if analyser.tick == burndown.TreeMergeMark && !analyser.deletions[name] {
+		tick = 0
+		// Early removal in one branch with pre-merge changes in another is not handled correctly.
+	}
+	analyser.deletions[name] = true
+	file.Update(analyser.packPersonWithTick(author, tick), 0, 0, lines)
 	file.Delete()
 	delete(analyser.files, name)
 	delete(analyser.fileHistories, name)
@@ -1424,6 +1438,7 @@ func (analyser *BurndownAnalysis) handleRename(from, to string) error {
 	}
 	delete(analyser.files, from)
 	analyser.files[to] = file
+	delete(analyser.deletions, to)
 	if analyser.tick == burndown.TreeMergeMark {
 		analyser.mergedFiles[from] = false
 	}

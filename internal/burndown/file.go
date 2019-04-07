@@ -46,7 +46,7 @@ func (file *File) updateTime(currentTime, previousTime, delta int) {
 		panic("previousTime cannot be TreeMergeMark")
 	}
 	if currentTime&TreeMergeMark == TreeMergeMark {
-		// merge mode - `delta` is negative and we have already applied it in a branch
+		// merge mode - we have already updated in one of the branches
 		return
 	}
 	for _, update := range file.updaters {

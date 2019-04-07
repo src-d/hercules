@@ -15,7 +15,7 @@ setup(
     description="Python companion for github.com/src-d/hercules to visualize the results.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version="10.0.0",
+    version="10.0.1",
     license="Apache-2.0",
     author="source{d}",
     author_email="machine-learning@sourced.tech",
