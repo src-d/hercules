@@ -18,6 +18,8 @@ import (
 // optimal, choose the one which touches less AST nodes.
 type FileDiffRefiner struct {
 	core.NoopMerger
+
+	l core.Logger
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -54,12 +56,16 @@ func (ref *FileDiffRefiner) ListConfigurationOptions() []core.ConfigurationOptio
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (ref *FileDiffRefiner) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		ref.l = l
+	}
 	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ref *FileDiffRefiner) Initialize(repository *git.Repository) error {
+	ref.l = core.NewLogger()
 	return nil
 }
 

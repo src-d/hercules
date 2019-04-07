@@ -3,7 +3,6 @@ package leaves
 import (
 	"fmt"
 	"io"
-	"log"
 	"sort"
 
 	"github.com/gogo/protobuf/proto"
@@ -38,6 +37,8 @@ type CouplesAnalysis struct {
 	lastCommit *object.Commit
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+
+	l core.Logger
 }
 
 // CouplesResult is returned by CouplesAnalysis.Finalize() and carries couples matrices from
@@ -99,6 +100,9 @@ func (couples *CouplesAnalysis) ListConfigurationOptions() []core.ConfigurationO
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		couples.l = l
+	}
 	if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
 		couples.PeopleNumber = val
 		couples.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
@@ -121,6 +125,7 @@ func (couples *CouplesAnalysis) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (couples *CouplesAnalysis) Initialize(repository *git.Repository) error {
+	couples.l = core.NewLogger()
 	couples.people = make([]map[string]int, couples.PeopleNumber+1)
 	for i := range couples.people {
 		couples.people[i] = map[string]int{}
@@ -212,14 +217,18 @@ func (couples *CouplesAnalysis) Finalize() interface{} {
 	for i, name := range filesSequence {
 		file, err := couples.lastCommit.File(name)
 		if err != nil {
-			log.Panicf("cannot find file %s in commit %s: %v",
+			err := fmt.Errorf("cannot find file %s in commit %s: %v",
 				name, couples.lastCommit.Hash.String(), err)
+			couples.l.Critical(err)
+			return err
 		}
 		blob := items.CachedBlob{Blob: file.Blob}
 		err = blob.Cache()
 		if err != nil {
-			log.Panicf("cannot read blob %s of file %s: %v",
+			err := fmt.Errorf("cannot read blob %s of file %s: %v",
 				blob.Hash.String(), name, err)
+			couples.l.Critical(err)
+			return err
 		}
 		filesLines[i], _ = blob.CountLines()
 	}
@@ -301,8 +310,10 @@ func (couples *CouplesAnalysis) Deserialize(pbmessage []byte) (interface{}, erro
 		}
 	}
 	if len(message.FileCouples.Index) != len(message.FilesLines) {
-		log.Panicf("Couples PB message integrity violation: file_couples (%d) != file_lines (%d)",
+		err := fmt.Errorf("Couples PB message integrity violation: file_couples (%d) != file_lines (%d)",
 			len(message.FileCouples.Index), len(message.FilesLines))
+		couples.l.Critical(err)
+		return nil, err
 	}
 	for i, v := range message.FilesLines {
 		result.FilesLines[i] = int(v)

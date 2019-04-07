@@ -60,6 +60,11 @@ func TestUASTExtractorMeta(t *testing.T) {
 	feats := exr.Features()
 	assert.Len(t, feats, 1)
 	assert.Equal(t, feats[0], FeatureUast)
+	logger := core.NewLogger()
+	assert.NoError(t, exr.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, exr.l)
 }
 
 func TestUASTExtractorConfiguration(t *testing.T) {
@@ -239,6 +244,11 @@ func TestUASTChangesMeta(t *testing.T) {
 	assert.Equal(t, ch.Requires()[1], items.DependencyTreeChanges)
 	opts := ch.ListConfigurationOptions()
 	assert.Len(t, opts, 0)
+	logger := core.NewLogger()
+	assert.NoError(t, ch.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, ch.l)
 }
 
 func TestUASTChangesRegistration(t *testing.T) {
@@ -369,6 +379,11 @@ func TestUASTChangesSaverMeta(t *testing.T) {
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigUASTChangesSaverOutputPath)
 	assert.Equal(t, chs.Flag(), "dump-uast-changes")
+	logger := core.NewLogger()
+	assert.NoError(t, chs.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, chs.l)
 }
 
 func TestUASTChangesSaverConfiguration(t *testing.T) {

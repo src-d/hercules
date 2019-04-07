@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"runtime"
@@ -16,7 +15,7 @@ import (
 
 	"github.com/Jeffail/tunny"
 	"github.com/gogo/protobuf/proto"
-	"gopkg.in/bblfsh/client-go.v3"
+	bblfsh "gopkg.in/bblfsh/client-go.v3"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
 	"gopkg.in/src-d/go-git.v4"
@@ -41,6 +40,8 @@ type Extractor struct {
 
 	clients []*bblfsh.Client
 	pool    *tunny.Pool
+
+	l core.Logger
 }
 
 const (
@@ -159,6 +160,9 @@ func (exr *Extractor) ListConfigurationOptions() []core.ConfigurationOption {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (exr *Extractor) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		exr.l = l
+	}
 	if val, exists := facts[ConfigUASTEndpoint].(string); exists {
 		exr.Endpoint = val
 	}
@@ -186,6 +190,7 @@ func (exr *Extractor) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (exr *Extractor) Initialize(repository *git.Repository) error {
+	exr.l = core.NewLogger()
 	if exr.Context == nil {
 		exr.Context = func() (context.Context, context.CancelFunc) {
 			return context.WithTimeout(context.Background(),
@@ -207,7 +212,7 @@ func (exr *Extractor) Initialize(repository *git.Repository) error {
 		client, err := bblfsh.NewClient(exr.Endpoint)
 		if err != nil {
 			if err.Error() == "context deadline exceeded" {
-				log.Println("Looks like the Babelfish server is not running. Please refer " +
+				exr.l.Error("Looks like the Babelfish server is not running. Please refer " +
 					"to https://docs.sourced.tech/babelfish/using-babelfish/getting-started#running-with-docker-recommended")
 			}
 			return err
@@ -289,7 +294,7 @@ func (exr *Extractor) Consume(deps map[string]interface{}) (map[string]interface
 		if exr.FailOnErrors {
 			return nil, errors.New(joined)
 		}
-		log.Println(joined)
+		exr.l.Error(joined)
 	}
 	return map[string]interface{}{DependencyUasts: uasts}, nil
 }
@@ -362,6 +367,8 @@ const (
 type Changes struct {
 	core.NoopMerger
 	cache map[plumbing.Hash]nodes.Node
+
+	l core.Logger
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -392,12 +399,16 @@ func (uc *Changes) ListConfigurationOptions() []core.ConfigurationOption {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (uc *Changes) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		uc.l = l
+	}
 	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (uc *Changes) Initialize(repository *git.Repository) error {
+	uc.l = core.NewLogger()
 	uc.cache = map[plumbing.Hash]nodes.Node{}
 	return nil
 }
@@ -463,6 +474,8 @@ type ChangesSaver struct {
 
 	repository *git.Repository
 	result     [][]Change
+
+	l core.Logger
 }
 
 const (
@@ -515,6 +528,9 @@ func (saver *ChangesSaver) Description() string {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (saver *ChangesSaver) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		saver.l = l
+	}
 	if val, exists := facts[ConfigUASTChangesSaverOutputPath]; exists {
 		saver.OutputPath = val.(string)
 	}
@@ -524,6 +540,7 @@ func (saver *ChangesSaver) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (saver *ChangesSaver) Initialize(repository *git.Repository) error {
+	saver.l = core.NewLogger()
 	saver.repository = repository
 	saver.result = [][]Change{}
 	saver.OneShotMergeProcessor.Initialize()

@@ -18,6 +18,8 @@ type FileDiff struct {
 	core.NoopMerger
 	CleanupDisabled  bool
 	WhitespaceIgnore bool
+
+	l core.Logger
 }
 
 const (
@@ -84,6 +86,9 @@ func (diff *FileDiff) ListConfigurationOptions() []core.ConfigurationOption {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (diff *FileDiff) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		diff.l = l
+	}
 	if val, exists := facts[ConfigFileDiffDisableCleanup].(bool); exists {
 		diff.CleanupDisabled = val
 	}
@@ -96,6 +101,7 @@ func (diff *FileDiff) Configure(facts map[string]interface{}) error {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (diff *FileDiff) Initialize(repository *git.Repository) error {
+	diff.l = core.NewLogger()
 	return nil
 }
 

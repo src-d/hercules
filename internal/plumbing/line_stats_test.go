@@ -23,7 +23,9 @@ func TestLinesStatsMeta(t *testing.T) {
 	assert.Equal(t, ra.Requires()[1], items.DependencyBlobCache)
 	assert.Equal(t, ra.Requires()[2], items.DependencyFileDiff)
 	assert.Nil(t, ra.ListConfigurationOptions())
-	assert.Nil(t, ra.Configure(nil))
+	assert.NoError(t, ra.Configure(map[string]interface{}{
+		core.ConfigLogger: core.NewLogger(),
+	}))
 	for _, f := range ra.Fork(10) {
 		assert.Equal(t, f, ra)
 	}

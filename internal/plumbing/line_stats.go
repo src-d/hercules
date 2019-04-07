@@ -14,6 +14,8 @@ import (
 // LinesStatsCalculator measures line statistics for each text file in the commit.
 type LinesStatsCalculator struct {
 	core.NoopMerger
+
+	l core.Logger
 }
 
 // LineStats holds the numbers of inserted, deleted and changed lines.
@@ -60,12 +62,16 @@ func (lsc *LinesStatsCalculator) ListConfigurationOptions() []core.Configuration
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (lsc *LinesStatsCalculator) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		lsc.l = l
+	}
 	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (lsc *LinesStatsCalculator) Initialize(repository *git.Repository) error {
+	lsc.l = core.NewLogger()
 	return nil
 }
 

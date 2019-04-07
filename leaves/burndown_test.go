@@ -57,6 +57,11 @@ func TestBurndownMeta(t *testing.T) {
 	}
 	assert.Len(t, opts, matches)
 	assert.Equal(t, bd.Flag(), "burndown")
+	logger := core.NewLogger()
+	assert.NoError(t, bd.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, bd.l)
 }
 
 func TestBurndownConfigure(t *testing.T) {

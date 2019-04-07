@@ -41,6 +41,11 @@ func TestIdentityDetectorMeta(t *testing.T) {
 	opts := id.ListConfigurationOptions()
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigIdentityDetectorPeopleDictPath)
+	logger := core.NewLogger()
+	assert.NoError(t, id.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, id.l)
 }
 
 func TestIdentityDetectorConfigure(t *testing.T) {

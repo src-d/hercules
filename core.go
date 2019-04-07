@@ -81,6 +81,8 @@ const (
 	ConfigPipelineCommits = core.ConfigPipelineCommits
 	// ConfigTickSize is the number of hours per 'tick'
 	ConfigTickSize = plumbing.ConfigTicksSinceStartTickSize
+	// ConfigLogger is used to set the logger in all pipeline items.
+	ConfigLogger = core.ConfigLogger
 )
 
 // NewPipeline initializes a new instance of Pipeline struct.
@@ -174,3 +176,9 @@ func PathifyFlagValue(flag *pflag.Flag) {
 func EnablePathFlagTypeMasquerade() {
 	core.EnablePathFlagTypeMasquerade()
 }
+
+// Logger is the Hercules logging interface
+type Logger core.Logger
+
+// NewLogger returns an instance of the default Hercules logger
+func NewLogger() core.Logger { return core.NewLogger() }

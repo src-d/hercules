@@ -2,8 +2,6 @@ package plumbing
 
 import (
 	"bytes"
-	"log"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +31,11 @@ func TestTicksSinceStartMeta(t *testing.T) {
 	assert.Equal(t, tss.Provides()[0], DependencyTick)
 	assert.Equal(t, len(tss.Requires()), 0)
 	assert.Len(t, tss.ListConfigurationOptions(), 1)
-	tss.Configure(map[string]interface{}{})
+	logger := core.NewLogger()
+	assert.NoError(t, tss.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, tss.l)
 }
 
 func TestTicksSinceStartRegistration(t *testing.T) {
@@ -189,15 +191,11 @@ func TestTicksSinceStartConsumeZero(t *testing.T) {
 	deps[core.DependencyCommit] = commit
 	deps[core.DependencyIndex] = 0
 	// print warning to log
-	myOutput := &bytes.Buffer{}
-	log.SetOutput(myOutput)
-	defer func() {
-		log.SetOutput(os.Stderr)
-	}()
+	var capture bytes.Buffer
+	tss.l.(*core.DefaultLogger).W.SetOutput(&capture)
 	res, err := tss.Consume(deps)
 	assert.Nil(t, err)
-	output := myOutput.String()
-	assert.Contains(t, output, "Warning")
+	output := capture.String()
 	assert.Contains(t, output, "cce947b98a050c6d356bc6ba95030254914027b1")
 	assert.Contains(t, output, "hercules")
 	// depending on where the contributor clones this project from, the remote

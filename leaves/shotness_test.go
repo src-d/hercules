@@ -45,12 +45,18 @@ func TestShotnessMeta(t *testing.T) {
 	assert.Nil(t, sh.Configure(nil))
 	assert.Equal(t, sh.XpathStruct, DefaultShotnessXpathStruct)
 	assert.Equal(t, sh.XpathName, DefaultShotnessXpathName)
-	facts := map[string]interface{}{}
-	facts[ConfigShotnessXpathStruct] = "xpath!"
-	facts[ConfigShotnessXpathName] = "another!"
-	assert.Nil(t, sh.Configure(facts))
+	assert.NoError(t, sh.Configure(map[string]interface{}{
+		ConfigShotnessXpathStruct: "xpath!",
+		ConfigShotnessXpathName:   "another!",
+	}))
 	assert.Equal(t, sh.XpathStruct, "xpath!")
 	assert.Equal(t, sh.XpathName, "another!")
+
+	logger := core.NewLogger()
+	assert.NoError(t, sh.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, sh.l)
 }
 
 func TestShotnessRegistration(t *testing.T) {

@@ -3,7 +3,6 @@ package leaves
 import (
 	"fmt"
 	"io"
-	"log"
 	"sort"
 	"strings"
 
@@ -25,6 +24,8 @@ type FileHistoryAnalysis struct {
 	core.OneShotMergeProcessor
 	files      map[string]*FileHistory
 	lastCommit *object.Commit
+
+	l core.Logger
 }
 
 // FileHistoryResult is returned by Finalize() and represents the analysis result.
@@ -79,12 +80,16 @@ func (history *FileHistoryAnalysis) Description() string {
 
 // Configure sets the properties previously published by ListConfigurationOptions().
 func (history *FileHistoryAnalysis) Configure(facts map[string]interface{}) error {
+	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
+		history.l = l
+	}
 	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (history *FileHistoryAnalysis) Initialize(repository *git.Repository) error {
+	history.l = core.NewLogger()
 	history.files = map[string]*FileHistory{}
 	history.OneShotMergeProcessor.Initialize()
 	return nil
@@ -158,7 +163,8 @@ func (history *FileHistoryAnalysis) Finalize() interface{} {
 	files := map[string]FileHistory{}
 	fileIter, err := history.lastCommit.Files()
 	if err != nil {
-		log.Panicf("Failed to iterate files of %s", history.lastCommit.Hash.String())
+		history.l.Errorf("Failed to iterate files of %s", history.lastCommit.Hash.String())
+		return err
 	}
 	err = fileIter.ForEach(func(file *object.File) error {
 		if fh := history.files[file.Name]; fh != nil {
@@ -167,7 +173,8 @@ func (history *FileHistoryAnalysis) Finalize() interface{} {
 		return nil
 	})
 	if err != nil {
-		log.Panicf("Failed to iterate files of %s", history.lastCommit.Hash.String())
+		history.l.Errorf("Failed to iterate files of %s", history.lastCommit.Hash.String())
+		return err
 	}
 	return FileHistoryResult{Files: files}
 }

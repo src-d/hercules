@@ -37,6 +37,11 @@ func TestFileDiffRefinerMeta(t *testing.T) {
 	features := fd.Features()
 	assert.Len(t, features, 1)
 	assert.Equal(t, features[0], FeatureUast)
+	logger := core.NewLogger()
+	assert.NoError(t, fd.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, fd.l)
 }
 
 func TestFileDiffRefinerRegistration(t *testing.T) {

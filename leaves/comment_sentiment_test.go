@@ -55,6 +55,11 @@ func TestCommentSentimentMeta(t *testing.T) {
 	}
 	assert.Len(t, opts, matches)
 	assert.Equal(t, sent.Flag(), "sentiment")
+	logger := core.NewLogger()
+	assert.NoError(t, sent.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, sent.l)
 }
 
 func TestCommentSentimentConfigure(t *testing.T) {
