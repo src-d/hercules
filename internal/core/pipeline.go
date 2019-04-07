@@ -658,11 +658,15 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 	if facts == nil {
 		facts = map[string]interface{}{}
 	}
+
+	// set logger from facts, otherwise set the pipeline's logger as the logger
+	// to be used by all analysis tasks by setting the fact
 	if l, exists := facts[ConfigLogger].(Logger); exists {
 		pipeline.l = l
 	} else {
 		facts[ConfigLogger] = pipeline.l
 	}
+
 	if _, exists := facts[ConfigPipelineCommits]; !exists {
 		var err error
 		facts[ConfigPipelineCommits], err = pipeline.Commits(false)

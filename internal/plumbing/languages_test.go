@@ -20,8 +20,13 @@ func TestLanguagesDetectionMeta(t *testing.T) {
 	assert.Equal(t, ls.Requires()[1], DependencyBlobCache)
 	opts := ls.ListConfigurationOptions()
 	assert.Len(t, opts, 0)
-	assert.Nil(t, ls.Configure(nil))
-	assert.Nil(t, ls.Initialize(nil))
+	assert.NoError(t, ls.Configure(nil))
+	logger := core.NewLogger()
+	assert.NoError(t, ls.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, ls.l)
+	assert.NoError(t, ls.Initialize(nil))
 }
 
 func TestLanguagesDetectionRegistration(t *testing.T) {

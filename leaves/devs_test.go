@@ -41,6 +41,11 @@ func TestDevsMeta(t *testing.T) {
 	assert.Equal(t, d.ListConfigurationOptions()[0].Type, core.BoolConfigurationOption)
 	assert.Equal(t, d.ListConfigurationOptions()[0].Default, false)
 	assert.True(t, len(d.Description()) > 0)
+	logger := core.NewLogger()
+	assert.NoError(t, d.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, d.l)
 }
 
 func TestDevsRegistration(t *testing.T) {

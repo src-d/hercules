@@ -34,12 +34,17 @@ func TestRenameAnalysisMeta(t *testing.T) {
 	assert.Len(t, opts, 1)
 	assert.Equal(t, opts[0].Name, ConfigRenameAnalysisSimilarityThreshold)
 	ra.SimilarityThreshold = 0
-	facts := map[string]interface{}{}
-	facts[ConfigRenameAnalysisSimilarityThreshold] = 70
-	ra.Configure(facts)
+
+	assert.NoError(t, ra.Configure(map[string]interface{}{
+		ConfigRenameAnalysisSimilarityThreshold: 70,
+	}))
 	assert.Equal(t, ra.SimilarityThreshold, 70)
-	delete(facts, ConfigRenameAnalysisSimilarityThreshold)
-	ra.Configure(facts)
+
+	logger := core.NewLogger()
+	assert.NoError(t, ra.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, ra.l)
 	assert.Equal(t, ra.SimilarityThreshold, 70)
 }
 

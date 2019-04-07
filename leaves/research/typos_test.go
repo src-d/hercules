@@ -34,6 +34,11 @@ func TestTyposDatasetMeta(t *testing.T) {
 	assert.Equal(t, opts[0].Name, ConfigTyposDatasetMaximumAllowedDistance)
 	assert.Equal(t, opts[0].Type, core.IntConfigurationOption)
 	assert.Equal(t, tdb.Flag(), "typos-dataset")
+	logger := core.NewLogger()
+	assert.NoError(t, tdb.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, tdb.l)
 }
 
 func TestTyposDatasetRegistration(t *testing.T) {

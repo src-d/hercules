@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -32,6 +33,7 @@ type testPipelineItem struct {
 	InitializeRaises bool
 	InitializePanics bool
 	ConsumePanics    bool
+	Logger           Logger
 }
 
 func (item *testPipelineItem) Name() string {
@@ -50,6 +52,9 @@ func (item *testPipelineItem) Requires() []string {
 func (item *testPipelineItem) Configure(facts map[string]interface{}) error {
 	if item.ConfigureRaises {
 		return errors.New("test1")
+	}
+	if l, ok := facts[ConfigLogger].(Logger); ok {
+		item.Logger = l
 	}
 	return nil
 }
@@ -272,13 +277,13 @@ func TestPipelineErrors(t *testing.T) {
 	pipeline.AddItem(item)
 	item.ConfigureRaises = true
 	err := pipeline.Initialize(map[string]interface{}{})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "configure")
 	assert.Contains(t, err.Error(), "test1")
 	item.ConfigureRaises = false
 	item.InitializeRaises = true
 	err = pipeline.Initialize(map[string]interface{}{})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "initialize")
 	assert.Contains(t, err.Error(), "test2")
 	item.InitializeRaises = false
@@ -286,17 +291,42 @@ func TestPipelineErrors(t *testing.T) {
 	assert.Panics(t, func() { pipeline.Initialize(map[string]interface{}{}) })
 }
 
+func TestPipelineInitialize(t *testing.T) {
+	t.Run("without logger fact", func(t *testing.T) {
+		pipeline := NewPipeline(test.Repository)
+		item := &testPipelineItem{}
+		pipeline.AddItem(item)
+		require.NoError(t, pipeline.Initialize(map[string]interface{}{}))
+		// pipeline logger should be initialized, and item logger should be the same
+		require.NotNil(t, pipeline.l)
+		assert.Equal(t, pipeline.l, item.Logger)
+	})
+
+	t.Run("with logger fact", func(t *testing.T) {
+		pipeline := NewPipeline(test.Repository)
+		item := &testPipelineItem{}
+		logger := NewLogger()
+		pipeline.AddItem(item)
+		require.NoError(t, pipeline.Initialize(map[string]interface{}{
+			ConfigLogger: logger,
+		}))
+		// pipeline logger should be set, and the item logger should be the same
+		assert.Equal(t, logger, pipeline.l)
+		assert.Equal(t, logger, item.Logger)
+	})
+}
+
 func TestPipelineRun(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
 	item := &testPipelineItem{}
 	pipeline.AddItem(item)
-	assert.Nil(t, pipeline.Initialize(map[string]interface{}{}))
+	assert.NoError(t, pipeline.Initialize(map[string]interface{}{}))
 	assert.True(t, item.Initialized)
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
 	result, err := pipeline.Run(commits)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, len(result))
 	assert.Equal(t, item, result[item].(*testPipelineItem))
 	common := result[nil].(*CommonAnalysisResult)

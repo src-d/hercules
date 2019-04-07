@@ -88,8 +88,6 @@ func (diff *FileDiff) ListConfigurationOptions() []core.ConfigurationOption {
 func (diff *FileDiff) Configure(facts map[string]interface{}) error {
 	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
 		diff.l = l
-	} else {
-		diff.l = core.NewLogger()
 	}
 	if val, exists := facts[ConfigFileDiffDisableCleanup].(bool); exists {
 		diff.CleanupDisabled = val

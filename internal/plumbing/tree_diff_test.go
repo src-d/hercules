@@ -26,6 +26,11 @@ func TestTreeDiffMeta(t *testing.T) {
 	assert.Equal(t, td.Provides()[0], DependencyTreeChanges)
 	opts := td.ListConfigurationOptions()
 	assert.Len(t, opts, 4)
+	logger := core.NewLogger()
+	assert.NoError(t, td.Configure(map[string]interface{}{
+		core.ConfigLogger: logger,
+	}))
+	assert.Equal(t, logger, td.l)
 }
 
 func TestTreeDiffConfigure(t *testing.T) {

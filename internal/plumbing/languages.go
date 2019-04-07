@@ -54,8 +54,6 @@ func (langs *LanguagesDetection) ListConfigurationOptions() []core.Configuration
 func (langs *LanguagesDetection) Configure(facts map[string]interface{}) error {
 	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
 		langs.l = l
-	} else {
-		langs.l = core.NewLogger()
 	}
 	return nil
 }

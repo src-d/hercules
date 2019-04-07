@@ -277,9 +277,12 @@
   revision = "f187355171c936ac84a82793659ebb4936bc1c23"
 
 [[projects]]
-  digest = "1:e7e3141ecc5f7eeae9a1a4438044614049ccdd57a302b8793dec0c29202cadce"
+  digest = "1:c5cc4981dbab46f68150ea9772532a7c26f8109112c7302d7cc0a5011eef3276"
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = [
+    "assert",
+    "require",
+  ]
   pruneopts = "UT"
   revision = "5b93e2dc01fd8fbf32aa74a198b0ebe78f6f6b6f"
 
@@ -632,6 +635,7 @@
     "github.com/spf13/cobra",
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
+    "github.com/stretchr/testify/require",
     "golang.org/x/crypto/ssh/terminal",
     "gopkg.in/bblfsh/client-go.v3",
     "gopkg.in/bblfsh/client-go.v3/tools",
