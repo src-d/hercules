@@ -607,6 +607,12 @@ def load_burndown(header, name, matrix, resample):
             periods += 1
             date_granularity_sampling = pandas.date_range(
                 start, periods=periods, freq=resample)
+        if date_granularity_sampling[0] > finish:
+            if resample == "A":
+                print("too loose resampling - by year, trying by month")
+                return load_burndown(header, name, matrix, "month")
+            else:
+                raise ValueError("Too loose resampling: %s. Try finer." % resample)
         date_range_sampling = pandas.date_range(
             date_granularity_sampling[0],
             periods=(finish - date_granularity_sampling[0]).days,
