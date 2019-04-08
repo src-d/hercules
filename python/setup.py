@@ -15,7 +15,7 @@ setup(
     description="Python companion for github.com/src-d/hercules to visualize the results.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version="10.0.1",
+    version="10.0.2",
     license="Apache-2.0",
     author="source{d}",
     author_email="machine-learning@sourced.tech",
@@ -36,6 +36,7 @@ setup(
         "seriate>=1.0,<2.0",
         "fastdtw>=0.3.2,<2.0",
         "python-dateutil>=2.6.0,<3.0",
+        "lifelines>=0.20.0,<2.0",
     ],
     package_data={"labours": ["../LICENSE.md", "../README.md", "../requirements.txt"]},
     entry_points={

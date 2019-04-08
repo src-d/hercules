@@ -427,21 +427,48 @@ class DevDay(namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed", "La
                       Languages=dict(langs))
 
 
-def calculate_average_lifetime(matrix):
-    lifetimes = numpy.zeros(matrix.shape[1] - 1)
-    for band in matrix:
-        start = 0
-        for i, line in enumerate(band):
-            if i == 0 or band[i - 1] == 0:
-                start += 1
-                continue
-            lifetimes[i - start] = band[i - 1] - line
-        lifetimes[i - start] = band[i - 1]
-    lsum = lifetimes.sum()
-    if lsum != 0:
-        total = lifetimes.dot(numpy.arange(1, matrix.shape[1], 1))
-        return total / (lsum * matrix.shape[1])
-    return numpy.nan
+def fit_kaplan_meier(matrix):
+    from lifelines import KaplanMeierFitter
+
+    T = []
+    W = []
+    indexes = numpy.arange(matrix.shape[0], dtype=int)
+    entries = numpy.zeros(matrix.shape[0], int)
+    dead = set()
+    for i in range(1, matrix.shape[1]):
+        diff = matrix[:, i - 1] - matrix[:, i]
+        entries[diff < 0] = i
+        mask = diff > 0
+        deaths = diff[mask]
+        T.append(numpy.full(len(deaths), i) - entries[indexes[mask]])
+        W.append(deaths)
+        entered = entries > 0
+        entered[0] = True
+        dead = dead.union(set(numpy.where((matrix[:, i] == 0) & entered)[0]))
+    # add the survivors as censored
+    nnzind = entries != 0
+    nnzind[0] = True
+    nnzind[sorted(dead)] = False
+    T.append(numpy.full(nnzind.sum(), matrix.shape[1]) - entries[nnzind])
+    W.append(matrix[nnzind, -1])
+    T = numpy.concatenate(T)
+    E = numpy.ones(len(T), bool)
+    E[-nnzind.sum():] = 0
+    W = numpy.concatenate(W)
+    if T.size == 0:
+        return None
+    kmf = KaplanMeierFitter().fit(T, E, weights=W)
+    return kmf
+
+
+def print_survival_function(kmf, sampling):
+    sf = kmf.survival_function_
+    sf.index = [timedelta(days=d) for d in sf.index * sampling]
+    sf.columns = ["Ratio of survived lines"]
+    try:
+        print(sf[len(sf) // 6::len(sf) // 6].append(sf.tail(1)))
+    except ValueError:
+        pass
 
 
 def interpolate_burndown_matrix(matrix, granularity, sampling):
@@ -578,7 +605,7 @@ def import_pandas():
     return pandas
 
 
-def load_burndown(header, name, matrix, resample):
+def load_burndown(header, name, matrix, resample, report_survival=True):
     pandas = import_pandas()
 
     start, last, sampling, granularity = header
@@ -586,7 +613,10 @@ def load_burndown(header, name, matrix, resample):
     assert granularity > 0
     start = datetime.fromtimestamp(start)
     last = datetime.fromtimestamp(last)
-    print(name, "lifetime index:", calculate_average_lifetime(matrix))
+    if report_survival:
+        kmf = fit_kaplan_meier(matrix)
+        if kmf is not None:
+            print_survival_function(kmf, sampling)
     finish = start + timedelta(days=matrix.shape[1] * sampling)
     if resample not in ("no", "raw"):
         print("resampling to %s, please wait..." % resample)
@@ -610,7 +640,7 @@ def load_burndown(header, name, matrix, resample):
         if date_granularity_sampling[0] > finish:
             if resample == "A":
                 print("too loose resampling - by year, trying by month")
-                return load_burndown(header, name, matrix, "month")
+                return load_burndown(header, name, matrix, "month", report_survival=False)
             else:
                 raise ValueError("Too loose resampling: %s. Try finer." % resample)
         date_range_sampling = pandas.date_range(
