@@ -78,7 +78,7 @@ func TestTreeDiffConsume(t *testing.T) {
 		"fbe766ffdc3f87f6affddc051c6f8b419beea6a2"))
 	td.previousTree, _ = prevCommit.Tree()
 	res, err := td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(changes), 12)
@@ -98,7 +98,7 @@ func TestTreeDiffConsume(t *testing.T) {
 	}
 	for _, change := range changes {
 		action, err := change.Action()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		if change.From.Name != "" {
 			assert.Contains(t, baseline, change.From.Name)
 			assert.Equal(t, baseline[change.From.Name], action)
@@ -116,13 +116,13 @@ func TestTreeDiffConsumeFirst(t *testing.T) {
 	deps := map[string]interface{}{}
 	deps[core.DependencyCommit] = commit
 	res, err := td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(changes), 21)
 	for _, change := range changes {
 		action, err := change.Action()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, action, merkletrie.Insert)
 	}
 }
@@ -151,7 +151,7 @@ func TestTreeDiffConsumeSkip(t *testing.T) {
 		"1e076dc56989bc6aa1ef5f55901696e9e01423d4"))
 	td.previousTree, _ = prevCommit.Tree()
 	res, err := td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, 37, len(changes))
@@ -164,7 +164,7 @@ func TestTreeDiffConsumeSkip(t *testing.T) {
 		ConfigTreeDiffBlacklistedPrefixes: []string{"vendor/"},
 	})
 	res, err = td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes = res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, 31, len(changes))
@@ -182,7 +182,7 @@ func TestTreeDiffConsumeOnlyFilesThatMatchFilter(t *testing.T) {
 		"1e076dc56989bc6aa1ef5f55901696e9e01423d4"))
 	td.previousTree, _ = prevCommit.Tree()
 	res, err := td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, 37, len(changes))
@@ -194,7 +194,7 @@ func TestTreeDiffConsumeOnlyFilesThatMatchFilter(t *testing.T) {
 		ConfigTreeDiffFilterRegexp: ".*go",
 	})
 	res, err = td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes = res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, 27, len(changes))
@@ -208,7 +208,7 @@ func TestTreeDiffConsumeLanguageFilterFirst(t *testing.T) {
 	deps := map[string]interface{}{}
 	deps[core.DependencyCommit] = commit
 	res, err := td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(changes), 6)
@@ -222,21 +222,29 @@ func TestTreeDiffConsumeLanguageFilterFirst(t *testing.T) {
 
 func TestTreeDiffConsumeLanguageFilter(t *testing.T) {
 	td := fixtureTreeDiff()
-	td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: []string{"Python"}})
+	assert.NoError(t, td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: []string{"Python"}}))
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"e89c1d10fb31e32668ad905eb59dc44d7a4a021e"))
 	deps := map[string]interface{}{}
 	deps[core.DependencyCommit] = commit
 	res, err := td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"fbe766ffdc3f87f6affddc051c6f8b419beea6a2"))
 	deps[core.DependencyCommit] = commit
 	res, err = td.Consume(deps)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, len(res), 1)
 	changes := res[DependencyTreeChanges].(object.Changes)
+	assert.Equal(t, len(changes), 1)
+	assert.Equal(t, changes[0].To.Name, "labours.py")
+
+	// lowercase
+	assert.NoError(t, td.Configure(map[string]interface{}{ConfigTreeDiffLanguages: []string{"python"}}))
+	assert.NoError(t, err)
+	assert.Equal(t, len(res), 1)
+	changes = res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(changes), 1)
 	assert.Equal(t, changes[0].To.Name, "labours.py")
 }
@@ -258,7 +266,7 @@ func TestTreeDiffCheckLanguage(t *testing.T) {
 	td.Languages["Go"] = true
 	lang, err := td.checkLanguage(
 		"version.go", plumbing.NewHash("975f35a1412b8ae79b5ba2558f71f41e707fd5a9"))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, lang)
 }
 
