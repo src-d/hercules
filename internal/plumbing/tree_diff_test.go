@@ -263,8 +263,13 @@ func TestTreeDiffFork(t *testing.T) {
 
 func TestTreeDiffCheckLanguage(t *testing.T) {
 	td := fixtureTreeDiff()
-	td.Languages["Go"] = true
 	lang, err := td.checkLanguage(
+		"version.go", plumbing.NewHash("975f35a1412b8ae79b5ba2558f71f41e707fd5a9"))
+	assert.NoError(t, err)
+	assert.True(t, lang)
+	td.Languages["go"] = true
+	delete(td.Languages, allLanguages)
+	lang, err = td.checkLanguage(
 		"version.go", plumbing.NewHash("975f35a1412b8ae79b5ba2558f71f41e707fd5a9"))
 	assert.NoError(t, err)
 	assert.True(t, lang)
@@ -282,10 +287,20 @@ func TestTreeDiffConsumeEnryFilter(t *testing.T) {
 
 	newDiffs := td.filterDiffs(diffs)
 	assert.Len(t, newDiffs, 2)
-	td.Configure(map[string]interface{}{
+	assert.NoError(t, td.Configure(map[string]interface{}{
 		ConfigTreeDiffEnableBlacklist:     true,
 		ConfigTreeDiffBlacklistedPrefixes: []string{"whatever"},
-	})
+	}))
 	newDiffs = td.filterDiffs(diffs)
 	assert.Len(t, newDiffs, 0)
+}
+
+func TestTreeDiffCheckLanguageEmpty(t *testing.T) {
+	td := fixtureTreeDiff()
+	td.Languages["python"] = true
+	delete(td.Languages, allLanguages)
+	lang, err := td.checkLanguage(
+		"__init__.py", plumbing.NewHash("e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"))
+	assert.NoError(t, err)
+	assert.True(t, lang)
 }
