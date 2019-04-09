@@ -106,8 +106,9 @@ func (treediff *TreeDiff) ListConfigurationOptions() []core.ConfigurationOption 
 		Name: ConfigTreeDiffLanguages,
 		Description: fmt.Sprintf(
 			"List of programming languages to analyze. Separated by comma \",\". "+
-				"Names are at https://doc.bblf.sh/languages.html \"%s\" is the special name "+
-				"which disables this filter and lets all the files through.", allLanguages),
+				"The names are the keys in https://github.com/github/linguist/blob/master/lib/linguist/languages.yml "+
+				"\"%s\" is the special name which disables this filter and lets all the files through.",
+			allLanguages),
 		Flag:    "languages",
 		Type:    core.StringsConfigurationOption,
 		Default: []string{allLanguages}}, {
