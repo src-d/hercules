@@ -23,7 +23,9 @@ type TreeDiff struct {
 	core.NoopMerger
 	SkipFiles  []string
 	NameFilter *regexp.Regexp
-	Languages  map[string]bool
+	// Languages is the set of allowed languages. The values must be lower case. The default
+	// (empty) set disables the language filter.
+	Languages map[string]bool
 
 	previousTree   *object.Tree
 	previousCommit plumbing.Hash
@@ -130,7 +132,7 @@ func (treediff *TreeDiff) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigTreeDiffLanguages].([]string); exists {
 		treediff.Languages = map[string]bool{}
 		for _, lang := range val {
-			treediff.Languages[strings.TrimSpace(lang)] = true
+			treediff.Languages[strings.ToLower(strings.TrimSpace(lang))] = true
 		}
 	} else if treediff.Languages == nil {
 		treediff.Languages = map[string]bool{}
@@ -281,7 +283,7 @@ func (treediff *TreeDiff) checkLanguage(name string, blobHash plumbing.Hash) (bo
 	if n < len(buffer) {
 		buffer = buffer[:n]
 	}
-	lang := enry.GetLanguage(path.Base(name), buffer)
+	lang := strings.ToLower(enry.GetLanguage(path.Base(name), buffer))
 	return treediff.Languages[lang], nil
 }
 
