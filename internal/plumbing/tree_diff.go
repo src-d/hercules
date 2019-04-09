@@ -278,7 +278,7 @@ func (treediff *TreeDiff) checkLanguage(name string, blobHash plumbing.Hash) (bo
 	}
 	buffer := make([]byte, 1024)
 	n, err := reader.Read(buffer)
-	if err != nil {
+	if err != nil && (blob.Size != 0 || err != io.EOF) {
 		return false, err
 	}
 	if n < len(buffer) {
