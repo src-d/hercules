@@ -36,7 +36,7 @@ to merge several analysis results together - relevant for organizations.
 The analyzed commit history includes branches, merges, etc.
 
 Hercules has been successfully used for several internal projects at [source{d}](https://sourced.tech).
-There are blog posts: [1](https://blog.sourced.tech/post/hercules.v10), [2](https://blog.sourced.tech/post/hercules) and
+There are blog posts: [1](https://blog.sourced.tech/post/hercules-v4), [2](https://blog.sourced.tech/post/hercules) and
 a [presentation](http://vmarkovtsev.github.io/gowayfest-2018-minsk/). Please [contribute](#contributions)
 by testing, fixing bugs, adding [new analyses](https://github.com/src-d/hercules/issues?q=is%3Aissue+is%3Aopen+label%3Anew-analysis), or coding swagger!
 
