@@ -133,8 +133,6 @@ type BurndownResult struct {
 	// The rest of the elements are equal the number of line removals by the corresponding
 	// authors in reversedPeopleDict: 2 -> 0, 3 -> 1, etc.
 	PeopleMatrix DenseHistory
-	// The size of each tick.
-	TickSize time.Duration
 
 	// The following members are private.
 
@@ -142,6 +140,8 @@ type BurndownResult struct {
 	// Pipeline.Initialize(facts map[string]interface{}). Thus it can be obtained via
 	// facts[FactIdentityDetectorReversedPeopleDict].
 	reversedPeopleDict []string
+	// tickSize references TicksSinceStart.tickSize
+	tickSize time.Duration
 	// sampling and granularity are copied from BurndownAnalysis and stored for service purposes
 	// such as merging several results together.
 	sampling    int
@@ -571,7 +571,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		FileOwnership:      fileOwnership,
 		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,
-		TickSize:           analyser.tickSize,
+		tickSize:           analyser.tickSize,
 		reversedPeopleDict: analyser.reversedPeopleDict,
 		sampling:           analyser.Sampling,
 		granularity:        analyser.Granularity,
@@ -613,7 +613,7 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 		GlobalHistory: convertCSR(msg.Project),
 		FileHistories: map[string]DenseHistory{},
 		FileOwnership: map[string]map[int]int{},
-		TickSize:      time.Duration(msg.GetTickSize()),
+		tickSize:      time.Duration(msg.TickSize),
 
 		granularity: int(msg.Granularity),
 		sampling:    int(msg.Sampling),
@@ -649,17 +649,17 @@ func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *core.CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)
 	bar2 := r2.(BurndownResult)
-	if bar1.TickSize != bar2.TickSize {
+	if bar1.tickSize != bar2.tickSize {
 		return fmt.Errorf("mismatching tick sizes (r1: %d, r2: %d) received",
-			bar1.TickSize, bar2.TickSize)
+			bar1.tickSize, bar2.tickSize)
 	}
 	// for backwards-compatibility, if no tick size is present set to default
-	analyser.tickSize = bar1.TickSize
+	analyser.tickSize = bar1.tickSize
 	if analyser.tickSize == 0 {
 		analyser.tickSize = items.DefaultTicksSinceStartTickSize * time.Hour
 	}
 	merged := BurndownResult{
-		TickSize: analyser.tickSize,
+		tickSize: analyser.tickSize,
 	}
 	if bar1.sampling < bar2.sampling {
 		merged.sampling = bar1.sampling
@@ -992,7 +992,7 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accPerTic
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
 	fmt.Fprintln(writer, "  granularity:", result.granularity)
 	fmt.Fprintln(writer, "  sampling:", result.sampling)
-	fmt.Fprintln(writer, "  tick_size:", result.TickSize)
+	fmt.Fprintln(writer, "  tick_size:", int(result.tickSize.Seconds()))
 	yaml.PrintMatrix(writer, result.GlobalHistory, 2, "project", true)
 	if len(result.FileHistories) > 0 {
 		fmt.Fprintln(writer, "  files:")
@@ -1045,7 +1045,7 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	message := pb.BurndownAnalysisResults{
 		Granularity: int32(result.granularity),
 		Sampling:    int32(result.sampling),
-		TickSize:    int64(result.TickSize),
+		TickSize:    int64(result.tickSize),
 	}
 	if len(result.GlobalHistory) > 0 {
 		message.Project = pb.ToBurndownSparseMatrix(result.GlobalHistory, "project")

@@ -625,7 +625,7 @@ func TestBurndownSerialize(t *testing.T) {
 	assert.Nil(t, bd.Serialize(out, false, buffer))
 	assert.Equal(t, buffer.String(), `  granularity: 30
   sampling: 30
-  tick_size: 24h0m0s
+  tick_size: 86400
   "project": |-
     1145    0
      464  369
@@ -656,9 +656,9 @@ func TestBurndownSerialize(t *testing.T) {
      369    0    0    0
 `)
 	buffer = &bytes.Buffer{}
-	bd.Serialize(out, true, buffer)
+	assert.NoError(t, bd.Serialize(out, true, buffer))
 	msg := pb.BurndownAnalysisResults{}
-	proto.Unmarshal(buffer.Bytes(), &msg)
+	assert.NoError(t, proto.Unmarshal(buffer.Bytes(), &msg))
 	assert.Equal(t, msg.TickSize, int64(24*time.Hour))
 	assert.Equal(t, msg.Granularity, int32(30))
 	assert.Equal(t, msg.Sampling, int32(30))
@@ -714,7 +714,7 @@ func TestBurndownSerializeAuthorMissing(t *testing.T) {
 	assert.Nil(t, bd.Serialize(out, false, buffer))
 	assert.Equal(t, buffer.String(), `  granularity: 30
   sampling: 30
-  tick_size: 24h0m0s
+  tick_size: 86400
   "project": |-
     1145    0
      464  369
@@ -745,9 +745,9 @@ func TestBurndownSerializeAuthorMissing(t *testing.T) {
        0    0    0    0
 `)
 	buffer = &bytes.Buffer{}
-	bd.Serialize(out, true, buffer)
+	assert.NoError(t, bd.Serialize(out, true, buffer))
 	msg := pb.BurndownAnalysisResults{}
-	proto.Unmarshal(buffer.Bytes(), &msg)
+	assert.NoError(t, proto.Unmarshal(buffer.Bytes(), &msg))
 	assert.Equal(t, msg.Granularity, int32(30))
 	assert.Equal(t, msg.Sampling, int32(30))
 	assert.Equal(t, msg.Project.Name, "project")
@@ -1063,7 +1063,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 		reversedPeopleDict: people1[:],
 		sampling:           15,
 		granularity:        20,
-		TickSize:           24 * time.Hour,
+		tickSize:           24 * time.Hour,
 	}
 	c1 := core.CommonAnalysisResult{
 		BeginTime:     600566400, // 1989 Jan 12
@@ -1109,7 +1109,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 		FileHistories:      map[string][][]int64{},
 		PeopleHistories:    nil,
 		PeopleMatrix:       nil,
-		TickSize:           24 * time.Hour,
+		tickSize:           24 * time.Hour,
 		reversedPeopleDict: people2[:],
 		sampling:           14,
 		granularity:        19,
@@ -1158,7 +1158,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 	merged := bd.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
 	assert.Equal(t, merged.sampling, 14)
-	assert.Equal(t, merged.TickSize, 24*time.Hour)
+	assert.Equal(t, merged.tickSize, 24*time.Hour)
 	assert.Len(t, merged.GlobalHistory, 5)
 	for _, row := range merged.GlobalHistory {
 		assert.Len(t, row, 4)
@@ -1194,7 +1194,7 @@ func TestBurndownMergeGlobalHistory(t *testing.T) {
 
 func TestBurndownMergeGlobalHistory_withDifferentTickSizes(t *testing.T) {
 	res1 := BurndownResult{
-		TickSize: 13 * time.Hour,
+		tickSize: 13 * time.Hour,
 	}
 	c1 := core.CommonAnalysisResult{
 		BeginTime:     600566400, // 1989 Jan 12
@@ -1203,7 +1203,7 @@ func TestBurndownMergeGlobalHistory_withDifferentTickSizes(t *testing.T) {
 		RunTime:       100000,
 	}
 	res2 := BurndownResult{
-		TickSize: 24 * time.Hour,
+		tickSize: 24 * time.Hour,
 	}
 	c2 := core.CommonAnalysisResult{
 		BeginTime:     601084800, // 1989 Jan 18
@@ -1225,7 +1225,7 @@ func TestBurndownMergeNils(t *testing.T) {
 		FileHistories:      map[string][][]int64{},
 		PeopleHistories:    nil,
 		PeopleMatrix:       nil,
-		TickSize:           24 * time.Hour,
+		tickSize:           24 * time.Hour,
 		reversedPeopleDict: nil,
 		sampling:           15,
 		granularity:        20,
@@ -1241,7 +1241,7 @@ func TestBurndownMergeNils(t *testing.T) {
 		FileHistories:      nil,
 		PeopleHistories:    nil,
 		PeopleMatrix:       nil,
-		TickSize:           24 * time.Hour,
+		tickSize:           24 * time.Hour,
 		reversedPeopleDict: nil,
 		sampling:           14,
 		granularity:        19,
@@ -1258,7 +1258,7 @@ func TestBurndownMergeNils(t *testing.T) {
 	merged := bd.MergeResults(res1, res2, &c1, &c2).(BurndownResult)
 	assert.Equal(t, merged.granularity, 19)
 	assert.Equal(t, merged.sampling, 14)
-	assert.Equal(t, merged.TickSize, 24*time.Hour)
+	assert.Equal(t, merged.tickSize, 24*time.Hour)
 	assert.Nil(t, merged.GlobalHistory)
 	assert.Nil(t, merged.FileHistories)
 	assert.Nil(t, merged.PeopleHistories)
@@ -1337,7 +1337,7 @@ func TestBurndownDeserialize(t *testing.T) {
 	assert.True(t, len(result.PeopleMatrix) > 0)
 	assert.Equal(t, result.granularity, 30)
 	assert.Equal(t, result.sampling, 30)
-	assert.Equal(t, result.TickSize, 24*time.Hour)
+	assert.Equal(t, result.tickSize, 24*time.Hour)
 }
 
 func TestBurndownEmptyFileHistory(t *testing.T) {
@@ -1531,7 +1531,7 @@ func TestBurndownMergePeopleHistories(t *testing.T) {
 		FileHistories:      map[string][][]int64{},
 		PeopleHistories:    [][][]int64{h1, h1},
 		PeopleMatrix:       nil,
-		TickSize:           24 * time.Hour,
+		tickSize:           24 * time.Hour,
 		reversedPeopleDict: []string{"one", "three"},
 		sampling:           15, // 3
 		granularity:        20, // 3
@@ -1547,7 +1547,7 @@ func TestBurndownMergePeopleHistories(t *testing.T) {
 		FileHistories:      nil,
 		PeopleHistories:    [][][]int64{h2, h2},
 		PeopleMatrix:       nil,
-		TickSize:           24 * time.Hour,
+		tickSize:           24 * time.Hour,
 		reversedPeopleDict: []string{"one", "two"},
 		sampling:           14,
 		granularity:        19,
