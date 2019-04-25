@@ -1,10 +1,12 @@
 package leaves
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"gopkg.in/src-d/go-git.v4"
@@ -31,6 +33,8 @@ type DevsAnalysis struct {
 	ticks map[int]map[int]*DevTick
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+	// tickSize references TicksSinceStart.tickSize
+	tickSize time.Duration
 
 	l core.Logger
 }
@@ -43,6 +47,8 @@ type DevsResult struct {
 
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
+	// tickSize references TicksSinceStart.tickSize
+	tickSize time.Duration
 }
 
 // DevTick is the statistics for a development tick and a particular developer.
@@ -103,6 +109,9 @@ func (devs *DevsAnalysis) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[identity.FactIdentityDetectorReversedPeopleDict].([]string); exists {
 		devs.reversedPeopleDict = val
 	}
+	if val, exists := facts[items.FactTickSize].(time.Duration); exists {
+		devs.tickSize = val
+	}
 	return nil
 }
 
@@ -119,6 +128,9 @@ func (devs *DevsAnalysis) Description() string {
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (devs *DevsAnalysis) Initialize(repository *git.Repository) error {
+	if devs.tickSize == 0 {
+		return errors.New("tick size must be specified")
+	}
 	devs.l = core.NewLogger()
 	devs.ticks = map[int]map[int]*DevTick{}
 	devs.OneShotMergeProcessor.Initialize()
@@ -178,6 +190,7 @@ func (devs *DevsAnalysis) Finalize() interface{} {
 	return DevsResult{
 		Ticks:              devs.ticks,
 		reversedPeopleDict: devs.reversedPeopleDict,
+		tickSize:           devs.tickSize,
 	}
 }
 
@@ -234,6 +247,7 @@ func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 	result := DevsResult{
 		Ticks:              ticks,
 		reversedPeopleDict: message.DevIndex,
+		tickSize:           time.Duration(message.TickSize),
 	}
 	return result, nil
 }
@@ -242,6 +256,19 @@ func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAnalysisResult) interface{} {
 	cr1 := r1.(DevsResult)
 	cr2 := r2.(DevsResult)
+	if cr1.tickSize != cr2.tickSize {
+		return fmt.Errorf("mismatching tick sizes (r1: %d, r2: %d) received",
+			cr1.tickSize, cr2.tickSize)
+	}
+	t01 := items.FloorTime(c1.BeginTimeAsTime(), cr1.tickSize)
+	t02 := items.FloorTime(c2.BeginTimeAsTime(), cr2.tickSize)
+	t0 := t01
+	if t02.Before(t0) {
+		t0 = t02
+	}
+	offset1 := int(t01.Sub(t0) / cr1.tickSize)
+	offset2 := int(t02.Sub(t0) / cr2.tickSize)
+
 	merged := DevsResult{}
 	var mergedIndex map[string]identity.MergedIndex
 	mergedIndex, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
@@ -249,6 +276,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 	newticks := map[int]map[int]*DevTick{}
 	merged.Ticks = newticks
 	for tick, dd := range cr1.Ticks {
+		tick += offset1
 		newdd, exists := newticks[tick]
 		if !exists {
 			newdd = map[int]*DevTick{}
@@ -279,6 +307,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 		}
 	}
 	for tick, dd := range cr2.Ticks {
+		tick += offset2
 		newdd, exists := newticks[tick]
 		if !exists {
 			newdd = map[int]*DevTick{}
@@ -357,11 +386,13 @@ func (devs *DevsAnalysis) serializeText(result *DevsResult, writer io.Writer) {
 	for _, person := range result.reversedPeopleDict {
 		fmt.Fprintf(writer, "  - %s\n", yaml.SafeString(person))
 	}
+	fmt.Fprintln(writer, "  tick_size:", int(result.tickSize.Seconds()))
 }
 
 func (devs *DevsAnalysis) serializeBinary(result *DevsResult, writer io.Writer) error {
 	message := pb.DevsAnalysisResults{}
 	message.DevIndex = result.reversedPeopleDict
+	message.TickSize = int64(result.tickSize)
 	message.Ticks = map[int32]*pb.TickDevs{}
 	for tick, devs := range result.Ticks {
 		dd := &pb.TickDevs{}

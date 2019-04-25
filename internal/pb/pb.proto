@@ -136,7 +136,10 @@ message TickDevs {
 
 message DevsAnalysisResults {
     map<int32, TickDevs> ticks = 1;
+    // developer identities, the indexes correspond to TickDevs' keys.
     repeated string dev_index = 2;
+    // how long each tick is, as an int64 nanosecond count (Go's time.Duration)
+    int64 tick_size = 8;
 }
 
 message Sentiment {
