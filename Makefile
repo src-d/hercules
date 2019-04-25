@@ -25,7 +25,7 @@ internal/pb/pb.pb.go: internal/pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo.exe
 endif
 
 python/labours/pb_pb2.py: internal/pb/pb.proto
-	protoc --python_out python/hercules --proto_path=internal/pb internal/pb/pb.proto
+	protoc --python_out python/labours --proto_path=internal/pb internal/pb/pb.proto
 
 cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 	cd cmd/hercules && go generate
