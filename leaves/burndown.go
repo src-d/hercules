@@ -133,8 +133,6 @@ type BurndownResult struct {
 	// The rest of the elements are equal the number of line removals by the corresponding
 	// authors in reversedPeopleDict: 2 -> 0, 3 -> 1, etc.
 	PeopleMatrix DenseHistory
-	// The size of each tick.
-	TickSize time.Duration
 
 	// The following members are private.
 
@@ -142,6 +140,8 @@ type BurndownResult struct {
 	// Pipeline.Initialize(facts map[string]interface{}). Thus it can be obtained via
 	// facts[FactIdentityDetectorReversedPeopleDict].
 	reversedPeopleDict []string
+	// tickSize references TicksSinceStart.tickSize
+	tickSize time.Duration
 	// sampling and granularity are copied from BurndownAnalysis and stored for service purposes
 	// such as merging several results together.
 	sampling    int
@@ -571,7 +571,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		FileOwnership:      fileOwnership,
 		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,
-		TickSize:           analyser.tickSize,
+		tickSize:           analyser.tickSize,
 		reversedPeopleDict: analyser.reversedPeopleDict,
 		sampling:           analyser.Sampling,
 		granularity:        analyser.Granularity,
@@ -613,7 +613,7 @@ func (analyser *BurndownAnalysis) Deserialize(pbmessage []byte) (interface{}, er
 		GlobalHistory: convertCSR(msg.Project),
 		FileHistories: map[string]DenseHistory{},
 		FileOwnership: map[string]map[int]int{},
-		TickSize:      time.Duration(msg.GetTickSize()),
+		tickSize:      time.Duration(msg.TickSize),
 
 		granularity: int(msg.Granularity),
 		sampling:    int(msg.Sampling),
@@ -649,17 +649,17 @@ func (analyser *BurndownAnalysis) MergeResults(
 	r1, r2 interface{}, c1, c2 *core.CommonAnalysisResult) interface{} {
 	bar1 := r1.(BurndownResult)
 	bar2 := r2.(BurndownResult)
-	if bar1.TickSize != bar2.TickSize {
+	if bar1.tickSize != bar2.tickSize {
 		return fmt.Errorf("mismatching tick sizes (r1: %d, r2: %d) received",
-			bar1.TickSize, bar2.TickSize)
+			bar1.tickSize, bar2.tickSize)
 	}
 	// for backwards-compatibility, if no tick size is present set to default
-	analyser.tickSize = bar1.TickSize
+	analyser.tickSize = bar1.tickSize
 	if analyser.tickSize == 0 {
 		analyser.tickSize = items.DefaultTicksSinceStartTickSize * time.Hour
 	}
 	merged := BurndownResult{
-		TickSize: analyser.tickSize,
+		tickSize: analyser.tickSize,
 	}
 	if bar1.sampling < bar2.sampling {
 		merged.sampling = bar1.sampling
@@ -683,6 +683,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 				bar1.GlobalHistory, bar2.GlobalHistory,
 				bar1.granularity, bar1.sampling,
 				bar2.granularity, bar2.sampling,
+				bar1.tickSize,
 				c1, c2)
 		}()
 	}
@@ -706,6 +707,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 						m1, m2,
 						bar1.granularity, bar1.sampling,
 						bar2.granularity, bar2.sampling,
+						bar1.tickSize,
 						c1, c2,
 					)
 				}(i)
@@ -755,8 +757,11 @@ func (analyser *BurndownAnalysis) MergeResults(
 	return merged
 }
 
-func (analyser *BurndownAnalysis) roundTime(unix int64, dir bool) int {
-	ticks := float64(unix) / analyser.tickSize.Seconds()
+func roundTime(t time.Time, d time.Duration, dir bool) int {
+	if !dir {
+		t = items.FloorTime(t, d)
+	}
+	ticks := float64(t.Unix()) / d.Seconds()
 	if dir {
 		return int(math.Ceil(ticks))
 	}
@@ -766,7 +771,8 @@ func (analyser *BurndownAnalysis) roundTime(unix int64, dir bool) int {
 // mergeMatrices takes two [number of samples][number of bands] matrices,
 // resamples them to ticks so that they become square, sums and resamples back to the
 // least of (sampling1, sampling2) and (granularity1, granularity2).
-func (analyser *BurndownAnalysis) mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int,
+func (analyser *BurndownAnalysis) mergeMatrices(
+	m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int, tickSize time.Duration,
 	c1, c2 *core.CommonAnalysisResult) DenseHistory {
 	commonMerged := c1.Copy()
 	commonMerged.Merge(c2)
@@ -783,19 +789,19 @@ func (analyser *BurndownAnalysis) mergeMatrices(m1, m2 DenseHistory, granularity
 		granularity = granularity2
 	}
 
-	size := analyser.roundTime(commonMerged.EndTime, true) -
-		analyser.roundTime(commonMerged.BeginTime, false)
+	size := roundTime(commonMerged.EndTimeAsTime(), tickSize, true) -
+		roundTime(commonMerged.BeginTimeAsTime(), tickSize, false)
 	perTick := make([][]float32, size+granularity)
 	for i := range perTick {
 		perTick[i] = make([]float32, size+sampling)
 	}
 	if len(m1) > 0 {
 		addBurndownMatrix(m1, granularity1, sampling1, perTick,
-			analyser.roundTime(c1.BeginTime, false)-analyser.roundTime(commonMerged.BeginTime, false))
+			roundTime(c1.BeginTimeAsTime(), tickSize, false)-roundTime(commonMerged.BeginTimeAsTime(), tickSize, false))
 	}
 	if len(m2) > 0 {
 		addBurndownMatrix(m2, granularity2, sampling2, perTick,
-			analyser.roundTime(c2.BeginTime, false)-analyser.roundTime(commonMerged.BeginTime, false))
+			roundTime(c2.BeginTimeAsTime(), tickSize, false)-roundTime(commonMerged.BeginTimeAsTime(), tickSize, false))
 	}
 
 	// convert daily to [][]int64
@@ -992,7 +998,7 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accPerTic
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
 	fmt.Fprintln(writer, "  granularity:", result.granularity)
 	fmt.Fprintln(writer, "  sampling:", result.sampling)
-	fmt.Fprintln(writer, "  tick_size:", result.TickSize)
+	fmt.Fprintln(writer, "  tick_size:", int(result.tickSize.Seconds()))
 	yaml.PrintMatrix(writer, result.GlobalHistory, 2, "project", true)
 	if len(result.FileHistories) > 0 {
 		fmt.Fprintln(writer, "  files:")
@@ -1045,7 +1051,7 @@ func (analyser *BurndownAnalysis) serializeBinary(result *BurndownResult, writer
 	message := pb.BurndownAnalysisResults{
 		Granularity: int32(result.granularity),
 		Sampling:    int32(result.sampling),
-		TickSize:    int64(result.TickSize),
+		TickSize:    int64(result.tickSize),
 	}
 	if len(result.GlobalHistory) > 0 {
 		message.Project = pb.ToBurndownSparseMatrix(result.GlobalHistory, "project")

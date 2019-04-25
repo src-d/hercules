@@ -49,6 +49,7 @@ func TestTicksSinceStartRegistration(t *testing.T) {
 
 func TestTicksSinceStartConsume(t *testing.T) {
 	tss := fixtureTicksSinceStart()
+	tss.TickSize = time.Second
 	deps := map[string]interface{}{}
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
@@ -58,9 +59,24 @@ func TestTicksSinceStartConsume(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, res[DependencyTick].(int))
 	assert.Equal(t, 0, tss.previousTick)
+	assert.Equal(t, 2016, tss.tick0.Year())
+	assert.Equal(t, time.Month(12), tss.tick0.Month())
+	assert.Equal(t, 12, tss.tick0.Day())
 	assert.Equal(t, 18, tss.tick0.Hour())   // 18 UTC+1
 	assert.Equal(t, 30, tss.tick0.Minute()) // 30
 	assert.Equal(t, 29, tss.tick0.Second()) // 29
+
+	tss = fixtureTicksSinceStart()
+	res, err = tss.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, res[DependencyTick].(int))
+	assert.Equal(t, 0, tss.previousTick)
+	assert.Equal(t, 2016, tss.tick0.Year())
+	assert.Equal(t, time.Month(12), tss.tick0.Month())
+	assert.Equal(t, 12, tss.tick0.Day())
+	assert.Equal(t, 1, tss.tick0.Hour()) // UTC+1
+	assert.Equal(t, 0, tss.tick0.Minute())
+	assert.Equal(t, 0, tss.tick0.Second())
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"fc9ceecb6dabcb2aab60e8619d972e8d8208a7df"))
@@ -123,9 +139,9 @@ func TestTicksSinceStartConsumeWithTickSize(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, res[DependencyTick].(int))
 	assert.Equal(t, 0, tss.previousTick)
-	assert.Equal(t, 18, tss.tick0.Hour())   // 18 UTC+1
-	assert.Equal(t, 30, tss.tick0.Minute()) // 30
-	assert.Equal(t, 29, tss.tick0.Second()) // 29
+	assert.Equal(t, 18, tss.tick0.Hour())  // 18 UTC+1
+	assert.Equal(t, 0, tss.tick0.Minute()) // 30
+	assert.Equal(t, 0, tss.tick0.Second()) // 29
 
 	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
 		"fc9ceecb6dabcb2aab60e8619d972e8d8208a7df"))
@@ -160,7 +176,7 @@ func TestTicksCommits(t *testing.T) {
 	tss.commits[0] = []plumbing.Hash{plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1")}
 	commits := tss.commits
-	tss.Initialize(test.Repository)
+	assert.NoError(t, tss.Initialize(test.Repository))
 	assert.Len(t, tss.commits, 0)
 	assert.Equal(t, tss.commits, commits)
 }

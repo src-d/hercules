@@ -59,7 +59,10 @@ var combineCmd = &cobra.Command{
 			bar.Increment()
 			anotherResults, anotherMetadata, errs := loadMessage(fileName, &repos)
 			if anotherMetadata != nil {
-				mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata, only)
+				mergeErrs := mergeResults(mergedResults, mergedMetadata, anotherResults, anotherMetadata, only)
+				for _, err := range mergeErrs {
+					errs = append(errs, err.Error())
+				}
 			}
 			allErrors[fileName] = errs
 			debug.FreeOSMemory()
@@ -173,7 +176,8 @@ func mergeResults(mergedResults map[string]interface{},
 	mergedCommons *hercules.CommonAnalysisResult,
 	anotherResults map[string]interface{},
 	anotherCommons *hercules.CommonAnalysisResult,
-	only string) {
+	only string) []error {
+	var errors []error
 	for key, val := range anotherResults {
 		if only != "" && key != only {
 			continue
@@ -185,13 +189,18 @@ func mergeResults(mergedResults map[string]interface{},
 		}
 		item := hercules.Registry.Summon(key)[0].(hercules.ResultMergeablePipelineItem)
 		mergedResult = item.MergeResults(mergedResult, val, mergedCommons, anotherCommons)
-		mergedResults[key] = mergedResult
+		if err, isErr := mergedResult.(error); isErr {
+			errors = append(errors, fmt.Errorf("could not merge %s: %v", item.Name(), err))
+		} else {
+			mergedResults[key] = mergedResult
+		}
 	}
 	if mergedCommons.CommitsNumber == 0 {
 		*mergedCommons = *anotherCommons
 	} else {
 		mergedCommons.Merge(anotherCommons)
 	}
+	return errors
 }
 
 func getOptionsString() string {

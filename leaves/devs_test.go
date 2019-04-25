@@ -3,6 +3,7 @@ package leaves
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,7 @@ import (
 
 func fixtureDevs() *DevsAnalysis {
 	d := DevsAnalysis{}
+	d.tickSize = 24 * time.Hour
 	d.Initialize(test.Repository)
 	people := [...]string{"one@srcd", "two@srcd"}
 	d.reversedPeopleDict = people[:]
@@ -67,13 +69,17 @@ func TestDevsConfigure(t *testing.T) {
 	devs := DevsAnalysis{}
 	facts := map[string]interface{}{}
 	facts[ConfigDevsConsiderEmptyCommits] = true
-	devs.Configure(facts)
-	assert.Equal(t, devs.ConsiderEmptyCommits, true)
+	facts[items.FactTickSize] = 3 * time.Hour
+	assert.NoError(t, devs.Configure(facts))
+	assert.True(t, devs.ConsiderEmptyCommits)
+	assert.Equal(t, 3*time.Hour, devs.tickSize)
 }
 
 func TestDevsInitialize(t *testing.T) {
 	d := fixtureDevs()
 	assert.NotNil(t, d.ticks)
+	d = &DevsAnalysis{}
+	assert.Error(t, d.Initialize(test.Repository))
 }
 
 func TestDevsConsumeFinalize(t *testing.T) {
@@ -279,6 +285,7 @@ func TestDevsFinalize(t *testing.T) {
 	x := devs.Finalize().(DevsResult)
 	assert.Equal(t, x.Ticks, devs.ticks)
 	assert.Equal(t, x.reversedPeopleDict, devs.reversedPeopleDict)
+	assert.Equal(t, 24*time.Hour, devs.tickSize)
 }
 
 func TestDevsFork(t *testing.T) {
@@ -310,6 +317,7 @@ func TestDevsSerialize(t *testing.T) {
   people:
   - "one@srcd"
   - "two@srcd"
+  tick_size: 86400
 `, buffer.String())
 
 	buffer = &bytes.Buffer{}
@@ -318,6 +326,7 @@ func TestDevsSerialize(t *testing.T) {
 	msg := pb.DevsAnalysisResults{}
 	assert.Nil(t, proto.Unmarshal(buffer.Bytes(), &msg))
 	assert.Equal(t, msg.DevIndex, devs.reversedPeopleDict)
+	assert.Equal(t, int64(24*time.Hour), msg.TickSize)
 	assert.Len(t, msg.Ticks, 2)
 	assert.Len(t, msg.Ticks[1].Devs, 2)
 	assert.Equal(t, msg.Ticks[1].Devs[0], &pb.DevTick{
@@ -360,6 +369,7 @@ func TestDevsMergeResults(t *testing.T) {
 	r1 := DevsResult{
 		Ticks:              map[int]map[int]*DevTick{},
 		reversedPeopleDict: people1[:],
+		tickSize:           24 * time.Hour,
 	}
 	r1.Ticks[1] = map[int]*DevTick{}
 	r1.Ticks[1][0] = &DevTick{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
@@ -373,6 +383,7 @@ func TestDevsMergeResults(t *testing.T) {
 	r2 := DevsResult{
 		Ticks:              map[int]map[int]*DevTick{},
 		reversedPeopleDict: people2[:],
+		tickSize:           22 * time.Hour,
 	}
 	r2.Ticks[1] = map[int]*DevTick{}
 	r2.Ticks[1][0] = &DevTick{10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}}
@@ -387,7 +398,10 @@ func TestDevsMergeResults(t *testing.T) {
 		100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(62, 63, 64)}}
 
 	devs := fixtureDevs()
-	rm := devs.MergeResults(r1, r2, nil, nil).(DevsResult)
+	c1 := core.CommonAnalysisResult{BeginTime: 1556224895}
+	assert.IsType(t, assert.AnError, devs.MergeResults(r1, r2, &c1, &c1))
+	r2.tickSize = r1.tickSize
+	rm := devs.MergeResults(r1, r2, &c1, &c1).(DevsResult)
 	peoplerm := [...]string{"1@srcd", "2@srcd", "3@srcd"}
 	assert.Equal(t, rm.reversedPeopleDict, peoplerm[:])
 	assert.Len(t, rm.Ticks, 4)
@@ -407,5 +421,30 @@ func TestDevsMergeResults(t *testing.T) {
 		2: {11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(52, 53, 54)}},
 		identity.AuthorMissing: {
 			100 * 2, ls(200*2, 300*2, 400*2), map[string]items.LineStats{"Go": ls(94, 96, 98)}},
+	})
+
+	c2 := core.CommonAnalysisResult{BeginTime: 1556224895 + 24*3600}
+	rm = devs.MergeResults(r1, r2, &c1, &c2).(DevsResult)
+	assert.Len(t, rm.Ticks, 5)
+	assert.Equal(t, rm.Ticks[1], map[int]*DevTick{
+		0: {10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}},
+		1: {1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}},
+	})
+	assert.Equal(t, rm.Ticks[2], map[int]*DevTick{
+		2: {10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(12, 13, 14)}},
+		0: {1, ls(2, 3, 4), map[string]items.LineStats{"Go": ls(22, 23, 24)}},
+	})
+	assert.Equal(t, rm.Ticks[3], map[int]*DevTick{
+		2:                      {11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(32, 33, 34)}},
+		identity.AuthorMissing: {100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(42, 43, 44)}},
+	})
+	assert.Equal(t, rm.Ticks[10], map[int]*DevTick{
+		0:                      {11, ls(21, 31, 41), map[string]items.LineStats{}},
+		identity.AuthorMissing: {100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(32, 33, 34)}},
+	})
+	assert.Equal(t, rm.Ticks[11], map[int]*DevTick{
+		1:                      {10, ls(20, 30, 40), map[string]items.LineStats{"Go": ls(42, 43, 44)}},
+		2:                      {11, ls(21, 31, 41), map[string]items.LineStats{"Go": ls(52, 53, 54)}},
+		identity.AuthorMissing: {100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(62, 63, 64)}},
 	})
 }

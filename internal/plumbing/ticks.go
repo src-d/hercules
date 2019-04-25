@@ -123,11 +123,12 @@ func (ticks *TicksSinceStart) Consume(deps map[string]interface{}) (map[string]i
 	if index == 0 {
 		// first iteration - initialize the file objects from the tree
 		// our precision is 1 day
-		*ticks.tick0 = commit.Committer.When
-		if ticks.tick0.Unix() < 631152000 { // 01.01.1990, that was 30 years ago
+		tick0 := commit.Committer.When
+		if tick0.Unix() < 631152000 { // 01.01.1990, that was 30 years ago
 			ticks.l.Warnf("suspicious committer timestamp in %s > %s: %d",
-				ticks.remote, commit.Hash.String(), ticks.tick0.Unix())
+				ticks.remote, commit.Hash.String(), tick0.Unix())
 		}
+		*ticks.tick0 = FloorTime(tick0, ticks.TickSize)
 	}
 
 	tick := int(commit.Committer.When.Sub(*ticks.tick0) / ticks.TickSize)
@@ -161,6 +162,16 @@ func (ticks *TicksSinceStart) Consume(deps map[string]interface{}) (map[string]i
 // Fork clones this PipelineItem.
 func (ticks *TicksSinceStart) Fork(n int) []core.PipelineItem {
 	return core.ForkCopyPipelineItem(ticks, n)
+}
+
+// FloorTime is the missing implementation of time.Time.Floor() - round to the nearest less than or equal.
+func FloorTime(t time.Time, d time.Duration) time.Time {
+	// We have check if the regular rounding resulted in Floor() + d.
+	result := t.Round(d)
+	if result.After(t) {
+		result = result.Add(-d)
+	}
+	return result
 }
 
 func init() {
