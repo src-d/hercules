@@ -683,6 +683,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 				bar1.GlobalHistory, bar2.GlobalHistory,
 				bar1.granularity, bar1.sampling,
 				bar2.granularity, bar2.sampling,
+				bar1.tickSize,
 				c1, c2)
 		}()
 	}
@@ -706,6 +707,7 @@ func (analyser *BurndownAnalysis) MergeResults(
 						m1, m2,
 						bar1.granularity, bar1.sampling,
 						bar2.granularity, bar2.sampling,
+						bar1.tickSize,
 						c1, c2,
 					)
 				}(i)
@@ -755,8 +757,11 @@ func (analyser *BurndownAnalysis) MergeResults(
 	return merged
 }
 
-func (analyser *BurndownAnalysis) roundTime(unix int64, dir bool) int {
-	ticks := float64(unix) / analyser.tickSize.Seconds()
+func roundTime(t time.Time, d time.Duration, dir bool) int {
+	if !dir {
+		t = items.FloorTime(t, d)
+	}
+	ticks := float64(t.Unix()) / d.Seconds()
 	if dir {
 		return int(math.Ceil(ticks))
 	}
@@ -766,7 +771,8 @@ func (analyser *BurndownAnalysis) roundTime(unix int64, dir bool) int {
 // mergeMatrices takes two [number of samples][number of bands] matrices,
 // resamples them to ticks so that they become square, sums and resamples back to the
 // least of (sampling1, sampling2) and (granularity1, granularity2).
-func (analyser *BurndownAnalysis) mergeMatrices(m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int,
+func (analyser *BurndownAnalysis) mergeMatrices(
+	m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int, tickSize time.Duration,
 	c1, c2 *core.CommonAnalysisResult) DenseHistory {
 	commonMerged := c1.Copy()
 	commonMerged.Merge(c2)
@@ -783,19 +789,19 @@ func (analyser *BurndownAnalysis) mergeMatrices(m1, m2 DenseHistory, granularity
 		granularity = granularity2
 	}
 
-	size := analyser.roundTime(commonMerged.EndTime, true) -
-		analyser.roundTime(commonMerged.BeginTime, false)
+	size := roundTime(commonMerged.EndTimeAsTime(), tickSize, true) -
+		roundTime(commonMerged.BeginTimeAsTime(), tickSize, false)
 	perTick := make([][]float32, size+granularity)
 	for i := range perTick {
 		perTick[i] = make([]float32, size+sampling)
 	}
 	if len(m1) > 0 {
 		addBurndownMatrix(m1, granularity1, sampling1, perTick,
-			analyser.roundTime(c1.BeginTime, false)-analyser.roundTime(commonMerged.BeginTime, false))
+			roundTime(c1.BeginTimeAsTime(), tickSize, false)-roundTime(commonMerged.BeginTimeAsTime(), tickSize, false))
 	}
 	if len(m2) > 0 {
 		addBurndownMatrix(m2, granularity2, sampling2, perTick,
-			analyser.roundTime(c2.BeginTime, false)-analyser.roundTime(commonMerged.BeginTime, false))
+			roundTime(c2.BeginTimeAsTime(), tickSize, false)-roundTime(commonMerged.BeginTimeAsTime(), tickSize, false))
 	}
 
 	// convert daily to [][]int64

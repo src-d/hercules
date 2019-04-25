@@ -1500,13 +1500,13 @@ func TestBurndownMergeMatrices(t *testing.T) {
 		RunTime:       1567214,
 	}
 	bd := BurndownAnalysis{tickSize: 24 * time.Hour}
-	nh := bd.mergeMatrices(h, nil, 30, 30, 30, 30, cr, cr)
+	nh := bd.mergeMatrices(h, nil, 30, 30, 30, 30, bd.tickSize, cr, cr)
 	for y, row := range nh {
 		for x, v := range row {
 			assert.InDelta(t, v, h[y][x], 1, fmt.Sprintf("y=%d x=%d", y, x))
 		}
 	}
-	nh = bd.mergeMatrices(h, h, 30, 30, 30, 30, cr, cr)
+	nh = bd.mergeMatrices(h, h, 30, 30, 30, 30, bd.tickSize, cr, cr)
 	for y, row := range nh {
 		for x, v := range row {
 			assert.InDelta(t, v, h[y][x]*2, 1, fmt.Sprintf("y=%d x=%d", y, x))
