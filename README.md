@@ -158,7 +158,7 @@ labours -m burndown-file
 
 Burndown statistics for every file in the repository which is alive in the latest revision.
 
-Note: it will generate separate graph for every file. You might don't want to run it on repository with many files.
+Note: it will generate separate graph for every file. You don't want to run it on repository with many files.
 
 #### People
 
