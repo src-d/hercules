@@ -169,7 +169,7 @@ class YamlReader(Reader):
 
     def get_burndown_parameters(self):
         header = self.data["Burndown"]
-        return header["sampling"], header["granularity"]
+        return header["sampling"], header["granularity"], header["tick_size"]
 
     def get_project_burndown(self):
         return self.data["hercules"]["repository"], \
@@ -300,7 +300,7 @@ class ProtobufReader(Reader):
 
     def get_burndown_parameters(self):
         burndown = self.contents["Burndown"]
-        return burndown.sampling, burndown.granularity
+        return burndown.sampling, burndown.granularity, burndown.tick_size / 1000000000
 
     def get_project_burndown(self):
         return self._parse_burndown_matrix(self.contents["Burndown"].project)
@@ -605,19 +605,23 @@ def import_pandas():
     return pandas
 
 
+def floor_datetime(dt, duration):
+    return datetime.fromtimestamp(dt.timestamp() - dt.timestamp() % duration)
+
+
 def load_burndown(header, name, matrix, resample, report_survival=True):
     pandas = import_pandas()
 
-    start, last, sampling, granularity = header
+    start, last, sampling, granularity, tick = header
     assert sampling > 0
     assert granularity > 0
-    start = datetime.fromtimestamp(start)
+    start = floor_datetime(datetime.fromtimestamp(start), tick)
     last = datetime.fromtimestamp(last)
     if report_survival:
         kmf = fit_kaplan_meier(matrix)
         if kmf is not None:
             print_survival_function(kmf, sampling)
-    finish = start + timedelta(days=matrix.shape[1] * sampling)
+    finish = start + timedelta(seconds=matrix.shape[1] * sampling * tick)
     if resample not in ("no", "raw"):
         print("resampling to %s, please wait..." % resample)
         # Interpolate the day x day matrix.
@@ -670,15 +674,15 @@ def load_burndown(header, name, matrix, resample, report_survival=True):
             labels = [dt.date() for dt in date_granularity_sampling]
     else:
         labels = [
-            "%s - %s" % ((start + timedelta(days=i * granularity)).date(),
+            "%s - %s" % ((start + timedelta(seconds=i * granularity * tick)).date(),
                          (
-                         start + timedelta(days=(i + 1) * granularity)).date())
+                         start + timedelta(seconds=(i + 1) * granularity * tick)).date())
             for i in range(matrix.shape[0])]
         if len(labels) > 18:
             warnings.warn("Too many labels - consider resampling.")
         resample = "M"  # fake resampling type is checked while plotting
         date_range_sampling = pandas.date_range(
-            start + timedelta(days=sampling), periods=matrix.shape[1],
+            start + timedelta(seconds=sampling * tick), periods=matrix.shape[1],
             freq="%dD" % sampling)
     return name, matrix, date_range_sampling, labels, granularity, sampling, resample
 
@@ -686,15 +690,16 @@ def load_burndown(header, name, matrix, resample, report_survival=True):
 def load_ownership(header, sequence, contents, max_people):
     pandas = import_pandas()
 
-    start, last, sampling, _ = header
+    start, last, sampling, _, tick = header
     start = datetime.fromtimestamp(start)
+    start = floor_datetime(start, tick)
     last = datetime.fromtimestamp(last)
     people = []
     for name in sequence:
         people.append(contents[name].sum(axis=1))
     people = numpy.array(people)
     date_range_sampling = pandas.date_range(
-        start + timedelta(days=sampling), periods=people[0].shape[0],
+        start + timedelta(seconds=sampling * tick), periods=people[0].shape[0],
         freq="%dD" % sampling)
 
     if people.shape[0] > max_people:
