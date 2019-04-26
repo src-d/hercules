@@ -448,3 +448,9 @@ func TestDevsMergeResults(t *testing.T) {
 		identity.AuthorMissing: {100, ls(200, 300, 400), map[string]items.LineStats{"Go": ls(62, 63, 64)}},
 	})
 }
+
+func TestDevsResultGetters(t *testing.T) {
+	dr := DevsResult{tickSize: time.Hour, reversedPeopleDict: []string{"one", "two"}}
+	assert.Equal(t, dr.tickSize, dr.GetTickSize())
+	assert.Equal(t, dr.GetIdentities(), dr.reversedPeopleDict)
+}

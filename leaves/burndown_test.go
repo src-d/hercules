@@ -1620,3 +1620,9 @@ func TestBurndownHandleRenameCycle(t *testing.T) {
 		"three": {},
 	})
 }
+
+func TestBurndownResultGetters(t *testing.T) {
+	br := BurndownResult{tickSize: time.Hour, reversedPeopleDict: []string{"one", "two"}}
+	assert.Equal(t, br.tickSize, br.GetTickSize())
+	assert.Equal(t, br.GetIdentities(), br.reversedPeopleDict)
+}
