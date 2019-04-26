@@ -429,6 +429,17 @@ func (devs *DevsAnalysis) serializeBinary(result *DevsResult, writer io.Writer) 
 	return err
 }
 
+// GetTickSize returns the tick size used to generate this devs analysis result.
+func (dr DevsResult) GetTickSize() time.Duration {
+	return dr.tickSize
+}
+
+// GetIdentities returns the list of developer identities used to generate this devs analysis result.
+// The format is |-joined keys, see internals/plumbing/identity for details.
+func (dr DevsResult) GetIdentities() []string {
+	return dr.reversedPeopleDict
+}
+
 func init() {
 	core.Registry.Register(&DevsAnalysis{})
 }

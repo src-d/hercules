@@ -1541,6 +1541,17 @@ func (analyser *BurndownAnalysis) groupSparseHistory(
 	return result, lastTick
 }
 
+// GetTickSize returns the tick size used to generate this burndown analysis result.
+func (br BurndownResult) GetTickSize() time.Duration {
+	return br.tickSize
+}
+
+// GetIdentities returns the list of developer identities used to generate this burndown analysis result.
+// The format is |-joined keys, see internals/plumbing/identity for details.
+func (br BurndownResult) GetIdentities() []string {
+	return br.reversedPeopleDict
+}
+
 func init() {
 	core.Registry.Register(&BurndownAnalysis{})
 }
