@@ -23,6 +23,39 @@
 
 --------
 
+
+Table of Contents
+=================
+
+  * [Overview](#overview)
+  * [Installation](#installation)
+     * [Build from source](#build-from-source)
+  * [Contributions](#contributions)
+  * [License](#license)
+  * [Usage](#usage)
+    * [Caching](#caching)
+    * [Docker image](#docker-image)
+    * [Built-in analyses](#built-in-analyses)
+      * [Project burndown](#project-burndown)
+      * [Files](#files)
+      * [People](#people)
+      * [Churn matrix](#churn-matrix)
+      * [Code ownership](#code-ownership)
+      * [Couples](#couples)
+      * [Structural hotness](#structural-hotness)
+      * [Aligned commit series](#aligned-commit-series)
+      * [Added vs changed lines through time](#added-vs-changed-lines-through-time)
+      * [Efforts through time](#efforts-through-time)
+      * [Sentiment (positive and negative comments)](#sentiment-positive-and-negative-comments)
+      * [Everything in a single pass](#everything-in-a-single-pass)
+    * [Plugins](#plugins)
+    * [Merging](#merging)
+    * [Bad unicode errors](#bad-unicode-errors)
+    * [Plotting](#plotting)
+    * [Custom plotting backend](#custom-plotting-backend)
+    * [Caveats](#caveats)
+    * [Burndown Out-Of-Memory](#burndown-out-of-memory)
+
 ## Overview
 
 Hercules is an amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries are included.
@@ -106,7 +139,7 @@ git rev-list HEAD | tac | hercules --commits - --burndown https://github.com/git
 
 `labours -i /path/to/yaml` allows to read the output from `hercules` which was saved on disk.
 
-#### Caching
+### Caching
 
 It is possible to store the cloned repository on disk. The subsequent analysis can run on the
 corresponding directory instead of cloning from scratch:
@@ -119,7 +152,7 @@ hercules https://github.com/git/git /tmp/repo-cache
 hercules --some-analysis /tmp/repo-cache
 ```
 
-#### Docker image
+### Docker image
 
 ```
 docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours -f pb -m burndown-project -o /io/git_git.png
