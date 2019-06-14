@@ -19,7 +19,7 @@ build_script:
   - cd %GOPATH%\src\gopkg.in\src-d\hercules.v10
   - go get -v github.com/golang/dep/cmd/dep
   - make
-  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v10\hercules.win64.zip %GOPATH%\bin\hercules.exe
+  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v10\hercules.win64.zip %GOPATH%\bin\hercules.exe LICENSE.md
 
 test_script:
   - go get -v -t -d gopkg.in/src-d/hercules.v10/...

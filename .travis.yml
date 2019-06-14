@@ -98,6 +98,7 @@ jobs:
         - export PATH=$GOPATH/bin:$PATH
       after_success:
         - gzip -S .darwin_amd64.gz $GOPATH/bin/hercules
+        - tar -xzvf "$GOPATH/bin/hercules.darwin_amd64.tar.gz" $GOPATH/bin/hercules LICENSE.md
       script: skip
       install:
         - travis_retry make
@@ -105,7 +106,9 @@ jobs:
         provider: releases
         api_key:
           secure: $GITHUB_TOKEN
-        file: "$GOPATH/bin/hercules.darwin_amd64.gz"
+        file:
+          - "$GOPATH/bin/hercules.darwin_amd64.gz"
+          - "$GOPATH/bin/hercules.darwin_amd64.tar.gz"
         skip_cleanup: true
         on:
           tags: true
@@ -131,11 +134,14 @@ jobs:
         - cd ..
       after_success:
         - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
+        - tar -xzvf "$GOPATH/bin/hercules.linux_amd64.tar.gz" $GOPATH/bin/hercules LICENSE.md
       deploy:
         - provider: releases
           api_key:
             secure: $GITHUB_TOKEN
-          file: "$GOPATH/bin/hercules.linux_amd64.gz"
+          file:
+            - "$GOPATH/bin/hercules.linux_amd64.gz"
+            - "$GOPATH/bin/hercules.linux_amd64.tar.gz"
           skip_cleanup: true
           on:
             tags: true
