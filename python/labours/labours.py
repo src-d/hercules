@@ -1286,12 +1286,11 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     deploy_plot(title, args.output, args.background)
 
 
-def show_devs(args, name, start_date, end_date, people, days):
+def show_devs(args, name, start_date, end_date, people, days, max_people=50):
     from scipy.signal import convolve, slepian
 
-    max_people = 50
     if len(people) > max_people:
-        print("Picking top 100 developers by commit count")
+        print("Picking top %s developers by commit count" % max_people)
         # pick top N developers by commit count
         commits = defaultdict(int)
         for devs in days.values():
@@ -1864,7 +1863,8 @@ def main():
         except KeyError:
             print(devs_warning)
             return
-        show_devs(args, reader.get_name(), *reader.get_header(), *data)
+        show_devs(args, reader.get_name(), *reader.get_header(), *data,
+                  max_people=args.max_people)
 
     def devs_efforts():
         try:
