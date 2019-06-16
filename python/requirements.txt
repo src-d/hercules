@@ -10,4 +10,4 @@ hdbscan==0.8.18
 seriate==1.0.0
 fastdtw==0.3.2
 python-dateutil==2.8.0
-lifelines==0.20.4
+lifelines==0.21.3
