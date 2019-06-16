@@ -1327,6 +1327,7 @@ def show_devs(args, name, start_date, end_date, people, days):
 
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
     pyplot.rcParams["figure.figsize"] = (32, 16)
+    pyplot.rcParams["font.size"] = args.font_size
     prop_cycle = pyplot.rcParams["axes.prop_cycle"]
     colors = prop_cycle.by_key()["color"]
     fig, axes = pyplot.subplots(final.shape[0], 1)
@@ -1347,18 +1348,18 @@ def show_devs(args, name, start_date, end_date, people, days):
         author = people[dev_i]
         ax.text(0.03, 0.5, author[:36] + (author[36:] and "..."),
                 horizontalalignment="right", verticalalignment="center",
-                transform=ax.transAxes, fontsize=14,
+                transform=ax.transAxes, fontsize=args.font_size,
                 color="black" if args.background == "white" else "white")
         ds = devstats[dev_i]
         stats = "%5d %8s %8s" % (ds[0], _format_number(ds[1] - ds[2]), _format_number(ds[3]))
         ax.text(0.97, 0.5, stats,
                 horizontalalignment="left", verticalalignment="center",
-                transform=ax.transAxes, fontsize=14, family="monospace",
+                transform=ax.transAxes, fontsize=args.font_size, family="monospace",
                 backgroundcolor=backgrounds[ds[1] <= ds[2]],
                 color="black" if args.background == "white" else "white")
     axes[0].text(0.97, 1.75, " cmts    delta  changed",
                  horizontalalignment="left", verticalalignment="center",
-                 transform=axes[0].transAxes, fontsize=14, family="monospace",
+                 transform=axes[0].transAxes, fontsize=args.font_size, family="monospace",
                  color="black" if args.background == "white" else "white")
     axes[-1].set_axis_on()
     target_num_labels = 12
