@@ -58,10 +58,10 @@ def parse_args():
     parser.add_argument("--size", help="Axes' size in inches, for example \"12,9\"")
     parser.add_argument("--relative", action="store_true",
                         help="Occupy 100%% height for every measurement.")
-    parser.add_argument("--couples-tmp-dir", help="Temporary directory to work with couples.")
+    parser.add_argument("--tmpdir", help="Temporary directory for intermediate files.")
     parser.add_argument("-m", "--mode",
                         choices=["burndown-project", "burndown-file", "burndown-person",
-                                 "churn-matrix", "ownership", "couples-files", "couples-people",
+                                 "overwrites-matrix", "ownership", "couples-files", "couples-people",
                                  "couples-shotness", "shotness", "sentiment", "devs",
                                  "devs-efforts", "old-vs-new", "all", "run-times", "languages",
                                  "devs-parallel"],
@@ -82,7 +82,7 @@ def parse_args():
     parser.add_argument("--disable-projector", action="store_true",
                         help="Do not run Tensorflow Projector on couples.")
     parser.add_argument("--max-people", default=20, type=int,
-                        help="Maximum number of developers in churn matrix and people plots.")
+                        help="Maximum number of developers in overwrites matrix and people plots.")
     args = parser.parse_args()
     return args
 
@@ -716,18 +716,19 @@ def load_ownership(header, sequence, contents, max_people):
     return sequence, people, date_range_sampling, last
 
 
-def load_churn_matrix(people, matrix, max_people):
+def load_overwrites_matrix(people, matrix, max_people, normalize=True):
     matrix = matrix.astype(float)
     if matrix.shape[0] > max_people:
         order = numpy.argsort(-matrix[:, 0])
         matrix = matrix[order[:max_people]][:, [0, 1] + list(2 + order[:max_people])]
         people = [people[i] for i in order[:max_people]]
         print("Warning: truncated people to most productive %d" % max_people)
-    zeros = matrix[:, 0] == 0
-    matrix[zeros, :] = 1
-    matrix /= matrix[:, 0][:, None]
+    if normalize:
+        zeros = matrix[:, 0] == 0
+        matrix[zeros, :] = 1
+        matrix /= matrix[:, 0][:, None]
+        matrix[zeros, :] = 0
     matrix = -matrix[:, 1:]
-    matrix[zeros, :] = 0
     for i, name in enumerate(people):
         if len(name) > 40:
             people[i] = name[:37] + "..."
@@ -907,11 +908,11 @@ def plot_many_burndown(args, target, header, parts):
     sys.stdout.write(stdout.getvalue())
 
 
-def plot_churn_matrix(args, repo, people, matrix):
+def plot_overwrites_matrix(args, repo, people, matrix):
     if args.output and args.output.endswith(".json"):
         data = locals().copy()
         del data["args"]
-        data["type"] = "churn_matrix"
+        data["type"] = "overwrites_matrix"
         if args.mode == "all":
             output = get_plot_path(args.output, "matrix")
         else:
@@ -1799,12 +1800,22 @@ def main():
         except KeyError:
             print("people: " + burndown_people_warning)
 
-    def churn_matrix():
+    def overwrites_matrix():
         try:
-            plot_churn_matrix(args, name, *load_churn_matrix(
+
+            plot_overwrites_matrix(args, name, *load_overwrites_matrix(
                 *reader.get_people_interaction(), max_people=args.max_people))
+            people, matrix = load_overwrites_matrix(
+                *reader.get_people_interaction(), max_people=1000000, normalize=False)
+            from scipy.sparse import csr_matrix
+            matrix = matrix[:, 1:]
+            matrix = numpy.triu(matrix) + numpy.tril(matrix).T
+            matrix = matrix + matrix.T
+            matrix = csr_matrix(matrix)
+            write_embeddings("overwrites", args.output, not args.disable_projector,
+                             *train_embeddings(people, matrix, tmpdir=args.tmpdir))
         except KeyError:
-            print("churn_matrix: " + burndown_people_warning)
+            print("overwrites_matrix: " + burndown_people_warning)
 
     def ownership_burndown():
         try:
@@ -1822,7 +1833,7 @@ def main():
         try:
             write_embeddings("files", args.output, not args.disable_projector,
                              *train_embeddings(*reader.get_files_coocc(),
-                                               tmpdir=args.couples_tmp_dir))
+                                               tmpdir=args.tmpdir))
         except KeyError:
             print(couples_warning)
 
@@ -1830,7 +1841,7 @@ def main():
         try:
             write_embeddings("people", args.output, not args.disable_projector,
                              *train_embeddings(*reader.get_people_coocc(),
-                                               tmpdir=args.couples_tmp_dir))
+                                               tmpdir=args.tmpdir))
         except KeyError:
             print(couples_warning)
 
@@ -1838,7 +1849,7 @@ def main():
         try:
             write_embeddings("shotness", args.output, not args.disable_projector,
                              *train_embeddings(*reader.get_shotness_coocc(),
-                                               tmpdir=args.couples_tmp_dir))
+                                               tmpdir=args.tmpdir))
         except KeyError:
             print(shotness_warning)
 
@@ -1916,7 +1927,7 @@ def main():
         "burndown-project": project_burndown,
         "burndown-file": files_burndown,
         "burndown-person": people_burndown,
-        "churn-matrix": churn_matrix,
+        "overwrites-matrix": overwrites_matrix,
         "ownership": ownership_burndown,
         "couples-files": couples_files,
         "couples-people": couples_people,
@@ -1936,7 +1947,7 @@ def main():
         project_burndown()
         files_burndown()
         people_burndown()
-        churn_matrix()
+        overwrites_matrix()
         ownership_burndown()
         couples_files()
         couples_people()

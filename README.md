@@ -39,7 +39,7 @@ Table of Contents
       * [Project burndown](#project-burndown)
       * [Files](#files)
       * [People](#people)
-      * [Churn matrix](#churn-matrix)
+      * [Churn matrix](#overwrites-matrix)
       * [Code ownership](#code-ownership)
       * [Couples](#couples)
       * [Structural hotness](#structural-hotness)
@@ -214,14 +214,14 @@ If `--people-dict` is specified, it should point to a text file with the custom 
 format is: every line is a single developer, it contains all the matching emails and names separated
 by `|`. The case is ignored.
 
-#### Churn matrix
+#### Overwrites matrix
 
-![Wireshark top 20 churn matrix](doc/wireshark_churn_matrix.png)
-<p align="center">Wireshark top 20 devs - churn matrix</p>
+![Wireshark top 20 overwrites matrix](doc/wireshark_overwrites_matrix.png)
+<p align="center">Wireshark top 20 devs - overwrites matrix</p>
 
 ```
 hercules --burndown --burndown-people [--people-dict=/path/to/identities]
-labours -m churn-matrix
+labours -m overwrites-matrix
 ```
 
 Beside the burndown information, `--burndown-people` collects the added and deleted line statistics per
