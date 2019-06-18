@@ -1411,24 +1411,9 @@ def order_commits(chosen_people, days, people):
     series = list(devseries.values())
     for i, s in enumerate(series):
         arr = numpy.array(s).transpose().astype(numpy.float32)
-        commits = arr[1]
-        if len(commits) < 7:
-            commits /= commits.max()
-        else:
-            # 4 is sizeof(float32)
-            windows = numpy.lib.stride_tricks.as_strided(commits, [len(commits) - 6, 7], [4, 4])
-            commits = numpy.concatenate((
-                [windows[0, 0] / windows[0].max(),
-                 windows[0, 1] / windows[0].max(),
-                 windows[0, 2] / windows[0].max()],
-                windows[:, 3] / windows.max(axis=1),
-                [windows[-1, 4] / windows[-1].max(),
-                 windows[-1, 5] / windows[-1].max(),
-                 windows[-1, 6] / windows[-1].max()]
-            ))
-        arr[1] = commits * 7  # 7 is a pure heuristic here and is not related to the window size
+        arr[1] /= arr[1].sum()
         series[i] = arr.transpose()
-    # calculate the distance matrix using dynamic time warping metric
+    # calculate the distance matrix using dynamic time warping
     dists = numpy.full((len(series),) * 2, -100500, dtype=numpy.float32)
     for x, serx in enumerate(series):
         dists[x, x] = 0
@@ -1451,8 +1436,7 @@ def hdbscan_cluster_routed_series(dists, route):
     try:
         from hdbscan import HDBSCAN
     except ImportError as e:
-        print("Cannot import ortools: %s\nInstall it from "
-              "https://developers.google.com/optimization/install/python/" % e)
+        print("Cannot import hdbscan: %s" % e)
         sys.exit(1)
 
     opt_dist_chain = numpy.cumsum(numpy.array(
