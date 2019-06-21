@@ -61,10 +61,10 @@ def parse_args():
     parser.add_argument("--tmpdir", help="Temporary directory for intermediate files.")
     parser.add_argument("-m", "--mode",
                         choices=["burndown-project", "burndown-file", "burndown-person",
-                                 "overwrites-matrix", "ownership", "couples-files", "couples-people",
-                                 "couples-shotness", "shotness", "sentiment", "devs",
-                                 "devs-efforts", "old-vs-new", "all", "run-times", "languages",
-                                 "devs-parallel"],
+                                 "overwrites-matrix", "ownership", "couples-files",
+                                 "couples-people", "couples-shotness", "shotness", "sentiment",
+                                 "devs", "devs-efforts", "old-vs-new", "all", "run-times",
+                                 "languages", "devs-parallel"],
                         help="What to plot.")
     parser.add_argument(
         "--resample", default="year",
