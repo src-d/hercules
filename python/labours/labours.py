@@ -1519,7 +1519,7 @@ def show_old_vs_new(args, name, start_date, end_date, people, days):
             new_lines[day] += stats.Added
             old_lines[day] += stats.Removed + stats.Changed
     resolution = 32
-    window = slepian(max(len(new_lines) // resolution,1), 0.5)
+    window = slepian(max(len(new_lines) // resolution, 1), 0.5)
     new_lines = convolve(new_lines, window, "same")
     old_lines = convolve(old_lines, window, "same")
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
