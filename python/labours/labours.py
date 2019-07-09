@@ -1512,14 +1512,14 @@ def show_old_vs_new(args, name, start_date, end_date, people, days):
     start_date = datetime(start_date.year, start_date.month, start_date.day)
     end_date = datetime.fromtimestamp(end_date)
     end_date = datetime(end_date.year, end_date.month, end_date.day)
-    new_lines = numpy.zeros((end_date - start_date).days + 1)
+    new_lines = numpy.zeros((end_date - start_date).days + 2)
     old_lines = numpy.zeros_like(new_lines)
     for day, devs in days.items():
         for stats in devs.values():
             new_lines[day] += stats.Added
             old_lines[day] += stats.Removed + stats.Changed
     resolution = 32
-    window = slepian(len(new_lines) // resolution, 0.5)
+    window = slepian(max(len(new_lines) // resolution,1), 0.5)
     new_lines = convolve(new_lines, window, "same")
     old_lines = convolve(old_lines, window, "same")
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
