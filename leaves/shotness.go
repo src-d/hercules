@@ -119,7 +119,7 @@ func (shotness *ShotnessAnalysis) Flag() string {
 	return "shotness"
 }
 
-// Flag returns the command line switch which activates the analysis.
+// Features returns the Hercules features required to deploy this leaf.
 func (shotness *ShotnessAnalysis) Features() []string {
 	return []string{uast_items.FeatureUast}
 }
