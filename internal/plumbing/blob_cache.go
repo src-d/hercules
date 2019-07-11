@@ -107,16 +107,14 @@ func (blobCache *BlobCache) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (blobCache *BlobCache) Provides() []string {
-	arr := [...]string{DependencyBlobCache}
-	return arr[:]
+	return []string{DependencyBlobCache}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (blobCache *BlobCache) Requires() []string {
-	arr := [...]string{DependencyTreeChanges}
-	return arr[:]
+	return []string{DependencyTreeChanges}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

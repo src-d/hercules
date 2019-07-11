@@ -74,8 +74,7 @@ func (treediff *TreeDiff) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (treediff *TreeDiff) Provides() []string {
-	arr := [...]string{DependencyTreeChanges}
-	return arr[:]
+	return []string{DependencyTreeChanges}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.

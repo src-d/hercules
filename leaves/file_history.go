@@ -57,8 +57,7 @@ func (history *FileHistoryAnalysis) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (history *FileHistoryAnalysis) Requires() []string {
-	arr := [...]string{items.DependencyTreeChanges, items.DependencyLineStats, identity.DependencyAuthor}
-	return arr[:]
+	return []string{items.DependencyTreeChanges, items.DependencyLineStats, identity.DependencyAuthor}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

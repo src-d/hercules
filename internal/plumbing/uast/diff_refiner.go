@@ -31,22 +31,19 @@ func (ref *FileDiffRefiner) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (ref *FileDiffRefiner) Provides() []string {
-	arr := [...]string{plumbing.DependencyFileDiff}
-	return arr[:]
+	return []string{plumbing.DependencyFileDiff}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (ref *FileDiffRefiner) Requires() []string {
-	arr := [...]string{plumbing.DependencyFileDiff, DependencyUastChanges}
-	return arr[:]
+	return []string{plumbing.DependencyFileDiff, DependencyUastChanges}
 }
 
 // Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
 func (ref *FileDiffRefiner) Features() []string {
-	arr := [...]string{FeatureUast}
-	return arr[:]
+	return []string{FeatureUast}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/gogo/protobuf/proto"
-	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/hercules.v10/internal/core"
@@ -67,9 +67,8 @@ func (ca *CommitsAnalysis) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (ca *CommitsAnalysis) Requires() []string {
-	arr := [...]string{
+	return []string{
 		identity.DependencyAuthor, items.DependencyLanguages, items.DependencyLineStats}
-	return arr[:]
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

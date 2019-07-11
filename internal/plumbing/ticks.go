@@ -50,8 +50,7 @@ func (ticks *TicksSinceStart) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (ticks *TicksSinceStart) Provides() []string {
-	arr := [...]string{DependencyTick}
-	return arr[:]
+	return []string{DependencyTick}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.

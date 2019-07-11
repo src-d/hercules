@@ -41,8 +41,7 @@ func (item *testPipelineItem) Name() string {
 }
 
 func (item *testPipelineItem) Provides() []string {
-	arr := [...]string{"test"}
-	return arr[:]
+	return []string{"test"}
 }
 
 func (item *testPipelineItem) Requires() []string {
@@ -163,13 +162,11 @@ func (item *dependingTestPipelineItem) Name() string {
 }
 
 func (item *dependingTestPipelineItem) Provides() []string {
-	arr := [...]string{"test2"}
-	return arr[:]
+	return []string{"test2"}
 }
 
 func (item *dependingTestPipelineItem) Requires() []string {
-	arr := [...]string{"test"}
-	return arr[:]
+	return []string{"test"}
 }
 
 func (item *dependingTestPipelineItem) ListConfigurationOptions() []ConfigurationOption {

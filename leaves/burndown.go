@@ -199,10 +199,9 @@ func (analyser *BurndownAnalysis) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (analyser *BurndownAnalysis) Requires() []string {
-	arr := [...]string{
+	return []string{
 		items.DependencyFileDiff, items.DependencyTreeChanges, items.DependencyBlobCache,
 		items.DependencyTick, identity.DependencyAuthor}
-	return arr[:]
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

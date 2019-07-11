@@ -33,16 +33,14 @@ func (langs *LanguagesDetection) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (langs *LanguagesDetection) Provides() []string {
-	arr := [...]string{DependencyLanguages}
-	return arr[:]
+	return []string{DependencyLanguages}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (langs *LanguagesDetection) Requires() []string {
-	arr := [...]string{DependencyTreeChanges, DependencyBlobCache}
-	return arr[:]
+	return []string{DependencyTreeChanges, DependencyBlobCache}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

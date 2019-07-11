@@ -81,8 +81,7 @@ func (sent *CommentSentimentAnalysis) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (sent *CommentSentimentAnalysis) Requires() []string {
-	arr := [...]string{uast_items.DependencyUastChanges, items.DependencyTick}
-	return arr[:]
+	return []string{uast_items.DependencyUastChanges, items.DependencyTick}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
