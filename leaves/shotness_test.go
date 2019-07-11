@@ -57,6 +57,7 @@ func TestShotnessMeta(t *testing.T) {
 		core.ConfigLogger: logger,
 	}))
 	assert.Equal(t, logger, sh.l)
+	assert.Equal(t, []string{uast_items.FeatureUast}, sh.Features())
 }
 
 func TestShotnessRegistration(t *testing.T) {

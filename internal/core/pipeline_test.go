@@ -510,7 +510,7 @@ func TestPipelineError(t *testing.T) {
 	item := &testPipelineItem{}
 	item.TestError = true
 	pipeline.AddItem(item)
-	pipeline.Initialize(map[string]interface{}{})
+	assert.NoError(t, pipeline.Initialize(map[string]interface{}{}))
 	commits := make([]*object.Commit, 1)
 	commits[0], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"af9ddc0db70f09f3f27b4b98e415592a7485171c"))
