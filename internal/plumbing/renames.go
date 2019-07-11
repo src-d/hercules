@@ -67,16 +67,14 @@ func (ra *RenameAnalysis) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (ra *RenameAnalysis) Provides() []string {
-	arr := [...]string{DependencyTreeChanges}
-	return arr[:]
+	return []string{DependencyTreeChanges}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (ra *RenameAnalysis) Requires() []string {
-	arr := [...]string{DependencyBlobCache, DependencyTreeChanges}
-	return arr[:]
+	return []string{DependencyBlobCache, DependencyTreeChanges}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

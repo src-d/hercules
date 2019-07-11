@@ -82,9 +82,8 @@ func (tdb *TyposDatasetBuilder) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (tdb *TyposDatasetBuilder) Requires() []string {
-	arr := [...]string{
+	return []string{
 		uast_items.DependencyUastChanges, items.DependencyFileDiff, items.DependencyBlobCache}
-	return arr[:]
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

@@ -73,13 +73,12 @@ func (churn *ChurnAnalysis) Provides() []string {
 // tick - number of ticks since start for each commit
 // author - author of the commit
 func (churn *ChurnAnalysis) Requires() []string {
-	arr := [...]string{
+	return []string{
 		hercules.DependencyFileDiff,
 		hercules.DependencyTreeChanges,
 		hercules.DependencyBlobCache,
 		hercules.DependencyTick,
 		hercules.DependencyAuthor}
-	return arr[:]
 }
 
 // ListConfigurationOptions tells the engine which parameters can be changed through the command

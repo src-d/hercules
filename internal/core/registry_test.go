@@ -28,8 +28,7 @@ func (item *dummyPipelineItem) Name() string {
 }
 
 func (item *dummyPipelineItem) Provides() []string {
-	arr := [...]string{"dummy"}
-	return arr[:]
+	return []string{"dummy"}
 }
 
 func (item *dummyPipelineItem) Requires() []string {
@@ -37,8 +36,7 @@ func (item *dummyPipelineItem) Requires() []string {
 }
 
 func (item *dummyPipelineItem) Features() []string {
-	arr := [...]string{"power"}
-	return arr[:]
+	return []string{"power"}
 }
 
 func (item *dummyPipelineItem) Configure(facts map[string]interface{}) error {
@@ -78,8 +76,7 @@ func (item *dummyPipelineItem2) Name() string {
 }
 
 func (item *dummyPipelineItem2) Provides() []string {
-	arr := [...]string{"dummy2"}
-	return arr[:]
+	return []string{"dummy2"}
 }
 
 func (item *dummyPipelineItem2) Requires() []string {
@@ -87,8 +84,7 @@ func (item *dummyPipelineItem2) Requires() []string {
 }
 
 func (item *dummyPipelineItem2) Features() []string {
-	arr := [...]string{"other"}
-	return arr[:]
+	return []string{"other"}
 }
 
 func (item *dummyPipelineItem2) Configure(facts map[string]interface{}) error {
@@ -121,8 +117,7 @@ func (item *dummyPipelineItem3) Name() string {
 }
 
 func (item *dummyPipelineItem3) Provides() []string {
-	arr := [...]string{"dummy3"}
-	return arr[:]
+	return []string{"dummy3"}
 }
 
 func (item *dummyPipelineItem3) Requires() []string {
@@ -159,8 +154,7 @@ func (item *dummyPipelineItem4) Name() string {
 }
 
 func (item *dummyPipelineItem4) Provides() []string {
-	arr := [...]string{"dummy4"}
-	return arr[:]
+	return []string{"dummy4"}
 }
 
 func (item *dummyPipelineItem4) Requires() []string {

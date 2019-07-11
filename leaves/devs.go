@@ -81,10 +81,9 @@ func (devs *DevsAnalysis) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (devs *DevsAnalysis) Requires() []string {
-	arr := [...]string{
+	return []string{
 		identity.DependencyAuthor, items.DependencyTreeChanges, items.DependencyTick,
 		items.DependencyLanguages, items.DependencyLineStats}
-	return arr[:]
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

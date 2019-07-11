@@ -20,8 +20,7 @@ func (item *testForkPipelineItem) Name() string {
 }
 
 func (item *testForkPipelineItem) Provides() []string {
-	arr := [...]string{"test"}
-	return arr[:]
+	return []string{"test"}
 }
 
 func (item *testForkPipelineItem) Requires() []string {

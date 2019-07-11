@@ -61,8 +61,7 @@ func (detector *Detector) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (detector *Detector) Provides() []string {
-	arr := [...]string{DependencyAuthor}
-	return arr[:]
+	return []string{DependencyAuthor}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.

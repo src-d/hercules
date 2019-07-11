@@ -108,22 +108,19 @@ func (exr *Extractor) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (exr *Extractor) Provides() []string {
-	arr := [...]string{DependencyUasts}
-	return arr[:]
+	return []string{DependencyUasts}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (exr *Extractor) Requires() []string {
-	arr := [...]string{items.DependencyTreeChanges, items.DependencyBlobCache}
-	return arr[:]
+	return []string{items.DependencyTreeChanges, items.DependencyBlobCache}
 }
 
 // Features which must be enabled for this PipelineItem to be automatically inserted into the DAG.
 func (exr *Extractor) Features() []string {
-	arr := [...]string{FeatureUast}
-	return arr[:]
+	return []string{FeatureUast}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
@@ -380,16 +377,14 @@ func (uc *Changes) Name() string {
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
 func (uc *Changes) Provides() []string {
-	arr := [...]string{DependencyUastChanges}
-	return arr[:]
+	return []string{DependencyUastChanges}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (uc *Changes) Requires() []string {
-	arr := [...]string{DependencyUasts, items.DependencyTreeChanges}
-	return arr[:]
+	return []string{DependencyUasts, items.DependencyTreeChanges}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
@@ -500,8 +495,7 @@ func (saver *ChangesSaver) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (saver *ChangesSaver) Requires() []string {
-	arr := [...]string{DependencyUastChanges}
-	return arr[:]
+	return []string{DependencyUastChanges}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.

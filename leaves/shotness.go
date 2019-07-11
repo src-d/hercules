@@ -92,8 +92,7 @@ func (shotness *ShotnessAnalysis) Provides() []string {
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
 func (shotness *ShotnessAnalysis) Requires() []string {
-	arr := [...]string{items.DependencyFileDiff, uast_items.DependencyUastChanges}
-	return arr[:]
+	return []string{items.DependencyFileDiff, uast_items.DependencyUastChanges}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
@@ -118,6 +117,11 @@ func (shotness *ShotnessAnalysis) ListConfigurationOptions() []core.Configuratio
 // Flag returns the command line switch which activates the analysis.
 func (shotness *ShotnessAnalysis) Flag() string {
 	return "shotness"
+}
+
+// Features returns the Hercules features required to deploy this leaf.
+func (shotness *ShotnessAnalysis) Features() []string {
+	return []string{uast_items.FeatureUast}
 }
 
 // Description returns the text which explains what the analysis is doing.
