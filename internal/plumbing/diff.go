@@ -18,6 +18,7 @@ type FileDiff struct {
 	core.NoopMerger
 	CleanupDisabled  bool
 	WhitespaceIgnore bool
+	Timeout          time.Duration
 
 	l core.Logger
 }
@@ -34,6 +35,10 @@ const (
 	// ConfigFileWhitespaceIgnore is the name of the configuration option (FileDiff.Configure())
 	// to suppress whitespace changes which can pollute the core diff of the files
 	ConfigFileWhitespaceIgnore = "FileDiff.WhitespaceIgnore"
+
+	// ConfigFileDiffTimeout is the number of milliseconds a single diff calculation may elapse.
+	// We need this timeout to avoid spending too much time comparing big or "bad" files.
+	ConfigFileDiffTimeout = "FileDiff.Timeout"
 )
 
 // FileDiffData is the type of the dependency provided by FileDiff.
@@ -77,6 +82,12 @@ func (diff *FileDiff) ListConfigurationOptions() []core.ConfigurationOption {
 			Flag:        "no-diff-whitespace",
 			Type:        core.BoolConfigurationOption,
 			Default:     false},
+		{
+			Name:        ConfigFileDiffTimeout,
+			Description: "Maximum time in milliseconds a single diff calculation may elapse.",
+			Flag:        "diff-timeout",
+			Type:        core.IntConfigurationOption,
+			Default:     1000},
 	}
 
 	return options[:]
@@ -92,6 +103,12 @@ func (diff *FileDiff) Configure(facts map[string]interface{}) error {
 	}
 	if val, exists := facts[ConfigFileWhitespaceIgnore].(bool); exists {
 		diff.WhitespaceIgnore = val
+	}
+	if val, exists := facts[ConfigFileDiffTimeout].(int); exists {
+		if val <= 0 {
+			diff.l.Warnf("invalid timeout value: %d", val)
+		}
+		diff.Timeout = time.Duration(val) * time.Millisecond
 	}
 	return nil
 }
@@ -133,10 +150,9 @@ func (diff *FileDiff) Consume(deps map[string]interface{}) (map[string]interface
 			// git/git 4f7770c87ce3c302e1639a7737a6d2531fe4b160 fetch-pack.c is invalid UTF-8
 			strFrom, strTo := string(blobFrom.Data), string(blobTo.Data)
 			dmp := diffmatchpatch.New()
-			dmp.DiffTimeout = time.Hour
+			dmp.DiffTimeout = diff.Timeout
 			src, dst, _ := dmp.DiffLinesToRunes(stripWhitespace(strFrom, diff.WhitespaceIgnore), stripWhitespace(strTo, diff.WhitespaceIgnore))
 			diffs := dmp.DiffMainRunes(src, dst, false)
-
 			if !diff.CleanupDisabled {
 				diffs = dmp.DiffCleanupMerge(dmp.DiffCleanupSemanticLossless(diffs))
 			}

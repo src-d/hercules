@@ -2,6 +2,7 @@ package plumbing_test
 
 import (
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -24,16 +25,19 @@ func TestFileDiffMeta(t *testing.T) {
 	assert.Equal(t, len(fd.Requires()), 2)
 	assert.Equal(t, fd.Requires()[0], items.DependencyTreeChanges)
 	assert.Equal(t, fd.Requires()[1], items.DependencyBlobCache)
-	assert.Len(t, fd.ListConfigurationOptions(), 2)
+	assert.Len(t, fd.ListConfigurationOptions(), 3)
 	assert.Equal(t, fd.ListConfigurationOptions()[0].Name, items.ConfigFileDiffDisableCleanup)
 	assert.Equal(t, fd.ListConfigurationOptions()[1].Name, items.ConfigFileWhitespaceIgnore)
+	assert.Equal(t, fd.ListConfigurationOptions()[2].Name, items.ConfigFileDiffTimeout)
 	assert.NoError(t, fd.Configure(map[string]interface{}{
 		core.ConfigLogger:                  core.NewLogger(),
 		items.ConfigFileDiffDisableCleanup: true,
 		items.ConfigFileWhitespaceIgnore:   true,
+		items.ConfigFileDiffTimeout:        500,
 	}))
 	assert.True(t, fd.CleanupDisabled)
 	assert.True(t, fd.WhitespaceIgnore)
+	assert.Equal(t, 500*time.Millisecond, fd.Timeout)
 }
 
 func TestFileDiffRegistration(t *testing.T) {
