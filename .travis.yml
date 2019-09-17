@@ -48,6 +48,7 @@ before_install:
   - sudo ldconfig
 install:
   - git clean -xfd
+  - go env
   - travis_retry make TAGS=tensorflow
 script:
   - set -e
@@ -62,8 +63,8 @@ script:
   - hercules --burndown --couples --devs --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
   - hercules combine 1.pb 2.pb > 12.pb
-  - (hercules generate-plugin -n MyPlug -o myplug && cd myplug && make)
-  - (cd contrib/_plugin_example && make)
+  - #(hercules generate-plugin -n MyPlug -o myplug && cd myplug && make)
+  - #(cd contrib/_plugin_example && make)
   - hercules --burndown --burndown-files --burndown-people --couples --devs --quiet https://github.com/src-d/hercules | labours -m all -o out --backend Agg --disable-projector
   - hercules --burndown --burndown-files --burndown-people --couples --devs --quiet --pb https://github.com/src-d/hercules | labours -f pb -m all -o out --backend Agg --disable-projector
   - # hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules > /dev/null
