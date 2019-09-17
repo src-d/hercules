@@ -83,6 +83,10 @@ def parse_args():
                         help="Do not run Tensorflow Projector on couples.")
     parser.add_argument("--max-people", default=20, type=int,
                         help="Maximum number of developers in overwrites matrix and people plots.")
+    parser.add_argument("--order-ownership-by-time", action="store_true",
+                        help="Sort developers in the ownership plot according to their first "
+                             "appearance in the history. The default is sorting by the number of "
+                             "commits.")
     args = parser.parse_args()
     return args
 
@@ -687,7 +691,7 @@ def load_burndown(header, name, matrix, resample, report_survival=True):
     return name, matrix, date_range_sampling, labels, granularity, sampling, resample
 
 
-def load_ownership(header, sequence, contents, max_people):
+def load_ownership(header, sequence, contents, max_people, order_by_time):
     pandas = import_pandas()
 
     start, last, sampling, _, tick = header
@@ -703,16 +707,28 @@ def load_ownership(header, sequence, contents, max_people):
         freq="%dD" % sampling)
 
     if people.shape[0] > max_people:
-        order = numpy.argsort(-people.sum(axis=1))
-        chosen_people = people[order[:max_people + 1]]
-        chosen_people[max_people] = people[order[max_people:]].sum(axis=0)
-        people = chosen_people
-        sequence = [sequence[i] for i in order[:max_people]] + ["others"]
+        chosen = numpy.argpartition(-numpy.sum(people, axis=1), max_people)
+        others = people[chosen[max_people:]].sum(axis=0)
+        people = people[chosen[:max_people + 1]]
+        people[max_people] = others
+        sequence = [sequence[i] for i in chosen[:max_people]] + ["others"]
         print("Warning: truncated people to the most owning %d" % max_people)
+
+    if order_by_time:
+        appearances = numpy.argmax(people > 0, axis=1)
+        if people.shape[0] > max_people:
+            appearances[-1] = people.shape[1]
+    else:
+        appearances = -people.sum(axis=1)
+        if people.shape[0] > max_people:
+            appearances[-1] = 0
+    order = numpy.argsort(appearances)
+    people = people[order]
+    sequence = [sequence[i] for i in order]
+
     for i, name in enumerate(sequence):
         if len(name) > 40:
             sequence[i] = name[:37] + "..."
-
     return sequence, people, date_range_sampling, last
 
 
@@ -1809,7 +1825,8 @@ def main():
             return
         try:
             plot_ownership(args, name, *load_ownership(
-                full_header, *reader.get_ownership_burndown(), max_people=args.max_people))
+                full_header, *reader.get_ownership_burndown(), max_people=args.max_people,
+                order_by_time=args.order_ownership_by_time))
         except KeyError:
             print("ownership: " + burndown_people_warning)
 
