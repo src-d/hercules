@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"text/template"
@@ -88,8 +89,12 @@ var generatePluginCmd = &cobra.Command{
 			protoBuf,
 		}
 		env := os.Environ()
-		env = append(env, fmt.Sprintf(
-			"PATH=%s:%s", os.Getenv("PATH"), path.Join(os.Getenv("GOPATH"), "bin")))
+		extraPath, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+		gobin := os.Getenv("GOBIN")
+		if gobin != "" {
+			extraPath = gobin + ":" + extraPath
+		}
+		env = append(env, fmt.Sprintf("PATH=%s:%s", os.Getenv("PATH"), extraPath))
 		if err != nil {
 			panic("protoc was not found at " + env[len(env)-1])
 		}
@@ -101,13 +106,15 @@ var generatePluginCmd = &cobra.Command{
 		}
 		if !disableMakefile {
 			makefile := path.Join(outputDir, "Makefile")
-			gen = template.Must(template.New("plugin").Parse(`all: {{.shlib}}
+			gen = template.Must(template.New("plugin").Parse(`GO111MODULE = on
+
+all: {{.shlib}}
 
 {{.shlib}}: {{.output}} {{.protogo}}
 ` + "\t" + `go build -buildmode=plugin -linkshared {{.output}} {{.protogo}}
 
 {{.protogo}}: {{.proto}}
-` + "\t" + `PATH=$$PATH:$$GOPATH/bin protoc --gogo_out=. --proto_path=. {{.proto}}
+` + "\t" + `PATH=$$PATH:$$GOBIN protoc --gogo_out=. --proto_path=. {{.proto}}
 `))
 			buffer := new(bytes.Buffer)
 			mkrelative := func(name string) {

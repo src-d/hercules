@@ -1,4 +1,5 @@
-GOPATH ?= $(shell go env GOPATH)
+GOBIN ?= .
+GO111MODULE=on
 ifneq ($(OS),Windows_NT)
 EXE =
 else
@@ -7,20 +8,20 @@ endif
 PKG = $(shell go env GOOS)_$(shell go env GOARCH)
 TAGS ?=
 
-all: ${GOPATH}/bin/hercules${EXE}
+all: ${GOBIN}/hercules${EXE}
 
 test: all
 	go test gopkg.in/src-d/hercules.v10
 
-${GOPATH}/bin/protoc-gen-gogo${EXE}:
-	go get -v github.com/gogo/protobuf/protoc-gen-gogo
+${GOBIN}/protoc-gen-gogo${EXE}:
+	go build github.com/gogo/protobuf/protoc-gen-gogo
 
 ifneq ($(OS),Windows_NT)
-internal/pb/pb.pb.go: internal/pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo
-	PATH=${PATH}:${GOPATH}/bin protoc --gogo_out=internal/pb --proto_path=internal/pb internal/pb/pb.proto
+internal/pb/pb.pb.go: internal/pb/pb.proto ${GOBIN}/protoc-gen-gogo
+	PATH=${PATH}:${GOBIN} protoc --gogo_out=internal/pb --proto_path=internal/pb internal/pb/pb.proto
 else
-internal/pb/pb.pb.go: internal/pb/pb.proto ${GOPATH}/bin/protoc-gen-gogo.exe
-	export PATH="${PATH};${GOPATH}\bin" && \
+internal/pb/pb.pb.go: internal/pb/pb.proto ${GOBIN}/protoc-gen-gogo.exe
+	export PATH="${PATH};${GOBIN}" && \
 	protoc --gogo_out=internal/pb --proto_path=internal/pb internal/pb/pb.proto
 endif
 
@@ -31,7 +32,7 @@ cmd/hercules/plugin_template_source.go: cmd/hercules/plugin.template
 	cd cmd/hercules && go generate
 
 vendor:
-	dep ensure -v
+	go mod vendor
 
-${GOPATH}/bin/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go python/labours/pb_pb2.py cmd/hercules/plugin_template_source.go
-	go get -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v10.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v10/cmd/hercules
+${GOBIN}/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go python/labours/pb_pb2.py cmd/hercules/plugin_template_source.go
+	go build -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v10.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v10/cmd/hercules

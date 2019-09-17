@@ -4,6 +4,9 @@ contrib/_plugin_example/churn_analysis.pb.go
 pb/pb.pb.go
 pb/pb_pb2.py
 coverage.txt
+protoc-gen-gogo
+hercules
+python/dist
 
 **/*.egg-info
 **/__pycache__

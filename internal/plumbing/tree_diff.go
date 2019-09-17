@@ -7,11 +7,11 @@ import (
 	"regexp"
 	"strings"
 
-	"gopkg.in/src-d/enry.v1"
-
+	"github.com/src-d/enry/v2"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+
 	"gopkg.in/src-d/hercules.v10/internal/core"
 )
 
