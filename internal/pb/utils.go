@@ -1,6 +1,8 @@
 package pb
 
-import "sort"
+import (
+	"sort"
+)
 
 // ToBurndownSparseMatrix converts a rectangular integer matrix to the corresponding Protobuf object.
 // It is specific to hercules.BurndownAnalysis.

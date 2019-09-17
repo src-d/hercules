@@ -5,11 +5,10 @@ git:
   depth: 9999999
 
 language: go
-go_import_path: gopkg.in/src-d/hercules.v10
 go:
-  - 1.10.x
   - 1.11.x
   - 1.12.x
+  - 1.13.x
 
 services:
   - docker
@@ -17,13 +16,7 @@ services:
 cache:
   directories:
     - $HOME/.cache/pip
-    - $HOME/gopath/src
-before_cache:
-  - cd $HOME/gopath
-  - mv $HOME/gopath/src/gopkg.in/src-d/hercules.v10/vendor $HOME/gopath/src/gopkg.in/src-d/.vendor
-  - rm -rf $HOME/gopath/src/gopkg.in/src-d/hercules.v10
-  - mkdir $HOME/gopath/src/gopkg.in/src-d/hercules.v10
-  - mv $HOME/gopath/src/gopkg.in/src-d/.vendor $HOME/gopath/src/gopkg.in/src-d/hercules.v10/vendor
+    - $HOME/vendor
 
 matrix:
   fast_finish: true
@@ -35,15 +28,14 @@ stages:
     if: tag =~ .*
 
 env:
-  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.11.0
+  - PROTOC_VERSION=3.6.0 TENSORFLOW_VERSION=1.11.0 GOPATH=
 
 before_install:
   - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
   - unzip -d ~/.local protoc.zip && rm protoc.zip
   - go get -v golang.org/x/lint/golint
-  - go get -v github.com/golang/dep/cmd/dep
   - (wget -O - https://bootstrap.pypa.io/get-pip.py || wget -O - https://raw.githubusercontent.com/pypa/get-pip/master/get-pip.py) | sudo python3 - pip==18.1
-  - export PATH=~/usr/bin:$GOPATH/bin:$PATH
+  - export PATH=~/usr/bin:.:$PATH
   - make --version
   - pip3 --version
   - sudo pip3 install cython
@@ -60,20 +52,21 @@ install:
 script:
   - set -e
   - if [ $TRAVIS_GO_VERSION != "1.10.x" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
+  - export GO111MODULE=on
   - go vet -tags tensorflow ./...
   - golint -set_exit_status $(go list ./... | grep -v /vendor/)
   - cd python && flake8 && cd ..
   - go test -coverpkg=all -v -coverprofile=coverage.txt -covermode=count gopkg.in/src-d/hercules.v10/... && sed -i '/cmd\/hercules\|core.go/d' coverage.txt
   - # race checks increase the elapsed time by 10 minutes, we run them only in AppVeyor
-  - $GOPATH/bin/hercules version
-  - $GOPATH/bin/hercules --burndown --couples --devs --quiet --pb https://github.com/src-d/hercules > 1.pb
+  - hercules version
+  - hercules --burndown --couples --devs --quiet --pb https://github.com/src-d/hercules > 1.pb
   - cp 1.pb 2.pb
-  - $GOPATH/bin/hercules combine 1.pb 2.pb > 12.pb
-  - ($GOPATH/bin/hercules generate-plugin -n MyPlug -o myplug && cd myplug && make)
+  - hercules combine 1.pb 2.pb > 12.pb
+  - (hercules generate-plugin -n MyPlug -o myplug && cd myplug && make)
   - (cd contrib/_plugin_example && make)
-  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet https://github.com/src-d/hercules | labours -m all -o out --backend Agg --disable-projector
-  - $GOPATH/bin/hercules --burndown --burndown-files --burndown-people --couples --devs --quiet --pb https://github.com/src-d/hercules | labours -f pb -m all -o out --backend Agg --disable-projector
-  - # $GOPATH/bin/hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules > /dev/null
+  - hercules --burndown --burndown-files --burndown-people --couples --devs --quiet https://github.com/src-d/hercules | labours -m all -o out --backend Agg --disable-projector
+  - hercules --burndown --burndown-files --burndown-people --couples --devs --quiet --pb https://github.com/src-d/hercules | labours -f pb -m all -o out --backend Agg --disable-projector
+  - # hercules --sentiment --quiet --languages Python https://github.com/src-d/hercules > /dev/null
   - set +e
   - if [ $TRAVIS_GO_VERSION == "1.11.x" ]; then bash <(curl -s https://codecov.io/bash); fi
 
@@ -90,14 +83,12 @@ jobs:
       os: osx
       osx_image: xcode9.3
       go: 1.12.x
-      go_import_path: gopkg.in/src-d/hercules.v10
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
-        - go get -v github.com/golang/dep/cmd/dep
-        - export PATH=$GOPATH/bin:$PATH
+        - export PATH=.:$PATH
       after_success:
-        - gzip -S .darwin_amd64.gz $GOPATH/bin/hercules
+        - gzip -S .darwin_amd64.gz hercules
       script: skip
       install:
         - travis_retry make
@@ -105,19 +96,17 @@ jobs:
         provider: releases
         api_key:
           secure: $GITHUB_TOKEN
-        file: "$GOPATH/bin/hercules.darwin_amd64.gz"
+        file: "hercules.darwin_amd64.gz"
         skip_cleanup: true
         on:
           tags: true
     - stage: deploy
       os: linux
-      go: 1.12.x
-      go_import_path: gopkg.in/src-d/hercules.v10
+      go: 1.13.x
       before_install:
         - wget -O protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip
         - unzip -d ~/.local protoc.zip && rm protoc.zip
-        - go get -v github.com/golang/dep/cmd/dep
-        - export PATH=$GOPATH/bin:$PATH
+        - export PATH=.:$PATH
         - (wget -O - https://bootstrap.pypa.io/get-pip.py || wget -O - https://raw.githubusercontent.com/pypa/get-pip/master/get-pip.py) | sudo python3 - pip==18.1
         - sudo pip3 install twine pyopenssl
       script:
@@ -127,20 +116,20 @@ jobs:
         - travis_retry make
         - cd python
         - python3 setup.py bdist_wheel
-        - cp dist/*py3-none-any* $GOPATH/bin
+        - cp dist/*py3-none-any* .
         - cd ..
       after_success:
-        - gzip -S .linux_amd64.gz $GOPATH/bin/hercules
+        - gzip -S .linux_amd64.gz hercules
       deploy:
         - provider: releases
           api_key:
             secure: $GITHUB_TOKEN
-          file: "$GOPATH/bin/hercules.linux_amd64.gz"
+          file: "hercules.linux_amd64.gz"
           skip_cleanup: true
           on:
             tags: true
         - provider: script
-          script: twine upload $GOPATH/bin/*py3-none-any* -u $PYPI_LOGIN -p $PYPI_PASS
+          script: twine upload *py3-none-any* -u $PYPI_LOGIN -p $PYPI_PASS
           skip_cleanup: true
           on:
             tags: true

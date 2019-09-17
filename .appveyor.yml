@@ -2,10 +2,9 @@ version: "{build}"
 platform: x64
 image: Visual Studio 2017
 
-clone_folder: c:\gopath\src\gopkg.in\src-d\hercules.v10
-
-environment:
-  GOPATH: c:\gopath
+clone_folder: c:\boilerplate
+cache:
+  - vendor
 
 install:
   - curl -SLko protoc.zip https://github.com/google/protobuf/releases/download/v3.6.0/protoc-3.6.0-win32.zip
@@ -14,15 +13,12 @@ install:
 
 build_script:
   - go version
-  - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%GOPATH%\bin;%PATH%
+  - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%PATH%
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
-  - cd %GOPATH%\src\gopkg.in\src-d\hercules.v10
-  - go get -v github.com/golang/dep/cmd/dep
   - make
-  - 7z a c:\gopath\src\gopkg.in\src-d\hercules.v10\hercules.win64.zip %GOPATH%\bin\hercules.exe
+  - 7z a hercules.win64.zip hercules.exe
 
 test_script:
-  - go get -v -t -d gopkg.in/src-d/hercules.v10/...
   - go test -v -timeout 20m -race -tags disable_babelfish gopkg.in/src-d/hercules.v10/...
 
 artifacts:
