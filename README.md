@@ -93,16 +93,12 @@ pip3 install labours
 Numpy and Scipy can be installed on Windows using http://www.lfd.uci.edu/~gohlke/pythonlibs/
 
 ### Build from source
-You are going to need Go (>= v1.10), [`protoc`](https://github.com/google/protobuf/releases),
-and [`dep`](https://github.com/golang/dep).
+You are going to need Go (>= v1.11) and [`protoc`](https://github.com/google/protobuf/releases).
 ```
-go get -d gopkg.in/src-d/hercules.v10/cmd/hercules
-cd $GOPATH/src/gopkg.in/src-d/hercules.v10
+git clone https://github.com/src-d/hercules && cd hercules
 make
 pip3 install -e ./python
 ```
-
-Replace `$GOPATH` with `%GOPATH%` on Windows.
 
 ## Contributions
 
