@@ -118,7 +118,7 @@ jobs:
         - travis_retry make
         - cd python
         - python3 setup.py bdist_wheel
-        - cp dist/*py3-none-any* .
+        - cp dist/*py3-none-any* ..
         - cd ..
       after_success:
         - gzip -S .linux_amd64.gz hercules
