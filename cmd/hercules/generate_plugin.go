@@ -111,7 +111,7 @@ var generatePluginCmd = &cobra.Command{
 all: {{.shlib}}
 
 {{.shlib}}: {{.output}} {{.protogo}}
-` + "\t" + `go build -buildmode=plugin -linkshared {{.output}} {{.protogo}}
+` + "\t" + `go build -buildmode=plugin ${GOFLAGS} {{.output}} {{.protogo}}
 
 {{.protogo}}: {{.proto}}
 ` + "\t" + `PATH=$$PATH:$$GOBIN protoc --gogo_out=. --proto_path=. {{.proto}}
