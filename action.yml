@@ -1,0 +1,18 @@
+name: "Hercules Insights"
+description: "Runs various Git history analysis with src-d/hercules"
+author: "source{d}"
+inputs:
+  args:
+    description: "hercules command line arguments"
+    required: false
+    default: "--burndown --burndown-people"
+runs:
+  using: "docker"
+  image: "docker://srcd/hercules:latest"
+  entrypoint: "/bin/bash"
+  args:
+    - "-c"
+    - "mkdir /github/home/hercules && cd /github/home/hercules && hercules ${{ inputs.args }} --pb /github/workspace | labours -m all -o result"
+branding:
+  color: purple
+  icon: bar-chart-2
