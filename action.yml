@@ -9,8 +9,8 @@ inputs:
 runs:
   using: "docker"
   image: "docker://srcd/hercules:latest"
-  entrypoint: "/bin/bash"
   args:
+    - "/bin/bash"
     - "-c"
     - "mkdir /github/home/hercules && cd /github/home/hercules && hercules ${{ inputs.args }} --pb /github/workspace | labours -m all -o result"
 branding:
