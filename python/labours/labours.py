@@ -1812,8 +1812,11 @@ def main():
             matrix = numpy.triu(matrix) + numpy.tril(matrix).T
             matrix = matrix + matrix.T
             matrix = csr_matrix(matrix)
-            write_embeddings("overwrites", args.output, not args.disable_projector,
-                             *train_embeddings(people, matrix, tmpdir=args.tmpdir))
+            try:
+                write_embeddings("overwrites", args.output, not args.disable_projector,
+                                 *train_embeddings(people, matrix, tmpdir=args.tmpdir))
+            except AttributeError as e:
+                print("Training the embeddings is not possible: %s: %s", type(e).__name__, e)
         except KeyError:
             print("overwrites_matrix: " + burndown_people_warning)
 
@@ -1946,15 +1949,15 @@ def main():
     except KeyError:
         assert args.mode == "all"
         project_burndown()
-        files_burndown()
-        people_burndown()
+        # files_burndown()
+        # people_burndown()
         overwrites_matrix()
         ownership_burndown()
         couples_files()
         couples_people()
         couples_shotness()
         shotness()
-        sentiment()
+        # sentiment()
         devs()
         devs_efforts()
         # devs_parallel()

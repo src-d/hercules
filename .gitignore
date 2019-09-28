@@ -7,6 +7,7 @@ coverage.txt
 protoc-gen-gogo
 hercules
 python/dist
+python/build
 
 **/*.egg-info
 **/__pycache__
