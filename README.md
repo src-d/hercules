@@ -35,6 +35,7 @@ Table of Contents
   * [License](#license)
   * [Usage](#usage)
     * [Caching](#caching)
+    * [GitHub Action](#github-action-1)
     * [Docker image](#docker-image)
     * [Built-in analyses](#built-in-analyses)
       * [Project burndown](#project-burndown)
@@ -103,8 +104,9 @@ pip3 install -e ./python
 
 ### GitHub Action
 
-It is possible to run Hercules as a [GitHub Action](https://help.github.com/en/articles/about-github-actions),
-refer to the [sample workflow](.github/workflows/main.yml).
+It is possible to run Hercules as a [GitHub Action](https://help.github.com/en/articles/about-github-actions):
+[Hercules on GitHub Marketplace](https://github.com/marketplace/actions/hercules-insights).
+Please refer to the [sample workflow](.github/workflows/main.yml) which demonstrates how to setup.
 
 ## Contributions
 
@@ -153,6 +155,13 @@ hercules https://github.com/git/git /tmp/repo-cache
 # Second time - use the cache
 hercules --some-analysis /tmp/repo-cache
 ```
+
+### GitHub Action
+
+The action produces the artifact named
+`hercules_charts`. Since it is currently impossible to pack several files in one artifact, all the
+charts and Tensorflow Projector files are packed in the inner tar archive. In order to view the embeddings,
+go to [projector.tensorflow.org](https://projector.tensorflow.org), click "Load" and choose the two TSVs. Then use UMAP or T-SNE.
 
 ### Docker image
 
