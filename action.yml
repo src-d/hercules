@@ -14,7 +14,7 @@ runs:
     - "-c"
     - "hercules ${{ inputs.args }} --pb . | labours -m all -f pb --disable-projector -o hercules_charts
        && cd hercules_charts
-       && tar -cf ../hercules_charts.tar . ../hercules_charts_*
+       && tar -cf ../hercules_charts.tar * ../hercules_charts_*
        && cd ..
        && rm -r hercules_charts"
 branding:
