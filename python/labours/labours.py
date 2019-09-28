@@ -1300,7 +1300,11 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     overall_neg = sum(2 * (d[1].Value - 0.5) for d in data if d[1].Value > 0.5)
     title = "%s sentiment +%.1f -%.1f δ=%.1f" % (
         name, overall_pos, overall_neg, overall_pos - overall_neg)
-    deploy_plot(title, args.output, args.background)
+    if args.mode == "all" and args.output:
+        output = get_plot_path(args.output, "sentiment")
+    else:
+        output = args.output
+    deploy_plot(title, output, args.background)
 
 
 def show_devs(args, name, start_date, end_date, people, days, max_people=50):
@@ -1397,7 +1401,11 @@ def show_devs(args, name, start_date, end_date, people, days, max_people=50):
     axes[-1].set_facecolor((1.0,) * 3 + (0.0,))
 
     title = ("%s commits" % name) if not args.output else ""
-    deploy_plot(title, args.output, args.background)
+    if args.mode == "all" and args.output:
+        output = get_plot_path(args.output, "time_series")
+    else:
+        output = args.output
+    deploy_plot(title, output, args.background)
 
 
 def order_commits(chosen_people, days, people):
@@ -1518,7 +1526,11 @@ def show_devs_efforts(args, name, start_date, end_date, people, days, max_people
     legend = pyplot.legend(loc=2, ncol=2, fontsize=args.font_size)
     apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
                      args.font_size, args.size or "16,10")
-    deploy_plot("Efforts through time (changed lines of code)", args.output, args.background)
+    if args.mode == "all" and args.output:
+        output = get_plot_path(args.output, "efforts")
+    else:
+        output = args.output
+    deploy_plot("Efforts through time (changed lines of code)", output, args.background)
 
 
 def show_old_vs_new(args, name, start_date, end_date, people, days):
@@ -1545,7 +1557,11 @@ def show_old_vs_new(args, name, start_date, end_date, people, days):
     pyplot.legend(loc=2, fontsize=args.font_size)
     for tick in chain(pyplot.gca().xaxis.get_major_ticks(), pyplot.gca().yaxis.get_major_ticks()):
         tick.label.set_fontsize(args.font_size)
-    deploy_plot("Additions vs changes", args.output, args.background)
+    if args.mode == "all" and args.output:
+        output = get_plot_path(args.output, "old_vs_new")
+    else:
+        output = args.output
+    deploy_plot("Additions vs changes", output, args.background)
 
 
 def show_languages(args, name, start_date, end_date, people, days):
