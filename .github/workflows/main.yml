@@ -7,7 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Hercules
-        id: hercules
         uses: src-d/hercules@master
       - uses: actions/upload-artifact@master
         with:

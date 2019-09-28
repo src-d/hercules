@@ -1,5 +1,5 @@
 name: "Hercules Insights"
-description: "Runs various Git history analysis with src-d/hercules"
+description: "Run various Git history analyses with src-d/hercules"
 author: "source{d}"
 inputs:
   args:
