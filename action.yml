@@ -5,14 +5,18 @@ inputs:
   args:
     description: "hercules command line arguments"
     required: false
-    default: "--burndown --burndown-people"
+    default: "--burndown --burndown-people --devs --couples"
 runs:
   using: "docker"
   image: "docker://srcd/hercules:latest"
   args:
     - "/bin/bash"
     - "-c"
-    - "hercules ${{ inputs.args }} --pb $GITHUB_WORKSPACE | labours -m all -f pb --disable-projector -o $GITHUB_WORKSPACE/_hercules"
+    - "hercules ${{ inputs.args }} --pb . | labours -m all -f pb --disable-projector -o hercules_charts
+       && cd hercules_charts
+       && tar -cf ../hercules_charts.tar . ../hercules_charts_*
+       && cd ..
+       && rm -r hercules_charts"
 branding:
   color: purple
   icon: bar-chart-2

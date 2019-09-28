@@ -11,13 +11,5 @@ jobs:
         uses: src-d/hercules@master
       - uses: actions/upload-artifact@master
         with:
-          name: burndown-project
-          path: _hercules/project.png
-      - uses: actions/upload-artifact@master
-        with:
-          name: burndown-people
-          path: _hercules/people.png
-      - uses: actions/upload-artifact@master
-        with:
-          name: overwrites
-          path: _hercules/matrix.png
+          name: hercules_charts
+          path: hercules_charts.tar
