@@ -12,12 +12,12 @@ jobs:
       - uses: actions/upload-artifact@master
         with:
           name: burndown-project
-          path: /github/home/hercules/project.png
+          path: _hercules/project.png
       - uses: actions/upload-artifact@master
         with:
           name: burndown-people
-          path: /github/home/hercules/people.png
+          path: _hercules/people.png
       - uses: actions/upload-artifact@master
         with:
           name: overwrites
-          path: /github/home/hercules/matrix.png
+          path: _hercules/matrix.png

@@ -12,7 +12,7 @@ runs:
   args:
     - "/bin/bash"
     - "-c"
-    - "mkdir /github/home/hercules && cd /github/home/hercules && hercules ${{ inputs.args }} --pb /github/workspace | labours -m all -f pb --disable-projector -o result"
+    - "hercules ${{ inputs.args }} --pb $GITHUB_WORKSPACE | labours -m all -f pb --disable-projector -o $GITHUB_WORKSPACE/_hercules"
 branding:
   color: purple
   icon: bar-chart-2
