@@ -1816,7 +1816,7 @@ def main():
                 write_embeddings("overwrites", args.output, not args.disable_projector,
                                  *train_embeddings(people, matrix, tmpdir=args.tmpdir))
             except AttributeError as e:
-                print("Training the embeddings is not possible")
+                print("Training the embeddings is not possible: %s: %s", type(e).__name__, e)
         except KeyError:
             print("overwrites_matrix: " + burndown_people_warning)
 
