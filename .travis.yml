@@ -75,12 +75,14 @@ script:
 jobs:
   include:
     - stage: test
-      addons: false
       language: generic
       env: DOCKER_BUILD=1
       before_install: skip
       install: skip
-      script: docker build -t srcd/hercules .
+      script:
+        - docker build -t srcd/hercules .
+        - docker run --rm srcd/hercules hercules --help
+        - docker run --rm srcd/hercules labours --help
     - stage: deploy
       os: osx
       osx_image: xcode9.3
