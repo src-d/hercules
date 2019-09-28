@@ -14,10 +14,10 @@ jobs:
           name: burndown-project
           path: /github/home/hercules/project.png
       - uses: actions/upload-artifact@master
-          with:
-            name: burndown-people
-            path: /github/home/hercules/people.png
+        with:
+          name: burndown-people
+          path: /github/home/hercules/people.png
       - uses: actions/upload-artifact@master
-          with:
-            name: overwrites
-            path: /github/home/hercules/matrix.png
+        with:
+          name: overwrites
+          path: /github/home/hercules/matrix.png
