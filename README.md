@@ -30,6 +30,7 @@ Table of Contents
   * [Overview](#overview)
   * [Installation](#installation)
      * [Build from source](#build-from-source)
+     * [GitHub Action](#github-action)
   * [Contributions](#contributions)
   * [License](#license)
   * [Usage](#usage)
@@ -99,6 +100,11 @@ git clone https://github.com/src-d/hercules && cd hercules
 make
 pip3 install -e ./python
 ```
+
+### GitHub Action
+
+It is possible to run Hercules as a [GitHub Action](https://help.github.com/en/articles/about-github-actions),
+refer to the [sample workflow](.github/workflows/main.yml).
 
 ## Contributions
 
