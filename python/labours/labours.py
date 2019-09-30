@@ -1013,11 +1013,11 @@ IDEAL_SHARD_SIZE = 4096
 
 
 def train_embeddings(index, matrix, tmpdir, shard_size=IDEAL_SHARD_SIZE):
+    import tensorflow as tf
     try:
         from . import swivel
     except (SystemError, ImportError):
         import swivel
-    import tensorflow as tf
 
     assert matrix.shape[0] == matrix.shape[1]
     assert len(index) <= matrix.shape[0]
@@ -1987,7 +1987,12 @@ def main():
         print("Running: %s" % mode)
         # `args.mode` is required for path determination in the mode functions
         args.mode = ("all" if all_mode else mode)
-        modes[mode]()
+        try:
+            modes[mode]()
+        except ImportError as ie:
+            print("A module required by the %s mode was not found: %s" % (mode, ie))
+            if not all_mode:
+                raise
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
