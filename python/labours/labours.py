@@ -59,13 +59,14 @@ def parse_args():
     parser.add_argument("--relative", action="store_true",
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--tmpdir", help="Temporary directory for intermediate files.")
-    parser.add_argument("-m", "--mode",
+    parser.add_argument("-m", "--mode", dest="modes", default=[], action="append",
                         choices=["burndown-project", "burndown-file", "burndown-person",
                                  "overwrites-matrix", "ownership", "couples-files",
                                  "couples-people", "couples-shotness", "shotness", "sentiment",
-                                 "devs", "devs-efforts", "old-vs-new", "all", "run-times",
-                                 "languages", "devs-parallel"],
-                        help="What to plot.")
+                                 "devs", "devs-efforts", "old-vs-new", "run-times",
+                                 "languages", "devs-parallel", "all"],
+                        help="What to plot. Can be repeated, e.g. "
+                             "-m burndown-project -m run-times")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
@@ -1960,23 +1961,32 @@ def main():
         "languages": languages,
         "devs-parallel": devs_parallel,
     }
-    try:
-        modes[args.mode]()
-    except KeyError:
-        assert args.mode == "all"
-        project_burndown()
-        # files_burndown()
-        # people_burndown()
-        overwrites_matrix()
-        ownership_burndown()
-        couples_files()
-        couples_people()
-        couples_shotness()
-        shotness()
-        # sentiment()
-        devs()
-        devs_efforts()
-        # devs_parallel()
+
+    if "all" in args.modes:
+        all_mode = True
+        args.modes = [
+            "burndown-project",
+            "overwrites-matrix",
+            "ownership",
+            "couples-files",
+            "couples-people",
+            "couples-shotness",
+            "shotness",
+            "devs",
+            "devs-efforts",
+        ]
+    else:
+        all_mode = False
+
+    for mode in args.modes:
+        if mode not in modes:
+            print("Unknown mode: %s" % mode)
+            continue
+
+        print("Running: %s" % mode)
+        # `args.mode` is required for path determination in the mode functions
+        args.mode = ("all" if all_mode else mode)
+        modes[mode]()
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
