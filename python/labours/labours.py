@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 import argparse
+from collections import defaultdict, namedtuple
 import contextlib
+from datetime import datetime, timedelta
+from importlib import import_module
 import io
+from itertools import chain
 import json
 import os
 import re
@@ -12,10 +16,6 @@ import tempfile
 import threading
 import time
 import warnings
-from collections import defaultdict, namedtuple
-from datetime import datetime, timedelta
-from importlib import import_module
-from itertools import chain
 
 import numpy
 import tqdm
