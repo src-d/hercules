@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import contextlib
-from collections import defaultdict, namedtuple
-from datetime import datetime, timedelta
-from importlib import import_module
 import io
-from itertools import chain
 import json
 import os
 import re
@@ -16,16 +12,14 @@ import tempfile
 import threading
 import time
 import warnings
-
-import tqdm
+from collections import defaultdict, namedtuple
+from datetime import datetime, timedelta
+from importlib import import_module
+from itertools import chain
 
 import numpy
+import tqdm
 import yaml
-
-
-if sys.version_info[0] < 3:
-    # OK, ancients, I will support Python 2, but you owe me a beer
-    input = raw_input  # noqa: F821
 
 
 def list_matplotlib_styles():
@@ -1149,11 +1143,7 @@ class CORSWebServer(object):
     def serve(self):
         outer = self
 
-        try:
-            from http.server import HTTPServer, SimpleHTTPRequestHandler, test
-        except ImportError:  # Python 2
-            from BaseHTTPServer import HTTPServer, test
-            from SimpleHTTPServer import SimpleHTTPRequestHandler
+        from http.server import HTTPServer, SimpleHTTPRequestHandler, test
 
         class ClojureServer(HTTPServer):
             def __init__(self, *args, **kwargs):
