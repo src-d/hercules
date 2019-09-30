@@ -9,6 +9,9 @@ try:
 except FileNotFoundError:
     long_description = ""
 
+with open(os.path.join(os.path.dirname(__file__), "requirements.txt"), encoding="utf-8") as f:
+    requirements = f.readlines()
+
 
 setup(
     name="labours",
@@ -23,21 +26,7 @@ setup(
     download_url="https://github.com/src-d/hercules",
     packages=["labours"],
     keywords=["git", "mloncode", "mining software repositories", "hercules"],
-    install_requires=[
-        "clint>=0.5.1,<1.0",
-        "matplotlib>=2.0,<4.0",
-        "numpy>=1.12.0,<2.0",
-        "pandas>=0.20.0,<1.0",
-        "PyYAML>=3.0,<5.0",
-        "scipy>=0.19.0,<1.2.2",
-        "protobuf>=3.5.0,<4.0",
-        "munch>=2.0,<3.0",
-        "hdbscan>=0.8.0,<2.0",
-        "seriate>=1.0,<2.0",
-        "fastdtw>=0.3.2,<2.0",
-        "python-dateutil>=2.6.0,<3.0",
-        "lifelines>=0.20.0,<2.0",
-    ],
+    install_requires=requirements,
     package_data={"labours": ["../LICENSE.md", "../README.md", "../requirements.txt"]},
     entry_points={
         "console_scripts": ["labours=labours.__main__:main"],
