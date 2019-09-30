@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import contextlib
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -16,12 +17,8 @@ import threading
 import time
 import warnings
 
+import tqdm
 
-try:
-    from clint.textui import progress
-except ImportError:
-    print("Warning: clint is not installed, no fancy progressbars in the terminal for you.")
-    progress = None
 import numpy
 import yaml
 
@@ -476,7 +473,7 @@ def print_survival_function(kmf, sampling):
         pass
 
 
-def interpolate_burndown_matrix(matrix, granularity, sampling):
+def interpolate_burndown_matrix(matrix, granularity, sampling, progress=False):
     daily = numpy.zeros(
         (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
         dtype=numpy.float32)
@@ -488,7 +485,7 @@ def interpolate_burndown_matrix(matrix, granularity, sampling):
     ⌄
     bands, y
     """
-    for y in range(matrix.shape[0]):
+    for y in tqdm.tqdm(range(matrix.shape[0]), disable=(not progress)):
         for x in range(matrix.shape[1]):
             if y * granularity > (x + 1) * sampling:
                 # the future is zeros
@@ -614,7 +611,14 @@ def floor_datetime(dt, duration):
     return datetime.fromtimestamp(dt.timestamp() - dt.timestamp() % duration)
 
 
-def load_burndown(header, name, matrix, resample, report_survival=True):
+def load_burndown(
+    header,
+    name,
+    matrix,
+    resample,
+    report_survival=True,
+    interpolation_progress=False
+):
     pandas = import_pandas()
 
     start, last, sampling, granularity, tick = header
@@ -632,7 +636,12 @@ def load_burndown(header, name, matrix, resample, report_survival=True):
         # Interpolate the day x day matrix.
         # Each day brings equal weight in the granularity.
         # Sampling's interpolation is linear.
-        daily = interpolate_burndown_matrix(matrix, granularity, sampling)
+        daily = interpolate_burndown_matrix(
+            matrix=matrix,
+            granularity=granularity,
+            sampling=sampling,
+            progress=interpolation_progress,
+        )
         daily[(last - start).days:] = 0
         # Resample the bands
         aliases = {
@@ -915,14 +924,10 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
 def plot_many_burndown(args, target, header, parts):
     if not args.output:
         print("Warning: output not set, showing %d plots." % len(parts))
-    itercnt = progress.bar(parts, expected_size=len(parts)) \
-        if progress is not None else parts
     stdout = io.StringIO()
-    for name, matrix in itercnt:
-        backup = sys.stdout
-        sys.stdout = stdout
-        plot_burndown(args, target, *load_burndown(header, name, matrix, args.resample))
-        sys.stdout = backup
+    for name, matrix in tqdm.tqdm(parts):
+        with contextlib.redirect_stdout(stdout):
+            plot_burndown(args, target, *load_burndown(header, name, matrix, args.resample))
     sys.stdout.write(stdout.getvalue())
 
 
@@ -1441,18 +1446,21 @@ def order_commits(chosen_people, days, people):
         series[i] = arr.transpose()
     # calculate the distance matrix using dynamic time warping
     dists = numpy.full((len(series),) * 2, -100500, dtype=numpy.float32)
-    for x, serx in enumerate(series):
-        dists[x, x] = 0
-        for y, sery in enumerate(series[x + 1:], start=x + 1):
-            min_day = int(min(serx[0][0], sery[0][0]))
-            max_day = int(max(serx[-1][0], sery[-1][0]))
-            arrx = numpy.zeros(max_day - min_day + 1, dtype=numpy.float32)
-            arry = numpy.zeros_like(arrx)
-            arrx[serx[:, 0].astype(int) - min_day] = serx[:, 1]
-            arry[sery[:, 0].astype(int) - min_day] = sery[:, 1]
-            # L1 norm
-            dist, _ = fastdtw(arrx, arry, radius=5, dist=1)
-            dists[x, y] = dists[y, x] = dist
+    # TODO: what's the total for this progress bar?
+    with tqdm.tqdm() as pb:
+        for x, serx in enumerate(series):
+            dists[x, x] = 0
+            for y, sery in enumerate(series[x + 1:], start=x + 1):
+                min_day = int(min(serx[0][0], sery[0][0]))
+                max_day = int(max(serx[-1][0], sery[-1][0]))
+                arrx = numpy.zeros(max_day - min_day + 1, dtype=numpy.float32)
+                arry = numpy.zeros_like(arrx)
+                arrx[serx[:, 0].astype(int) - min_day] = serx[:, 1]
+                arry[sery[:, 0].astype(int) - min_day] = sery[:, 1]
+                # L1 norm
+                dist, _ = fastdtw(arrx, arry, radius=5, dist=1)
+                dists[x, y] = dists[y, x] = dist
+                pb.update()
     print("Ordering the series")
     route = seriate(dists)
     return dists, devseries, devstats, route
@@ -1794,7 +1802,7 @@ def main():
             return
         plot_burndown(args, "project",
                       *load_burndown(full_header, *reader.get_project_burndown(),
-                                     resample=args.resample))
+                                     resample=args.resample, interpolation_progress=True))
 
     def files_burndown():
         try:

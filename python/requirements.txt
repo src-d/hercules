@@ -1,4 +1,3 @@
-clint>=0.5.1,<1.0
 matplotlib>=2.0,<4.0
 numpy>=1.12.0,<2.0
 pandas>=0.20.0,<1.0
@@ -11,3 +10,4 @@ seriate>=1.0,<2.0
 fastdtw>=0.3.2,<2.0
 python-dateutil>=2.6.0,<3.0
 lifelines>=0.20.0,<2.0
+tqdm>=4.3,<5.0
