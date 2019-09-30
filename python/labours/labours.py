@@ -813,6 +813,7 @@ def deploy_plot(title, output, background, tight=True):
                 pyplot.tight_layout()
             except:  # noqa: E722
                 print("Warning: failed to set the tight layout")
+        print("Writing plot to %s" % output)
         pyplot.savefig(output, transparent=True)
     pyplot.clf()
 
