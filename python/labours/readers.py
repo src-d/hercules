@@ -2,7 +2,7 @@ from argparse import Namespace
 from importlib import import_module
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, TYPE_CHECKING
 
 import numpy
 import yaml
@@ -66,7 +66,9 @@ class YamlReader(Reader):
         try:
             loader = yaml.CLoader
         except AttributeError:
-            print("Warning: failed to import yaml.CLoader, falling back to slow yaml.Loader")
+            print(
+                "Warning: failed to import yaml.CLoader, falling back to slow yaml.Loader"
+            )
             loader = yaml.Loader
         try:
             if file != "-":
@@ -75,8 +77,10 @@ class YamlReader(Reader):
             else:
                 data = yaml.load(sys.stdin, Loader=loader)
         except (UnicodeEncodeError, yaml.reader.ReaderError) as e:
-            print("\nInvalid unicode in the input: %s\nPlease filter it through "
-                  "fix_yaml_unicode.py" % e)
+            print(
+                "\nInvalid unicode in the input: %s\nPlease filter it through "
+                "fix_yaml_unicode.py" % e
+            )
             sys.exit(1)
         if data is None:
             print("\nNo data has been read - has Hercules crashed?")
@@ -98,25 +102,37 @@ class YamlReader(Reader):
         return header["sampling"], header["granularity"], header["tick_size"]
 
     def get_project_burndown(self):
-        return self.data["hercules"]["repository"], \
-            self._parse_burndown_matrix(self.data["Burndown"]["project"]).T
+        return (
+            self.data["hercules"]["repository"],
+            self._parse_burndown_matrix(self.data["Burndown"]["project"]).T,
+        )
 
     def get_files_burndown(self):
-        return [(p[0], self._parse_burndown_matrix(p[1]).T)
-                for p in self.data["Burndown"]["files"].items()]
+        return [
+            (p[0], self._parse_burndown_matrix(p[1]).T)
+            for p in self.data["Burndown"]["files"].items()
+        ]
 
     def get_people_burndown(self):
-        return [(p[0], self._parse_burndown_matrix(p[1]).T)
-                for p in self.data["Burndown"]["people"].items()]
+        return [
+            (p[0], self._parse_burndown_matrix(p[1]).T)
+            for p in self.data["Burndown"]["people"].items()
+        ]
 
     def get_ownership_burndown(self):
-        return self.data["Burndown"]["people_sequence"].copy(), \
-            {p[0]: self._parse_burndown_matrix(p[1])
-             for p in self.data["Burndown"]["people"].items()}
+        return (
+            self.data["Burndown"]["people_sequence"].copy(),
+            {
+                p[0]: self._parse_burndown_matrix(p[1])
+                for p in self.data["Burndown"]["people"].items()
+            },
+        )
 
     def get_people_interaction(self):
-        return self.data["Burndown"]["people_sequence"].copy(), \
-            self._parse_burndown_matrix(self.data["Burndown"]["people_interaction"])
+        return (
+            self.data["Burndown"]["people_sequence"].copy(),
+            self._parse_burndown_matrix(self.data["Burndown"]["people_interaction"]),
+        )
 
     def get_files_coocc(self):
         coocc = self.data["Couples"]["files_coocc"]
@@ -142,10 +158,12 @@ class YamlReader(Reader):
         indices = numpy.array(indices, dtype=numpy.int32)
         data = numpy.array(data, dtype=numpy.int32)
         from scipy.sparse import csr_matrix
+
         return index, csr_matrix((data, indices, indptr), shape=(len(shotness),) * 2)
 
     def get_shotness(self):
         from munch import munchify
+
         obj = munchify(self.data["Shotness"])
         # turn strings into ints
         for item in obj:
@@ -156,25 +174,37 @@ class YamlReader(Reader):
 
     def get_sentiment(self):
         from munch import munchify
-        return munchify({int(key): {
-            "Comments": vals[2].split("|"),
-            "Commits": vals[1],
-            "Value": float(vals[0])
-        } for key, vals in self.data["Sentiment"].items()})
+
+        return munchify(
+            {
+                int(key): {
+                    "Comments": vals[2].split("|"),
+                    "Commits": vals[1],
+                    "Value": float(vals[0]),
+                }
+                for key, vals in self.data["Sentiment"].items()
+            }
+        )
 
     def get_devs(self):
         people = self.data["Devs"]["people"]
-        days = {int(d): {int(dev): DevDay(*(int(x) for x in day[:-1]), day[-1])
-                         for dev, day in devs.items()}
-                for d, devs in self.data["Devs"]["ticks"].items()}
+        days = {
+            int(d): {
+                int(dev): DevDay(*(int(x) for x in day[:-1]), day[-1])
+                for dev, day in devs.items()
+            }
+            for d, devs in self.data["Devs"]["ticks"].items()
+        }
         return people, days
 
     def _parse_burndown_matrix(self, matrix):
-        return numpy.array([numpy.fromstring(line, dtype=int, sep=" ")
-                            for line in matrix.split("\n")])
+        return numpy.array(
+            [numpy.fromstring(line, dtype=int, sep=" ") for line in matrix.split("\n")]
+        )
 
     def _parse_coocc_matrix(self, matrix):
         from scipy.sparse import csr_matrix
+
         data = []
         indices = []
         indptr = [0]
@@ -191,8 +221,10 @@ class ProtobufReader(Reader):
         try:
             from labours.pb_pb2 import AnalysisResults
         except ImportError as e:
-            print("\n\n>>> You need to generate python/hercules/pb/pb_pb2.py - run \"make\"\n",
-                  file=sys.stderr)
+            print(
+                "\n\n>>> You need to generate python/hercules/pb/pb_pb2.py - run \"make\"\n",
+                file=sys.stderr,
+            )
             raise e from None
         self.data = AnalysisResults()
         if file != "-":
@@ -208,7 +240,9 @@ class ProtobufReader(Reader):
             try:
                 mod, name = PB_MESSAGES[key].rsplit(".", 1)
             except KeyError:
-                sys.stderr.write("Warning: there is no registered PB decoder for %s\n" % key)
+                sys.stderr.write(
+                    "Warning: there is no registered PB decoder for %s\n" % key
+                )
                 continue
             cls = getattr(import_module(mod), name)
             self.contents[key] = msg = cls()
@@ -235,7 +269,9 @@ class ProtobufReader(Reader):
         return [self._parse_burndown_matrix(i) for i in self.contents["Burndown"].files]
 
     def get_people_burndown(self) -> List[Any]:
-        return [self._parse_burndown_matrix(i) for i in self.contents["Burndown"].people]
+        return [
+            self._parse_burndown_matrix(i) for i in self.contents["Burndown"].people
+        ]
 
     def get_ownership_burndown(self) -> Tuple[List[Any], Dict[Any, Any]]:
         people = self.get_people_burndown()
@@ -243,8 +279,10 @@ class ProtobufReader(Reader):
 
     def get_people_interaction(self):
         burndown = self.contents["Burndown"]
-        return [i.name for i in burndown.people], \
-            self._parse_sparse_matrix(burndown.people_interaction).toarray()
+        return (
+            [i.name for i in burndown.people],
+            self._parse_sparse_matrix(burndown.people_interaction).toarray(),
+        )
 
     def get_files_coocc(self) -> Tuple[List[str], 'csr_matrix']:
         node = self.contents["Couples"].file_couples
@@ -270,6 +308,7 @@ class ProtobufReader(Reader):
         indices = numpy.array(indices, dtype=numpy.int32)
         data = numpy.array(data, dtype=numpy.int32)
         from scipy.sparse import csr_matrix
+
         return index, csr_matrix((data, indices, indptr), shape=(len(shotness),) * 2)
 
     def get_shotness(self):
@@ -286,15 +325,28 @@ class ProtobufReader(Reader):
 
     def get_devs(self) -> Tuple[List[str], Dict[int, Dict[int, DevDay]]]:
         people = list(self.contents["Devs"].dev_index)
-        days = {d: {dev: DevDay(stats.commits, stats.stats.added, stats.stats.removed,
-                                stats.stats.changed, {k: [v.added, v.removed, v.changed]
-                                                      for k, v in stats.languages.items()})
-                    for dev, stats in day.devs.items()}
-                for d, day in self.contents["Devs"].ticks.items()}
+        days = {
+            d: {
+                dev: DevDay(
+                    stats.commits,
+                    stats.stats.added,
+                    stats.stats.removed,
+                    stats.stats.changed,
+                    {
+                        k: [v.added, v.removed, v.changed]
+                        for k, v in stats.languages.items()
+                    },
+                )
+                for dev, stats in day.devs.items()
+            }
+            for d, day in self.contents["Devs"].ticks.items()
+        }
         return people, days
 
     def _parse_burndown_matrix(self, matrix):
-        dense = numpy.zeros((matrix.number_of_rows, matrix.number_of_columns), dtype=int)
+        dense = numpy.zeros(
+            (matrix.number_of_rows, matrix.number_of_columns), dtype=int
+        )
         for y, row in enumerate(matrix.rows):
             for x, col in enumerate(row.columns):
                 dense[y, x] = col
@@ -302,8 +354,11 @@ class ProtobufReader(Reader):
 
     def _parse_sparse_matrix(self, matrix):
         from scipy.sparse import csr_matrix
-        return csr_matrix((list(matrix.data), list(matrix.indices), list(matrix.indptr)),
-                          shape=(matrix.number_of_rows, matrix.number_of_columns))
+
+        return csr_matrix(
+            (list(matrix.data), list(matrix.indices), list(matrix.indptr)),
+            shape=(matrix.number_of_rows, matrix.number_of_columns),
+        )
 
 
 READERS = {"yaml": YamlReader, "yml": YamlReader, "pb": ProtobufReader}

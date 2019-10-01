@@ -49,8 +49,13 @@ def plot_overwrites_matrix(args, repo, people, matrix):
     ax.set_yticks(numpy.arange(0, matrix.shape[0]))
     ax.set_yticklabels(people, va="center")
     ax.set_xticks(numpy.arange(0.5, matrix.shape[1] + 0.5), minor=True)
-    ax.set_xticklabels(["Unidentified"] + people, rotation=45, ha="left",
-                       va="bottom", rotation_mode="anchor")
+    ax.set_xticklabels(
+        ["Unidentified"] + people,
+        rotation=45,
+        ha="left",
+        va="bottom",
+        rotation_mode="anchor",
+    )
     ax.set_yticks(numpy.arange(0.5, matrix.shape[0] + 0.5), minor=True)
     ax.grid(False)
     ax.grid(which="minor")

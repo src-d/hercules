@@ -20,7 +20,9 @@ def show_languages(
         for dev, stats in devs.items():
             for lang, vals in stats.Languages.items():
                 devlangs[dev][lang] += vals
-    devlangs = sorted(devlangs.items(), key=lambda p: -sum(x.sum() for x in p[1].values()))
+    devlangs = sorted(
+        devlangs.items(), key=lambda p: -sum(x.sum() for x in p[1].values())
+    )
     for dev, ls in devlangs:
         print()
         print("#", people[dev])

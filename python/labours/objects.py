@@ -1,7 +1,9 @@
 from collections import defaultdict, namedtuple
 
 
-class DevDay(namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed", "Languages"))):
+class DevDay(
+    namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed", "Languages"))
+):
     def add(self, dd: 'DevDay') -> 'DevDay':
         langs = defaultdict(lambda: [0] * 3)
         for key, val in self.Languages.items():
@@ -10,11 +12,13 @@ class DevDay(namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed", "La
         for key, val in dd.Languages.items():
             for i in range(3):
                 langs[key][i] += val[i]
-        return DevDay(Commits=self.Commits + dd.Commits,
-                      Added=self.Added + dd.Added,
-                      Removed=self.Removed + dd.Removed,
-                      Changed=self.Changed + dd.Changed,
-                      Languages=dict(langs))
+        return DevDay(
+            Commits=self.Commits + dd.Commits,
+            Added=self.Added + dd.Added,
+            Removed=self.Removed + dd.Removed,
+            Changed=self.Changed + dd.Changed,
+            Languages=dict(langs),
+        )
 
 
 class ParallelDevData:

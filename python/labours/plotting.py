@@ -3,9 +3,11 @@ import os
 
 def import_pyplot(backend, style):
     import matplotlib
+
     if backend:
         matplotlib.use(backend)
     from matplotlib import pyplot
+
     pyplot.style.use(style)
     print("matplotlib: backend is", matplotlib.get_backend())
     return matplotlib, pyplot

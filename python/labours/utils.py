@@ -24,6 +24,7 @@ def parse_date(text: None, default: 'Timestamp') -> 'Timestamp':
     if not text:
         return default
     from dateutil.parser import parse
+
     return parse(text)
 
 

@@ -14,14 +14,17 @@ def load_devs_parallel(
     ownership: Tuple[List[Any], Dict[Any, Any]],
     couples: Tuple[List[str], csr_matrix],
     devs: Tuple[List[str], Dict[int, Dict[int, DevDay]]],
-    max_people: int
+    max_people: int,
 ):
     from seriate import seriate
+
     try:
         from hdbscan import HDBSCAN
     except ImportError as e:
-        print("Cannot import ortools: %s\nInstall it from "
-              "https://developers.google.com/optimization/install/python/" % e)
+        print(
+            "Cannot import ortools: %s\nInstall it from "
+            "https://developers.google.com/optimization/install/python/" % e
+        )
         sys.exit(1)
 
     people, owned = ownership
@@ -33,8 +36,12 @@ def load_devs_parallel(
     for day, devs in days.items():
         for dev, stats in devs.items():
             commits[people[dev]] += stats.Commits
-    chosen = [k for v, k in sorted(((v, k) for k, v in commits.items()),
-                                   reverse=True)[:max_people]]
+    chosen = [
+        k
+        for v, k in sorted(((v, k) for k, v in commits.items()), reverse=True)[
+            :max_people
+        ]
+    ]
     result = {k: ParallelDevData() for k in chosen}
     for k, v in result.items():
         v.commits_rank = chosen.index(k)
@@ -45,22 +52,31 @@ def load_devs_parallel(
     for day, devs in days.items():
         for dev, stats in devs.items():
             lines[people[dev]] += stats.Added + stats.Removed + stats.Changed
-    lines_index = {k: i for i, (_, k) in enumerate(sorted(
-        ((v, k) for k, v in lines.items() if k in chosen), reverse=True))}
+    lines_index = {
+        k: i
+        for i, (_, k) in enumerate(
+            sorted(((v, k) for k, v in lines.items() if k in chosen), reverse=True)
+        )
+    }
     for k, v in result.items():
         v.lines_rank = lines_index[k]
         v.lines = lines[k]
 
     print("calculating - ownership")
-    owned_index = {k: i for i, (_, k) in enumerate(sorted(
-        ((owned[k][-1].sum(), k) for k in chosen), reverse=True))}
+    owned_index = {
+        k: i
+        for i, (_, k) in enumerate(
+            sorted(((owned[k][-1].sum(), k) for k in chosen), reverse=True)
+        )
+    }
     for k, v in result.items():
         v.ownership_rank = owned_index[k]
         v.ownership = owned[k][-1].sum()
 
     print("calculating - couples")
     embeddings = numpy.genfromtxt(fname="couples_people_data.tsv", delimiter="\t")[
-        [people.index(k) for k in chosen]]
+        [people.index(k) for k in chosen]
+    ]
     embeddings /= numpy.linalg.norm(embeddings, axis=1)[:, None]
     cos = embeddings.dot(embeddings.T)
     cos[cos > 1] = 1  # tiny precision faults
@@ -75,7 +91,9 @@ def load_devs_parallel(
         loss = 0
         for k, v in result.items():
             loss += abs(
-                v.ownership_rank - (couples_order.index(chosen.index(k)) + i) % len(chosen))
+                v.ownership_rank
+                - (couples_order.index(chosen.index(k)) + i) % len(chosen)
+            )
         roll_options.append(loss)
     best_roll = numpy.argmin(roll_options)
     couples_order = list(numpy.roll(couples_order, best_roll))
@@ -118,20 +136,24 @@ def show_devs_parallel(args, name, start_date, end_date, devs):
     # biggest = {k: max(getattr(d, k) for d in devs.values())
     #            for k in ("commits", "lines", "ownership")}
     for k, dev in devs.items():
-        points = numpy.array([
-            (1, dev.commits_rank),
-            (2, dev.lines_rank),
-            (3, dev.ownership_rank),
-            (4, dev.couples_index),
-            (5, dev.commit_coocc_index)],
-            dtype=float)
+        points = numpy.array(
+            [
+                (1, dev.commits_rank),
+                (2, dev.lines_rank),
+                (3, dev.ownership_rank),
+                (4, dev.couples_index),
+                (5, dev.commit_coocc_index),
+            ],
+            dtype=float,
+        )
         points[:, 1] = points[:, 1] / len(devs)
         splines = []
         for i in range(len(points) - 1):
             a, b, c, d = solve_equations(*points[i], *points[i + 1])
             x = numpy.linspace(i + 1, i + 2, 100)
             smooth_points = numpy.array(
-                [x, a * x ** 3 + b * x ** 2 + c * x + d]).T.reshape(-1, 1, 2)
+                [x, a * x ** 3 + b * x ** 2 + c * x + d]
+            ).T.reshape(-1, 1, 2)
             splines.append(smooth_points)
         points = numpy.concatenate(splines)
         segments = numpy.concatenate([points[:-1], points[1:]], axis=1)

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, List, Tuple
+from typing import List, Tuple, TYPE_CHECKING
 import warnings
 
 import numpy
@@ -38,7 +38,7 @@ def fit_kaplan_meier(matrix: numpy.ndarray) -> 'KaplanMeierFitter':
     W.append(matrix[nnzind, -1])
     T = numpy.concatenate(T)
     E = numpy.ones(len(T), bool)
-    E[-nnzind.sum():] = 0
+    E[-nnzind.sum() :] = 0
     W = numpy.concatenate(W)
     if T.size == 0:
         return None
@@ -51,20 +51,17 @@ def print_survival_function(kmf: 'KaplanMeierFitter', sampling: int) -> None:
     sf.index = [timedelta(days=d) for d in sf.index * sampling]
     sf.columns = ["Ratio of survived lines"]
     try:
-        print(sf[len(sf) // 6::len(sf) // 6].append(sf.tail(1)))
+        print(sf[len(sf) // 6 :: len(sf) // 6].append(sf.tail(1)))
     except ValueError:
         pass
 
 
 def interpolate_burndown_matrix(
-    matrix: numpy.ndarray,
-    granularity: int,
-    sampling: int,
-    progress: bool = False
+    matrix: numpy.ndarray, granularity: int, sampling: int, progress: bool = False
 ) -> numpy.ndarray:
     daily = numpy.zeros(
-        (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
-        dtype=numpy.float32)
+        (matrix.shape[0] * granularity, matrix.shape[1] * sampling), dtype=numpy.float32
+    )
     """
     ----------> samples, x
     |
@@ -88,7 +85,8 @@ def interpolate_burndown_matrix(
                     initial = daily[i][start_index - 1]
                     for j in range(start_index, (x + 1) * sampling):
                         daily[i][j] = initial * (
-                            1 + (k - 1) * (j - start_index + 1) / scale)
+                            1 + (k - 1) * (j - start_index + 1) / scale
+                        )
 
             def grow(finish_index: int, finish_val: float):
                 initial = matrix[y][x - 1] if x > 0 else 0
@@ -171,7 +169,9 @@ def interpolate_burndown_matrix(
                         # y*s <= (x+1)*g <= (y+1)*s < (y+2)*s
                         #           ^.........|_________|
                         k = (v2 - matrix[y][x + 1]) / sampling  # > 0
-                        peak = matrix[y][x] + k * ((x + 1) * sampling - (y + 1) * granularity)
+                        peak = matrix[y][x] + k * (
+                            (x + 1) * sampling - (y + 1) * granularity
+                        )
                         # peak > v2 > v1
                     else:
                         peak = v2
@@ -187,8 +187,10 @@ def interpolate_burndown_matrix(
 
 def import_pandas():
     import pandas
+
     try:
         from pandas.plotting import register_matplotlib_converters
+
         register_matplotlib_converters()
     except ImportError:
         pass
@@ -201,7 +203,7 @@ def load_burndown(
     matrix: numpy.ndarray,
     resample: str,
     report_survival: bool = True,
-    interpolation_progress: bool = False
+    interpolation_progress: bool = False,
 ) -> Tuple[str, numpy.ndarray, 'DatetimeIndex', List[int], int, int, str]:
     pandas = import_pandas()
 
@@ -226,43 +228,43 @@ def load_burndown(
             sampling=sampling,
             progress=interpolation_progress,
         )
-        daily[(last - start).days:] = 0
+        daily[(last - start).days :] = 0
         # Resample the bands
-        aliases = {
-            "year": "A",
-            "month": "M"
-        }
+        aliases = {"year": "A", "month": "M"}
         resample = aliases.get(resample, resample)
         periods = 0
         date_granularity_sampling = [start]
         while date_granularity_sampling[-1] < finish:
             periods += 1
             date_granularity_sampling = pandas.date_range(
-                start, periods=periods, freq=resample)
+                start, periods=periods, freq=resample
+            )
         if date_granularity_sampling[0] > finish:
             if resample == "A":
                 print("too loose resampling - by year, trying by month")
-                return load_burndown(header, name, matrix, "month", report_survival=False)
+                return load_burndown(
+                    header, name, matrix, "month", report_survival=False
+                )
             else:
                 raise ValueError("Too loose resampling: %s. Try finer." % resample)
         date_range_sampling = pandas.date_range(
             date_granularity_sampling[0],
             periods=(finish - date_granularity_sampling[0]).days,
-            freq="1D")
+            freq="1D",
+        )
         # Fill the new square matrix
         matrix = numpy.zeros(
             (len(date_granularity_sampling), len(date_range_sampling)),
-            dtype=numpy.float32)
+            dtype=numpy.float32,
+        )
         for i, gdt in enumerate(date_granularity_sampling):
-            istart = (date_granularity_sampling[i - 1] - start).days \
-                if i > 0 else 0
+            istart = (date_granularity_sampling[i - 1] - start).days if i > 0 else 0
             ifinish = (gdt - start).days
 
             for j, sdt in enumerate(date_range_sampling):
                 if (sdt - start).days >= istart:
                     break
-            matrix[i, j:] = \
-                daily[istart:ifinish, (sdt - start).days:].sum(axis=0)
+            matrix[i, j:] = daily[istart:ifinish, (sdt - start).days :].sum(axis=0)
         # Hardcode some cases to improve labels' readability
         if resample in ("year", "A"):
             labels = [dt.year for dt in date_granularity_sampling]
@@ -272,14 +274,19 @@ def load_burndown(
             labels = [dt.date() for dt in date_granularity_sampling]
     else:
         labels = [
-            "%s - %s" % ((start + timedelta(seconds=i * granularity * tick)).date(),
-            (
-                start + timedelta(seconds=(i + 1) * granularity * tick)).date())
-            for i in range(matrix.shape[0])]
+            "%s - %s"
+            % (
+                (start + timedelta(seconds=i * granularity * tick)).date(),
+                (start + timedelta(seconds=(i + 1) * granularity * tick)).date(),
+            )
+            for i in range(matrix.shape[0])
+        ]
         if len(labels) > 18:
             warnings.warn("Too many labels - consider resampling.")
         resample = "M"  # fake resampling type is checked while plotting
         date_range_sampling = pandas.date_range(
-            start + timedelta(seconds=sampling * tick), periods=matrix.shape[1],
-            freq="%dD" % sampling)
+            start + timedelta(seconds=sampling * tick),
+            periods=matrix.shape[1],
+            freq="%dD" % sampling,
+        )
     return name, matrix, date_range_sampling, labels, granularity, sampling, resample

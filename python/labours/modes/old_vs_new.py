@@ -15,7 +15,7 @@ def show_old_vs_new(
     start_date: int,
     end_date: int,
     people: List[str],
-    days: Dict[int, Dict[int, DevDay]]
+    days: Dict[int, Dict[int, DevDay]],
 ) -> None:
     from scipy.signal import convolve, slepian
 
@@ -36,9 +36,13 @@ def show_old_vs_new(
     matplotlib, pyplot = import_pyplot(args.backend, args.style)
     plot_x = [start_date + timedelta(days=i) for i in range(len(new_lines))]
     pyplot.fill_between(plot_x, new_lines, color="#8DB843", label="Changed new lines")
-    pyplot.fill_between(plot_x, old_lines, color="#E14C35", label="Changed existing lines")
+    pyplot.fill_between(
+        plot_x, old_lines, color="#E14C35", label="Changed existing lines"
+    )
     pyplot.legend(loc=2, fontsize=args.font_size)
-    for tick in chain(pyplot.gca().xaxis.get_major_ticks(), pyplot.gca().yaxis.get_major_ticks()):
+    for tick in chain(
+        pyplot.gca().xaxis.get_major_ticks(), pyplot.gca().yaxis.get_major_ticks()
+    ):
         tick.label.set_fontsize(args.font_size)
     if args.mode == "all" and args.output:
         output = get_plot_path(args.output, "old_vs_new")

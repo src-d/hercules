@@ -9,7 +9,13 @@ from labours.plotting import apply_plot_style, deploy_plot, get_plot_path, impor
 from labours.utils import default_json, floor_datetime, parse_date
 
 
-def load_ownership(header: Tuple[int, int, int, int, float], sequence: List[Any], contents: Dict[Any, Any], max_people: int, order_by_time: bool):
+def load_ownership(
+    header: Tuple[int, int, int, int, float],
+    sequence: List[Any],
+    contents: Dict[Any, Any],
+    max_people: int,
+    order_by_time: bool,
+):
     pandas = import_pandas()
 
     start, last, sampling, _, tick = header
@@ -21,13 +27,15 @@ def load_ownership(header: Tuple[int, int, int, int, float], sequence: List[Any]
         people.append(contents[name].sum(axis=1))
     people = numpy.array(people)
     date_range_sampling = pandas.date_range(
-        start + timedelta(seconds=sampling * tick), periods=people[0].shape[0],
-        freq="%dD" % sampling)
+        start + timedelta(seconds=sampling * tick),
+        periods=people[0].shape[0],
+        freq="%dD" % sampling,
+    )
 
     if people.shape[0] > max_people:
         chosen = numpy.argpartition(-numpy.sum(people, axis=1), max_people)
         others = people[chosen[max_people:]].sum(axis=0)
-        people = people[chosen[:max_people + 1]]
+        people = people[chosen[: max_people + 1]]
         people[max_people] = others
         sequence = [sequence[i] for i in chosen[:max_people]] + ["others"]
         print("Warning: truncated people to the most owning %d" % max_people)
@@ -68,7 +76,9 @@ def plot_ownership(args, repo, names, people, date_range, last):
     polys = pyplot.stackplot(date_range, people, labels=names)
     if names[-1] == "others":
         polys[-1].set_hatch("/")
-    pyplot.xlim(parse_date(args.start_date, date_range[0]), parse_date(args.end_date, last))
+    pyplot.xlim(
+        parse_date(args.start_date, date_range[0]), parse_date(args.end_date, last)
+    )
 
     if args.relative:
         for i in range(people.shape[1]):
@@ -79,8 +89,9 @@ def plot_ownership(args, repo, names, people, date_range, last):
         legend_loc = 2
     ncol = 1 if len(names) < 15 else 2
     legend = pyplot.legend(loc=legend_loc, fontsize=args.font_size, ncol=ncol)
-    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
-                     args.font_size, args.size)
+    apply_plot_style(
+        pyplot.gcf(), pyplot.gca(), legend, args.background, args.font_size, args.size
+    )
     if args.mode == "all" and args.output:
         output = get_plot_path(args.output, "people")
     else:

@@ -16,7 +16,7 @@ def train_embeddings(
     index: List[str],
     matrix: csr_matrix,
     tmpdir: None,
-    shard_size: int = IDEAL_SHARD_SIZE
+    shard_size: int = IDEAL_SHARD_SIZE,
 ) -> Tuple[List[Tuple[str, numpy.int64]], List[numpy.ndarray]]:
     import tensorflow as tf
     from labours._vendor import swivel
@@ -43,7 +43,9 @@ def train_embeddings(
     for i, j in enumerate(filtered):
         meta_index.append((index[j], matrix[i, i]))
     index = [mi[0] for mi in meta_index]
-    with tempfile.TemporaryDirectory(prefix="hercules_labours_", dir=tmpdir or None) as tmproot:
+    with tempfile.TemporaryDirectory(
+        prefix="hercules_labours_", dir=tmpdir or None
+    ) as tmproot:
         print("Writing Swivel metadata...")
         vocabulary = "\n".join(index)
         with open(os.path.join(tmproot, "row_vocab.txt"), "w") as out:
@@ -63,26 +65,36 @@ def train_embeddings(
         print("Writing Swivel shards...")
         for row in range(nshards):
             for col in range(nshards):
+
                 def _int64s(xs):
                     return tf.train.Feature(
-                        int64_list=tf.train.Int64List(value=list(xs)))
+                        int64_list=tf.train.Int64List(value=list(xs))
+                    )
 
                 def _floats(xs):
                     return tf.train.Feature(
-                        float_list=tf.train.FloatList(value=list(xs)))
+                        float_list=tf.train.FloatList(value=list(xs))
+                    )
 
                 indices_row = reorder[row::nshards]
                 indices_col = reorder[col::nshards]
                 shard = matrix[indices_row][:, indices_col].tocoo()
 
-                example = tf.train.Example(features=tf.train.Features(feature={
-                    "global_row": _int64s(indices_row),
-                    "global_col": _int64s(indices_col),
-                    "sparse_local_row": _int64s(shard.row),
-                    "sparse_local_col": _int64s(shard.col),
-                    "sparse_value": _floats(shard.data)}))
+                example = tf.train.Example(
+                    features=tf.train.Features(
+                        feature={
+                            "global_row": _int64s(indices_row),
+                            "global_col": _int64s(indices_col),
+                            "sparse_local_row": _int64s(shard.row),
+                            "sparse_local_col": _int64s(shard.col),
+                            "sparse_value": _floats(shard.data),
+                        }
+                    )
+                )
 
-                with open(os.path.join(tmproot, "shard-%03d-%03d.pb" % (row, col)), "wb") as out:
+                with open(
+                    os.path.join(tmproot, "shard-%03d-%03d.pb" % (row, col)), "wb"
+                ) as out:
                     out.write(example.SerializeToString())
         print("Training Swivel model...")
         swivel.FLAGS.submatrix_rows = shard_size
@@ -131,9 +143,10 @@ def train_embeddings(
                 for i, (lrow, lcol) in enumerate(zip(frow, fcol)):
                     prow, pcol = (l.split("\t", 1) for l in (lrow, lcol))
                     assert prow[0] == pcol[0]
-                    erow, ecol = \
-                        (numpy.fromstring(p[1], dtype=numpy.float32, sep="\t")
-                         for p in (prow, pcol))
+                    erow, ecol = (
+                        numpy.fromstring(p[1], dtype=numpy.float32, sep="\t")
+                        for p in (prow, pcol)
+                    )
                     embeddings.append((erow + ecol) / 2)
     return meta_index, embeddings
 
@@ -143,7 +156,7 @@ def write_embeddings(
     output: str,
     run_server: bool,
     index: List[Tuple[str, numpy.int64]],
-    embeddings: List[numpy.ndarray]
+    embeddings: List[numpy.ndarray],
 ) -> None:
     print("Writing Tensorflow Projector files...")
     if not output:
@@ -165,7 +178,8 @@ def write_embeddings(
     print("Wrote", dataf)
     jsonf = "%s_%s.json" % (output, name)
     with open(jsonf, "w") as fout:
-        fout.write("""{
+        fout.write(
+            """{
   "embeddings": [
     {
       "tensorName": "%s %s coupling",
@@ -175,7 +189,9 @@ def write_embeddings(
     }
   ]
 }
-""" % (output, name, len(embeddings), len(embeddings[0]), dataf, metaf))
+"""
+            % (output, name, len(embeddings), len(embeddings[0]), dataf, metaf)
+        )
     print("Wrote %s" % jsonf)
     if run_server and not web_server.running:
         web_server.start()

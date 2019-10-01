@@ -14,7 +14,9 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     start_date = datetime.fromtimestamp(start_date)
     data = sorted(data.items())
     mood = numpy.zeros(data[-1][0] + 1, dtype=numpy.float32)
-    timeline = numpy.array([start_date + timedelta(days=i) for i in range(mood.shape[0])])
+    timeline = numpy.array(
+        [start_date + timedelta(days=i) for i in range(mood.shape[0])]
+    )
     for d, val in data:
         mood[d] = (0.5 - val.Value) * 2
     resolution = 32
@@ -35,9 +37,13 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     legend = pyplot.legend(loc=1, fontsize=args.font_size)
     pyplot.ylabel("Comment sentiment")
     pyplot.xlabel("Time")
-    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
-                     args.font_size, args.size)
-    pyplot.xlim(parse_date(args.start_date, timeline[0]), parse_date(args.end_date, timeline[-1]))
+    apply_plot_style(
+        pyplot.gcf(), pyplot.gca(), legend, args.background, args.font_size, args.size
+    )
+    pyplot.xlim(
+        parse_date(args.start_date, timeline[0]),
+        parse_date(args.end_date, timeline[-1]),
+    )
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
     if "M" not in resample:
@@ -74,7 +80,11 @@ def show_sentiment_stats(args, name, resample, start_date, data):
     overall_pos = sum(2 * (0.5 - d[1].Value) for d in data if d[1].Value < 0.5)
     overall_neg = sum(2 * (d[1].Value - 0.5) for d in data if d[1].Value > 0.5)
     title = "%s sentiment +%.1f -%.1f δ=%.1f" % (
-        name, overall_pos, overall_neg, overall_pos - overall_neg)
+        name,
+        overall_pos,
+        overall_neg,
+        overall_pos - overall_neg,
+    )
     if args.mode == "all" and args.output:
         output = get_plot_path(args.output, "sentiment")
     else:

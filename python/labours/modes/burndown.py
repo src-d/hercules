@@ -25,7 +25,7 @@ def plot_burndown(
     labels: List[int],
     granularity: int,
     sampling: int,
-    resample: str
+    resample: str,
 ) -> None:
     if args.output and args.output.endswith(".json"):
         data = locals().copy()
@@ -54,10 +54,13 @@ def plot_burndown(
     legend = pyplot.legend(loc=legend_loc, fontsize=args.font_size)
     pyplot.ylabel("Lines of code")
     pyplot.xlabel("Time")
-    apply_plot_style(pyplot.gcf(), pyplot.gca(), legend, args.background,
-                     args.font_size, args.size)
-    pyplot.xlim(parse_date(args.start_date, date_range_sampling[0]),
-                parse_date(args.end_date, date_range_sampling[-1]))
+    apply_plot_style(
+        pyplot.gcf(), pyplot.gca(), legend, args.background, args.font_size, args.size
+    )
+    pyplot.xlim(
+        parse_date(args.start_date, date_range_sampling[0]),
+        parse_date(args.end_date, date_range_sampling[-1]),
+    )
     locator = pyplot.gca().xaxis.get_major_locator()
     # set the optimal xticks locator
     if "M" not in resample:
@@ -91,8 +94,9 @@ def plot_burndown(
         labels[endindex].set_text = lambda _: None
         labels[endindex].set_rotation(30)
         labels[endindex].set_ha("right")
-    title = "%s %d x %d (granularity %d, sampling %d)" % \
-        ((name,) + matrix.shape + (granularity, sampling))
+    title = "%s %d x %d (granularity %d, sampling %d)" % (
+        (name,) + matrix.shape + (granularity, sampling)
+    )
     output = args.output
     if output:
         if args.mode == "project" and target == "project":
@@ -110,5 +114,7 @@ def plot_many_burndown(args: Namespace, target: str, header, parts):
     stdout = io.StringIO()
     for name, matrix in tqdm.tqdm(parts):
         with contextlib.redirect_stdout(stdout):
-            plot_burndown(args, target, *load_burndown(header, name, matrix, args.resample))
+            plot_burndown(
+                args, target, *load_burndown(header, name, matrix, args.resample)
+            )
     sys.stdout.write(stdout.getvalue())
