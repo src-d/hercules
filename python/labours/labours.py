@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from collections import defaultdict, namedtuple
+import contextlib
 from datetime import datetime, timedelta
 from importlib import import_module
 import io
@@ -16,19 +17,9 @@ import threading
 import time
 import warnings
 
-
-try:
-    from clint.textui import progress
-except ImportError:
-    print("Warning: clint is not installed, no fancy progressbars in the terminal for you.")
-    progress = None
 import numpy
+import tqdm
 import yaml
-
-
-if sys.version_info[0] < 3:
-    # OK, ancients, I will support Python 2, but you owe me a beer
-    input = raw_input  # noqa: F821
 
 
 def list_matplotlib_styles():
@@ -59,13 +50,14 @@ def parse_args():
     parser.add_argument("--relative", action="store_true",
                         help="Occupy 100%% height for every measurement.")
     parser.add_argument("--tmpdir", help="Temporary directory for intermediate files.")
-    parser.add_argument("-m", "--mode",
+    parser.add_argument("-m", "--mode", dest="modes", default=[], action="append",
                         choices=["burndown-project", "burndown-file", "burndown-person",
                                  "overwrites-matrix", "ownership", "couples-files",
                                  "couples-people", "couples-shotness", "shotness", "sentiment",
-                                 "devs", "devs-efforts", "old-vs-new", "all", "run-times",
-                                 "languages", "devs-parallel"],
-                        help="What to plot.")
+                                 "devs", "devs-efforts", "old-vs-new", "run-times",
+                                 "languages", "devs-parallel", "all"],
+                        help="What to plot. Can be repeated, e.g. "
+                             "-m burndown-project -m run-times")
     parser.add_argument(
         "--resample", default="year",
         help="The way to resample the time series. Possible values are: "
@@ -475,7 +467,7 @@ def print_survival_function(kmf, sampling):
         pass
 
 
-def interpolate_burndown_matrix(matrix, granularity, sampling):
+def interpolate_burndown_matrix(matrix, granularity, sampling, progress=False):
     daily = numpy.zeros(
         (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
         dtype=numpy.float32)
@@ -487,7 +479,7 @@ def interpolate_burndown_matrix(matrix, granularity, sampling):
     ⌄
     bands, y
     """
-    for y in range(matrix.shape[0]):
+    for y in tqdm.tqdm(range(matrix.shape[0]), disable=(not progress)):
         for x in range(matrix.shape[1]):
             if y * granularity > (x + 1) * sampling:
                 # the future is zeros
@@ -613,7 +605,14 @@ def floor_datetime(dt, duration):
     return datetime.fromtimestamp(dt.timestamp() - dt.timestamp() % duration)
 
 
-def load_burndown(header, name, matrix, resample, report_survival=True):
+def load_burndown(
+    header,
+    name,
+    matrix,
+    resample,
+    report_survival=True,
+    interpolation_progress=False
+):
     pandas = import_pandas()
 
     start, last, sampling, granularity, tick = header
@@ -631,7 +630,12 @@ def load_burndown(header, name, matrix, resample, report_survival=True):
         # Interpolate the day x day matrix.
         # Each day brings equal weight in the granularity.
         # Sampling's interpolation is linear.
-        daily = interpolate_burndown_matrix(matrix, granularity, sampling)
+        daily = interpolate_burndown_matrix(
+            matrix=matrix,
+            granularity=granularity,
+            sampling=sampling,
+            progress=interpolation_progress,
+        )
         daily[(last - start).days:] = 0
         # Resample the bands
         aliases = {
@@ -812,6 +816,7 @@ def deploy_plot(title, output, background, tight=True):
                 pyplot.tight_layout()
             except:  # noqa: E722
                 print("Warning: failed to set the tight layout")
+        print("Writing plot to %s" % output)
         pyplot.savefig(output, transparent=True)
     pyplot.clf()
 
@@ -913,14 +918,10 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
 def plot_many_burndown(args, target, header, parts):
     if not args.output:
         print("Warning: output not set, showing %d plots." % len(parts))
-    itercnt = progress.bar(parts, expected_size=len(parts)) \
-        if progress is not None else parts
     stdout = io.StringIO()
-    for name, matrix in itercnt:
-        backup = sys.stdout
-        sys.stdout = stdout
-        plot_burndown(args, target, *load_burndown(header, name, matrix, args.resample))
-        sys.stdout = backup
+    for name, matrix in tqdm.tqdm(parts):
+        with contextlib.redirect_stdout(stdout):
+            plot_burndown(args, target, *load_burndown(header, name, matrix, args.resample))
     sys.stdout.write(stdout.getvalue())
 
 
@@ -1011,11 +1012,11 @@ IDEAL_SHARD_SIZE = 4096
 
 
 def train_embeddings(index, matrix, tmpdir, shard_size=IDEAL_SHARD_SIZE):
+    import tensorflow as tf
     try:
         from . import swivel
     except (SystemError, ImportError):
         import swivel
-    import tensorflow as tf
 
     assert matrix.shape[0] == matrix.shape[1]
     assert len(index) <= matrix.shape[0]
@@ -1142,11 +1143,7 @@ class CORSWebServer(object):
     def serve(self):
         outer = self
 
-        try:
-            from http.server import HTTPServer, SimpleHTTPRequestHandler, test
-        except ImportError:  # Python 2
-            from BaseHTTPServer import HTTPServer, test
-            from SimpleHTTPServer import SimpleHTTPRequestHandler
+        from http.server import HTTPServer, SimpleHTTPRequestHandler, test
 
         class ClojureServer(HTTPServer):
             def __init__(self, *args, **kwargs):
@@ -1439,18 +1436,21 @@ def order_commits(chosen_people, days, people):
         series[i] = arr.transpose()
     # calculate the distance matrix using dynamic time warping
     dists = numpy.full((len(series),) * 2, -100500, dtype=numpy.float32)
-    for x, serx in enumerate(series):
-        dists[x, x] = 0
-        for y, sery in enumerate(series[x + 1:], start=x + 1):
-            min_day = int(min(serx[0][0], sery[0][0]))
-            max_day = int(max(serx[-1][0], sery[-1][0]))
-            arrx = numpy.zeros(max_day - min_day + 1, dtype=numpy.float32)
-            arry = numpy.zeros_like(arrx)
-            arrx[serx[:, 0].astype(int) - min_day] = serx[:, 1]
-            arry[sery[:, 0].astype(int) - min_day] = sery[:, 1]
-            # L1 norm
-            dist, _ = fastdtw(arrx, arry, radius=5, dist=1)
-            dists[x, y] = dists[y, x] = dist
+    # TODO: what's the total for this progress bar?
+    with tqdm.tqdm() as pb:
+        for x, serx in enumerate(series):
+            dists[x, x] = 0
+            for y, sery in enumerate(series[x + 1:], start=x + 1):
+                min_day = int(min(serx[0][0], sery[0][0]))
+                max_day = int(max(serx[-1][0], sery[-1][0]))
+                arrx = numpy.zeros(max_day - min_day + 1, dtype=numpy.float32)
+                arry = numpy.zeros_like(arrx)
+                arrx[serx[:, 0].astype(int) - min_day] = serx[:, 1]
+                arry[sery[:, 0].astype(int) - min_day] = sery[:, 1]
+                # L1 norm
+                dist, _ = fastdtw(arrx, arry, radius=5, dist=1)
+                dists[x, y] = dists[y, x] = dist
+                pb.update()
     print("Ordering the series")
     route = seriate(dists)
     return dists, devseries, devstats, route
@@ -1792,7 +1792,7 @@ def main():
             return
         plot_burndown(args, "project",
                       *load_burndown(full_header, *reader.get_project_burndown(),
-                                     resample=args.resample))
+                                     resample=args.resample, interpolation_progress=True))
 
     def files_burndown():
         try:
@@ -1960,23 +1960,37 @@ def main():
         "languages": languages,
         "devs-parallel": devs_parallel,
     }
-    try:
-        modes[args.mode]()
-    except KeyError:
-        assert args.mode == "all"
-        project_burndown()
-        # files_burndown()
-        # people_burndown()
-        overwrites_matrix()
-        ownership_burndown()
-        couples_files()
-        couples_people()
-        couples_shotness()
-        shotness()
-        # sentiment()
-        devs()
-        devs_efforts()
-        # devs_parallel()
+
+    if "all" in args.modes:
+        all_mode = True
+        args.modes = [
+            "burndown-project",
+            "overwrites-matrix",
+            "ownership",
+            "couples-files",
+            "couples-people",
+            "couples-shotness",
+            "shotness",
+            "devs",
+            "devs-efforts",
+        ]
+    else:
+        all_mode = False
+
+    for mode in args.modes:
+        if mode not in modes:
+            print("Unknown mode: %s" % mode)
+            continue
+
+        print("Running: %s" % mode)
+        # `args.mode` is required for path determination in the mode functions
+        args.mode = ("all" if all_mode else mode)
+        try:
+            modes[mode]()
+        except ImportError as ie:
+            print("A module required by the %s mode was not found: %s" % (mode, ie))
+            if not all_mode:
+                raise
 
     if web_server.running:
         secs = int(os.getenv("COUPLES_SERVER_TIME", "60"))
