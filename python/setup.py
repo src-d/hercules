@@ -24,7 +24,7 @@ setup(
     author_email="machine-learning@sourced.tech",
     url="https://github.com/src-d/hercules",
     download_url="https://github.com/src-d/hercules",
-    packages=["labours"],
+    packages=["labours", "labours._vendor", "labours.modes"],
     keywords=["git", "mloncode", "mining software repositories", "hercules"],
     install_requires=requirements,
     package_data={"labours": ["../LICENSE.md", "../README.md", "../requirements.txt"]},
