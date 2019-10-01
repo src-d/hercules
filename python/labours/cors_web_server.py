@@ -2,7 +2,7 @@ import threading
 
 
 class CORSWebServer(object):
-    def __init__(self):
+    def __init__(self) -> None:
         self.thread = threading.Thread(target=self.serve)
         self.server = None
 
@@ -23,16 +23,16 @@ class CORSWebServer(object):
 
         test(CORSRequestHandler, ClojureServer)
 
-    def start(self):
+    def start(self) -> None:
         self.thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         if self.running:
             self.server.shutdown()
             self.thread.join()
 
     @property
-    def running(self):
+    def running(self) -> bool:
         return self.server is not None
 
 

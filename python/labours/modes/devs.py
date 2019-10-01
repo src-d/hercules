@@ -1,6 +1,8 @@
+from argparse import Namespace
 from collections import defaultdict
 from datetime import datetime, timedelta
 import sys
+from typing import Dict, List, Set, Tuple
 
 import numpy
 import tqdm
@@ -10,7 +12,15 @@ from labours.plotting import apply_plot_style, deploy_plot, get_plot_path, impor
 from labours.utils import _format_number
 
 
-def show_devs(args, name, start_date, end_date, people, days, max_people=50):
+def show_devs(
+    args: Namespace,
+    name: str,
+    start_date: int,
+    end_date: int,
+    people: List[str],
+    days: Dict[int, Dict[int, DevDay]],
+    max_people: int = 50
+) -> None:
     from scipy.signal import convolve, slepian
 
     if len(people) > max_people:
@@ -111,7 +121,11 @@ def show_devs(args, name, start_date, end_date, people, days, max_people=50):
     deploy_plot(title, output, args.background)
 
 
-def order_commits(chosen_people, days, people):
+def order_commits(
+    chosen_people: Set[str],
+    days: Dict[int, Dict[int, DevDay]],
+    people: List[str]
+) -> Tuple[numpy.ndarray, defaultdict, defaultdict, List[int]]:
     from seriate import seriate
     try:
         from fastdtw import fastdtw
@@ -162,7 +176,7 @@ def order_commits(chosen_people, days, people):
     return dists, devseries, devstats, route
 
 
-def hdbscan_cluster_routed_series(dists, route):
+def hdbscan_cluster_routed_series(dists: numpy.ndarray, route: List[int]) -> numpy.ndarray:
     try:
         from hdbscan import HDBSCAN
     except ImportError as e:
@@ -175,7 +189,15 @@ def hdbscan_cluster_routed_series(dists, route):
     return clusters
 
 
-def show_devs_efforts(args, name, start_date, end_date, people, days, max_people):
+def show_devs_efforts(
+    args: Namespace,
+    name: str,
+    start_date: int,
+    end_date: int,
+    people: List[str],
+    days: Dict[int, Dict[int, DevDay]],
+    max_people: int
+) -> None:
     from scipy.signal import convolve, slepian
 
     start_date = datetime.fromtimestamp(start_date)

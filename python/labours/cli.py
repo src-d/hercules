@@ -1,8 +1,10 @@
 import argparse
+from argparse import Namespace
 import os
 import subprocess
 import sys
 import time
+from typing import List
 
 import numpy
 
@@ -21,7 +23,7 @@ from labours.modes.shotness import show_shotness_stats
 from labours.readers import read_input
 
 
-def list_matplotlib_styles():
+def list_matplotlib_styles() -> List[str]:
     script = "import sys; from matplotlib import pyplot; " \
              "sys.stdout.write(repr(pyplot.style.available))"
     styles = eval(subprocess.check_output([sys.executable, "-c", script]))
@@ -29,7 +31,7 @@ def list_matplotlib_styles():
     return ["default", "classic"] + styles
 
 
-def parse_args():
+def parse_args() -> Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output", default="",
                         help="Path to the output file/directory (empty for display). "
@@ -82,7 +84,7 @@ def parse_args():
     return args
 
 
-def main():
+def main() -> None:
     args = parse_args()
     reader = read_input(args)
     header = reader.get_header()

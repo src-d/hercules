@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import json
+from typing import Any, Dict, List, Tuple
 
 import numpy
 
@@ -8,7 +9,7 @@ from labours.plotting import apply_plot_style, deploy_plot, get_plot_path, impor
 from labours.utils import default_json, floor_datetime, parse_date
 
 
-def load_ownership(header, sequence, contents, max_people, order_by_time):
+def load_ownership(header: Tuple[int, int, int, int, float], sequence: List[Any], contents: Dict[Any, Any], max_people: int, order_by_time: bool):
     pandas = import_pandas()
 
     start, last, sampling, _, tick = header

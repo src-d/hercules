@@ -1,14 +1,21 @@
 from collections import defaultdict
 import sys
+from typing import Any, Dict, List, Tuple
 
 import numpy
+from scipy.sparse.csr import csr_matrix
 
 from labours.modes.devs import hdbscan_cluster_routed_series, order_commits
-from labours.objects import ParallelDevData
 from labours.plotting import deploy_plot, import_pyplot
+from labours.objects import DevDay, ParallelDevData
 
 
-def load_devs_parallel(ownership, couples, devs, max_people):
+def load_devs_parallel(
+    ownership: Tuple[List[Any], Dict[Any, Any]],
+    couples: Tuple[List[str], csr_matrix],
+    devs: Tuple[List[str], Dict[int, Dict[int, DevDay]]],
+    max_people: int
+):
     from seriate import seriate
     try:
         from hdbscan import HDBSCAN

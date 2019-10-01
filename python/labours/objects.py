@@ -2,7 +2,7 @@ from collections import defaultdict, namedtuple
 
 
 class DevDay(namedtuple("DevDay", ("Commits", "Added", "Removed", "Changed", "Languages"))):
-    def add(self, dd):
+    def add(self, dd: 'DevDay') -> 'DevDay':
         langs = defaultdict(lambda: [0] * 3)
         for key, val in self.Languages.items():
             for i in range(3):

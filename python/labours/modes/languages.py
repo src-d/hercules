@@ -1,9 +1,20 @@
+from argparse import Namespace
 from collections import defaultdict
+from typing import Dict, List
 
 import numpy
 
+from labours.objects import DevDay
 
-def show_languages(args, name, start_date, end_date, people, days):
+
+def show_languages(
+    args: Namespace,
+    name: str,
+    start_date: int,
+    end_date: int,
+    people: List[str],
+    days: Dict[int, Dict[int, DevDay]],
+) -> None:
     devlangs = defaultdict(lambda: defaultdict(lambda: numpy.zeros(3, dtype=int)))
     for day, devs in days.items():
         for dev, stats in devs.items():

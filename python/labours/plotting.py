@@ -39,7 +39,7 @@ def apply_plot_style(figure, axes, legend, background, font_size, axes_size):
             text.set_color(foreground)
 
 
-def get_plot_path(base, name):
+def get_plot_path(base: str, name: str) -> str:
     root, ext = os.path.splitext(base)
     if not ext:
         ext = ".png"
@@ -48,7 +48,7 @@ def get_plot_path(base, name):
     return output
 
 
-def deploy_plot(title, output, background, tight=True):
+def deploy_plot(title: str, output: str, background: str, tight: bool = True) -> None:
     import matplotlib.pyplot as pyplot
 
     if not output:

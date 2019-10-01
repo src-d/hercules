@@ -1,5 +1,7 @@
+from argparse import Namespace
 from datetime import datetime, timedelta
 from itertools import chain
+from typing import Dict, List
 
 import numpy
 
@@ -7,7 +9,14 @@ from labours.objects import DevDay
 from labours.plotting import deploy_plot, get_plot_path, import_pyplot
 
 
-def show_old_vs_new(args, name, start_date, end_date, people, days):
+def show_old_vs_new(
+    args: Namespace,
+    name: str,
+    start_date: int,
+    end_date: int,
+    people: List[str],
+    days: Dict[int, Dict[int, DevDay]]
+) -> None:
     from scipy.signal import convolve, slepian
 
     start_date = datetime.fromtimestamp(start_date)

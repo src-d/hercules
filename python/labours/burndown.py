@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, List, Tuple
 import warnings
 
 import numpy
@@ -6,8 +7,12 @@ import tqdm
 
 from labours.utils import floor_datetime
 
+if TYPE_CHECKING:
+    from lifelines import KaplanMeierFitter
+    from pandas.core.indexes.datetimes import DatetimeIndex
 
-def fit_kaplan_meier(matrix):
+
+def fit_kaplan_meier(matrix: numpy.ndarray) -> 'KaplanMeierFitter':
     from lifelines import KaplanMeierFitter
 
     T = []
@@ -41,7 +46,7 @@ def fit_kaplan_meier(matrix):
     return kmf
 
 
-def print_survival_function(kmf, sampling):
+def print_survival_function(kmf: 'KaplanMeierFitter', sampling: int) -> None:
     sf = kmf.survival_function_
     sf.index = [timedelta(days=d) for d in sf.index * sampling]
     sf.columns = ["Ratio of survived lines"]
@@ -51,7 +56,12 @@ def print_survival_function(kmf, sampling):
         pass
 
 
-def interpolate_burndown_matrix(matrix, granularity, sampling, progress=False):
+def interpolate_burndown_matrix(
+    matrix: numpy.ndarray,
+    granularity: int,
+    sampling: int,
+    progress: bool = False
+) -> numpy.ndarray:
     daily = numpy.zeros(
         (matrix.shape[0] * granularity, matrix.shape[1] * sampling),
         dtype=numpy.float32)
@@ -186,13 +196,13 @@ def import_pandas():
 
 
 def load_burndown(
-    header,
-    name,
-    matrix,
-    resample,
-    report_survival=True,
-    interpolation_progress=False
-):
+    header: Tuple[int, int, int, int, float],
+    name: str,
+    matrix: numpy.ndarray,
+    resample: str,
+    report_survival: bool = True,
+    interpolation_progress: bool = False
+) -> Tuple[str, numpy.ndarray, 'DatetimeIndex', List[int], int, int, str]:
     pandas = import_pandas()
 
     start, last, sampling, granularity, tick = header
@@ -263,8 +273,8 @@ def load_burndown(
     else:
         labels = [
             "%s - %s" % ((start + timedelta(seconds=i * granularity * tick)).date(),
-                         (
-                         start + timedelta(seconds=(i + 1) * granularity * tick)).date())
+            (
+                start + timedelta(seconds=(i + 1) * granularity * tick)).date())
             for i in range(matrix.shape[0])]
         if len(labels) > 18:
             warnings.warn("Too many labels - consider resampling.")

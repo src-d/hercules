@@ -2,15 +2,22 @@ import os
 import shutil
 import sys
 import tempfile
+from typing import List, Tuple
 
 import numpy
+from scipy.sparse.csr import csr_matrix
 
 from labours.cors_web_server import web_server
 
 IDEAL_SHARD_SIZE = 4096
 
 
-def train_embeddings(index, matrix, tmpdir, shard_size=IDEAL_SHARD_SIZE):
+def train_embeddings(
+    index: List[str],
+    matrix: csr_matrix,
+    tmpdir: None,
+    shard_size: int = IDEAL_SHARD_SIZE
+) -> Tuple[List[Tuple[str, numpy.int64]], List[numpy.ndarray]]:
     import tensorflow as tf
     from labours._vendor import swivel
 
@@ -131,7 +138,13 @@ def train_embeddings(index, matrix, tmpdir, shard_size=IDEAL_SHARD_SIZE):
     return meta_index, embeddings
 
 
-def write_embeddings(name, output, run_server, index, embeddings):
+def write_embeddings(
+    name: str,
+    output: str,
+    run_server: bool,
+    index: List[Tuple[str, numpy.int64]],
+    embeddings: List[numpy.ndarray]
+) -> None:
     print("Writing Tensorflow Projector files...")
     if not output:
         output = "couples"

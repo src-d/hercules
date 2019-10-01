@@ -1,11 +1,16 @@
+from argparse import Namespace
 from importlib import import_module
 import re
 import sys
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import numpy
 import yaml
 
 from labours.objects import DevDay
+
+if TYPE_CHECKING:
+    from scipy.sparse.csr import csr_matrix
 
 
 class Reader(object):
@@ -56,7 +61,7 @@ class Reader(object):
 
 
 class YamlReader(Reader):
-    def read(self, file):
+    def read(self, file: str):
         yaml.reader.Reader.NON_PRINTABLE = re.compile(r"(?!x)x")
         try:
             loader = yaml.CLoader
@@ -182,7 +187,7 @@ class YamlReader(Reader):
 
 
 class ProtobufReader(Reader):
-    def read(self, file):
+    def read(self, file: str) -> None:
         try:
             from labours.pb_pb2 import AnalysisResults
         except ImportError as e:
@@ -212,27 +217,27 @@ class ProtobufReader(Reader):
     def get_run_times(self):
         return {key: val for key, val in self.data.header.run_time_per_item.items()}
 
-    def get_name(self):
+    def get_name(self) -> str:
         return self.data.header.repository
 
-    def get_header(self):
+    def get_header(self) -> Tuple[int, int]:
         header = self.data.header
         return header.begin_unix_time, header.end_unix_time
 
-    def get_burndown_parameters(self):
+    def get_burndown_parameters(self) -> Tuple[int, int, float]:
         burndown = self.contents["Burndown"]
         return burndown.sampling, burndown.granularity, burndown.tick_size / 1000000000
 
-    def get_project_burndown(self):
+    def get_project_burndown(self) -> Tuple[str, numpy.ndarray]:
         return self._parse_burndown_matrix(self.contents["Burndown"].project)
 
     def get_files_burndown(self):
         return [self._parse_burndown_matrix(i) for i in self.contents["Burndown"].files]
 
-    def get_people_burndown(self):
+    def get_people_burndown(self) -> List[Any]:
         return [self._parse_burndown_matrix(i) for i in self.contents["Burndown"].people]
 
-    def get_ownership_burndown(self):
+    def get_ownership_burndown(self) -> Tuple[List[Any], Dict[Any, Any]]:
         people = self.get_people_burndown()
         return [p[0] for p in people], {p[0]: p[1].T for p in people}
 
@@ -241,11 +246,11 @@ class ProtobufReader(Reader):
         return [i.name for i in burndown.people], \
             self._parse_sparse_matrix(burndown.people_interaction).toarray()
 
-    def get_files_coocc(self):
+    def get_files_coocc(self) -> Tuple[List[str], 'csr_matrix']:
         node = self.contents["Couples"].file_couples
         return list(node.index), self._parse_sparse_matrix(node.matrix)
 
-    def get_people_coocc(self):
+    def get_people_coocc(self) -> Tuple[List[str], 'csr_matrix']:
         node = self.contents["Couples"].people_couples
         return list(node.index), self._parse_sparse_matrix(node.matrix)
 
@@ -279,7 +284,7 @@ class ProtobufReader(Reader):
             raise KeyError
         return byday
 
-    def get_devs(self):
+    def get_devs(self) -> Tuple[List[str], Dict[int, Dict[int, DevDay]]]:
         people = list(self.contents["Devs"].dev_index)
         days = {d: {dev: DevDay(stats.commits, stats.stats.added, stats.stats.removed,
                                 stats.stats.changed, {k: [v.added, v.removed, v.changed]
@@ -310,7 +315,7 @@ PB_MESSAGES = {
 }
 
 
-def read_input(args):
+def read_input(args: Namespace) -> ProtobufReader:
     sys.stdout.write("Reading the input... ")
     sys.stdout.flush()
     if args.input != "-":

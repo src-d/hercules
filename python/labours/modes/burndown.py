@@ -1,17 +1,32 @@
+from argparse import Namespace
 import contextlib
 import io
 import json
 import sys
+from typing import List, TYPE_CHECKING
 
+import numpy
 import tqdm
 
 from labours.burndown import load_burndown
 from labours.plotting import apply_plot_style, deploy_plot, get_plot_path, import_pyplot
 from labours.utils import default_json, parse_date
 
+if TYPE_CHECKING:
+    from pandas.core.indexes.datetimes import DatetimeIndex
 
-def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granularity,
-                  sampling, resample):
+
+def plot_burndown(
+    args: Namespace,
+    target: str,
+    name: str,
+    matrix: numpy.ndarray,
+    date_range_sampling: 'DatetimeIndex',
+    labels: List[int],
+    granularity: int,
+    sampling: int,
+    resample: str
+) -> None:
     if args.output and args.output.endswith(".json"):
         data = locals().copy()
         del data["args"]
@@ -89,7 +104,7 @@ def plot_burndown(args, target, name, matrix, date_range_sampling, labels, granu
     deploy_plot(title, output, args.background)
 
 
-def plot_many_burndown(args, target, header, parts):
+def plot_many_burndown(args: Namespace, target: str, header, parts):
     if not args.output:
         print("Warning: output not set, showing %d plots." % len(parts))
     stdout = io.StringIO()
