@@ -8,11 +8,9 @@ from typing import List
 
 import numpy
 
-from labours.burndown import load_burndown
-from labours.utils import import_pandas
 from labours.cors_web_server import web_server
 from labours.embeddings import train_embeddings, write_embeddings
-from labours.modes.burndown import plot_burndown, plot_many_burndown
+from labours.modes.burndown import load_burndown, plot_burndown, plot_many_burndown
 from labours.modes.devs import show_devs, show_devs_efforts
 from labours.modes.devs_parallel import load_devs_parallel, show_devs_parallel
 from labours.modes.languages import show_languages
@@ -22,6 +20,7 @@ from labours.modes.ownership import load_ownership, plot_ownership
 from labours.modes.sentiment import show_sentiment_stats
 from labours.modes.shotness import show_shotness_stats
 from labours.readers import read_input
+from labours.utils import import_pandas
 
 
 def list_matplotlib_styles() -> List[str]:

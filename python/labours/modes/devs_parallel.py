@@ -6,8 +6,8 @@ import numpy
 from scipy.sparse.csr import csr_matrix
 
 from labours.modes.devs import hdbscan_cluster_routed_series, order_commits
-from labours.plotting import deploy_plot, import_pyplot
 from labours.objects import DevDay, ParallelDevData
+from labours.plotting import deploy_plot, import_pyplot
 
 
 def load_devs_parallel(
