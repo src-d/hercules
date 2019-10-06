@@ -8,7 +8,8 @@ from typing import List
 
 import numpy
 
-from labours.burndown import import_pandas, load_burndown
+from labours.burndown import load_burndown
+from labours.utils import import_pandas
 from labours.cors_web_server import web_server
 from labours.embeddings import train_embeddings, write_embeddings
 from labours.modes.burndown import plot_burndown, plot_many_burndown

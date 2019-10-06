@@ -4,9 +4,8 @@ from typing import Any, Dict, List, Tuple
 
 import numpy
 
-from labours.burndown import import_pandas
 from labours.plotting import apply_plot_style, deploy_plot, get_plot_path, import_pyplot
-from labours.utils import default_json, floor_datetime, parse_date
+from labours.utils import default_json, floor_datetime, parse_date, import_pandas
 
 
 def load_ownership(

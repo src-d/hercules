@@ -54,3 +54,15 @@ def _format_number(n: Number) -> str:
         n = str(n)
         suffix = ""
     return n + suffix
+
+
+def import_pandas():
+    import pandas
+
+    try:
+        from pandas.plotting import register_matplotlib_converters
+
+        register_matplotlib_converters()
+    except ImportError:
+        pass
+    return pandas

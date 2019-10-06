@@ -5,7 +5,7 @@ import warnings
 import numpy
 import tqdm
 
-from labours.utils import floor_datetime
+from labours.utils import floor_datetime, import_pandas
 
 if TYPE_CHECKING:
     from lifelines import KaplanMeierFitter
@@ -183,18 +183,6 @@ def interpolate_burndown_matrix(
                 # y*sampling..(y+1)sampling
                 decay(x * sampling, matrix[y][x - 1])
     return daily
-
-
-def import_pandas():
-    import pandas
-
-    try:
-        from pandas.plotting import register_matplotlib_converters
-
-        register_matplotlib_converters()
-    except ImportError:
-        pass
-    return pandas
 
 
 def load_burndown(
