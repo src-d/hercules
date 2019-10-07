@@ -22,6 +22,9 @@ from labours.modes.shotness import show_shotness_stats
 from labours.readers import read_input
 from labours.utils import import_pandas
 
+# NB: this value is modified within the Dockerfile.
+DEFAULT_MATPLOTLIB_BACKEND = None
+
 
 def list_matplotlib_styles() -> List[str]:
     script = (
@@ -58,7 +61,11 @@ def parse_args() -> Namespace:
         choices=list_matplotlib_styles(),
         help="Plot style to use.",
     )
-    parser.add_argument("--backend", help="Matplotlib backend to use.")
+    parser.add_argument(
+        "--backend",
+        default=DEFAULT_MATPLOTLIB_BACKEND,
+        help="Matplotlib backend to use.",
+    )
     parser.add_argument(
         "--background",
         choices=["black", "white"],
