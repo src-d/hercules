@@ -26,7 +26,7 @@ echo\n\' > /browser && \
     chmod +x /browser && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 - pip==18.1 && \
     pip3 install --no-cache-dir --no-build-isolation cython && \
-    sed -i 's/parser.add_argument("--backend",/parser.add_argument("--backend", default="Agg",/' /root/src/labours/labours.py && \
+    sed -i 's/DEFAULT_MATPLOTLIB_BACKEND = None/DEFAULT_MATPLOTLIB_BACKEND = "Agg"/' /root/src/labours/cli.py && \
     pip3 install --no-cache-dir /root/src && \
     pip3 install --no-cache-dir "tensorflow<2.0" && \
     rm -rf /root/src && \
