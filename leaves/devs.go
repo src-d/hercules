@@ -268,7 +268,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 	offset1 := int(t01.Sub(t0) / cr1.tickSize)
 	offset2 := int(t02.Sub(t0) / cr2.tickSize)
 
-	merged := DevsResult{}
+	merged := DevsResult{tickSize: cr1.tickSize}
 	var mergedIndex map[string]identity.MergedIndex
 	mergedIndex, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
 		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
