@@ -64,6 +64,10 @@ def show_devs(
     prop_cycle = pyplot.rcParams["axes.prop_cycle"]
     colors = prop_cycle.by_key()["color"]
     fig, axes = pyplot.subplots(final.shape[0], 1)
+    try:
+        axes = tuple(axes)
+    except TypeError:
+        axes = axes,
     backgrounds = (
         ("#C4FFDB", "#FFD0CD") if args.background == "white" else ("#05401C", "#40110E")
     )
@@ -227,7 +231,10 @@ def hdbscan_cluster_routed_series(
             [0] + [dists[route[i], route[i + 1]] for i in range(len(route) - 1)]
         )
     )
-    clusters = HDBSCAN(min_cluster_size=2).fit_predict(opt_dist_chain[:, numpy.newaxis])
+    if len(route) < 2:
+        clusters = numpy.zeros(len(route), dtype=int)
+    else:
+        clusters = HDBSCAN(min_cluster_size=2).fit_predict(opt_dist_chain[:, numpy.newaxis])
     return clusters
 
 
