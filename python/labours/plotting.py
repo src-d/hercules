@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 def import_pyplot(backend, style):
@@ -57,6 +58,10 @@ def deploy_plot(title: str, output: str, background: str, tight: bool = True) ->
         pyplot.gcf().canvas.set_window_title(title)
         pyplot.show()
     else:
+        po = Path(output)
+        if len(po.name) > 64:
+            suffix = po.suffix[:5]
+            output = str(po.with_name(po.stem[:64 - len(suffix)] + suffix))
         if title:
             pyplot.title(title, color="black" if background == "white" else "white")
         if tight:
