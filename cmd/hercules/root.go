@@ -190,6 +190,7 @@ targets can be added using the --plugin system.`,
 		}
 		firstParent := getBool("first-parent")
 		commitsFile := getString("commits")
+		head := getBool("head")
 		protobuf := getBool("pb")
 		profile := getBool("profile")
 		disableStatus := getBool("quiet")
@@ -244,8 +245,12 @@ targets can be added using the --plugin system.`,
 		var commits []*object.Commit
 		var err error
 		if commitsFile == "" {
-			fmt.Fprint(os.Stderr, "git log...\r")
-			commits, err = pipeline.Commits(firstParent)
+			if !head {
+				fmt.Fprint(os.Stderr, "git log...\r")
+				commits, err = pipeline.Commits(firstParent)
+			} else {
+				commits, err = pipeline.HeadCommit()
+			}
 		} else {
 			commits, err = hercules.LoadCommitsFromFile(commitsFile, repository)
 		}
@@ -488,6 +493,7 @@ func init() {
 		panic(err)
 	}
 	hercules.PathifyFlagValue(rootFlags.Lookup("commits"))
+	rootFlags.Bool("head", false, "Analyze only the latest commit.")
 	rootFlags.Bool("first-parent", false, "Follow only the first parent in the commit history - "+
 		"\"git log --first-parent\".")
 	rootFlags.Bool("pb", false, "The output format will be Protocol Buffers instead of YAML.")
