@@ -500,6 +500,20 @@ func (pipeline *Pipeline) Commits(firstParent bool) ([]*object.Commit, error) {
 	return result, nil
 }
 
+// HeadCommit returns the latest commit in the repository (HEAD).
+func (pipeline *Pipeline) HeadCommit() ([]*object.Commit, error) {
+	repository := pipeline.repository
+	headref, err := repository.Head()
+	if err != nil {
+		return nil, err
+	}
+	commit, err := repository.CommitObject(headref.Hash())
+	if err != nil {
+		return nil, err
+	}
+	return []*object.Commit{commit}, nil
+}
+
 type sortablePipelineItems []PipelineItem
 
 func (items sortablePipelineItems) Len() int {

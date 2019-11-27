@@ -52,8 +52,8 @@ install:
   - travis_retry make TAGS=tensorflow
 script:
   - set -e
-  - if [ $TRAVIS_GO_VERSION != "1.10.x" ]; then test -z "$(gofmt -s -l . | grep -v vendor/)"; fi
   - export GO111MODULE=on
+  - test -z "$(gofmt -s -l . | grep -v vendor/)"
   - go vet -tags tensorflow ./...
   - golint -set_exit_status $(go list ./... | grep -v /vendor/)
   - cd python && flake8 && cd ..

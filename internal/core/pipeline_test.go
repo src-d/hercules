@@ -428,7 +428,7 @@ func TestPipelineCommitsFull(t *testing.T) {
 func TestPipelineCommitsFirstParent(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
 	commits, err := pipeline.Commits(true)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, len(commits) >= 100)
 	hashMap := map[plumbing.Hash]bool{}
 	for _, c := range commits {
@@ -439,6 +439,16 @@ func TestPipelineCommitsFirstParent(t *testing.T) {
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	assert.NotContains(t, hashMap, plumbing.NewHash(
 		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
+}
+
+func TestPipelineHeadCommit(t *testing.T) {
+	pipeline := NewPipeline(test.Repository)
+	commits, err := pipeline.HeadCommit()
+	assert.NoError(t, err)
+	assert.Len(t, commits, 1)
+	assert.True(t, len(commits[0].ParentHashes) > 0)
+	head, _ := test.Repository.Head()
+	assert.Equal(t, head.Hash(), commits[0].Hash)
 }
 
 func TestLoadCommitsFromFile(t *testing.T) {
