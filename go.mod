@@ -26,16 +26,20 @@ require (
 	github.com/opentracing/opentracing-go v1.0.2 // indirect
 	github.com/pkg/errors v0.8.0
 	github.com/sergi/go-diff v1.0.0
+	github.com/smacker/go-tree-sitter v0.0.0-20191127230340-5368dabef05e // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3
 	github.com/src-d/enry/v2 v2.1.0
-	github.com/stretchr/testify v1.3.0
+	github.com/src-d/imports v0.0.0-20191128152346-bf22b73550b0
+	github.com/stretchr/objx v0.2.0 // indirect
+	github.com/stretchr/testify v1.4.0
 	github.com/tensorflow/tensorflow v0.0.0-20180308082300-f73d7c90ed05 // indirect
 	golang.org/x/crypto v0.0.0-20180904163835-0709b304e793
 	google.golang.org/grpc v1.16.0 // indirect
 	gopkg.in/bblfsh/client-go.v3 v3.2.0
 	gopkg.in/bblfsh/sdk.v1 v1.17.0 // indirect
 	gopkg.in/bblfsh/sdk.v2 v2.14.1
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.20
 	gopkg.in/neurosnap/sentences.v1 v1.0.6 // indirect
 	gopkg.in/src-d/go-billy-siva.v4 v4.3.0
@@ -44,4 +48,7 @@ require (
 	gopkg.in/src-d/go-git.v4 v4.10.0
 	gopkg.in/src-d/go-siva.v1 v1.4.0 // indirect
 	gopkg.in/vmarkovtsev/BiDiSentiment.v1 v1.0.0-20180311115214-75f168ddf161
+	gopkg.in/yaml.v2 v2.2.7 // indirect
 )
+
+replace github.com/smacker/go-tree-sitter => github.com/dennwc/go-tree-sitter v0.0.0-20191127160809-cea124db9399

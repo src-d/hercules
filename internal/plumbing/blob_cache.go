@@ -123,7 +123,7 @@ func (blobCache *BlobCache) ListConfigurationOptions() []core.ConfigurationOptio
 		Name: ConfigBlobCacheFailOnMissingSubmodules,
 		Description: "Specifies whether to panic if any referenced submodule does " +
 			"not exist in .gitmodules and thus the corresponding Git object cannot be loaded. " +
-			"Override this if you want to ensure that your repository is integral. ",
+			"Override this if you want to ensure that your repository is integral.",
 		Flag:    "fail-on-missing-submodules",
 		Type:    core.BoolConfigurationOption,
 		Default: false}}
