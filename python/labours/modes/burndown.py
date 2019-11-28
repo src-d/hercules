@@ -328,7 +328,7 @@ def load_burndown(
         )
         daily[(last - start).days :] = 0
         # Resample the bands
-        aliases = {"year": "A", "month": "M"}
+        aliases = {"year": "A", "month": "M", "day": "D"}
         resample = aliases.get(resample, resample)
         periods = 0
         date_granularity_sampling = [start]
@@ -342,6 +342,11 @@ def load_burndown(
                 print("too loose resampling - by year, trying by month")
                 return load_burndown(
                     header, name, matrix, "month", report_survival=False
+                )
+            elif resample == "M":
+                print("too loose resampling - by month, trying by day")
+                return load_burndown(
+                    header, name, matrix, "day", report_survival=False
                 )
             else:
                 raise ValueError("Too loose resampling: %s. Try finer." % resample)
