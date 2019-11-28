@@ -182,6 +182,19 @@ message TyposDataset {
     repeated Typo typos = 1;
 }
 
+message ImportsPerLanguage {
+    map<string, int64> counts = 1;
+}
+
+message ImportsPerDeveloper {
+    map<string, ImportsPerLanguage> languages = 1;
+}
+
+message ImportsPerDeveloperResults {
+    repeated ImportsPerDeveloper imports = 1;
+    repeated string author_index = 2;
+}
+
 message AnalysisResults {
     Metadata header = 1;
     // the mapped values are dynamic messages which require the second parsing pass.
