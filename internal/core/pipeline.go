@@ -450,33 +450,14 @@ func (pipeline *Pipeline) Len() int {
 func (pipeline *Pipeline) Commits(firstParent bool) ([]*object.Commit, error) {
 	var result []*object.Commit
 	repository := pipeline.repository
-	head, err := repository.Head()
+	heads, err := pipeline.HeadCommit()
 	if err != nil {
-		if err == plumbing.ErrReferenceNotFound {
-			refs, errr := repository.References()
-			if errr != nil {
-				return nil, errors.Wrap(errr, "unable to list the references")
-			}
-			refs.ForEach(func(ref *plumbing.Reference) error {
-				if strings.HasPrefix(ref.Name().String(), "refs/heads/HEAD/") {
-					head = ref
-					return storer.ErrStop
-				}
-				return nil
-			})
-		}
-		if head == nil && err != nil {
-			return nil, errors.Wrap(err, "unable to collect the commit history")
-		}
+		return nil, err
 	}
-
+	head := heads[0]
 	if firstParent {
-		commit, err := repository.CommitObject(head.Hash())
-		if err != nil {
-			panic(err)
-		}
 		// the first parent matches the head
-		for ; err != io.EOF; commit, err = commit.Parents().Next() {
+		for commit := head; err != io.EOF; commit, err = commit.Parents().Next() {
 			if err != nil {
 				panic(err)
 			}
@@ -488,26 +469,41 @@ func (pipeline *Pipeline) Commits(firstParent bool) ([]*object.Commit, error) {
 		}
 		return result, nil
 	}
-	cit, err := repository.Log(&git.LogOptions{From: head.Hash()})
+	cit, err := repository.Log(&git.LogOptions{From: head.Hash})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to collect the commit history")
 	}
 	defer cit.Close()
-	cit.ForEach(func(commit *object.Commit) error {
+	err = cit.ForEach(func(commit *object.Commit) error {
 		result = append(result, commit)
 		return nil
 	})
-	return result, nil
+	return result, err
 }
 
 // HeadCommit returns the latest commit in the repository (HEAD).
 func (pipeline *Pipeline) HeadCommit() ([]*object.Commit, error) {
 	repository := pipeline.repository
-	headref, err := repository.Head()
+	head, err := repository.Head()
 	if err != nil {
-		return nil, err
+		if err == plumbing.ErrReferenceNotFound {
+			refs, errr := repository.References()
+			if errr != nil {
+				return nil, errors.Wrap(errr, "unable to list the references")
+			}
+			err = refs.ForEach(func(ref *plumbing.Reference) error {
+				if strings.HasPrefix(ref.Name().String(), "refs/heads/HEAD/") {
+					head = ref
+					return storer.ErrStop
+				}
+				return nil
+			})
+		}
 	}
-	commit, err := repository.CommitObject(headref.Hash())
+	if head == nil {
+		return nil, errors.Wrap(err, "unable to find the head reference")
+	}
+	commit, err := repository.CommitObject(head.Hash())
 	if err != nil {
 		return nil, err
 	}
