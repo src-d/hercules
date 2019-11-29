@@ -485,19 +485,28 @@ func (pipeline *Pipeline) Commits(firstParent bool) ([]*object.Commit, error) {
 func (pipeline *Pipeline) HeadCommit() ([]*object.Commit, error) {
 	repository := pipeline.repository
 	head, err := repository.Head()
-	if err != nil {
-		if err == plumbing.ErrReferenceNotFound {
-			refs, errr := repository.References()
-			if errr != nil {
-				return nil, errors.Wrap(errr, "unable to list the references")
+	if err == plumbing.ErrReferenceNotFound {
+		refs, errr := repository.References()
+		if errr != nil {
+			return nil, errors.Wrap(errr, "unable to list the references")
+		}
+		var refnames []string
+		refByName := map[string]*plumbing.Reference{}
+		err = refs.ForEach(func(ref *plumbing.Reference) error {
+			refname := ref.Name().String()
+			refnames = append(refnames, refname)
+			refByName[refname] = ref
+			if strings.HasPrefix(refname, "refs/heads/HEAD/") {
+				head = ref
+				return storer.ErrStop
 			}
-			err = refs.ForEach(func(ref *plumbing.Reference) error {
-				if strings.HasPrefix(ref.Name().String(), "refs/heads/HEAD/") {
-					head = ref
-					return storer.ErrStop
-				}
-				return nil
-			})
+			return nil
+		})
+		if head == nil {
+			sort.Strings(refnames)
+			headName := refnames[len(refnames)-1]
+			pipeline.l.Warnf("could not determine the HEAD, falling back to %s", headName)
+			head = refByName[headName]
 		}
 	}
 	if head == nil {
