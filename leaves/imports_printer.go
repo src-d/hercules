@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
 
 	"github.com/gogo/protobuf/proto"
 	imports2 "github.com/src-d/imports"
@@ -143,7 +144,13 @@ func (ipd *ImportsPerDeveloper) Serialize(result interface{}, binary bool, write
 }
 
 func (ipd *ImportsPerDeveloper) serializeText(result *ImportsPerDeveloperResult, writer io.Writer) {
-	for dev, imps := range result.Imports {
+	devs := make([]int, 0, len(result.Imports))
+	for dev := range result.Imports {
+		devs = append(devs, dev)
+	}
+	sort.Ints(devs)
+	for _, dev := range devs {
+		imps := result.Imports[dev]
 		obj, err := json.Marshal(imps)
 		if err != nil {
 			log.Panicf("Could not serialize %v: %v", imps, err)

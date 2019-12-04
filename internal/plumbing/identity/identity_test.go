@@ -238,7 +238,7 @@ func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.PeopleDict["bzz@apache.org"], 1)
 	assert.Equal(t, id.PeopleDict["máximo cuadros"], 2)
 	assert.Equal(t, id.PeopleDict["mcuadros@gmail.com"], 2)
-	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
+	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@athenian.co|vadim@sourced.tech")
 	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
 	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorMissingName)
@@ -383,7 +383,7 @@ func TestIdentityDetectorGeneratePeopleDictMailmap(t *testing.T) {
 	commits = append(commits, fake)
 	id.GeneratePeopleDict(commits)
 	assert.Contains(t, id.ReversedPeopleDict,
-		"strange guy|vadim markovtsev|gmarkhor@gmail.com|vadim@sourced.tech")
+		"strange guy|vadim markovtsev|gmarkhor@gmail.com|vadim@athenian.co|vadim@sourced.tech")
 }
 
 func TestIdentityDetectorMergeReversedDictsLiteral(t *testing.T) {
