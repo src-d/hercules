@@ -16,7 +16,10 @@ build_script:
   - set PATH=C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;C:\msys64\usr\bin;C:\msys64\mingw64\bin;%PATH%
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
   - make
-  - 7z a hercules.win64.zip hercules.exe
+  - copy /y "C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\x86_64-w64-mingw32\lib\libgcc_s_seh-1.dll"
+  - copy /y "C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\x86_64-w64-mingw32\lib\libstdc++-6.dll"
+  - copy /y "C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\x86_64-w64-mingw32\lib\libwinpthread-1.dll"
+  - 7z a hercules.win64.zip hercules.exe "libgcc_s_seh-1.dll" "libstdc++-6.dll" "libwinpthread-1.dll"
 
 test_script:
   - go test -v -timeout 20m -race -tags disable_babelfish gopkg.in/src-d/hercules.v10/...
