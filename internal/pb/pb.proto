@@ -182,8 +182,12 @@ message TyposDataset {
     repeated Typo typos = 1;
 }
 
+message ImportsPerTick {
+    map<int32, int64> counts = 1;
+}
+
 message ImportsPerLanguage {
-    map<string, int64> counts = 1;
+    map<string, ImportsPerTick> ticks = 1;
 }
 
 message ImportsPerDeveloper {
@@ -193,6 +197,8 @@ message ImportsPerDeveloper {
 message ImportsPerDeveloperResults {
     repeated ImportsPerDeveloper imports = 1;
     repeated string author_index = 2;
+    // how long each tick is, as an int64 nanosecond count (Go's time.Duration)
+    int64 tick_size = 3;
 }
 
 message AnalysisResults {

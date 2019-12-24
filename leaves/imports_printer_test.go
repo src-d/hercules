@@ -2,15 +2,14 @@ package leaves
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
+	"time"
 
-	"github.com/gogo/protobuf/proto"
 	imports2 "github.com/src-d/imports"
 	"github.com/stretchr/testify/assert"
 	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/pb"
+	"gopkg.in/src-d/hercules.v10/internal/plumbing"
 	"gopkg.in/src-d/hercules.v10/internal/plumbing/identity"
 	"gopkg.in/src-d/hercules.v10/internal/plumbing/imports"
 	"gopkg.in/src-d/hercules.v10/internal/test"
@@ -26,21 +25,25 @@ func fixtureImportsPerDev() *ImportsPerDeveloper {
 
 func TestImportsPerDeveloperMeta(t *testing.T) {
 	ipd := fixtureImportsPerDev()
-	assert.Equal(t, ipd.Name(), "ImportsPerDeveloper")
-	assert.Equal(t, len(ipd.Provides()), 0)
-	assert.Equal(t, len(ipd.Requires()), 2)
-	assert.Equal(t, ipd.Requires()[0], imports.DependencyImports)
-	assert.Equal(t, ipd.Requires()[1], identity.DependencyAuthor)
-	assert.Equal(t, ipd.Flag(), "imports-per-dev")
+	ass := assert.New(t)
+	ass.Equal(ipd.Name(), "ImportsPerDeveloper")
+	ass.Equal(len(ipd.Provides()), 0)
+	ass.Equal(len(ipd.Requires()), 3)
+	ass.Equal(ipd.Requires()[0], imports.DependencyImports)
+	ass.Equal(ipd.Requires()[1], identity.DependencyAuthor)
+	ass.Equal(ipd.Requires()[2], plumbing.DependencyTick)
+	ass.Equal(ipd.Flag(), "imports-per-dev")
 	assert.Len(t, ipd.ListConfigurationOptions(), 0)
 	assert.True(t, len(ipd.Description()) > 0)
 	logger := core.NewLogger()
 	assert.NoError(t, ipd.Configure(map[string]interface{}{
 		core.ConfigLogger: logger,
 		identity.FactIdentityDetectorReversedPeopleDict: []string{"1", "2"},
+		plumbing.FactTickSize:                           time.Hour,
 	}))
-	assert.Equal(t, logger, ipd.l)
-	assert.Equal(t, []string{"1", "2"}, ipd.reversedPeopleDict)
+	ass.Equal(logger, ipd.l)
+	ass.Equal([]string{"1", "2"}, ipd.reversedPeopleDict)
+	ass.Equal(time.Hour, ipd.TickSize)
 }
 
 func TestImportsPerDeveloperRegistration(t *testing.T) {
@@ -61,12 +64,14 @@ func TestImportsPerDeveloperRegistration(t *testing.T) {
 func TestImportsPerDeveloperInitialize(t *testing.T) {
 	ipd := fixtureImportsPerDev()
 	assert.NotNil(t, ipd.imports)
+	assert.Equal(t, time.Hour*24, ipd.TickSize)
 }
 
 func TestImportsPerDeveloperConsumeFinalize(t *testing.T) {
 	deps := map[string]interface{}{}
 	deps[core.DependencyIsMerge] = false
 	deps[identity.DependencyAuthor] = 0
+	deps[plumbing.DependencyTick] = 1
 	imps := map[gitplumbing.Hash]imports2.File{}
 	imps[gitplumbing.NewHash("291286b4ac41952cbd1389fda66420ec03c1a9fe")] =
 		imports2.File{Lang: "Go", Path: "test.go", Imports: []string{"sys"}}
@@ -77,27 +82,27 @@ func TestImportsPerDeveloperConsumeFinalize(t *testing.T) {
 	ipd.reversedPeopleDict = []string{"1", "2"}
 	_, err := ipd.Consume(deps)
 	assert.NoError(t, err)
-	assert.Equal(t, map[int]map[string]map[string]int{
-		0: {"Go": {"sys": 1}, "Python": {"sys": 1}},
+	assert.Equal(t, ImportsMap{
+		0: {"Go": {"sys": {1: 1}}, "Python": {"sys": {1: 1}}},
 	}, ipd.imports)
 	_, err = ipd.Consume(deps)
 	assert.NoError(t, err)
-	assert.Equal(t, map[int]map[string]map[string]int{
-		0: {"Go": {"sys": 2}, "Python": {"sys": 2}},
+	assert.Equal(t, ImportsMap{
+		0: {"Go": {"sys": {1: 2}}, "Python": {"sys": {1: 2}}},
 	}, ipd.imports)
 	deps[identity.DependencyAuthor] = 1
 	_, err = ipd.Consume(deps)
 	assert.NoError(t, err)
-	assert.Equal(t, map[int]map[string]map[string]int{
-		0: {"Go": {"sys": 2}, "Python": {"sys": 2}},
-		1: {"Go": {"sys": 1}, "Python": {"sys": 1}},
+	assert.Equal(t, ImportsMap{
+		0: {"Go": {"sys": {1: 2}}, "Python": {"sys": {1: 2}}},
+		1: {"Go": {"sys": {1: 1}}, "Python": {"sys": {1: 1}}},
 	}, ipd.imports)
 	deps[core.DependencyIsMerge] = true
 	_, err = ipd.Consume(deps)
 	assert.NoError(t, err)
-	assert.Equal(t, map[int]map[string]map[string]int{
-		0: {"Go": {"sys": 2}, "Python": {"sys": 2}},
-		1: {"Go": {"sys": 1}, "Python": {"sys": 1}},
+	assert.Equal(t, ImportsMap{
+		0: {"Go": {"sys": {1: 2}}, "Python": {"sys": {1: 2}}},
+		1: {"Go": {"sys": {1: 1}}, "Python": {"sys": {1: 1}}},
 	}, ipd.imports)
 	result := ipd.Finalize().(ImportsPerDeveloperResult)
 	assert.Equal(t, ipd.reversedPeopleDict, result.reversedPeopleDict)
@@ -106,26 +111,29 @@ func TestImportsPerDeveloperConsumeFinalize(t *testing.T) {
 
 func TestImportsPerDeveloperSerializeText(t *testing.T) {
 	ipd := fixtureImportsPerDev()
-	res := ImportsPerDeveloperResult{Imports: map[int]map[string]map[string]int{
-		0: {"Go": {"sys": 2}, "Python": {"sys": 2}},
-		1: {"Go": {"sys": 1}, "Python": {"sys": 1}},
+	res := ImportsPerDeveloperResult{Imports: ImportsMap{
+		0: {"Go": {"sys": {1: 2}}, "Python": {"sys": {1: 2}}},
+		1: {"Go": {"sys": {1: 1}}, "Python": {"sys": {1: 1}}},
 	}, reversedPeopleDict: []string{"one", "two"}}
 	buffer := &bytes.Buffer{}
 	assert.NoError(t, ipd.Serialize(res, false, buffer))
-	assert.Equal(t, `  - "one": {"Go":{"sys":2},"Python":{"sys":2}}
-  - "two": {"Go":{"sys":1},"Python":{"sys":1}}
+	assert.Equal(t, `  tick_size: 0
+  imports:
+    "one": {"Go":{"sys":{"1":2}},"Python":{"sys":{"1":2}}}
+    "two": {"Go":{"sys":{"1":1}},"Python":{"sys":{"1":1}}}
 `, buffer.String())
 }
 
 func TestImportsPerDeveloperSerializeBinary(t *testing.T) {
 	ipd := fixtureImportsPerDev()
-	res := ImportsPerDeveloperResult{Imports: map[int]map[string]map[string]int{
-		0: {"Go": {"sys": 2}, "Python": {"sys": 2}},
-		1: {"Go": {"sys": 1}, "Python": {"sys": 1}},
+	ass := assert.New(t)
+	res := ImportsPerDeveloperResult{Imports: ImportsMap{
+		0: {"Go": {"sys": {1: 2}}, "Python": {"sys": {1: 2}}},
+		1: {"Go": {"sys": {1: 1}}, "Python": {"sys": {1: 1}}},
 	}, reversedPeopleDict: []string{"one", "two"}}
 	buffer := &bytes.Buffer{}
-	assert.NoError(t, ipd.Serialize(res, true, buffer))
-	msg := pb.ImportsPerDeveloperResults{}
-	assert.Nil(t, proto.Unmarshal(buffer.Bytes(), &msg))
-	assert.Equal(t, `{[languages:<key:"Go" value:<counts:<key:"sys" value:2 > > > languages:<key:"Python" value:<counts:<key:"sys" value:2 > > >  languages:<key:"Go" value:<counts:<key:"sys" value:1 > > > languages:<key:"Python" value:<counts:<key:"sys" value:1 > > > ] [one two] {} [] 0}`, fmt.Sprint(msg))
+	ass.NoError(ipd.Serialize(res, true, buffer))
+	back, err := ipd.Deserialize(buffer.Bytes())
+	ass.NoError(err)
+	ass.Equal(res, back)
 }
