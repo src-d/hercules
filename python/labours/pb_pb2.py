@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x08pb.proto\"\x81\x02\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0c\n\x04hash\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x0f\n\x07\x63ommits\x18\x06 \x01(\x05\x12\x10\n\x08run_time\x18\x07 \x01(\x03\x12\x38\n\x11run_time_per_item\x18\x08 \x03(\x0b\x32\x1d.Metadata.RunTimePerItemEntry\x1a\x35\n\x13RunTimePerItemEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"i\n\x0e\x46ilesOwnership\x12)\n\x05value\x18\x01 \x03(\x0b\x32\x1a.FilesOwnership.ValueEntry\x1a,\n\nValueEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\"\xaa\x02\n\x17\x42urndownAnalysisResults\x12\x13\n\x0bgranularity\x18\x01 \x01(\x05\x12\x10\n\x08sampling\x18\x02 \x01(\x05\x12&\n\x07project\x18\x03 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12$\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12%\n\x06people\x18\x05 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x36\n\x12people_interaction\x18\x06 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\x12(\n\x0f\x66iles_ownership\x18\x07 \x03(\x0b\x32\x0f.FilesOwnership\x12\x11\n\ttick_size\x18\x08 \x01(\x03\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\"\x94\x01\n\x16\x43ouplesAnalysisResults\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12 \n\x0epeople_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12#\n\x0cpeople_files\x18\x08 \x03(\x0b\x32\r.TouchedFiles\x12\x13\n\x0b\x66iles_lines\x18\t \x03(\x05\"o\n\nUASTChange\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x12\n\nsrc_before\x18\x02 \x01(\t\x12\x11\n\tsrc_after\x18\x03 \x01(\t\x12\x13\n\x0buast_before\x18\x04 \x01(\t\x12\x12\n\nuast_after\x18\x05 \x01(\t\"7\n\x17UASTChangesSaverResults\x12\x1c\n\x07\x63hanges\x18\x01 \x03(\x0b\x32\x0b.UASTChange\"\x9c\x01\n\x0eShotnessRecord\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04\x66ile\x18\x03 \x01(\t\x12/\n\x08\x63ounters\x18\x04 \x03(\x0b\x32\x1d.ShotnessRecord.CountersEntry\x1a/\n\rCountersEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\";\n\x17ShotnessAnalysisResults\x12 \n\x07records\x18\x01 \x03(\x0b\x32\x0f.ShotnessRecord\"\xa9\x01\n\x0b\x46ileHistory\x12\x0f\n\x07\x63ommits\x18\x01 \x03(\t\x12\x42\n\x14\x63hanges_by_developer\x18\x02 \x03(\x0b\x32$.FileHistory.ChangesByDeveloperEntry\x1a\x45\n\x17\x43hangesByDeveloperEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.LineStats:\x02\x38\x01\"\x8b\x01\n\x18\x46ileHistoryResultMessage\x12\x33\n\x05\x66iles\x18\x01 \x03(\x0b\x32$.FileHistoryResultMessage.FilesEntry\x1a:\n\nFilesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1b\n\x05value\x18\x02 \x01(\x0b\x32\x0c.FileHistory:\x02\x38\x01\"<\n\tLineStats\x12\r\n\x05\x61\x64\x64\x65\x64\x18\x01 \x01(\x05\x12\x0f\n\x07removed\x18\x02 \x01(\x05\x12\x0f\n\x07\x63hanged\x18\x03 \x01(\x05\"\x9f\x01\n\x07\x44\x65vTick\x12\x0f\n\x07\x63ommits\x18\x01 \x01(\x05\x12\x19\n\x05stats\x18\x02 \x01(\x0b\x32\n.LineStats\x12*\n\tlanguages\x18\x03 \x03(\x0b\x32\x17.DevTick.LanguagesEntry\x1a<\n\x0eLanguagesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.LineStats:\x02\x38\x01\"d\n\x08TickDevs\x12!\n\x04\x64\x65vs\x18\x01 \x03(\x0b\x32\x13.TickDevs.DevsEntry\x1a\x35\n\tDevsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x17\n\x05value\x18\x02 \x01(\x0b\x32\x08.DevTick:\x02\x38\x01\"\xa4\x01\n\x13\x44\x65vsAnalysisResults\x12.\n\x05ticks\x18\x01 \x03(\x0b\x32\x1f.DevsAnalysisResults.TicksEntry\x12\x11\n\tdev_index\x18\x02 \x03(\t\x12\x11\n\ttick_size\x18\x08 \x01(\x03\x1a\x37\n\nTicksEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x18\n\x05value\x18\x02 \x01(\x0b\x32\t.TickDevs:\x02\x38\x01\"=\n\tSentiment\x12\r\n\x05value\x18\x01 \x01(\x02\x12\x10\n\x08\x63omments\x18\x02 \x03(\t\x12\x0f\n\x07\x63ommits\x18\x03 \x03(\t\"\xa7\x01\n\x17\x43ommentSentimentResults\x12H\n\x11sentiment_by_tick\x18\x01 \x03(\x0b\x32-.CommentSentimentResults.SentimentByTickEntry\x1a\x42\n\x14SentimentByTickEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.Sentiment:\x02\x38\x01\"G\n\nCommitFile\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08language\x18\x03 \x01(\t\x12\x19\n\x05stats\x18\x04 \x01(\x0b\x32\n.LineStats\"Z\n\x06\x43ommit\x12\x0c\n\x04hash\x18\x01 \x01(\t\x12\x16\n\x0ewhen_unix_time\x18\x02 \x01(\x03\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\x05\x12\x1a\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x0b.CommitFile\"H\n\x16\x43ommitsAnalysisResults\x12\x18\n\x07\x63ommits\x18\x01 \x03(\x0b\x32\x07.Commit\x12\x14\n\x0c\x61uthor_index\x18\x02 \x03(\t\"R\n\x04Typo\x12\r\n\x05wrong\x18\x01 \x01(\t\x12\x0f\n\x07\x63orrect\x18\x02 \x01(\t\x12\x0e\n\x06\x63ommit\x18\x03 \x01(\t\x12\x0c\n\x04\x66ile\x18\x04 \x01(\t\x12\x0c\n\x04line\x18\x05 \x01(\x05\"$\n\x0cTyposDataset\x12\x14\n\x05typos\x18\x01 \x03(\x0b\x32\x05.Typo\"t\n\x12ImportsPerLanguage\x12/\n\x06\x63ounts\x18\x01 \x03(\x0b\x32\x1f.ImportsPerLanguage.CountsEntry\x1a-\n\x0b\x43ountsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\"\x94\x01\n\x13ImportsPerDeveloper\x12\x36\n\tlanguages\x18\x01 \x03(\x0b\x32#.ImportsPerDeveloper.LanguagesEntry\x1a\x45\n\x0eLanguagesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\"\n\x05value\x18\x02 \x01(\x0b\x32\x13.ImportsPerLanguage:\x02\x38\x01\"Y\n\x1aImportsPerDeveloperResults\x12%\n\x07imports\x18\x01 \x03(\x0b\x32\x14.ImportsPerDeveloper\x12\x14\n\x0c\x61uthor_index\x18\x02 \x03(\t\"\x8f\x01\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12\x30\n\x08\x63ontents\x18\x02 \x03(\x0b\x32\x1e.AnalysisResults.ContentsEntry\x1a/\n\rContentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x08pb.proto\"\x81\x02\n\x08Metadata\x12\x0f\n\x07version\x18\x01 \x01(\x05\x12\x0c\n\x04hash\x18\x02 \x01(\t\x12\x12\n\nrepository\x18\x03 \x01(\t\x12\x17\n\x0f\x62\x65gin_unix_time\x18\x04 \x01(\x03\x12\x15\n\rend_unix_time\x18\x05 \x01(\x03\x12\x0f\n\x07\x63ommits\x18\x06 \x01(\x05\x12\x10\n\x08run_time\x18\x07 \x01(\x03\x12\x38\n\x11run_time_per_item\x18\x08 \x03(\x0b\x32\x1d.Metadata.RunTimePerItemEntry\x1a\x35\n\x13RunTimePerItemEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"*\n\x17\x42urndownSparseMatrixRow\x12\x0f\n\x07\x63olumns\x18\x01 \x03(\r\"\x7f\n\x14\x42urndownSparseMatrix\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x0enumber_of_rows\x18\x02 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x03 \x01(\x05\x12&\n\x04rows\x18\x04 \x03(\x0b\x32\x18.BurndownSparseMatrixRow\"i\n\x0e\x46ilesOwnership\x12)\n\x05value\x18\x01 \x03(\x0b\x32\x1a.FilesOwnership.ValueEntry\x1a,\n\nValueEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\"\xaa\x02\n\x17\x42urndownAnalysisResults\x12\x13\n\x0bgranularity\x18\x01 \x01(\x05\x12\x10\n\x08sampling\x18\x02 \x01(\x05\x12&\n\x07project\x18\x03 \x01(\x0b\x32\x15.BurndownSparseMatrix\x12$\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12%\n\x06people\x18\x05 \x03(\x0b\x32\x15.BurndownSparseMatrix\x12\x36\n\x12people_interaction\x18\x06 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\x12(\n\x0f\x66iles_ownership\x18\x07 \x03(\x0b\x32\x0f.FilesOwnership\x12\x11\n\ttick_size\x18\x08 \x01(\x03\"}\n\x19\x43ompressedSparseRowMatrix\x12\x16\n\x0enumber_of_rows\x18\x01 \x01(\x05\x12\x19\n\x11number_of_columns\x18\x02 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x03\x12\x0f\n\x07indices\x18\x04 \x03(\x05\x12\x0e\n\x06indptr\x18\x05 \x03(\x03\"D\n\x07\x43ouples\x12\r\n\x05index\x18\x01 \x03(\t\x12*\n\x06matrix\x18\x02 \x01(\x0b\x32\x1a.CompressedSparseRowMatrix\"\x1d\n\x0cTouchedFiles\x12\r\n\x05\x66iles\x18\x01 \x03(\x05\"\x94\x01\n\x16\x43ouplesAnalysisResults\x12\x1e\n\x0c\x66ile_couples\x18\x06 \x01(\x0b\x32\x08.Couples\x12 \n\x0epeople_couples\x18\x07 \x01(\x0b\x32\x08.Couples\x12#\n\x0cpeople_files\x18\x08 \x03(\x0b\x32\r.TouchedFiles\x12\x13\n\x0b\x66iles_lines\x18\t \x03(\x05\"o\n\nUASTChange\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x12\n\nsrc_before\x18\x02 \x01(\t\x12\x11\n\tsrc_after\x18\x03 \x01(\t\x12\x13\n\x0buast_before\x18\x04 \x01(\t\x12\x12\n\nuast_after\x18\x05 \x01(\t\"7\n\x17UASTChangesSaverResults\x12\x1c\n\x07\x63hanges\x18\x01 \x03(\x0b\x32\x0b.UASTChange\"\x9c\x01\n\x0eShotnessRecord\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04\x66ile\x18\x03 \x01(\t\x12/\n\x08\x63ounters\x18\x04 \x03(\x0b\x32\x1d.ShotnessRecord.CountersEntry\x1a/\n\rCountersEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\";\n\x17ShotnessAnalysisResults\x12 \n\x07records\x18\x01 \x03(\x0b\x32\x0f.ShotnessRecord\"\xa9\x01\n\x0b\x46ileHistory\x12\x0f\n\x07\x63ommits\x18\x01 \x03(\t\x12\x42\n\x14\x63hanges_by_developer\x18\x02 \x03(\x0b\x32$.FileHistory.ChangesByDeveloperEntry\x1a\x45\n\x17\x43hangesByDeveloperEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.LineStats:\x02\x38\x01\"\x8b\x01\n\x18\x46ileHistoryResultMessage\x12\x33\n\x05\x66iles\x18\x01 \x03(\x0b\x32$.FileHistoryResultMessage.FilesEntry\x1a:\n\nFilesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1b\n\x05value\x18\x02 \x01(\x0b\x32\x0c.FileHistory:\x02\x38\x01\"<\n\tLineStats\x12\r\n\x05\x61\x64\x64\x65\x64\x18\x01 \x01(\x05\x12\x0f\n\x07removed\x18\x02 \x01(\x05\x12\x0f\n\x07\x63hanged\x18\x03 \x01(\x05\"\x9f\x01\n\x07\x44\x65vTick\x12\x0f\n\x07\x63ommits\x18\x01 \x01(\x05\x12\x19\n\x05stats\x18\x02 \x01(\x0b\x32\n.LineStats\x12*\n\tlanguages\x18\x03 \x03(\x0b\x32\x17.DevTick.LanguagesEntry\x1a<\n\x0eLanguagesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.LineStats:\x02\x38\x01\"d\n\x08TickDevs\x12!\n\x04\x64\x65vs\x18\x01 \x03(\x0b\x32\x13.TickDevs.DevsEntry\x1a\x35\n\tDevsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x17\n\x05value\x18\x02 \x01(\x0b\x32\x08.DevTick:\x02\x38\x01\"\xa4\x01\n\x13\x44\x65vsAnalysisResults\x12.\n\x05ticks\x18\x01 \x03(\x0b\x32\x1f.DevsAnalysisResults.TicksEntry\x12\x11\n\tdev_index\x18\x02 \x03(\t\x12\x11\n\ttick_size\x18\x08 \x01(\x03\x1a\x37\n\nTicksEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x18\n\x05value\x18\x02 \x01(\x0b\x32\t.TickDevs:\x02\x38\x01\"=\n\tSentiment\x12\r\n\x05value\x18\x01 \x01(\x02\x12\x10\n\x08\x63omments\x18\x02 \x03(\t\x12\x0f\n\x07\x63ommits\x18\x03 \x03(\t\"\xa7\x01\n\x17\x43ommentSentimentResults\x12H\n\x11sentiment_by_tick\x18\x01 \x03(\x0b\x32-.CommentSentimentResults.SentimentByTickEntry\x1a\x42\n\x14SentimentByTickEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x19\n\x05value\x18\x02 \x01(\x0b\x32\n.Sentiment:\x02\x38\x01\"G\n\nCommitFile\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08language\x18\x03 \x01(\t\x12\x19\n\x05stats\x18\x04 \x01(\x0b\x32\n.LineStats\"Z\n\x06\x43ommit\x12\x0c\n\x04hash\x18\x01 \x01(\t\x12\x16\n\x0ewhen_unix_time\x18\x02 \x01(\x03\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\x05\x12\x1a\n\x05\x66iles\x18\x04 \x03(\x0b\x32\x0b.CommitFile\"H\n\x16\x43ommitsAnalysisResults\x12\x18\n\x07\x63ommits\x18\x01 \x03(\x0b\x32\x07.Commit\x12\x14\n\x0c\x61uthor_index\x18\x02 \x03(\t\"R\n\x04Typo\x12\r\n\x05wrong\x18\x01 \x01(\t\x12\x0f\n\x07\x63orrect\x18\x02 \x01(\t\x12\x0e\n\x06\x63ommit\x18\x03 \x01(\t\x12\x0c\n\x04\x66ile\x18\x04 \x01(\t\x12\x0c\n\x04line\x18\x05 \x01(\x05\"$\n\x0cTyposDataset\x12\x14\n\x05typos\x18\x01 \x03(\x0b\x32\x05.Typo\"l\n\x0eImportsPerTick\x12+\n\x06\x63ounts\x18\x01 \x03(\x0b\x32\x1b.ImportsPerTick.CountsEntry\x1a-\n\x0b\x43ountsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\"\x82\x01\n\x12ImportsPerLanguage\x12-\n\x05ticks\x18\x01 \x03(\x0b\x32\x1e.ImportsPerLanguage.TicksEntry\x1a=\n\nTicksEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1e\n\x05value\x18\x02 \x01(\x0b\x32\x0f.ImportsPerTick:\x02\x38\x01\"\x94\x01\n\x13ImportsPerDeveloper\x12\x36\n\tlanguages\x18\x01 \x03(\x0b\x32#.ImportsPerDeveloper.LanguagesEntry\x1a\x45\n\x0eLanguagesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\"\n\x05value\x18\x02 \x01(\x0b\x32\x13.ImportsPerLanguage:\x02\x38\x01\"l\n\x1aImportsPerDeveloperResults\x12%\n\x07imports\x18\x01 \x03(\x0b\x32\x14.ImportsPerDeveloper\x12\x14\n\x0c\x61uthor_index\x18\x02 \x03(\t\x12\x11\n\ttick_size\x18\x03 \x01(\x03\"\x8f\x01\n\x0f\x41nalysisResults\x12\x19\n\x06header\x18\x01 \x01(\x0b\x32\t.Metadata\x12\x30\n\x08\x63ontents\x18\x02 \x03(\x0b\x32\x1e.AnalysisResults.ContentsEntry\x1a/\n\rContentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x62\x06proto3')
 )
 
 
@@ -1521,22 +1521,22 @@ _TYPOSDATASET = _descriptor.Descriptor(
 )
 
 
-_IMPORTSPERLANGUAGE_COUNTSENTRY = _descriptor.Descriptor(
+_IMPORTSPERTICK_COUNTSENTRY = _descriptor.Descriptor(
   name='CountsEntry',
-  full_name='ImportsPerLanguage.CountsEntry',
+  full_name='ImportsPerTick.CountsEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='ImportsPerLanguage.CountsEntry.key', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='key', full_name='ImportsPerTick.CountsEntry.key', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='ImportsPerLanguage.CountsEntry.value', index=1,
+      name='value', full_name='ImportsPerTick.CountsEntry.value', index=1,
       number=2, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -1554,8 +1554,76 @@ _IMPORTSPERLANGUAGE_COUNTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3094,
-  serialized_end=3139,
+  serialized_start=3086,
+  serialized_end=3131,
+)
+
+_IMPORTSPERTICK = _descriptor.Descriptor(
+  name='ImportsPerTick',
+  full_name='ImportsPerTick',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='counts', full_name='ImportsPerTick.counts', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[_IMPORTSPERTICK_COUNTSENTRY, ],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3023,
+  serialized_end=3131,
+)
+
+
+_IMPORTSPERLANGUAGE_TICKSENTRY = _descriptor.Descriptor(
+  name='TicksEntry',
+  full_name='ImportsPerLanguage.TicksEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='ImportsPerLanguage.TicksEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='ImportsPerLanguage.TicksEntry.value', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=_b('8\001'),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3203,
+  serialized_end=3264,
 )
 
 _IMPORTSPERLANGUAGE = _descriptor.Descriptor(
@@ -1566,7 +1634,7 @@ _IMPORTSPERLANGUAGE = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='counts', full_name='ImportsPerLanguage.counts', index=0,
+      name='ticks', full_name='ImportsPerLanguage.ticks', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -1575,7 +1643,7 @@ _IMPORTSPERLANGUAGE = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_IMPORTSPERLANGUAGE_COUNTSENTRY, ],
+  nested_types=[_IMPORTSPERLANGUAGE_TICKSENTRY, ],
   enum_types=[
   ],
   serialized_options=None,
@@ -1584,8 +1652,8 @@ _IMPORTSPERLANGUAGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3023,
-  serialized_end=3139,
+  serialized_start=3134,
+  serialized_end=3264,
 )
 
 
@@ -1622,8 +1690,8 @@ _IMPORTSPERDEVELOPER_LANGUAGESENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3221,
-  serialized_end=3290,
+  serialized_start=3346,
+  serialized_end=3415,
 )
 
 _IMPORTSPERDEVELOPER = _descriptor.Descriptor(
@@ -1652,8 +1720,8 @@ _IMPORTSPERDEVELOPER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3142,
-  serialized_end=3290,
+  serialized_start=3267,
+  serialized_end=3415,
 )
 
 
@@ -1678,6 +1746,13 @@ _IMPORTSPERDEVELOPERRESULTS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='tick_size', full_name='ImportsPerDeveloperResults.tick_size', index=2,
+      number=3, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -1690,8 +1765,8 @@ _IMPORTSPERDEVELOPERRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3292,
-  serialized_end=3381,
+  serialized_start=3417,
+  serialized_end=3525,
 )
 
 
@@ -1728,8 +1803,8 @@ _ANALYSISRESULTS_CONTENTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3480,
-  serialized_end=3527,
+  serialized_start=3624,
+  serialized_end=3671,
 )
 
 _ANALYSISRESULTS = _descriptor.Descriptor(
@@ -1765,8 +1840,8 @@ _ANALYSISRESULTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3384,
-  serialized_end=3527,
+  serialized_start=3528,
+  serialized_end=3671,
 )
 
 _METADATA_RUNTIMEPERITEMENTRY.containing_type = _METADATA
@@ -1810,8 +1885,11 @@ _COMMITFILE.fields_by_name['stats'].message_type = _LINESTATS
 _COMMIT.fields_by_name['files'].message_type = _COMMITFILE
 _COMMITSANALYSISRESULTS.fields_by_name['commits'].message_type = _COMMIT
 _TYPOSDATASET.fields_by_name['typos'].message_type = _TYPO
-_IMPORTSPERLANGUAGE_COUNTSENTRY.containing_type = _IMPORTSPERLANGUAGE
-_IMPORTSPERLANGUAGE.fields_by_name['counts'].message_type = _IMPORTSPERLANGUAGE_COUNTSENTRY
+_IMPORTSPERTICK_COUNTSENTRY.containing_type = _IMPORTSPERTICK
+_IMPORTSPERTICK.fields_by_name['counts'].message_type = _IMPORTSPERTICK_COUNTSENTRY
+_IMPORTSPERLANGUAGE_TICKSENTRY.fields_by_name['value'].message_type = _IMPORTSPERTICK
+_IMPORTSPERLANGUAGE_TICKSENTRY.containing_type = _IMPORTSPERLANGUAGE
+_IMPORTSPERLANGUAGE.fields_by_name['ticks'].message_type = _IMPORTSPERLANGUAGE_TICKSENTRY
 _IMPORTSPERDEVELOPER_LANGUAGESENTRY.fields_by_name['value'].message_type = _IMPORTSPERLANGUAGE
 _IMPORTSPERDEVELOPER_LANGUAGESENTRY.containing_type = _IMPORTSPERDEVELOPER
 _IMPORTSPERDEVELOPER.fields_by_name['languages'].message_type = _IMPORTSPERDEVELOPER_LANGUAGESENTRY
@@ -1845,6 +1923,7 @@ DESCRIPTOR.message_types_by_name['Commit'] = _COMMIT
 DESCRIPTOR.message_types_by_name['CommitsAnalysisResults'] = _COMMITSANALYSISRESULTS
 DESCRIPTOR.message_types_by_name['Typo'] = _TYPO
 DESCRIPTOR.message_types_by_name['TyposDataset'] = _TYPOSDATASET
+DESCRIPTOR.message_types_by_name['ImportsPerTick'] = _IMPORTSPERTICK
 DESCRIPTOR.message_types_by_name['ImportsPerLanguage'] = _IMPORTSPERLANGUAGE
 DESCRIPTOR.message_types_by_name['ImportsPerDeveloper'] = _IMPORTSPERDEVELOPER
 DESCRIPTOR.message_types_by_name['ImportsPerDeveloperResults'] = _IMPORTSPERDEVELOPERRESULTS
@@ -2105,12 +2184,27 @@ TyposDataset = _reflection.GeneratedProtocolMessageType('TyposDataset', (_messag
   ))
 _sym_db.RegisterMessage(TyposDataset)
 
-ImportsPerLanguage = _reflection.GeneratedProtocolMessageType('ImportsPerLanguage', (_message.Message,), dict(
+ImportsPerTick = _reflection.GeneratedProtocolMessageType('ImportsPerTick', (_message.Message,), dict(
 
   CountsEntry = _reflection.GeneratedProtocolMessageType('CountsEntry', (_message.Message,), dict(
-    DESCRIPTOR = _IMPORTSPERLANGUAGE_COUNTSENTRY,
+    DESCRIPTOR = _IMPORTSPERTICK_COUNTSENTRY,
     __module__ = 'pb_pb2'
-    # @@protoc_insertion_point(class_scope:ImportsPerLanguage.CountsEntry)
+    # @@protoc_insertion_point(class_scope:ImportsPerTick.CountsEntry)
+    ))
+  ,
+  DESCRIPTOR = _IMPORTSPERTICK,
+  __module__ = 'pb_pb2'
+  # @@protoc_insertion_point(class_scope:ImportsPerTick)
+  ))
+_sym_db.RegisterMessage(ImportsPerTick)
+_sym_db.RegisterMessage(ImportsPerTick.CountsEntry)
+
+ImportsPerLanguage = _reflection.GeneratedProtocolMessageType('ImportsPerLanguage', (_message.Message,), dict(
+
+  TicksEntry = _reflection.GeneratedProtocolMessageType('TicksEntry', (_message.Message,), dict(
+    DESCRIPTOR = _IMPORTSPERLANGUAGE_TICKSENTRY,
+    __module__ = 'pb_pb2'
+    # @@protoc_insertion_point(class_scope:ImportsPerLanguage.TicksEntry)
     ))
   ,
   DESCRIPTOR = _IMPORTSPERLANGUAGE,
@@ -2118,7 +2212,7 @@ ImportsPerLanguage = _reflection.GeneratedProtocolMessageType('ImportsPerLanguag
   # @@protoc_insertion_point(class_scope:ImportsPerLanguage)
   ))
 _sym_db.RegisterMessage(ImportsPerLanguage)
-_sym_db.RegisterMessage(ImportsPerLanguage.CountsEntry)
+_sym_db.RegisterMessage(ImportsPerLanguage.TicksEntry)
 
 ImportsPerDeveloper = _reflection.GeneratedProtocolMessageType('ImportsPerDeveloper', (_message.Message,), dict(
 
@@ -2167,7 +2261,8 @@ _DEVTICK_LANGUAGESENTRY._options = None
 _TICKDEVS_DEVSENTRY._options = None
 _DEVSANALYSISRESULTS_TICKSENTRY._options = None
 _COMMENTSENTIMENTRESULTS_SENTIMENTBYTICKENTRY._options = None
-_IMPORTSPERLANGUAGE_COUNTSENTRY._options = None
+_IMPORTSPERTICK_COUNTSENTRY._options = None
+_IMPORTSPERLANGUAGE_TICKSENTRY._options = None
 _IMPORTSPERDEVELOPER_LANGUAGESENTRY._options = None
 _ANALYSISRESULTS_CONTENTSENTRY._options = None
 # @@protoc_insertion_point(module_scope)

@@ -33,7 +33,7 @@ type DevsAnalysis struct {
 	ticks map[int]map[int]*DevTick
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
-	// tickSize references TicksSinceStart.tickSize
+	// TickSize references TicksSinceStart.TickSize
 	tickSize time.Duration
 
 	l core.Logger
@@ -47,7 +47,7 @@ type DevsResult struct {
 
 	// reversedPeopleDict references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
-	// tickSize references TicksSinceStart.tickSize
+	// TickSize references TicksSinceStart.TickSize
 	tickSize time.Duration
 }
 

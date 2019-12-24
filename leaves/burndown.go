@@ -47,6 +47,9 @@ type BurndownAnalysis struct {
 	// PeopleNumber is the number of developers for which to collect the burndown stats. 0 disables it.
 	PeopleNumber int
 
+	// TickSize indicates the size of each time granule: day, hour, week, etc.
+	TickSize time.Duration
+
 	// HibernationThreshold sets the hibernation threshold for the underlying
 	// RBTree allocator. It is useful to trade CPU time for reduced peak memory consumption
 	// if there are many branches.
@@ -103,8 +106,6 @@ type BurndownAnalysis struct {
 	// previousTick is the tick from the previous sample period -
 	// different from TicksSinceStart.previousTick.
 	previousTick int
-	// tickSize indicates the size of each tick.
-	tickSize time.Duration
 	// references IdentityDetector.ReversedPeopleDict
 	reversedPeopleDict []string
 
@@ -140,7 +141,7 @@ type BurndownResult struct {
 	// Pipeline.Initialize(facts map[string]interface{}). Thus it can be obtained via
 	// facts[FactIdentityDetectorReversedPeopleDict].
 	reversedPeopleDict []string
-	// tickSize references TicksSinceStart.tickSize
+	// TickSize references TicksSinceStart.TickSize
 	tickSize time.Duration
 	// sampling and granularity are copied from BurndownAnalysis and stored for service purposes
 	// such as merging several results together.
@@ -294,7 +295,7 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) error 
 		analyser.Debug = val
 	}
 	if val, exists := facts[items.FactTickSize].(time.Duration); exists {
-		analyser.tickSize = val
+		analyser.TickSize = val
 	}
 	return nil
 }
@@ -329,10 +330,10 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 			analyser.Granularity)
 		analyser.Sampling = analyser.Granularity
 	}
-	if analyser.tickSize == 0 {
+	if analyser.TickSize == 0 {
 		def := items.DefaultTicksSinceStartTickSize * time.Hour
 		analyser.l.Warnf("tick size was not set, adjusted to %v\n", def)
-		analyser.tickSize = items.DefaultTicksSinceStartTickSize * time.Hour
+		analyser.TickSize = items.DefaultTicksSinceStartTickSize * time.Hour
 	}
 	analyser.repository = repository
 	analyser.globalHistory = sparseHistory{}
@@ -570,7 +571,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		FileOwnership:      fileOwnership,
 		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,
-		tickSize:           analyser.tickSize,
+		tickSize:           analyser.TickSize,
 		reversedPeopleDict: analyser.reversedPeopleDict,
 		sampling:           analyser.Sampling,
 		granularity:        analyser.Granularity,
@@ -653,12 +654,12 @@ func (analyser *BurndownAnalysis) MergeResults(
 			bar1.tickSize, bar2.tickSize)
 	}
 	// for backwards-compatibility, if no tick size is present set to default
-	analyser.tickSize = bar1.tickSize
-	if analyser.tickSize == 0 {
-		analyser.tickSize = items.DefaultTicksSinceStartTickSize * time.Hour
+	analyser.TickSize = bar1.tickSize
+	if analyser.TickSize == 0 {
+		analyser.TickSize = items.DefaultTicksSinceStartTickSize * time.Hour
 	}
 	merged := BurndownResult{
-		tickSize: analyser.tickSize,
+		tickSize: analyser.TickSize,
 	}
 	if bar1.sampling < bar2.sampling {
 		merged.sampling = bar1.sampling
