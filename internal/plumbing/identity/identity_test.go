@@ -39,8 +39,9 @@ func TestIdentityDetectorMeta(t *testing.T) {
 	assert.Equal(t, len(id.Provides()), 1)
 	assert.Equal(t, id.Provides()[0], DependencyAuthor)
 	opts := id.ListConfigurationOptions()
-	assert.Len(t, opts, 1)
+	assert.Len(t, opts, 2)
 	assert.Equal(t, opts[0].Name, ConfigIdentityDetectorPeopleDictPath)
+	assert.Equal(t, opts[1].Name, ConfigIdentityDetectorExactSignatures)
 	logger := core.NewLogger()
 	assert.NoError(t, id.Configure(map[string]interface{}{
 		core.ConfigLogger: logger,
@@ -150,6 +151,28 @@ func TestIdentityDetectorConsume(t *testing.T) {
 	assert.Equal(t, res[DependencyAuthor].(int), AuthorMissing)
 }
 
+func TestIdentityDetectorConsumeExact(t *testing.T) {
+	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
+		"5c0e755dd85ac74584d9988cc361eccf02ce1a48"))
+	deps := map[string]interface{}{}
+	deps[core.DependencyCommit] = commit
+	id := fixtureIdentityDetector()
+	id.ExactSignatures = true
+	id.PeopleDict = map[string]int{
+		"vadim markovtsev <gmarkhor@gmail.com>": 0,
+		"vadim markovtsev <vadim@sourced.tech>": 1,
+	}
+	res, err := id.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, res[DependencyAuthor].(int), 1)
+	commit, _ = test.Repository.CommitObject(plumbing.NewHash(
+		"8a03b5620b1caa72ec9cb847ea88332621e2950a"))
+	deps[core.DependencyCommit] = commit
+	res, err = id.Consume(deps)
+	assert.Nil(t, err)
+	assert.Equal(t, res[DependencyAuthor].(int), AuthorMissing)
+}
+
 func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	err := id.LoadPeopleDict(path.Join("..", "..", "test_data", "identities"))
@@ -174,22 +197,6 @@ func TestIdentityDetectorLoadPeopleDictWrongPath(t *testing.T) {
 	err := id.LoadPeopleDict(path.Join("identities"))
 	assert.NotNil(t, err)
 }
-
-/*
-// internal compiler error in 1.8
-func TestGeneratePeopleDict(t *testing.T) {
-	id := fixtureIdentityDetector()
-	commits := make([]*object.Commit, 0)
-	iter, err := test.Repository.CommitObjects()
-	for ; err != io.EOF; commit, err := iter.Next() {
-		if err != nil {
-			panic(err)
-		}
-		commits = append(commits, commit)
-	}
-	id.GeneratePeopleDict(commits)
-}
-*/
 
 func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
@@ -242,6 +249,27 @@ func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
 	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorMissingName)
+}
+
+func TestIdentityDetectorGeneratePeopleDictExact(t *testing.T) {
+	id := fixtureIdentityDetector()
+	id.ExactSignatures = true
+	commits := make([]*object.Commit, 0)
+	iter, err := test.Repository.CommitObjects()
+	commit, err := iter.Next()
+	for ; err != io.EOF; commit, err = iter.Next() {
+		if err != nil {
+			panic(err)
+		}
+		commits = append(commits, commit)
+	}
+	id.GeneratePeopleDict(commits)
+	ass := assert.New(t)
+	ass.Equal(len(id.PeopleDict), len(id.ReversedPeopleDict))
+	ass.True(len(id.ReversedPeopleDict) >= 24)
+	ass.Contains(id.PeopleDict, "vadim markovtsev <vadim@sourced.tech>")
+	ass.Contains(id.PeopleDict, "vadim markovtsev <vadim@athenian.co>")
+	ass.NotEqual(id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorMissingName)
 }
 
 func TestIdentityDetectorLoadPeopleDictInvalidPath(t *testing.T) {
