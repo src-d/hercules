@@ -21,6 +21,9 @@ type Detector struct {
 	PeopleDict map[string]int
 	// ReversedPeopleDict maps developer id -> description
 	ReversedPeopleDict []string
+	// ExactSignatures chooses the matching algorithm: opportunistic email || name
+	// or exact email && name
+	ExactSignatures bool
 
 	l core.Logger
 }
@@ -43,6 +46,10 @@ const (
 	// ConfigIdentityDetectorPeopleDictPath is the name of the configuration option
 	// (Detector.Configure()) which allows to set the external PeopleDict mapping from a file.
 	ConfigIdentityDetectorPeopleDictPath = "IdentityDetector.PeopleDictPath"
+	// ConfigIdentityDetectorExactSignatures is the name of the configuration option
+	// (Detector.Configure()) which changes the matching algorithm to exact signature (name + email)
+	// correspondence.
+	ConfigIdentityDetectorExactSignatures = "IdentityDetector.ExactSignatures"
 	// FactIdentityDetectorPeopleCount is the name of the fact which is inserted in
 	// Detector.Configure(). It is equal to the overall number of unique authors
 	// (the length of ReversedPeopleDict).
@@ -78,7 +85,13 @@ func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption 
 		Description: "Path to the file with developer -> name|email associations.",
 		Flag:        "people-dict",
 		Type:        core.PathConfigurationOption,
-		Default:     ""},
+		Default:     ""}, {
+		Name: ConfigIdentityDetectorExactSignatures,
+		Description: "Disable separate name/email matching. This will lead to considerbly more " +
+			"identities and should not be normally used.",
+		Flag:    "exact-signatures",
+		Type:    core.BoolConfigurationOption,
+		Default: false},
 	}
 	return options[:]
 }
@@ -95,6 +108,9 @@ func (detector *Detector) Configure(facts map[string]interface{}) error {
 	}
 	if val, exists := facts[FactIdentityDetectorReversedPeopleDict].([]string); exists {
 		detector.ReversedPeopleDict = val
+	}
+	if val, exists := facts[ConfigIdentityDetectorExactSignatures].(bool); exists {
+		detector.ExactSignatures = val
 	}
 	if detector.PeopleDict == nil || detector.ReversedPeopleDict == nil {
 		peopleDictPath, _ := facts[ConfigIdentityDetectorPeopleDictPath].(string)
@@ -133,13 +149,19 @@ func (detector *Detector) Initialize(repository *git.Repository) error {
 // in Provides(). If there was an error, nil is returned.
 func (detector *Detector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps[core.DependencyCommit].(*object.Commit)
+	var authorID int
+	var exists bool
 	signature := commit.Author
-	authorID, exists := detector.PeopleDict[strings.ToLower(signature.Email)]
-	if !exists {
-		authorID, exists = detector.PeopleDict[strings.ToLower(signature.Name)]
+	if !detector.ExactSignatures {
+		authorID, exists = detector.PeopleDict[strings.ToLower(signature.Email)]
 		if !exists {
-			authorID = AuthorMissing
+			authorID, exists = detector.PeopleDict[strings.ToLower(signature.Name)]
 		}
+	} else {
+		authorID, exists = detector.PeopleDict[strings.ToLower(signature.String())]
+	}
+	if !exists {
+		authorID = AuthorMissing
 	}
 	return map[string]interface{}{DependencyAuthor: authorID}, nil
 }
@@ -184,7 +206,8 @@ func (detector *Detector) GeneratePeopleDict(commits []*object.Commit) {
 	size := 0
 
 	mailmapFile, err := commits[len(commits)-1].File(".mailmap")
-	if err == nil {
+	// TODO(vmarkovtsev): properly handle .mailmap if ExactSignatures
+	if !detector.ExactSignatures && err == nil {
 		mailMapContents, err := mailmapFile.Contents()
 		if err == nil {
 			mailmap := ParseMailmap(mailMapContents)
@@ -239,34 +262,48 @@ func (detector *Detector) GeneratePeopleDict(commits []*object.Commit) {
 	}
 
 	for _, commit := range commits {
-		email := strings.ToLower(commit.Author.Email)
-		name := strings.ToLower(commit.Author.Name)
-		id, exists := dict[email]
-		if exists {
-			_, exists := dict[name]
-			if !exists {
-				dict[name] = id
-				names[id] = append(names[id], name)
+		if !detector.ExactSignatures {
+			email := strings.ToLower(commit.Author.Email)
+			name := strings.ToLower(commit.Author.Name)
+			id, exists := dict[email]
+			if exists {
+				_, exists := dict[name]
+				if !exists {
+					dict[name] = id
+					names[id] = append(names[id], name)
+				}
+				continue
 			}
-			continue
+			id, exists = dict[name]
+			if exists {
+				dict[email] = id
+				emails[id] = append(emails[id], email)
+				continue
+			}
+			dict[email] = size
+			dict[name] = size
+			emails[size] = append(emails[size], email)
+			names[size] = append(names[size], name)
+			size++
+		} else { // !detector.ExactSignatures
+			sig := strings.ToLower(commit.Author.String())
+			if _, exists := dict[sig]; !exists {
+				dict[sig] = size
+				size++
+			}
 		}
-		id, exists = dict[name]
-		if exists {
-			dict[email] = id
-			emails[id] = append(emails[id], email)
-			continue
-		}
-		dict[email] = size
-		dict[name] = size
-		emails[size] = append(emails[size], email)
-		names[size] = append(names[size], name)
-		size++
 	}
 	reverseDict := make([]string, size)
-	for _, val := range dict {
-		sort.Strings(names[val])
-		sort.Strings(emails[val])
-		reverseDict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
+	if !detector.ExactSignatures {
+		for _, val := range dict {
+			sort.Strings(names[val])
+			sort.Strings(emails[val])
+			reverseDict[val] = strings.Join(names[val], "|") + "|" + strings.Join(emails[val], "|")
+		}
+	} else {
+		for key, val := range dict {
+			reverseDict[val] = key
+		}
 	}
 	detector.PeopleDict = dict
 	detector.ReversedPeopleDict = reverseDict
