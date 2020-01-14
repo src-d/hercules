@@ -145,7 +145,7 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	assert.Equal(t, len(renamed), 3)
 
 	ra.SimilarityThreshold = 37
-	ra.Timeout = time.Microsecond
+	ra.Timeout = time.Nanosecond
 	res, err = ra.Consume(deps)
 	assert.Nil(t, err)
 	renamed = res[DependencyTreeChanges].(object.Changes)
