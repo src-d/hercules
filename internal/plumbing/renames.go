@@ -1,6 +1,7 @@
 package plumbing
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -28,6 +29,9 @@ type RenameAnalysis struct {
 	// set it to the default value of 80 (80%).
 	SimilarityThreshold int
 
+	// Timeout is the maximum time allowed to spend computing renames in a single commit.
+	Timeout time.Duration
+
 	repository *git.Repository
 
 	l core.Logger
@@ -39,9 +43,17 @@ const (
 	// CGit's default is 50%. Ours is 80% because 50% can be too computationally expensive.
 	RenameAnalysisDefaultThreshold = 80
 
+	// RenameAnalysisDefaultTimeout is the default value of RenameAnalysis.Timeout (in milliseconds).
+	RenameAnalysisDefaultTimeout = 60000
+
 	// ConfigRenameAnalysisSimilarityThreshold is the name of the configuration option
 	// (RenameAnalysis.Configure()) which sets the similarity threshold.
 	ConfigRenameAnalysisSimilarityThreshold = "RenameAnalysis.SimilarityThreshold"
+
+	// ConfigRenameAnalysisTimeout is the name of the configuration option
+	// (RenameAnalysis.Configure()) which sets the maximum time allowed to spend
+	// computing renames in a single commit.
+	ConfigRenameAnalysisTimeout = "RenameAnalysis.Timeout"
 
 	// RenameAnalysisMinimumSize is the minimum size of a blob to be considered.
 	RenameAnalysisMinimumSize = 32
@@ -84,7 +96,13 @@ func (ra *RenameAnalysis) ListConfigurationOptions() []core.ConfigurationOption 
 		Description: "The threshold on the similarity index used to detect renames.",
 		Flag:        "M",
 		Type:        core.IntConfigurationOption,
-		Default:     RenameAnalysisDefaultThreshold},
+		Default:     RenameAnalysisDefaultThreshold}, {
+		Name: ConfigRenameAnalysisTimeout,
+		Description: "The maximum time (milliseconds) allowed to spend computing " +
+			"renames in a single commit. 0 sets the default.",
+		Flag:    "renames-timeout",
+		Type:    core.IntConfigurationOption,
+		Default: RenameAnalysisDefaultTimeout},
 	}
 	return options[:]
 }
@@ -96,6 +114,12 @@ func (ra *RenameAnalysis) Configure(facts map[string]interface{}) error {
 	}
 	if val, exists := facts[ConfigRenameAnalysisSimilarityThreshold].(int); exists {
 		ra.SimilarityThreshold = val
+	}
+	if val, exists := facts[ConfigRenameAnalysisTimeout].(int); exists {
+		if val < 0 {
+			return fmt.Errorf("negative renames detection timeout is not allowed: %d", val)
+		}
+		ra.Timeout = time.Duration(val) * time.Millisecond
 	}
 	return nil
 }
@@ -109,6 +133,9 @@ func (ra *RenameAnalysis) Initialize(repository *git.Repository) error {
 			RenameAnalysisDefaultThreshold)
 		ra.SimilarityThreshold = RenameAnalysisDefaultThreshold
 	}
+	if ra.Timeout == 0 {
+		ra.Timeout = time.Duration(RenameAnalysisDefaultTimeout) * time.Millisecond
+	}
 	ra.repository = repository
 	return nil
 }
@@ -119,6 +146,7 @@ func (ra *RenameAnalysis) Initialize(repository *git.Repository) error {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+	beginTime := time.Now()
 	changes := deps[DependencyTreeChanges].(object.Changes)
 	cache := deps[DependencyBlobCache].(map[plumbing.Hash]*CachedBlob)
 
@@ -225,7 +253,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 		}()
 		aStart := 0
 		// we will try to find a matching added blob for each deleted blob
-		for d := 0; d < deletedBlobsA.Len(); d++ {
+		for d := 0; d < deletedBlobsA.Len() && time.Now().Sub(beginTime) < ra.Timeout; d++ {
 			myBlob := cache[deletedBlobsA[d].change.From.TreeEntry.Hash]
 			mySize := deletedBlobsA[d].size
 			myName := filepath.Base(deletedBlobsA[d].change.From.Name)
@@ -283,7 +311,7 @@ func (ra *RenameAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 			wg.Done()
 		}()
 		dStart := 0
-		for a := 0; a < addedBlobsB.Len(); a++ {
+		for a := 0; a < addedBlobsB.Len() && time.Now().Sub(beginTime) < ra.Timeout; a++ {
 			myBlob := cache[addedBlobsB[a].change.To.TreeEntry.Hash]
 			mySize := addedBlobsB[a].size
 			myName := filepath.Base(addedBlobsB[a].change.To.Name)
