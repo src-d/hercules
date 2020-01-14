@@ -8,6 +8,7 @@ import (
 	"path"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -31,14 +32,17 @@ func TestRenameAnalysisMeta(t *testing.T) {
 	assert.Equal(t, ra.Requires()[0], DependencyBlobCache)
 	assert.Equal(t, ra.Requires()[1], DependencyTreeChanges)
 	opts := ra.ListConfigurationOptions()
-	assert.Len(t, opts, 1)
+	assert.Len(t, opts, 2)
 	assert.Equal(t, opts[0].Name, ConfigRenameAnalysisSimilarityThreshold)
+	assert.Equal(t, opts[1].Name, ConfigRenameAnalysisTimeout)
 	ra.SimilarityThreshold = 0
 
 	assert.NoError(t, ra.Configure(map[string]interface{}{
 		ConfigRenameAnalysisSimilarityThreshold: 70,
+		ConfigRenameAnalysisTimeout:             1000,
 	}))
 	assert.Equal(t, ra.SimilarityThreshold, 70)
+	assert.Equal(t, ra.Timeout, time.Second)
 
 	logger := core.NewLogger()
 	assert.NoError(t, ra.Configure(map[string]interface{}{
@@ -46,6 +50,7 @@ func TestRenameAnalysisMeta(t *testing.T) {
 	}))
 	assert.Equal(t, logger, ra.l)
 	assert.Equal(t, ra.SimilarityThreshold, 70)
+	assert.Equal(t, ra.Timeout, time.Second)
 }
 
 func TestRenameAnalysisRegistration(t *testing.T) {
@@ -134,6 +139,13 @@ func TestRenameAnalysisConsume(t *testing.T) {
 	renamed := res[DependencyTreeChanges].(object.Changes)
 	assert.Equal(t, len(renamed), 2)
 	ra.SimilarityThreshold = 39
+	res, err = ra.Consume(deps)
+	assert.Nil(t, err)
+	renamed = res[DependencyTreeChanges].(object.Changes)
+	assert.Equal(t, len(renamed), 3)
+
+	ra.SimilarityThreshold = 37
+	ra.Timeout = time.Microsecond
 	res, err = ra.Consume(deps)
 	assert.Nil(t, err)
 	renamed = res[DependencyTreeChanges].(object.Changes)
