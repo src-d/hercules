@@ -459,12 +459,19 @@ func TestPipelineHeadCommit(t *testing.T) {
 		assert.False(t, out.CreatedBranchHash.IsZero())
 
 		pipeline := NewPipeline(repo)
-		pipeline.Branch = testBranch
-		commits, err := pipeline.HeadCommit()
-		assert.NoError(t, err)
-		assert.Len(t, commits, 1)
-		assert.True(t, len(commits[0].ParentHashes) > 0)
-		assert.Equal(t, out.CreatedBranchHash, commits[0].Hash)
+		t.Run("branch ok", func(t *testing.T) {
+			pipeline.Branch = testBranch
+			commits, err := pipeline.HeadCommit()
+			assert.NoError(t, err)
+			assert.Len(t, commits, 1)
+			assert.True(t, len(commits[0].ParentHashes) > 0)
+			assert.Equal(t, out.CreatedBranchHash, commits[0].Hash)
+		})
+		t.Run("branch does not exist", func(t *testing.T) {
+			pipeline.Branch = "not-a-branch"
+			_, err := pipeline.HeadCommit()
+			assert.Error(t, err)
+		})
 	})
 }
 
