@@ -57,11 +57,14 @@ Table of Contents
     * [Custom plotting backend](#custom-plotting-backend)
     * [Caveats](#caveats)
     * [Burndown Out-Of-Memory](#burndown-out-of-memory)
+  * [Roadmap](#roadmap)
 
 ## Overview
 
 Hercules is an amazingly fast and highly customizable Git repository analysis engine written in Go. Batteries are included.
-Powered by [go-git](https://github.com/src-d/go-git) and [Babelfish](https://doc.bblf.sh).
+Powered by [go-git](https://github.com/go-git/go-git).
+
+*Notice (November 2020): the main author is back from the limbo and is gradually resuming the development. See the [roadmap](#roadmap).*
 
 There are two command-line tools: `hercules` and `labours`. The first is a program
 written in Go which takes a Git repository and executes a Directed Acyclic Graph (DAG) of [analysis tasks](doc/PIPELINE_ITEMS.md) over the full commit history.
@@ -127,7 +130,7 @@ Some examples:
 
 ```
 # Use "memory" go-git backend and display the burndown plot. "memory" is the fastest but the repository's git data must fit into RAM.
-hercules --burndown https://github.com/src-d/go-git | labours -m burndown-project --resample month
+hercules --burndown https://github.com/go-git/go-git | labours -m burndown-project --resample month
 # Use "file system" go-git backend and print some basic information about the repository.
 hercules /path/to/cloned/go-git
 # Use "file system" go-git backend, cache the cloned repository to /tmp/repo-cache, use Protocol Buffers and display the burndown plot without resampling.
@@ -415,7 +418,7 @@ Hercules has a plugin system and allows to run custom analyses. See [PLUGINS.md]
 `hercules combine` is the command which joins several analysis results in Protocol Buffers format together.
 
 ```
-hercules --burndown --pb https://github.com/src-d/go-git > go-git.pb
+hercules --burndown --pb https://github.com/go-git/go-git > go-git.pb
 hercules --burndown --pb https://github.com/src-d/hercules > hercules.pb
 hercules combine go-git.pb hercules.pb | labours -f pb -m burndown-project --resample M
 ```
@@ -495,3 +498,12 @@ fail with an OOM. You should try the following:
 3. Use the [hibernation](doc/HIBERNATION.md) feature: `--hibernation-distance 10 --burndown-hibernation-threshold=1000`. Play with those two numbers to start hibernating right before the OOM.
 4. Hibernate on disk: `--burndown-hibernation-disk --burndown-hibernation-dir /path`.
 5. `--first-parent`, you win.
+
+## Roadmap
+
+* [ ] Switch from `src-d/go-git` to `go-git/go-git`. Upgrade the codebase to be compatible with the latest Go version.
+* [ ] Update the docs regarding the copyrights and such.
+* [ ] Fix the reported bugs.
+* [ ] Remove the dependency on Babelfish for parsing the code. It is abandoned and a better alternative should be found.
+* [ ] Remove the ad-hoc analyses added while source{d} was agonizing.
+
