@@ -442,13 +442,37 @@ func TestPipelineCommitsFirstParent(t *testing.T) {
 }
 
 func TestPipelineHeadCommit(t *testing.T) {
-	pipeline := NewPipeline(test.Repository)
-	commits, err := pipeline.HeadCommit()
-	assert.NoError(t, err)
-	assert.Len(t, commits, 1)
-	assert.True(t, len(commits[0].ParentHashes) > 0)
-	head, _ := test.Repository.Head()
-	assert.Equal(t, head.Hash(), commits[0].Hash)
+	t.Run("default", func(t *testing.T) {
+		pipeline := NewPipeline(test.Repository)
+		commits, err := pipeline.HeadCommit()
+		assert.NoError(t, err)
+		assert.Len(t, commits, 1)
+		assert.True(t, len(commits[0].ParentHashes) > 0)
+		head, _ := test.Repository.Head()
+		assert.Equal(t, head.Hash(), commits[0].Hash)
+	})
+	t.Run("with branch specified", func(t *testing.T) {
+		testBranch := "test-branch"
+		repo, out := test.NewInMemRepository(&test.InMemRepositoryOptions{
+			CreateBranch: testBranch,
+		})
+		assert.False(t, out.CreatedBranchHash.IsZero())
+
+		pipeline := NewPipeline(repo)
+		t.Run("branch ok", func(t *testing.T) {
+			pipeline.Branch = testBranch
+			commits, err := pipeline.HeadCommit()
+			assert.NoError(t, err)
+			assert.Len(t, commits, 1)
+			assert.True(t, len(commits[0].ParentHashes) > 0)
+			assert.Equal(t, out.CreatedBranchHash, commits[0].Hash)
+		})
+		t.Run("branch does not exist", func(t *testing.T) {
+			pipeline.Branch = "not-a-branch"
+			_, err := pipeline.HeadCommit()
+			assert.Error(t, err)
+		})
+	})
 }
 
 func TestLoadCommitsFromFile(t *testing.T) {

@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
 	progress "gopkg.in/cheggaaa/pb.v1"
-	"gopkg.in/src-d/go-billy-siva.v4"
+	sivafs "gopkg.in/src-d/go-billy-siva.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	"gopkg.in/src-d/go-git.v4"
@@ -190,6 +190,7 @@ targets can be added using the --plugin system.`,
 		}
 		firstParent := getBool("first-parent")
 		commitsFile := getString("commits")
+		branch := getString("branch")
 		head := getBool("head")
 		protobuf := getBool("pb")
 		profile := getBool("profile")
@@ -219,6 +220,7 @@ targets can be added using the --plugin system.`,
 
 		// core logic
 		pipeline := hercules.NewPipeline(repository)
+		pipeline.Branch = branch
 		pipeline.SetFeaturesFromFlags()
 		var bar *progress.ProgressBar
 		if !disableStatus {
@@ -484,28 +486,33 @@ var cmdlineDeployed map[string]*bool
 func init() {
 	loadPlugins()
 	rootFlags := rootCmd.Flags()
+
+	// commits flags
 	rootFlags.String("commits", "", "Path to the text file with the "+
 		"commit history to follow instead of the default 'git log'. "+
 		"The format is the list of hashes, each hash on a "+
 		"separate line. The first hash is the root.")
-	err := rootCmd.MarkFlagFilename("commits")
-	if err != nil {
+	if err := rootCmd.MarkFlagFilename("commits"); err != nil {
 		panic(err)
 	}
 	hercules.PathifyFlagValue(rootFlags.Lookup("commits"))
+	rootFlags.String("branch", "", "Specify a branch to analyze.")
 	rootFlags.Bool("head", false, "Analyze only the latest commit.")
 	rootFlags.Bool("first-parent", false, "Follow only the first parent in the commit history - "+
 		"\"git log --first-parent\".")
+
+	// output flags
 	rootFlags.Bool("pb", false, "The output format will be Protocol Buffers instead of YAML.")
 	rootFlags.Bool("quiet", !terminal.IsTerminal(int(os.Stdin.Fd())),
 		"Do not print status updates to stderr.")
 	rootFlags.Bool("profile", false, "Collect the profile to hercules.pprof.")
 	rootFlags.String("ssh-identity", "", "Path to SSH identity file (e.g., ~/.ssh/id_rsa) to clone from an SSH remote.")
-	err = rootCmd.MarkFlagFilename("ssh-identity")
-	if err != nil {
+	if err := rootCmd.MarkFlagFilename("ssh-identity"); err != nil {
 		panic(err)
 	}
 	hercules.PathifyFlagValue(rootFlags.Lookup("ssh-identity"))
+
+	// register all flags
 	cmdlineFacts, cmdlineDeployed = hercules.Registry.AddFlags(rootFlags)
 	rootCmd.SetUsageFunc(formatUsage)
 	rootCmd.AddCommand(versionCmd)

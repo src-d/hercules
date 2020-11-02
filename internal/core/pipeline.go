@@ -272,6 +272,9 @@ type Pipeline struct {
 	// PrintActions indicates whether to print the taken actions during the execution.
 	PrintActions bool
 
+	// Branch used for pipeline.HeadCommit. Leave blank to use HEAD.
+	Branch string
+
 	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 
@@ -484,34 +487,59 @@ func (pipeline *Pipeline) Commits(firstParent bool) ([]*object.Commit, error) {
 // HeadCommit returns the latest commit in the repository (HEAD).
 func (pipeline *Pipeline) HeadCommit() ([]*object.Commit, error) {
 	repository := pipeline.repository
-	head, err := repository.Head()
-	if err == plumbing.ErrReferenceNotFound {
-		refs, errr := repository.References()
-		if errr != nil {
-			return nil, errors.Wrap(errr, "unable to list the references")
+
+	var head *plumbing.Reference
+	if pipeline.Branch != "" {
+		pipeline.l.Infof("querying for head of branch %s", pipeline.Branch)
+		branch := plumbing.NewBranchReferenceName(pipeline.Branch)
+		iter, err := repository.Branches()
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to list branches")
 		}
-		var refnames []string
-		refByName := map[string]*plumbing.Reference{}
-		err = refs.ForEach(func(ref *plumbing.Reference) error {
-			refname := ref.Name().String()
-			refnames = append(refnames, refname)
-			refByName[refname] = ref
-			if strings.HasPrefix(refname, "refs/heads/HEAD/") {
+		if err := iter.ForEach(func(ref *plumbing.Reference) error {
+			pipeline.l.Info(ref.Name())
+			if ref.Name() == branch {
 				head = ref
 				return storer.ErrStop
 			}
 			return nil
-		})
-		if head == nil {
-			sort.Strings(refnames)
-			headName := refnames[len(refnames)-1]
-			pipeline.l.Warnf("could not determine the HEAD, falling back to %s", headName)
-			head = refByName[headName]
+		}); err != nil {
+			return nil, errors.Wrap(err, "unable to find branch head")
+		}
+	} else {
+		var err error
+		head, err = repository.Head()
+		if err == plumbing.ErrReferenceNotFound {
+			refs, errr := repository.References()
+			if errr != nil {
+				return nil, errors.Wrap(errr, "unable to list the references")
+			}
+			var refnames []string
+			refByName := map[string]*plumbing.Reference{}
+			err = refs.ForEach(func(ref *plumbing.Reference) error {
+				refname := ref.Name().String()
+				refnames = append(refnames, refname)
+				refByName[refname] = ref
+				if strings.HasPrefix(refname, "refs/heads/HEAD/") {
+					head = ref
+					return storer.ErrStop
+				}
+				return nil
+			})
+			if head == nil {
+				sort.Strings(refnames)
+				headName := refnames[len(refnames)-1]
+				pipeline.l.Warnf("could not determine the HEAD, falling back to %s", headName)
+				head = refByName[headName]
+			}
+		} else if err != nil {
+			return nil, errors.Wrap(err, "unable to find the head reference")
 		}
 	}
 	if head == nil {
-		return nil, errors.Wrap(err, "unable to find the head reference")
+		return nil, errors.New("unable to find the head reference")
 	}
+
 	commit, err := repository.CommitObject(head.Hash())
 	if err != nil {
 		return nil, err
