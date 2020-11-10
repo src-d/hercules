@@ -226,7 +226,14 @@ and add the unknown email to the list of that developer's emails.
 
 If `--people-dict` is specified, it should point to a text file with the custom identities. The
 format is: every line is a single developer, it contains all the matching emails and names separated
-by `|`. The case is ignored.
+by `|`. The case is ignored. Example file contents:
+```
+Linus Torvalds|torvalds@linux-foundation.org
+Vadim Markovtsev|vadim@sourced.tech|another@one.com
+```
+
+If `--people-dict` is not specified a [`.mailmap`](https://git-scm.com/docs/git-check-mailmap) file
+will be used if it exists in the latest commit.
 
 #### Overwrites matrix
 
