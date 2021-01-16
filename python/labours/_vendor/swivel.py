@@ -62,7 +62,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.client import device_lib
 
-flags = tf.app.flags
+flags = tf.compat.v1.app.flags
 
 flags.DEFINE_string("input_base_path", None,
                     "Directory containing input shards, vocabularies, "
@@ -103,7 +103,7 @@ FLAGS = flags.FLAGS
 
 
 def log(message, *args, **kwargs):
-    tf.logging.info(message, *args, **kwargs)
+    tf.compat.v1.logging.info(message, *args, **kwargs)
 
 
 def get_available_gpus():
@@ -113,7 +113,7 @@ def get_available_gpus():
 
 def embeddings_with_init(vocab_size, embedding_dim, name):
     """Creates and initializes the embedding tensors."""
-    return tf.get_variable(name=name,
+    return tf.compat.v1.get_variable(name=name,
                            shape=[vocab_size, embedding_dim],
                            initializer=tf.random_normal_initializer(
                                stddev=math.sqrt(1.0 / embedding_dim)))
@@ -121,17 +121,17 @@ def embeddings_with_init(vocab_size, embedding_dim, name):
 
 def count_matrix_input(filenames, submatrix_rows, submatrix_cols):
     """Reads submatrix shards from disk."""
-    filename_queue = tf.train.string_input_producer(filenames)
-    reader = tf.WholeFileReader()
+    filename_queue = tf.compat.v1.train.string_input_producer(filenames)
+    reader = tf.compat.v1.WholeFileReader()
     _, serialized_example = reader.read(filename_queue)
-    features = tf.parse_single_example(
+    features = tf.compat.v1.parse_single_example(
         serialized_example,
         features={
-            "global_row": tf.FixedLenFeature([submatrix_rows], dtype=tf.int64),
-            "global_col": tf.FixedLenFeature([submatrix_cols], dtype=tf.int64),
-            "sparse_local_row": tf.VarLenFeature(dtype=tf.int64),
-            "sparse_local_col": tf.VarLenFeature(dtype=tf.int64),
-            "sparse_value": tf.VarLenFeature(dtype=tf.float32)
+            "global_row": tf.compat.v1.FixedLenFeature([submatrix_rows], dtype=tf.int64),
+            "global_col": tf.compat.v1.FixedLenFeature([submatrix_cols], dtype=tf.int64),
+            "sparse_local_row": tf.compat.v1.VarLenFeature(dtype=tf.int64),
+            "sparse_local_col": tf.compat.v1.VarLenFeature(dtype=tf.int64),
+            "sparse_value": tf.compat.v1.VarLenFeature(dtype=tf.float32)
         })
 
     global_row = features["global_row"]
@@ -141,12 +141,12 @@ def count_matrix_input(filenames, submatrix_rows, submatrix_cols):
     sparse_local_col = features["sparse_local_col"].values
     sparse_count = features["sparse_value"].values
 
-    sparse_indices = tf.concat(axis=1, values=[tf.expand_dims(sparse_local_row, 1),
+    sparse_indices = tf.compat.v1.concat(axis=1, values=[tf.expand_dims(sparse_local_row, 1),
                                                tf.expand_dims(sparse_local_col, 1)])
-    count = tf.sparse_to_dense(sparse_indices, [submatrix_rows, submatrix_cols],
+    count = tf.compat.v1.sparse_to_dense(sparse_indices, [submatrix_rows, submatrix_cols],
                                sparse_count, validate_indices=False)
 
-    queued_global_row, queued_global_col, queued_count = tf.train.batch(
+    queued_global_row, queued_global_col, queued_count = tf.compat.v1.train.batch(
         [global_row, global_col, count],
         batch_size=1,
         num_threads=FLAGS.num_readers,
@@ -265,7 +265,7 @@ class SwivelModel:
             self.global_step = tf.Variable(0, name="global_step")
             learning_rate = tf.Variable(config.learning_rate,
                                         name="learning_rate")
-            opt = getattr(tf.train, FLAGS.optimizer + "Optimizer")(
+            opt = getattr(tf.compat.v1.train, FLAGS.optimizer + "Optimizer")(
                 learning_rate)
             tf.summary.scalar("learning_rate", learning_rate)
 
@@ -300,10 +300,10 @@ class SwivelModel:
                         transpose_b=True)
 
                     # These binary masks separate zero from non-zero values.
-                    count_is_nonzero = tf.to_float(tf.cast(count, tf.bool))
+                    count_is_nonzero = tf.compat.v1.to_float(tf.cast(count, tf.bool))
                     count_is_zero = 1 - count_is_nonzero
 
-                    objectives = count_is_nonzero * tf.log(count + 1e-30)
+                    objectives = count_is_nonzero * tf.compat.v1.log(count + 1e-30)
                     objectives -= tf.reshape(
                         selected_row_bias, [config.submatrix_rows, 1])
                     objectives -= selected_col_bias
@@ -330,13 +330,13 @@ class SwivelModel:
 
         with tf.device("/cpu:0"):
             # ===== MERGE LOSSES =====
-            l2_loss = tf.reduce_mean(tf.concat(axis=0, values=l2_losses), 0,
+            l2_loss = tf.reduce_mean(tf.compat.v1.concat(axis=0, values=l2_losses), 0,
                                      name="l2_loss")
             sigmoid_loss = tf.reduce_mean(
-                tf.concat(axis=0, values=sigmoid_losses), 0,
+                tf.compat.v1.concat(axis=0, values=sigmoid_losses), 0,
                 name="sigmoid_loss")
             overall_loss = l2_loss + sigmoid_loss
-            average = tf.train.ExponentialMovingAverage(0.999)
+            average = tf.compat.v1.train.ExponentialMovingAverage(0.999)
             loss_average_op = average.apply(
                 (overall_loss, l2_loss, sigmoid_loss))
             self.loss = average.average(overall_loss)
@@ -351,12 +351,12 @@ class SwivelModel:
                     grads, global_step=self.global_step))
 
             self.train_op = tf.group(loss_average_op, *apply_gradient_ops)
-            self.saver = tf.train.Saver(sharded=True)
+            self.saver = tf.compat.v1.train.Saver(sharded=True)
 
     def initialize_summary(self, sess):
         log("creating TensorBoard stuff...")
-        self.summary = tf.summary.merge_all()
-        self.writer = tf.summary.FileWriter(FLAGS.logs, sess.graph)
+        self.summary = tf.compat.v1.summary.merge_all()
+        self.writer = tf.compat.v1.summary.FileWriter(FLAGS.logs, sess.graph)
         projector_config = \
             tf.contrib.tensorboard.plugins.projector.ProjectorConfig()
         embedding_config = projector_config.embeddings.add()
@@ -367,9 +367,9 @@ class SwivelModel:
         embedding_config.tensor_name = self.embedding10k.name
         embedding_config.metadata_path = os.path.join(
             self._config.input_base_path, "row_vocab.txt")
-        tf.contrib.tensorboard.plugins.projector.visualize_embeddings(
+        tf.compat.v1.contrib.tensorboard.plugins.projector.visualize_embeddings(
             self.writer, projector_config)
-        self.saver = tf.train.Saver((self.embedding10k,), max_to_keep=1)
+        self.saver = tf.compat.v1.train.Saver((self.embedding10k,), max_to_keep=1)
 
     def write_summary(self, sess):
         log("writing the summary...")
@@ -385,7 +385,7 @@ class SwivelModel:
 
 
 def main(_):
-    tf.logging.set_verbosity(tf.logging.INFO)
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
     start_time = time.time()
 
     # Create the output path.  If this fails, it really ought to fail now. :)
@@ -393,7 +393,7 @@ def main(_):
         os.makedirs(FLAGS.output_base_path)
 
     # Create and run model
-    with tf.Graph().as_default():
+    with tf.compat.v1.Graph().as_default():
         log("creating the model...")
         model = SwivelModel(FLAGS)
 
@@ -404,19 +404,19 @@ def main(_):
                 FLAGS.per_process_gpu_memory_fraction
         else:
             gpu_opts["allow_growth"] = True
-        gpu_options = tf.GPUOptions(**gpu_opts)
-        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        gpu_options = tf.compat.v1.GPUOptions(**gpu_opts)
+        sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
         if FLAGS.logs:
             model.initialize_summary(sess)
 
         # Run the Op to initialize the variables.
         log("initializing the variables...")
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.compat.v1.compat.v1.global_variables_initializer())
 
         # Start feeding input
         log("starting the input threads...")
         coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        threads = tf.compat.v1.train.start_queue_runners(sess=sess, coord=coord)
 
         # Calculate how many steps each thread should run
         n_total_steps = int(FLAGS.num_epochs * model.n_rows * model.n_cols) / (
@@ -481,4 +481,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    tf.app.run()
+    tf.compat.v1.app.run()
