@@ -455,10 +455,10 @@ echo "backend: TkAgg" > ~/.matplotlib/matplotlibrc
 These options are effective in burndown charts only:
 
 ```
-labours [--text-size] [--relative]
+labours [--font-size] [--relative]
 ```
 
-`--text-size` changes the font size, `--relative` activate the stretched burndown layout.
+`--font-size` changes the font size, `--relative` activate the stretched burndown layout.
 
 ### Custom plotting backend
 
