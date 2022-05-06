@@ -21,7 +21,8 @@ def show_devs(
     days: Dict[int, Dict[int, DevDay]],
     max_people: int = 50,
 ) -> None:
-    from scipy.signal import convolve, slepian
+    from scipy.signal import convolve
+    from scipy.signal.windows import slepian
 
     if len(people) > max_people:
         print("Picking top %s developers by commit count" % max_people)
@@ -247,7 +248,8 @@ def show_devs_efforts(
     days: Dict[int, Dict[int, DevDay]],
     max_people: int,
 ) -> None:
-    from scipy.signal import convolve, slepian
+    from scipy.signal import convolve
+    from scipy.signal.windows import slepian
 
     start_date = datetime.fromtimestamp(start_date)
     start_date = datetime(start_date.year, start_date.month, start_date.day)

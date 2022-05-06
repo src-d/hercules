@@ -17,7 +17,8 @@ def show_old_vs_new(
     people: List[str],
     days: Dict[int, Dict[int, DevDay]],
 ) -> None:
-    from scipy.signal import convolve, slepian
+    from scipy.signal import convolve
+    from scipy.signal.windows import slepian
 
     start_date = datetime.fromtimestamp(start_date)
     start_date = datetime(start_date.year, start_date.month, start_date.day)
