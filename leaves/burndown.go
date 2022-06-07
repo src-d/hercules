@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -365,6 +366,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	if analyser.fileAllocator.Size() == 0 && len(analyser.files) > 0 {
 		panic("BurndownAnalysis.Consume() was called on a hibernated instance")
 	}
+
 	author := deps[identity.DependencyAuthor].(int)
 	tick := deps[items.DependencyTick].(int)
 	if !deps[core.DependencyIsMerge].(bool) {
@@ -1173,7 +1175,19 @@ func (analyser *BurndownAnalysis) packPersonWithTick(person int, tick int) int {
 		return tick
 	}
 	result := tick & burndown.TreeMergeMark
+
+	if tick > burndown.TreeMergeMark {
+		log.Fatalf("tick > burndown.TreeMergeMark %d %d\n%s", tick, burndown.TreeMergeMark, string(debug.Stack()))
+		panic("tick >= burndown.TreeMergeMark")
+	}
+
 	result |= person << burndown.TreeMaxBinPower
+
+	if (person >= analyser.PeopleNumber) && (person != identity.AuthorMissing) {
+		log.Fatalf("person >= analyser.PeopleNumber %d %d\n%s", person, analyser.PeopleNumber, string(debug.Stack()))
+		panic("person >= analyser.PeopleNumber")
+	}
+
 	// This effectively means max (16383 - 1) ticks (>44 years) and (262143 - 3) devs.
 	// One tick less because burndown.TreeMergeMark = ((1 << 14) - 1) is a special tick.
 	// Three devs less because:
@@ -1230,6 +1244,7 @@ func (analyser *BurndownAnalysis) updateAuthor(currentTime, previousTime, delta 
 		return
 	}
 	_, curTick := analyser.unpackPersonWithTick(currentTime)
+
 	history := analyser.peopleHistories[previousAuthor]
 	if history == nil {
 		history = sparseHistory{}

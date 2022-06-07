@@ -303,11 +303,13 @@ def show_devs_efforts(
     polys = pyplot.stackplot(plot_x, -efforts * efforts_cum.max() / efforts.max())
     if len(polys) == max_people + 1:
         polys[-1].set_hatch("/")
+
     yticks = []
-    for tick in pyplot.gca().yaxis.iter_ticks():
-        if tick[1] >= 0:
-            yticks.append(tick[1])
-    pyplot.gca().yaxis.set_ticks(yticks)
+    for tick in pyplot.gca().get_yticks():
+        if tick >= 0:
+            yticks.append(tick)
+    pyplot.gca().set_yticks(yticks)
+
     legend = pyplot.legend(loc=2, ncol=2, fontsize=args.font_size)
     apply_plot_style(
         pyplot.gcf(),

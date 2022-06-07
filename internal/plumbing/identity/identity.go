@@ -192,8 +192,8 @@ func (detector *Detector) LoadPeopleDict(path string) error {
 		// lookup or create a new canonical value
 		if canonIndex, exists = dict[strings.ToLower(canon)]; !exists {
 			reverseDict = append(reverseDict, canon)
-			size++
 			canonIndex = size
+			size++
 		}
 		for _, id := range ids {
 			dict[strings.ToLower(id)] = canonIndex
