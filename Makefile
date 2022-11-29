@@ -18,7 +18,7 @@ ${GOBIN}/protoc-gen-gogo${EXE}:
 
 ifneq ($(OS),Windows_NT)
 internal/pb/pb.pb.go: internal/pb/pb.proto ${GOBIN}/protoc-gen-gogo
-	PATH=${PATH}:${GOBIN} protoc --gogo_out=internal/pb --proto_path=internal/pb internal/pb/pb.proto
+	PATH="${PATH}:${GOBIN}" protoc --gogo_out=internal/pb --proto_path=internal/pb internal/pb/pb.proto
 else
 internal/pb/pb.pb.go: internal/pb/pb.proto ${GOBIN}/protoc-gen-gogo.exe
 	export PATH="${PATH};${GOBIN}" && \
