@@ -177,7 +177,7 @@ func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	id := fixtureIdentityDetector()
 	err := id.LoadPeopleDict(path.Join("..", "..", "test_data", "identities"))
 	assert.Nil(t, err)
-	assert.Equal(t, len(id.PeopleDict), 7)
+	assert.Equal(t, len(id.PeopleDict), 10)
 	assert.Contains(t, id.PeopleDict, "linus torvalds")
 	assert.Contains(t, id.PeopleDict, "torvalds@linux-foundation.org")
 	assert.Contains(t, id.PeopleDict, "vadim markovtsev")
@@ -185,11 +185,24 @@ func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	assert.Contains(t, id.PeopleDict, "another@one.com")
 	assert.Contains(t, id.PeopleDict, "máximo cuadros")
 	assert.Contains(t, id.PeopleDict, "maximo@sourced.tech")
-	assert.Equal(t, len(id.ReversedPeopleDict), 4)
+	assert.Contains(t, id.PeopleDict, "duplicate")
+	assert.Contains(t, id.PeopleDict, "first@example.com")
+	assert.Contains(t, id.PeopleDict, "second@example.com")
+
+	assert.Equal(t, len(id.ReversedPeopleDict), 5)
 	assert.Equal(t, id.ReversedPeopleDict[0], "Linus Torvalds")
 	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim Markovtsev")
 	assert.Equal(t, id.ReversedPeopleDict[2], "Máximo Cuadros")
-	assert.Equal(t, id.ReversedPeopleDict[3], AuthorMissingName)
+	assert.Equal(t, id.ReversedPeopleDict[3], "Duplicate")
+	assert.Equal(t, id.ReversedPeopleDict[4], AuthorMissingName)
+
+	assert.Equal(t, id.PeopleDict["duplicate"], id.PeopleDict["first@example.com"])
+	assert.Equal(t, id.PeopleDict["duplicate"], id.PeopleDict["second@example.com"])
+
+	assert.Equal(t, id.PeopleDict["vadim markovtsev"], id.PeopleDict["vadim@sourced.tech"])
+	assert.Equal(t, id.PeopleDict["vadim markovtsev"], id.PeopleDict["another@one.com"])
+
+	assert.NotEqual(t, id.PeopleDict["duplicate"], id.PeopleDict["vadim markovtsev"])
 }
 
 func TestIdentityDetectorLoadPeopleDictWrongPath(t *testing.T) {
