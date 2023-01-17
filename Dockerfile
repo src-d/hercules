@@ -1,9 +1,10 @@
 FROM golang:1.18 AS builder
-ENV PROTOBUF_VERSION 3.5.1
+ENV PROTOBUF_VERSION 21.12
+ENV ARCH linux-x86_64
 COPY . /root/src
 RUN apt-get update && \
     apt-get install -y unzip make && \
-    curl -SLo protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOBUF_VERSION/protoc-$PROTOBUF_VERSION-linux-aarch_64.zip && \
+    curl -SLo protoc.zip https://github.com/google/protobuf/releases/download/v$PROTOBUF_VERSION/protoc-$PROTOBUF_VERSION-$ARCH.zip && \
     unzip -d /usr/local protoc.zip && \
     rm protoc.zip && \
     cd /root/src && \

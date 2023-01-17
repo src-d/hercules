@@ -6,7 +6,7 @@ require (
 	github.com/Jeffail/tunny v0.0.0-20180304204616-59cfa8fcb19f
 	github.com/Masterminds/sprig v0.0.0-20180725212158-77bb58b7f5e1
 	github.com/fatih/camelcase v1.0.0
-	github.com/gogo/protobuf v1.3.0
+	github.com/gogo/protobuf v1.3.2
 	github.com/minio/highwayhash v0.0.0-20180501080913-85fc8a2dacad
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/pkg/errors v0.8.0
@@ -16,7 +16,7 @@ require (
 	github.com/src-d/enry/v2 v2.1.0
 	github.com/src-d/imports v0.0.0-20191128152346-bf22b73550b0
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/crypto v0.0.0-20180904163835-0709b304e793
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	gopkg.in/bblfsh/client-go.v3 v3.2.0
 	gopkg.in/bblfsh/sdk.v2 v2.14.1
 	gopkg.in/cheggaaa/pb.v1 v1.0.20
@@ -55,9 +55,9 @@ require (
 	github.com/tensorflow/tensorflow v0.0.0-20180308082300-f73d7c90ed05 // indirect
 	github.com/toqueteos/trie v1.0.0 // indirect
 	github.com/xanzy/ssh-agent v0.2.0 // indirect
-	golang.org/x/net v0.0.0-20180906233101-161cd47e91fd // indirect
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
 	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
-	golang.org/x/text v0.3.0 // indirect
+	golang.org/x/text v0.3.3 // indirect
 	google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8 // indirect
 	google.golang.org/grpc v1.16.0 // indirect
 	gopkg.in/bblfsh/sdk.v1 v1.17.0 // indirect
