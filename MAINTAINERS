@@ -1,1 +1,0 @@
-Vadim Markovtsev <vadim@sourced.tech> (@vmarkovtsev)
