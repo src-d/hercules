@@ -21,7 +21,8 @@ def show_devs(
     days: Dict[int, Dict[int, DevDay]],
     max_people: int = 50,
 ) -> None:
-    from scipy.signal import convolve, slepian
+    from scipy.signal import convolve
+    from scipy.signal.windows import slepian
 
     if len(people) > max_people:
         print("Picking top %s developers by commit count" % max_people)
@@ -247,7 +248,8 @@ def show_devs_efforts(
     days: Dict[int, Dict[int, DevDay]],
     max_people: int,
 ) -> None:
-    from scipy.signal import convolve, slepian
+    from scipy.signal import convolve
+    from scipy.signal.windows import slepian
 
     start_date = datetime.fromtimestamp(start_date)
     start_date = datetime(start_date.year, start_date.month, start_date.day)
@@ -301,11 +303,13 @@ def show_devs_efforts(
     polys = pyplot.stackplot(plot_x, -efforts * efforts_cum.max() / efforts.max())
     if len(polys) == max_people + 1:
         polys[-1].set_hatch("/")
+
     yticks = []
-    for tick in pyplot.gca().yaxis.iter_ticks():
-        if tick[1] >= 0:
-            yticks.append(tick[1])
-    pyplot.gca().yaxis.set_ticks(yticks)
+    for tick in pyplot.gca().get_yticks():
+        if tick >= 0:
+            yticks.append(tick)
+    pyplot.gca().set_yticks(yticks)
+
     legend = pyplot.legend(loc=2, ncol=2, fontsize=args.font_size)
     apply_plot_style(
         pyplot.gcf(),

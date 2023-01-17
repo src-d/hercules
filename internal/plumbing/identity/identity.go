@@ -186,11 +186,18 @@ func (detector *Detector) LoadPeopleDict(path string) error {
 	size := 0
 	for scanner.Scan() {
 		ids := strings.Split(scanner.Text(), "|")
-		for _, id := range ids {
-			dict[strings.ToLower(id)] = size
+		canon := ids[0]
+		var exists bool
+		var canonIndex int
+		// lookup or create a new canonical value
+		if canonIndex, exists = dict[strings.ToLower(canon)]; !exists {
+			reverseDict = append(reverseDict, canon)
+			canonIndex = size
+			size++
 		}
-		reverseDict = append(reverseDict, ids[0])
-		size++
+		for _, id := range ids {
+			dict[strings.ToLower(id)] = canonIndex
+		}
 	}
 	reverseDict = append(reverseDict, AuthorMissingName)
 	detector.PeopleDict = dict
