@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
-	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -37,6 +37,18 @@ var combineCmd = &cobra.Command{
 			}
 			return
 		}
+
+		profile, err := cmd.Flags().GetBool("profile")
+
+		if profile {
+			go func() {
+				err := http.ListenAndServe("localhost:6060", nil)
+				if err != nil {
+					panic(err)
+				}
+			}()
+		}
+
 		only, err := cmd.Flags().GetString("only")
 		if err != nil {
 			panic(err)
@@ -54,7 +66,7 @@ var combineCmd = &cobra.Command{
 		bar.ShowPercent = false
 		bar.ShowSpeed = false
 		bar.SetMaxWidth(80).Start()
-		debug.SetGCPercent(20)
+		//		debug.SetGCPercent(20)
 		for _, fileName = range files {
 			bar.Increment()
 			anotherResults, anotherMetadata, errs := loadMessage(fileName, &repos)
@@ -65,7 +77,7 @@ var combineCmd = &cobra.Command{
 				}
 			}
 			allErrors[fileName] = errs
-			debug.FreeOSMemory()
+			//debug.FreeOSMemory()
 		}
 		bar.Finish()
 		os.Stderr.WriteString("\033[2K\r")
@@ -216,4 +228,6 @@ func init() {
 	combineCmd.SetUsageFunc(combineCmd.UsageFunc())
 	combineCmd.Flags().String("only", "", "Consider only the specified analysis. "+
 		"Empty means all available. Choices: "+getOptionsString()+".")
+	combineCmd.Flags().Bool("profile", false, "Collect the profile to hercules.pprof.")
+
 }

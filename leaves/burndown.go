@@ -8,6 +8,8 @@ import (
 	"log"
 	"math"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -364,6 +366,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	if analyser.fileAllocator.Size() == 0 && len(analyser.files) > 0 {
 		panic("BurndownAnalysis.Consume() was called on a hibernated instance")
 	}
+
 	author := deps[identity.DependencyAuthor].(int)
 	tick := deps[items.DependencyTick].(int)
 	if !deps[core.DependencyIsMerge].(bool) {
@@ -675,10 +678,13 @@ func (analyser *BurndownAnalysis) MergeResults(
 	people, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
 		bar1.reversedPeopleDict, bar2.reversedPeopleDict)
 	var wg sync.WaitGroup
+	var sem = make(chan int, 5) // with large files not limiting number of GoRoutines eats 200G of RAM on large merges
 	if len(bar1.GlobalHistory) > 0 || len(bar2.GlobalHistory) > 0 {
 		wg.Add(1)
+		sem <- 1
 		go func() {
 			defer wg.Done()
+			defer func() { <-sem }()
 			merged.GlobalHistory = analyser.mergeMatrices(
 				bar1.GlobalHistory, bar2.GlobalHistory,
 				bar1.granularity, bar1.sampling,
@@ -694,8 +700,10 @@ func (analyser *BurndownAnalysis) MergeResults(
 			for i, key := range merged.reversedPeopleDict {
 				ptrs := people[key]
 				wg.Add(1)
+				sem <- 1
 				go func(i int) {
 					defer wg.Done()
+					defer func() { <-sem }()
 					var m1, m2 DenseHistory
 					if ptrs.First >= 0 {
 						m1 = bar1.PeopleHistories[ptrs.First]
@@ -714,8 +722,10 @@ func (analyser *BurndownAnalysis) MergeResults(
 			}
 		}
 		wg.Add(1)
+		sem <- 1
 		go func() {
 			defer wg.Done()
+			defer func() { <-sem }()
 			if len(bar2.PeopleMatrix) == 0 {
 				merged.PeopleMatrix = bar1.PeopleMatrix
 				// extend the matrix in both directions
@@ -774,6 +784,10 @@ func roundTime(t time.Time, d time.Duration, dir bool) int {
 func (analyser *BurndownAnalysis) mergeMatrices(
 	m1, m2 DenseHistory, granularity1, sampling1, granularity2, sampling2 int, tickSize time.Duration,
 	c1, c2 *core.CommonAnalysisResult) DenseHistory {
+
+	//	defer print("mergeMatrices exit\n\n\n")
+	//	print("mergeMatrices enter\n\n\n")
+
 	commonMerged := c1.Copy()
 	commonMerged.Merge(c2)
 
@@ -791,10 +805,17 @@ func (analyser *BurndownAnalysis) mergeMatrices(
 
 	size := roundTime(commonMerged.EndTimeAsTime(), tickSize, true) -
 		roundTime(commonMerged.BeginTimeAsTime(), tickSize, false)
+
 	perTick := make([][]float32, size+granularity)
 	for i := range perTick {
 		perTick[i] = make([]float32, size+sampling)
 	}
+
+	//	var m runtime.MemStats
+	//	runtime.ReadMemStats(&m)
+
+	//	print("mergeMatrices Allocating: ", size+granularity, " x ", size+sampling, " = ", (size+granularity)*(size+sampling)*4/1024/1024, ", total ", m.Alloc/1024/1024, "\n")
+
 	if len(m1) > 0 {
 		addBurndownMatrix(m1, granularity1, sampling1, perTick,
 			roundTime(c1.BeginTimeAsTime(), tickSize, false)-roundTime(commonMerged.BeginTimeAsTime(), tickSize, false))
@@ -817,6 +838,21 @@ func (analyser *BurndownAnalysis) mergeMatrices(
 			result[i][j] = int64(accum)
 		}
 	}
+
+	//	runtime.ReadMemStats(&m)
+
+	for i := range perTick {
+		perTick[i] = nil
+	}
+	perTick = nil
+
+	runtime.GC()
+
+	//	var a runtime.MemStats
+	//	runtime.ReadMemStats(&a)
+
+	//	print("mergeMatrices Deallocated: ", (m.Alloc-a.Alloc)/1024/1024, "\n")
+
 	return result
 }
 
@@ -827,6 +863,10 @@ func (analyser *BurndownAnalysis) mergeMatrices(
 // Columns: *at least* len(matrix[...]) * granularity + offset
 // `matrix` can be sparse, so that the last columns which are equal to 0 are truncated.
 func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accPerTick [][]float32, offset int) {
+
+	//	defer print("addBurndownMatrix exit\n")
+	//	print("addBurndownMatrix enter\n")
+
 	// Determine the maximum number of bands; the actual one may be larger but we do not care
 	maxCols := 0
 	for _, row := range matrix {
@@ -843,10 +883,17 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accPerTic
 		log.Panicf("merge bug: too few per-tick cols: required %d, have %d",
 			maxCols, len(accPerTick[0]))
 	}
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
 	perTick := make([][]float32, len(accPerTick))
 	for i, row := range accPerTick {
 		perTick[i] = make([]float32, len(row))
 	}
+
+	//	print("addBurndownMatrix Allocating: ", len(accPerTick), " x ", len(perTick[0]), " = ", len(accPerTick)*len(perTick[0])*4/1024/1024, ", total ", m.Alloc/1024/1024, "\n")
+
 	for x := 0; x < maxCols; x++ {
 		for y := 0; y < len(matrix); y++ {
 			if x*granularity > (y+1)*sampling {
@@ -993,6 +1040,18 @@ func addBurndownMatrix(matrix DenseHistory, granularity, sampling int, accPerTic
 			accPerTick[y][x] += val
 		}
 	}
+
+	runtime.ReadMemStats(&m)
+	for i := range perTick {
+		perTick[i] = nil
+	}
+	perTick = nil
+	runtime.GC()
+	var a runtime.MemStats
+	runtime.ReadMemStats(&a)
+
+	//	print("addBurndownMatrix Deallocated: ", (m.Alloc-a.Alloc)/1024/1024, "\n")
+
 }
 
 func (analyser *BurndownAnalysis) serializeText(result *BurndownResult, writer io.Writer) {
@@ -1116,7 +1175,19 @@ func (analyser *BurndownAnalysis) packPersonWithTick(person int, tick int) int {
 		return tick
 	}
 	result := tick & burndown.TreeMergeMark
+
+	if tick > burndown.TreeMergeMark {
+		log.Fatalf("tick > burndown.TreeMergeMark %d %d\n%s", tick, burndown.TreeMergeMark, string(debug.Stack()))
+		panic("tick >= burndown.TreeMergeMark")
+	}
+
 	result |= person << burndown.TreeMaxBinPower
+
+	if (person >= analyser.PeopleNumber) && (person != identity.AuthorMissing) {
+		log.Fatalf("person >= analyser.PeopleNumber %d %d\n%s", person, analyser.PeopleNumber, string(debug.Stack()))
+		panic("person >= analyser.PeopleNumber")
+	}
+
 	// This effectively means max (16383 - 1) ticks (>44 years) and (262143 - 3) devs.
 	// One tick less because burndown.TreeMergeMark = ((1 << 14) - 1) is a special tick.
 	// Three devs less because:
@@ -1173,6 +1244,7 @@ func (analyser *BurndownAnalysis) updateAuthor(currentTime, previousTime, delta 
 		return
 	}
 	_, curTick := analyser.unpackPersonWithTick(currentTime)
+
 	history := analyser.peopleHistories[previousAuthor]
 	if history == nil {
 		history = sparseHistory{}
