@@ -18,7 +18,7 @@ def show_old_vs_new(
     days: Dict[int, Dict[int, DevDay]],
 ) -> None:
     from scipy.signal import convolve
-    from scipy.signal.windows import slepian
+    from old_slepian import old_slepian
 
     start_date = datetime.fromtimestamp(start_date)
     start_date = datetime(start_date.year, start_date.month, start_date.day)
@@ -31,7 +31,7 @@ def show_old_vs_new(
             new_lines[day] += stats.Added
             old_lines[day] += stats.Removed + stats.Changed
     resolution = 32
-    window = slepian(max(len(new_lines) // resolution, 1), 0.5)
+    window = old_slepian(max(len(new_lines) // resolution, 1), 0.5)
     new_lines = convolve(new_lines, window, "same")
     old_lines = convolve(old_lines, window, "same")
     matplotlib, pyplot = import_pyplot(args.backend, args.style)

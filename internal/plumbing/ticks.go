@@ -24,7 +24,7 @@ type TicksSinceStart struct {
 }
 
 const (
-	// DependencyTick is the name of the dependency which DaysSinceStart provides - the number
+	// DependencyTick is the name of the dependency which TicksSinceStart provides - the number
 	// of ticks since the first commit in the analysed sequence.
 	DependencyTick = "tick"
 

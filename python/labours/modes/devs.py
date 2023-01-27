@@ -22,7 +22,7 @@ def show_devs(
     max_people: int = 50,
 ) -> None:
     from scipy.signal import convolve
-    from scipy.signal.windows import slepian
+    from old_slepian import old_slepian
 
     if len(people) > max_people:
         print("Picking top %s developers by commit count" % max_people)
@@ -50,7 +50,7 @@ def show_devs(
     size = (end_date - start_date).days + 1
     plot_x = [start_date + timedelta(days=i) for i in range(size)]
     resolution = 64
-    window = slepian(size // resolution, 0.5)
+    window = old_slepian(size // resolution, 0.5)
     final = numpy.zeros((len(devseries), size), dtype=numpy.float32)
     for i, s in enumerate(devseries.values()):
         arr = numpy.array(s).transpose()
@@ -249,7 +249,7 @@ def show_devs_efforts(
     max_people: int,
 ) -> None:
     from scipy.signal import convolve
-    from scipy.signal.windows import slepian
+    from old_slepian import old_slepian
 
     start_date = datetime.fromtimestamp(start_date)
     start_date = datetime(start_date.year, start_date.month, start_date.day)
@@ -282,7 +282,7 @@ def show_devs_efforts(
                 dev = chosen_order.get(dev, len(chosen_order))
                 efforts[dev][day] += stats.Added + stats.Removed + stats.Changed
     efforts_cum = numpy.cumsum(efforts, axis=1)
-    window = slepian(10, 0.5)
+    window = old_slepian(10, 0.5)
     window /= window.sum()
     for e in (efforts, efforts_cum):
         for i in range(e.shape[0]):
