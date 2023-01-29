@@ -3,13 +3,13 @@ package plumbing
 import (
 	"path"
 
+	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/src-d/enry/v2"
-	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v10/internal/core"
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 // LanguagesDetection run programming language detection over the changed files.

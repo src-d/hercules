@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v10/internal/core"
 )
 
 // Detector determines the author of a commit. Same person can commit under different

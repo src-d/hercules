@@ -5,15 +5,15 @@ import (
 	"io"
 	"sort"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/pb"
+	items "github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/cyraxred/hercules/internal/plumbing/identity"
+	"github.com/cyraxred/hercules/internal/yaml"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/gogo/protobuf/proto"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/pb"
-	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v10/internal/yaml"
 )
 
 // CouplesAnalysis calculates the number of common commits for files and authors.

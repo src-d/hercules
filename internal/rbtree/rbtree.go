@@ -6,8 +6,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/go-git/go-git/v5/utils/binary"
 	"github.com/gogo/protobuf/sortkeys"
-	"gopkg.in/src-d/go-git.v4/utils/binary"
 )
 
 //

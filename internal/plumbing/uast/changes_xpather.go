@@ -6,10 +6,10 @@ import (
 	"log"
 	"sort"
 
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/minio/highwayhash"
 	"gopkg.in/bblfsh/client-go.v3/tools"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 // ChangesXPather extracts changed UAST nodes from files changed in the current commit.

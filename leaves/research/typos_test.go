@@ -1,3 +1,4 @@
+//go:build !disable_babelfish
 // +build !disable_babelfish
 
 package research
@@ -6,18 +7,18 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/pb"
+	items "github.com/cyraxred/hercules/internal/plumbing"
+	uast_items "github.com/cyraxred/hercules/internal/plumbing/uast"
+	"github.com/cyraxred/hercules/internal/test"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/bblfsh/client-go.v3/tools"
 	"gopkg.in/bblfsh/sdk.v2/uast"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/pb"
-	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v10/internal/test"
 )
 
 func TestTyposDatasetMeta(t *testing.T) {

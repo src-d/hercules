@@ -3,10 +3,10 @@ package core
 import (
 	"testing"
 
+	"github.com/cyraxred/hercules/internal/test"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/test"
 )
 
 type testForkPipelineItem struct {

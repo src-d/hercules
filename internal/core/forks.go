@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"sort"
 
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v10/internal/toposort"
+	"github.com/cyraxred/hercules/internal/toposort"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 // OneShotMergeProcessor provides the convenience method to consume merges only once.

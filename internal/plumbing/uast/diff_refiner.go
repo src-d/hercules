@@ -3,13 +3,13 @@ package uast
 import (
 	"unicode/utf8"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/go-git/go-git/v5"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/bblfsh/client-go.v3/tools"
 	"gopkg.in/bblfsh/sdk.v2/uast"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing"
 )
 
 // FileDiffRefiner uses UASTs to improve the human interpretability of diffs.

@@ -35,4 +35,4 @@ vendor:
 	go mod vendor
 
 ${GOBIN}/hercules${EXE}: vendor *.go */*.go */*/*.go */*/*/*.go internal/pb/pb.pb.go python/labours/pb_pb2.py cmd/hercules/plugin_template_source.go
-	go build -tags "$(TAGS)" -ldflags "-X gopkg.in/src-d/hercules.v10.BinaryGitHash=$(shell git rev-parse HEAD)" gopkg.in/src-d/hercules.v10/cmd/hercules
+	go build -tags "$(TAGS)" -ldflags "-X github.com/cyraxred/hercules.BinaryGitHash=$(shell git rev-parse HEAD)" github.com/cyraxred/hercules/cmd/hercules

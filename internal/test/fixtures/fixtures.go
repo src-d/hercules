@@ -1,8 +1,8 @@
 package fixtures
 
 import (
-	"gopkg.in/src-d/hercules.v10/internal/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/test"
+	"github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/cyraxred/hercules/internal/test"
 )
 
 // FileDiff initializes a new plumbing.FileDiff item for testing.

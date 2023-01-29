@@ -16,7 +16,7 @@ include:
 
 The typical API usage is to initialize the Pipeline class:
 
-  import "gopkg.in/src-d/go-git.v4"
+  import "github.com/go-git/go-git/v5"
 
   var repository *git.Repository
   // ...initialize repository...

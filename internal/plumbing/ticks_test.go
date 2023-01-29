@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/test"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/test"
 )
 
 func fixtureTicksSinceStart(config ...map[string]interface{}) *TicksSinceStart {

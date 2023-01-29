@@ -1,16 +1,16 @@
 package imports
 
 import (
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"runtime"
 	"testing"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/cyraxred/hercules/internal/test"
+	gitplumbing "github.com/go-git/go-git/v5/plumbing"
 	"github.com/src-d/imports"
 	"github.com/stretchr/testify/assert"
-	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/test"
 )
 
 func fixtureExtractor() *Extractor {

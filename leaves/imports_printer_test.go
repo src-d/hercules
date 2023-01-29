@@ -2,17 +2,17 @@ package leaves
 
 import (
 	"bytes"
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/cyraxred/hercules/internal/plumbing/identity"
+	"github.com/cyraxred/hercules/internal/plumbing/imports"
+	"github.com/cyraxred/hercules/internal/test"
 	"testing"
 	"time"
 
+	gitplumbing "github.com/go-git/go-git/v5/plumbing"
 	imports2 "github.com/src-d/imports"
 	"github.com/stretchr/testify/assert"
-	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing/imports"
-	"gopkg.in/src-d/hercules.v10/internal/test"
 )
 
 func fixtureImportsPerDev() *ImportsPerDeveloper {

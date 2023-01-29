@@ -3,21 +3,21 @@ package leaves
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/pb"
+	"github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/cyraxred/hercules/internal/plumbing/identity"
+	"github.com/cyraxred/hercules/internal/plumbing/imports"
+	"github.com/cyraxred/hercules/internal/yaml"
+	gitplumbing "github.com/go-git/go-git/v5/plumbing"
 	"io"
 	"log"
 	"sort"
 	"time"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/gogo/protobuf/proto"
 	imports2 "github.com/src-d/imports"
-	"gopkg.in/src-d/go-git.v4"
-	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/pb"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing/imports"
-	"gopkg.in/src-d/hercules.v10/internal/yaml"
 )
 
 // ImportsMap is the type of the mapping from dev indexes to languages to import names to ticks to

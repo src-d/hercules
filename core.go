@@ -1,16 +1,16 @@
 package hercules
 
 import (
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/cyraxred/hercules/internal/plumbing/identity"
+	"github.com/cyraxred/hercules/internal/plumbing/uast"
+	"github.com/cyraxred/hercules/internal/yaml"
+	_ "github.com/cyraxred/hercules/leaves"          // add burndown and other analyses
+	_ "github.com/cyraxred/hercules/leaves/research" // add "research" analyses
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/spf13/pflag"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing/identity"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
-	"gopkg.in/src-d/hercules.v10/internal/yaml"
-	_ "gopkg.in/src-d/hercules.v10/leaves"          // add burndown and other analyses
-	_ "gopkg.in/src-d/hercules.v10/leaves/research" // add "research" analyses
 )
 
 // ConfigurationOptionType represents the possible types of a ConfigurationOption's value.

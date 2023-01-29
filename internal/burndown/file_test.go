@@ -5,8 +5,8 @@ import (
 	"math"
 	"testing"
 
+	"github.com/cyraxred/hercules/internal/rbtree"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/hercules.v10/internal/rbtree"
 )
 
 func updateStatusFile(status map[int]int64, _, previousTime, delta int) {

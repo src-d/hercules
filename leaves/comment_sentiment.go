@@ -1,3 +1,4 @@
+//go:build tensorflow
 // +build tensorflow
 
 package leaves
@@ -10,16 +11,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/pb"
+	items "github.com/cyraxred/hercules/internal/plumbing"
+	uast_items "github.com/cyraxred/hercules/internal/plumbing/uast"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/gogo/protobuf/proto"
 	"gopkg.in/bblfsh/sdk.v2/uast"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	progress "gopkg.in/cheggaaa/pb.v1"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/pb"
-	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
 	sentiment "gopkg.in/vmarkovtsev/BiDiSentiment.v1"
 )
 

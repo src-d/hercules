@@ -1,3 +1,4 @@
+//go:build tensorflow
 // +build tensorflow
 
 package leaves
@@ -8,6 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/pb"
+	items "github.com/cyraxred/hercules/internal/plumbing"
+	uast_items "github.com/cyraxred/hercules/internal/plumbing/uast"
+	uast_test "github.com/cyraxred/hercules/internal/plumbing/uast/test"
+	"github.com/cyraxred/hercules/internal/test"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	bblfsh "gopkg.in/bblfsh/client-go.v3"
@@ -15,13 +23,6 @@ import (
 	"gopkg.in/bblfsh/sdk.v2/uast"
 	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 	"gopkg.in/bblfsh/sdk.v2/uast/query"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/pb"
-	items "gopkg.in/src-d/hercules.v10/internal/plumbing"
-	uast_items "gopkg.in/src-d/hercules.v10/internal/plumbing/uast"
-	uast_test "gopkg.in/src-d/hercules.v10/internal/plumbing/uast/test"
-	"gopkg.in/src-d/hercules.v10/internal/test"
 )
 
 func fixtureCommentSentiment() *CommentSentimentAnalysis {

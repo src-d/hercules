@@ -1,17 +1,17 @@
 package imports
 
 import (
+	"github.com/cyraxred/hercules/internal/core"
+	"github.com/cyraxred/hercules/internal/plumbing"
+	"github.com/go-git/go-git/v5"
+	gitplumbing "github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/utils/merkletrie"
+	"github.com/src-d/imports"
 	"runtime"
 	"sync"
 
-	"github.com/src-d/imports"
 	_ "github.com/src-d/imports/languages/all" // register the supported languages
-	"gopkg.in/src-d/go-git.v4"
-	gitplumbing "gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
-	"gopkg.in/src-d/hercules.v10/internal/core"
-	"gopkg.in/src-d/hercules.v10/internal/plumbing"
 )
 
 // Extractor reports the imports in the changed files.
