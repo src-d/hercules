@@ -172,6 +172,14 @@ go to [projector.tensorflow.org](https://projector.tensorflow.org), click "Load"
 docker run --rm srcd/hercules hercules --burndown --pb https://github.com/git/git | docker run --rm -i -v $(pwd):/io srcd/hercules labours -f pb -m burndown-project -o /io/git_git.png
 ```
 
+For local git repository
+
+```
+docker run --rm -v $(pwd):/app srcd/hercules hercules --burndown --pb /app | docker run --rm -i -v $(pwd):/io srcd/hercules labours -f pb -m burndown-project -o /io/out.png
+```
+
+
+
 ### Built-in analyses
 
 #### Project burndown
