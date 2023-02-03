@@ -55,7 +55,7 @@ func TestFileHistoryRegistration(t *testing.T) {
 }
 
 func TestFileHistoryConsume(t *testing.T) {
-	fh, deps := bakeFileHistoryForSerialization(t)
+	fh, _ := bakeFileHistoryForSerialization(t)
 	validate := func() {
 		assert.Len(t, fh.files, 3)
 		assert.Equal(t, fh.files["cmd/hercules/main.go"].People,
@@ -82,13 +82,6 @@ func TestFileHistoryConsume(t *testing.T) {
 	for key, val := range res.Files {
 		assert.Equal(t, val, *fh.files[key])
 	}
-	deps[core.DependencyIsMerge] = true
-	cres, err := fh.Consume(deps)
-	assert.Nil(t, cres)
-	assert.Nil(t, err)
-	validate()
-	fh.lastCommit = &object.Commit{}
-	assert.Panics(t, func() { fh.Finalize() })
 }
 
 func TestFileHistoryFork(t *testing.T) {
@@ -190,7 +183,6 @@ func bakeFileHistoryForSerialization(t *testing.T) (*FileHistoryAnalysis, map[st
 	commit, _ := test.Repository.CommitObject(plumbing.NewHash(
 		"2b1ed978194a94edeabbca6de7ff3b5771d4d665"))
 	deps[core.DependencyCommit] = commit
-	deps[core.DependencyIsMerge] = false
 	deps[identity.DependencyAuthor] = 1
 	fd := fixtures.FileDiff()
 	result, err := fd.Consume(deps)

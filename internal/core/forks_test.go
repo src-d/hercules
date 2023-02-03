@@ -31,6 +31,10 @@ func (item *testForkPipelineItem) Configure(facts map[string]interface{}) error 
 	return nil
 }
 
+func (item *testForkPipelineItem) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 func (item *testForkPipelineItem) ListConfigurationOptions() []ConfigurationOption {
 	return nil
 }

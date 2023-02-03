@@ -43,6 +43,10 @@ func (item *dummyPipelineItem) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (item *dummyPipelineItem) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 func (item *dummyPipelineItem) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        "DummyOption",
@@ -91,6 +95,10 @@ func (item *dummyPipelineItem2) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (item *dummyPipelineItem2) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 func (item *dummyPipelineItem2) ListConfigurationOptions() []ConfigurationOption {
 	return []ConfigurationOption{}
 }
@@ -128,6 +136,10 @@ func (item *dummyPipelineItem3) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (item *dummyPipelineItem3) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 func (item *dummyPipelineItem3) ListConfigurationOptions() []ConfigurationOption {
 	return nil
 }
@@ -162,6 +174,10 @@ func (item *dummyPipelineItem4) Requires() []string {
 }
 
 func (item *dummyPipelineItem4) Configure(facts map[string]interface{}) error {
+	return nil
+}
+
+func (item *dummyPipelineItem4) ConfigureUpstream(facts map[string]interface{}) error {
 	return nil
 }
 

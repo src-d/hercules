@@ -69,7 +69,6 @@ func TestImportsPerDeveloperInitialize(t *testing.T) {
 
 func TestImportsPerDeveloperConsumeFinalize(t *testing.T) {
 	deps := map[string]interface{}{}
-	deps[core.DependencyIsMerge] = false
 	deps[identity.DependencyAuthor] = 0
 	deps[plumbing.DependencyTick] = 1
 	imps := map[gitplumbing.Hash]imports2.File{}
@@ -97,16 +96,6 @@ func TestImportsPerDeveloperConsumeFinalize(t *testing.T) {
 		0: {"Go": {"sys": {1: 2}}, "Python": {"sys": {1: 2}}},
 		1: {"Go": {"sys": {1: 1}}, "Python": {"sys": {1: 1}}},
 	}, ipd.imports)
-	deps[core.DependencyIsMerge] = true
-	_, err = ipd.Consume(deps)
-	assert.NoError(t, err)
-	assert.Equal(t, ImportsMap{
-		0: {"Go": {"sys": {1: 2}}, "Python": {"sys": {1: 2}}},
-		1: {"Go": {"sys": {1: 1}}, "Python": {"sys": {1: 1}}},
-	}, ipd.imports)
-	result := ipd.Finalize().(ImportsPerDeveloperResult)
-	assert.Equal(t, ipd.reversedPeopleDict, result.reversedPeopleDict)
-	assert.Equal(t, ipd.imports, result.Imports)
 }
 
 func TestImportsPerDeveloperSerializeText(t *testing.T) {

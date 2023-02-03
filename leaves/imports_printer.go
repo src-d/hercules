@@ -95,6 +95,10 @@ func (ipd *ImportsPerDeveloper) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (*ImportsPerDeveloper) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (ipd *ImportsPerDeveloper) Initialize(repository *git.Repository) error {
@@ -114,11 +118,6 @@ func (ipd *ImportsPerDeveloper) Initialize(repository *git.Repository) error {
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (ipd *ImportsPerDeveloper) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	if deps[core.DependencyIsMerge].(bool) {
-		// we ignore merge commits
-		// TODO(vmarkovtsev): handle them better
-		return nil, nil
-	}
 	author := deps[identity.DependencyAuthor].(int)
 	imps := deps[imports.DependencyImports].(map[gitplumbing.Hash]imports2.File)
 	aimps := ipd.imports[author]

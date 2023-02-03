@@ -1,4 +1,4 @@
-package burndown
+package linehistory
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ func updateStatusFile(status map[int]int64, _, previousTime, delta int) {
 func fixtureFile() (*File, map[int]int64, *rbtree.Allocator) {
 	status := map[int]int64{}
 	alloc := rbtree.NewAllocator()
-	file := NewFile(0, 100, alloc, func(a, b, c int) {
+	file := NewFile(0, 0, 100, alloc, func(_ *File, a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	return file, status, alloc
@@ -166,7 +166,7 @@ func TestInsertFile(t *testing.T) {
 
 func TestZeroInitializeFile(t *testing.T) {
 	status := map[int]int64{}
-	file := NewFile(0, 0, rbtree.NewAllocator(), func(a, b, c int) {
+	file := NewFile(0, 0, 0, rbtree.NewAllocator(), func(_ *File, a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	assert.Contains(t, status, 0)
@@ -444,7 +444,7 @@ func TestBug3File(t *testing.T) {
 func TestBug4File(t *testing.T) {
 	status := map[int]int64{}
 	alloc := rbtree.NewAllocator()
-	file := NewFile(0, 10, alloc, func(a, b, c int) {
+	file := NewFile(0, 0, 10, alloc, func(_ *File, a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	// 0 0 | 10 -1
@@ -510,7 +510,7 @@ func TestBug5File(t *testing.T) {
 	status := map[int]int64{}
 	keys := []int{0, 2, 4, 7, 10}
 	vals := []int{24, 28, 24, 28, math.MaxUint32}
-	file := NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(a, b, c int) {
+	file := NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(_ *File, a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	file.Update(28, 0, 1, 3)
@@ -519,7 +519,7 @@ func TestBug5File(t *testing.T) {
 
 	keys = []int{0, 1, 16, 18}
 	vals = []int{305, 0, 157, math.MaxUint32}
-	file = NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(a, b, c int) {
+	file = NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(_ *File, a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	file.Update(310, 0, 0, 2)
@@ -714,7 +714,7 @@ func TestBug6File(t *testing.T) {
 	status := map[int]int64{}
 	keys := []int{0, 113, 153, 154}
 	vals := []int{7, 10, 7, math.MaxUint32}
-	file := NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(a, b, c int) {
+	file := NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(_ *File, a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	// 0 7 | 113 10 | 153 7 | 154 -1
@@ -734,7 +734,7 @@ func TestBug6File(t *testing.T) {
 	dump := file.Dump()
 	assert.Equal(t, "0 7\n99 10\n100 7\n104 10\n105 7\n106 10\n107 7\n108 10\n109 7\n113 10\n157 7\n158 -1\n", dump)
 
-	file = NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(a, b, c int) {
+	file = NewFileFromTree(keys, vals, rbtree.NewAllocator(), func(_ *File, a, b, c int) {
 		updateStatusFile(status, a, b, c)
 	})
 	// 0 7 | 113 10 | 153 7 | 154 -1

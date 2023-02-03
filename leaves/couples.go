@@ -109,6 +109,10 @@ func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (*CouplesAnalysis) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 // Flag for the command line switch which enables this analysis.
 func (couples *CouplesAnalysis) Flag() string {
 	return "couples"
@@ -143,7 +147,6 @@ func (couples *CouplesAnalysis) Initialize(repository *git.Repository) error {
 // in Provides(). If there was an error, nil is returned.
 func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	firstMerge := couples.ShouldConsumeCommit(deps)
-	mergeMode := deps[core.DependencyIsMerge].(bool)
 	couples.lastCommit = deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
 	if author == identity.AuthorMissing {
@@ -163,24 +166,18 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 		fromName := change.From.Name
 		switch action {
 		case merkletrie.Insert:
-			if !mergeMode || couples.files[toName] == nil {
-				context = append(context, toName)
-				couples.people[author][toName]++
-			}
+			context = append(context, toName)
+			couples.people[author][toName]++
 		case merkletrie.Delete:
-			if !mergeMode {
-				couples.people[author][fromName]++
-			}
+			couples.people[author][fromName]++
 		case merkletrie.Modify:
 			if fromName != toName {
 				// renamed
 				*couples.renames = append(
 					*couples.renames, rename{ToName: toName, FromName: fromName})
 			}
-			if !mergeMode || couples.files[toName] == nil {
-				context = append(context, toName)
-				couples.people[author][toName]++
-			}
+			context = append(context, toName)
+			couples.people[author][toName]++
 		}
 	}
 	if len(context) <= CouplesMaximumMeaningfulContextSize {

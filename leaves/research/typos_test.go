@@ -1,5 +1,4 @@
 //go:build !disable_babelfish
-// +build !disable_babelfish
 
 package research
 
@@ -120,7 +119,6 @@ func bakeTyposDeps(t *testing.T) map[string]interface{} {
 	deps[items.DependencyTreeChanges] = changes
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"84165d3b02647fae12cc026c7a580045246e8c98"))
-	deps[core.DependencyIsMerge] = false
 	uastItem := &uast_items.Extractor{}
 	assert.Nil(t, uastItem.Initialize(test.Repository))
 	uastResult, err := uastItem.Consume(deps)

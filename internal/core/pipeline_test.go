@@ -58,6 +58,10 @@ func (item *testPipelineItem) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (item *testPipelineItem) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 func (item *testPipelineItem) ListConfigurationOptions() []ConfigurationOption {
 	options := [...]ConfigurationOption{{
 		Name:        "TestOption",
@@ -113,10 +117,10 @@ func (item *testPipelineItem) Consume(deps map[string]interface{}) (map[string]i
 			item.IndexMatches = obj.(int) == 0
 		}
 	}
-	obj, exists = deps[DependencyIsMerge]
-	if exists {
+
+	if obj, exists = deps[DependencyIsMerge]; exists {
 		*item.MergeState++
-		if obj.(bool) {
+		if b, ok := obj.(bool); ok && b {
 			*item.MergeState++
 		}
 	}
@@ -181,6 +185,10 @@ func (item *dependingTestPipelineItem) ListConfigurationOptions() []Configuratio
 }
 
 func (item *dependingTestPipelineItem) Configure(facts map[string]interface{}) error {
+	return nil
+}
+
+func (item *dependingTestPipelineItem) ConfigureUpstream(facts map[string]interface{}) error {
 	return nil
 }
 
@@ -377,7 +385,7 @@ func TestPipelineRunBranches(t *testing.T) {
 	assert.Equal(t, item, result[item].(*testPipelineItem))
 	common := result[nil].(*CommonAnalysisResult)
 	assert.Equal(t, common.CommitsNumber, 5)
-	assert.Equal(t, *item.MergeState, 8)
+	assert.Equal(t, 6, *item.MergeState)
 }
 
 func TestPipelineOnProgress(t *testing.T) {
@@ -675,7 +683,7 @@ func TestPrepareRunPlanTiny(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := prepareRunPlan([]*object.Commit{rootCommit}, 0, true)
+	plan := prepareRunPlan([]*object.Commit{rootCommit}, 0)
 	assert.Len(t, plan, 2)
 	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, rootBranchIndex, plan[0].Items[0])
@@ -702,7 +710,7 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 		}
 		return nil
 	})
-	plan := prepareRunPlan(commits, 0, false)
+	plan := prepareRunPlan(commits, 0)
 	/*for _, p := range plan {
 		if p.Commit != nil {
 			fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
@@ -794,22 +802,22 @@ func TestPrepareRunPlanBig(t *testing.T) {
 	cases := [][7]int{
 		{2017, 8, 9, 0, 0, 0, 0},
 		{2017, 8, 10, 0, 0, 0, 0},
-		{2017, 8, 24, 1, 1, 1, 1},
-		{2017, 9, 19, 1 - 2, 1, 1, 1},
-		{2017, 9, 23, 1 - 2, 1, 1, 1},
-		{2017, 12, 8, 1, 1, 1, 1},
-		{2017, 12, 9, 1, 1, 1, 1},
-		{2017, 12, 10, 1, 1, 1, 1},
-		{2017, 12, 11, 2, 2, 2, 2},
-		{2017, 12, 19, 3, 3, 3, 3},
-		{2017, 12, 27, 3, 3, 3, 3},
-		{2018, 1, 10, 3, 3, 3, 3},
-		{2018, 1, 16, 3, 3, 3, 3},
-		{2018, 1, 18, 4, 5, 4, 4},
-		{2018, 1, 23, 5, 5, 5, 5},
-		{2018, 3, 12, 6, 6, 6, 6},
-		{2018, 5, 13, 6, 6, 6, 6},
-		{2018, 5, 16, 7, 7, 7, 7},
+		{2017, 8, 24, 0, 1, 1, 1},
+		{2017, 9, 19, -2, 1, 1, 1},
+		{2017, 9, 23, -2, 1, 1, 1},
+		{2017, 12, 8, 0, 1, 1, 1},
+		{2017, 12, 9, 0, 1, 1, 1},
+		{2017, 12, 10, 0, 1, 1, 1},
+		{2017, 12, 11, 0, 2, 2, 2},
+		{2017, 12, 19, 0, 3, 3, 3},
+		{2017, 12, 27, 0, 3, 3, 3},
+		{2018, 1, 10, 0, 3, 3, 3},
+		{2018, 1, 16, 0, 3, 3, 3},
+		{2018, 1, 18, 0, 5, 4, 4},
+		{2018, 1, 23, 0, 5, 5, 5},
+		{2018, 3, 12, 0, 6, 6, 6},
+		{2018, 5, 13, 0, 6, 6, 6},
+		{2018, 5, 16, 0, 7, 7, 7},
 	}
 	for _, testCase := range cases {
 		func() {
@@ -830,7 +838,7 @@ func TestPrepareRunPlanBig(t *testing.T) {
 				}
 				return nil
 			})
-			plan := prepareRunPlan(commits, 0, false)
+			plan := prepareRunPlan(commits, 0)
 			/*for _, p := range plan {
 				if p.Commit != nil {
 					fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
@@ -879,11 +887,11 @@ func TestPrepareRunPlanBig(t *testing.T) {
 					assert.Equal(t, 1, v, fmt.Sprint(c.String(), b))
 				}
 			}
-			assert.Equal(t, numCommits, len(commits)+testCase[3], fmt.Sprintf("commits %v", testCase))
-			assert.Equal(t, numForks, testCase[4], fmt.Sprintf("forks %v", testCase))
-			assert.Equal(t, numMerges, testCase[5], fmt.Sprintf("merges %v", testCase))
-			assert.Equal(t, numDeletes, testCase[6], fmt.Sprintf("deletes %v", testCase))
-			assert.Equal(t, numEmerges, 1, fmt.Sprintf("emerges %v", testCase))
+			assert.Equal(t, len(commits)+testCase[3], numCommits, fmt.Sprintf("commits %v", testCase))
+			assert.Equal(t, testCase[4], numForks, fmt.Sprintf("forks %v", testCase))
+			assert.Equal(t, testCase[5], numMerges, fmt.Sprintf("merges %v", testCase))
+			assert.Equal(t, testCase[6], numDeletes, fmt.Sprintf("deletes %v", testCase))
+			assert.Equal(t, 1, numEmerges, fmt.Sprintf("emerges %v", testCase))
 		}()
 	}
 }

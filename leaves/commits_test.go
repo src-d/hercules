@@ -126,7 +126,6 @@ func TestCommitsConsume(t *testing.T) {
 	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
-	deps[core.DependencyIsMerge] = false
 	lsc := &items.LinesStatsCalculator{}
 	lscres, err := lsc.Consume(deps)
 	assert.Nil(t, err)
@@ -137,36 +136,6 @@ func TestCommitsConsume(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, ca.commits, 1)
 	c := ca.commits[0]
-	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", c.Hash)
-	assert.Equal(t, int64(1481563829), c.When)
-	assert.Equal(t, 0, c.Author)
-	assert.Len(t, c.Files, 3)
-	sort.Slice(c.Files, func(i, j int) bool { return c.Files[i].Name < c.Files[j].Name })
-	assert.Equal(t, ".travis.yml", c.Files[0].Name)
-	assert.Equal(t, "Go", c.Files[0].Language)
-	assert.Equal(t, 12, c.Files[0].Added)
-	assert.Equal(t, 0, c.Files[0].Removed)
-	assert.Equal(t, 0, c.Files[0].Changed)
-	assert.Equal(t, "analyser.go", c.Files[1].Name)
-	assert.Equal(t, "Go", c.Files[1].Language)
-	assert.Equal(t, 628, c.Files[1].Added)
-	assert.Equal(t, 9, c.Files[1].Removed)
-	assert.Equal(t, 67, c.Files[1].Changed)
-	assert.Equal(t, "cmd/hercules/main.go", c.Files[2].Name)
-	assert.Equal(t, "Go", c.Files[2].Language)
-	assert.Equal(t, 207, c.Files[2].Added)
-	assert.Equal(t, 0, c.Files[2].Removed)
-	assert.Equal(t, 0, c.Files[2].Changed)
-
-	deps[core.DependencyIsMerge] = true
-	lscres, err = lsc.Consume(deps)
-	assert.Nil(t, err)
-	deps[items.DependencyLineStats] = lscres[items.DependencyLineStats]
-	result, err = ca.Consume(deps)
-	assert.Nil(t, result)
-	assert.Nil(t, err)
-	assert.Len(t, ca.commits, 1)
-	c = ca.commits[0]
 	assert.Equal(t, "cce947b98a050c6d356bc6ba95030254914027b1", c.Hash)
 	assert.Equal(t, int64(1481563829), c.When)
 	assert.Equal(t, 0, c.Author)

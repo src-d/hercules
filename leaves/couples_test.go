@@ -97,7 +97,6 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	deps[identity.DependencyAuthor] = 0
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
 		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
-	deps[core.DependencyIsMerge] = false
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+LICENSE2", "+file2.go", "+rbtree2.go")
 	c.Consume(deps)
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+README.md", "-LICENSE2", "=analyser.go", ">file2.go>file_test.go")
@@ -198,44 +197,12 @@ func TestCouplesConsumeFinalize(t *testing.T) {
 	assert.Equal(t, cr.FilesMatrix[2][2], int64(3))
 }
 
-func TestCouplesConsumeFinalizeMerge(t *testing.T) {
-	c := fixtureCouples()
-	deps := map[string]interface{}{}
-	deps[identity.DependencyAuthor] = 0
-	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
-		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
-	deps[core.DependencyIsMerge] = true
-	deps[plumbing.DependencyTreeChanges] = generateChanges("+LICENSE2", "+file2.go")
-	c.Consume(deps)
-	deps[plumbing.DependencyTreeChanges] = generateChanges("+file2.go", "-LICENSE2", ">file2.go>file_test.go")
-	c.Consume(deps)
-	assert.Equal(t, len(c.people[0]), 3)
-	assert.Equal(t, c.people[0]["LICENSE2"], 1)
-	assert.Equal(t, c.people[0]["file2.go"], 1)
-	assert.Equal(t, c.people[0]["file_test.go"], 1)
-	for i := 1; i < 3; i++ {
-		assert.Equal(t, len(c.people[i]), 0)
-	}
-	assert.Equal(t, c.files["LICENSE2"], map[string]int{
-		"LICENSE2": 1,
-		"file2.go": 1,
-	})
-	assert.Equal(t, c.files["file2.go"], map[string]int{
-		"file2.go": 1,
-		"LICENSE2": 1,
-	})
-	assert.Equal(t, c.files["file_test.go"], map[string]int{
-		"file_test.go": 1,
-	})
-}
-
 func TestCouplesConsumeFinalizeAuthorMissing(t *testing.T) {
 	c := fixtureCouples()
 	deps := map[string]interface{}{}
 	deps[identity.DependencyAuthor] = 0
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
 		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
-	deps[core.DependencyIsMerge] = false
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+LICENSE2", "+file2.go", "+rbtree2.go")
 	c.Consume(deps)
 	deps[plumbing.DependencyTreeChanges] = generateChanges("+README.md", "-LICENSE2", "=analyser.go", ">file2.go>file_test.go")
@@ -338,7 +305,6 @@ func TestCouplesConsumeManyFiles(t *testing.T) {
 	deps[identity.DependencyAuthor] = 0
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(gitplumbing.NewHash(
 		"a3ee37f91f0d705ec9c41ae88426f0ae44b2fbc3"))
-	deps[core.DependencyIsMerge] = false
 	changes := make(object.Changes, CouplesMaximumMeaningfulContextSize+1)
 	for i := 0; i < len(changes); i++ {
 		changes[i] = &object.Change{

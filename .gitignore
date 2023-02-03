@@ -44,3 +44,4 @@ _testmain.go
 *.json
 
 **/__pycache__
+/.run/

@@ -131,6 +131,10 @@ func (sent *CommentSentimentAnalysis) Configure(facts map[string]interface{}) er
 	return nil
 }
 
+func (*CommentSentimentAnalysis) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 func (sent *CommentSentimentAnalysis) validate() {
 	if sent.Gap < 0 || sent.Gap >= 1 {
 		sent.l.Warnf("Sentiment gap is too big: %f => reset to the default %f",

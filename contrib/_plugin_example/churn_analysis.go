@@ -118,6 +118,10 @@ func (churn *ChurnAnalysis) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (churn *ChurnAnalysis) ConfigureUpstream(_ map[string]interface{}) error {
+	return nil
+}
+
 // Initialize resets the internal temporary data structures and prepares the object for Consume().
 func (churn *ChurnAnalysis) Initialize(repository *git.Repository) error {
 	churn.l = hercules.NewLogger()

@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/go-git/go-git/v5/utils/binary"
-	"github.com/gogo/protobuf/sortkeys"
 )
 
 //
@@ -25,17 +24,16 @@ type Allocator struct {
 	HibernationThreshold int
 
 	storage              []node
-	gaps                 map[uint32]bool
-	hibernatedData       [7][]byte
+	gapCount             uint32
+	nextGap              uint32
+	hibernatedData       [6][]byte
 	hibernatedStorageLen int
-	hibernatedGapsLen    int
 }
 
 // NewAllocator creates a new allocator for RBTree's nodes.
 func NewAllocator() *Allocator {
 	return &Allocator{
 		storage: []node{},
-		gaps:    map[uint32]bool{},
 	}
 }
 
@@ -49,7 +47,7 @@ func (allocator Allocator) Used() int {
 	if allocator.storage == nil {
 		panic("hibernated allocators cannot be used")
 	}
-	return len(allocator.storage) - len(allocator.gaps)
+	return len(allocator.storage) - int(allocator.gapCount)
 }
 
 // Clone copies an existing RBTree allocator.
@@ -57,16 +55,12 @@ func (allocator Allocator) Clone() *Allocator {
 	if allocator.storage == nil {
 		panic("cannot clone a hibernated allocator")
 	}
-	newAllocator := &Allocator{
+	return &Allocator{
 		HibernationThreshold: allocator.HibernationThreshold,
-		storage:              make([]node, len(allocator.storage), cap(allocator.storage)),
-		gaps:                 map[uint32]bool{},
+		storage:              append(make([]node, 0, cap(allocator.storage)), allocator.storage...),
+		gapCount:             allocator.gapCount,
+		nextGap:              allocator.nextGap,
 	}
-	copy(newAllocator.storage, allocator.storage)
-	for key, val := range allocator.gaps {
-		newAllocator.gaps[key] = val
-	}
-	return newAllocator
 }
 
 // Hibernate compresses the allocated memory.
@@ -81,47 +75,51 @@ func (allocator *Allocator) Hibernate() {
 	if allocator.hibernatedStorageLen == 0 {
 		return
 	}
+
 	buffers := [6][]uint32{}
 	for i := 0; i < len(buffers); i++ {
 		buffers[i] = make([]uint32, len(allocator.storage))
 	}
 	// we deinterleave to achieve a better compression ratio
 	for i, n := range allocator.storage {
+		buffers[5][i] = uint32(n.color)
+
+		if n.color == gap {
+			if i+int(allocator.gapCount) == allocator.hibernatedStorageLen {
+				allocator.gapCount = 0
+
+				if i <= 1 {
+					allocator.hibernatedStorageLen = 0
+					allocator.nextGap = 0
+					allocator.storage = allocator.storage[0:0]
+					return
+				}
+				allocator.hibernatedStorageLen = i
+				break
+			}
+
+			allocator.gapCount--
+			continue
+		}
+
 		buffers[0][i] = n.item.Key
 		buffers[1][i] = n.item.Value
 		buffers[2][i] = n.left
 		buffers[3][i] = n.parent
 		buffers[4][i] = n.right
-		if n.color {
-			buffers[5][i] = 1
-		}
 	}
+	doAssert(allocator.gapCount == 0)
+	allocator.nextGap = 0
 	allocator.storage = nil
 	wg := &sync.WaitGroup{}
-	wg.Add(len(buffers) + 1)
+	wg.Add(len(buffers))
 	for i, buffer := range buffers {
 		go func(i int, buffer []uint32) {
-			allocator.hibernatedData[i] = CompressUInt32Slice(buffer)
+			allocator.hibernatedData[i] = CompressUInt32Slice(buffer[:allocator.hibernatedStorageLen])
 			buffers[i] = nil
 			wg.Done()
 		}(i, buffer)
 	}
-	// compress gaps
-	go func() {
-		if len(allocator.gaps) > 0 {
-			allocator.hibernatedGapsLen = len(allocator.gaps)
-			gapsBuffer := make([]uint32, len(allocator.gaps))
-			i := 0
-			for key := range allocator.gaps {
-				gapsBuffer[i] = key
-				i++
-			}
-			sortkeys.Uint32s(gapsBuffer)
-			allocator.hibernatedData[len(buffers)] = CompressUInt32Slice(gapsBuffer)
-		}
-		allocator.gaps = nil
-		wg.Done()
-	}()
 	wg.Wait()
 }
 
@@ -134,10 +132,12 @@ func (allocator *Allocator) Boot() {
 	if allocator.hibernatedData[0] == nil {
 		panic("cannot boot a serialized Allocator")
 	}
-	allocator.gaps = map[uint32]bool{}
+	doAssert(allocator.gapCount == 0)
+	allocator.nextGap = 0
+
 	buffers := [6][]uint32{}
 	wg := &sync.WaitGroup{}
-	wg.Add(len(buffers) + 1)
+	wg.Add(len(buffers))
 	for i := 0; i < len(buffers); i++ {
 		go func(i int) {
 			buffers[i] = make([]uint32, allocator.hibernatedStorageLen)
@@ -146,31 +146,30 @@ func (allocator *Allocator) Boot() {
 			wg.Done()
 		}(i)
 	}
-	go func() {
-		if allocator.hibernatedGapsLen > 0 {
-			gapData := allocator.hibernatedData[len(buffers)]
-			buffer := make([]uint32, allocator.hibernatedGapsLen)
-			DecompressUInt32Slice(gapData, buffer)
-			for _, key := range buffer {
-				allocator.gaps[key] = true
-			}
-			allocator.hibernatedData[len(buffers)] = nil
-			allocator.hibernatedGapsLen = 0
-		}
-		wg.Done()
-	}()
 	wg.Wait()
+
 	allocator.storage = make([]node, allocator.hibernatedStorageLen, (allocator.hibernatedStorageLen*3)/2)
+	allocator.hibernatedStorageLen = 0
+
 	for i := range allocator.storage {
 		n := &allocator.storage[i]
+
+		doAssert(buffers[5][i] <= uint32(gap))
+		n.color = color(buffers[5][i])
+
+		if n.color == gap {
+			n.right = allocator.nextGap
+			allocator.nextGap = uint32(i)
+			allocator.gapCount++
+			continue
+		}
+
 		n.item.Key = buffers[0][i]
 		n.item.Value = buffers[1][i]
 		n.left = buffers[2][i]
 		n.parent = buffers[3][i]
 		n.right = buffers[4][i]
-		n.color = buffers[5][i] > 0
 	}
-	allocator.hibernatedStorageLen = 0
 }
 
 // Serialize writes the hibernated allocator on disk.
@@ -184,10 +183,6 @@ func (allocator *Allocator) Serialize(path string) error {
 	}
 	defer file.Close()
 	err = binary.WriteVariableWidthInt(file, int64(allocator.hibernatedStorageLen))
-	if err != nil {
-		return err
-	}
-	err = binary.WriteVariableWidthInt(file, int64(allocator.hibernatedGapsLen))
 	if err != nil {
 		return err
 	}
@@ -220,11 +215,6 @@ func (allocator *Allocator) Deserialize(path string) error {
 		return err
 	}
 	allocator.hibernatedStorageLen = int(x)
-	x, err = binary.ReadVariableWidthInt(file)
-	if err != nil {
-		return err
-	}
-	allocator.hibernatedGapsLen = int(x)
 	for i := range allocator.hibernatedData {
 		x, err = binary.ReadVariableWidthInt(file)
 		if err != nil {
@@ -246,40 +236,47 @@ func (allocator *Allocator) malloc() uint32 {
 	if allocator.storage == nil {
 		panic("hibernated allocators cannot be used")
 	}
-	if len(allocator.gaps) > 0 {
-		var key uint32
-		for key = range allocator.gaps {
-			break
-		}
-		delete(allocator.gaps, key)
+	if allocator.gapCount > 0 {
+		allocator.gapCount--
+		key := allocator.nextGap
+		gapNode := &allocator.storage[key]
+		allocator.nextGap = gapNode.right
+
+		*gapNode = node{}
 		return key
 	}
-	n := len(allocator.storage)
-	if n == 0 {
+
+	switch n := len(allocator.storage); {
+	case n == 0:
 		// zero is reserved
+		allocator.storage = append(allocator.storage, node{}, node{})
+		return 1
+	case n < negativeLimitNode:
 		allocator.storage = append(allocator.storage, node{})
-		n = 1
+		return uint32(n)
 	}
-	if n == negativeLimitNode-1 {
-		// math.MaxUint32 is reserved
-		panic("the size of my RBTree allocator has reached the maximum value for uint32, sorry")
-	}
-	doAssert(n < negativeLimitNode)
-	allocator.storage = append(allocator.storage, node{})
-	return uint32(n)
+
+	panic("the size of my RBTree allocator has reached the maximum value for uint32")
 }
 
-func (allocator *Allocator) free(n uint32) {
+func (allocator *Allocator) free(key uint32) {
 	if allocator.storage == nil {
 		panic("hibernated allocators cannot be used")
 	}
-	if n == 0 {
+	if key == 0 {
 		panic("node #0 is special and cannot be deallocated")
 	}
-	_, exists := allocator.gaps[n]
-	doAssert(!exists)
-	allocator.storage[n] = node{}
-	allocator.gaps[n] = true
+
+	doAssert(allocator.gapCount == 0 || allocator.nextGap != 0)
+
+	gapNode := &allocator.storage[key]
+	doAssert(gapNode.color != gap)
+	*gapNode = node{
+		right: allocator.nextGap,
+		color: gap,
+	}
+	allocator.gapCount++
+	allocator.nextGap = key
 }
 
 // RBTree is a red-black tree with an API similar to C++ STL's.
@@ -602,25 +599,31 @@ func doAssert(b bool) {
 }
 
 const (
-	red               = false
-	black             = true
+	red               = color(0)
+	black             = color(1)
 	negativeLimitNode = math.MaxUint32
+	gap               = color(2)
 )
 
+type color uint8
+
 type node struct {
-	item                Item
-	parent, left, right uint32
-	color               bool // black or red
+	item        Item
+	parent      uint32
+	left, right uint32
+	color       color // black or red or gap
 }
 
 //
 // Internal node attribute accessors
 //
-func getColor(n uint32, allocator []node) bool {
+func getColor(n uint32, allocator []node) (c color) {
 	if n == 0 {
 		return black
 	}
-	return allocator[n].color
+	c = allocator[n].color
+	doAssert(c < gap)
+	return c
 }
 
 func isLeftChild(n uint32, allocator []node) bool {

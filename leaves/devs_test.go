@@ -150,7 +150,6 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
-	deps[core.DependencyIsMerge] = false
 	lsc := &items.LinesStatsCalculator{}
 	lscres, err := lsc.Consume(deps)
 	assert.Nil(t, err)
@@ -171,26 +170,6 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Equal(t, dev.Languages["Go"].Removed, 9)
 	assert.Equal(t, dev.Languages["Go"].Changed, 67)
 
-	deps[core.DependencyIsMerge] = true
-	lscres, err = lsc.Consume(deps)
-	assert.Nil(t, err)
-	deps[items.DependencyLineStats] = lscres[items.DependencyLineStats]
-	result, err = devs.Consume(deps)
-	assert.Nil(t, result)
-	assert.Nil(t, err)
-	assert.Len(t, devs.ticks, 1)
-	day = devs.ticks[0]
-	assert.Len(t, day, 1)
-	dev = day[0]
-	assert.Equal(t, dev.Commits, 2)
-	assert.Equal(t, dev.Added, 847)
-	assert.Equal(t, dev.Removed, 9)
-	assert.Equal(t, dev.Changed, 67)
-	assert.Equal(t, dev.Languages["Go"].Added, 847)
-	assert.Equal(t, dev.Languages["Go"].Removed, 9)
-	assert.Equal(t, dev.Languages["Go"].Changed, 67)
-
-	deps[core.DependencyIsMerge] = false
 	deps[identity.DependencyAuthor] = 1
 	lscres, err = lsc.Consume(deps)
 	assert.Nil(t, err)
@@ -203,11 +182,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	assert.Len(t, day, 2)
 	for i := 0; i < 2; i++ {
 		dev = day[i]
-		if i == 0 {
-			assert.Equal(t, dev.Commits, 2)
-		} else {
-			assert.Equal(t, dev.Commits, 1)
-		}
+		assert.Equal(t, dev.Commits, 1)
 		assert.Equal(t, dev.Added, 847)
 		assert.Equal(t, dev.Removed, 9)
 		assert.Equal(t, dev.Changed, 67)
@@ -223,7 +198,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	day = devs.ticks[0]
 	assert.Len(t, day, 2)
 	dev = day[0]
-	assert.Equal(t, dev.Commits, 2)
+	assert.Equal(t, dev.Commits, 1)
 	assert.Equal(t, dev.Added, 847)
 	assert.Equal(t, dev.Removed, 9)
 	assert.Equal(t, dev.Changed, 67)
@@ -247,7 +222,7 @@ func TestDevsConsumeFinalize(t *testing.T) {
 	day = devs.ticks[0]
 	assert.Len(t, day, 2)
 	dev = day[0]
-	assert.Equal(t, dev.Commits, 2)
+	assert.Equal(t, dev.Commits, 1)
 	assert.Equal(t, dev.Added, 847)
 	assert.Equal(t, dev.Removed, 9)
 	assert.Equal(t, dev.Changed, 67)

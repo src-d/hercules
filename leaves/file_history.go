@@ -85,6 +85,10 @@ func (history *FileHistoryAnalysis) Configure(facts map[string]interface{}) erro
 	return nil
 }
 
+func (*FileHistoryAnalysis) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
 func (history *FileHistoryAnalysis) Initialize(repository *git.Repository) error {
@@ -100,11 +104,6 @@ func (history *FileHistoryAnalysis) Initialize(repository *git.Repository) error
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
 func (history *FileHistoryAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
-	if deps[core.DependencyIsMerge].(bool) {
-		// we ignore merge commits
-		// TODO(vmarkovtsev): handle them better
-		return nil, nil
-	}
 	history.lastCommit = deps[core.DependencyCommit].(*object.Commit)
 	commit := history.lastCommit.Hash
 	changes := deps[items.DependencyTreeChanges].(object.Changes)

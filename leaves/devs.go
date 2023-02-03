@@ -114,6 +114,10 @@ func (devs *DevsAnalysis) Configure(facts map[string]interface{}) error {
 	return nil
 }
 
+func (*DevsAnalysis) ConfigureUpstream(facts map[string]interface{}) error {
+	return nil
+}
+
 // Flag for the command line switch which enables this analysis.
 func (devs *DevsAnalysis) Flag() string {
 	return "devs"
@@ -162,11 +166,6 @@ func (devs *DevsAnalysis) Consume(deps map[string]interface{}) (map[string]inter
 		devstick[author] = dd
 	}
 	dd.Commits++
-	if deps[core.DependencyIsMerge].(bool) {
-		// we ignore merge commit diffs
-		// TODO(vmarkovtsev): handle them
-		return nil, nil
-	}
 	langs := deps[items.DependencyLanguages].(map[plumbing.Hash]string)
 	lineStats := deps[items.DependencyLineStats].(map[object.ChangeEntry]items.LineStats)
 	for changeEntry, stats := range lineStats {

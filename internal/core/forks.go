@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"reflect"
 	"sort"
@@ -14,12 +15,12 @@ import (
 
 // OneShotMergeProcessor provides the convenience method to consume merges only once.
 type OneShotMergeProcessor struct {
-	merges map[plumbing.Hash]bool
+	merges map[plumbing.Hash]struct{}
 }
 
 // Initialize resets OneShotMergeProcessor.
 func (proc *OneShotMergeProcessor) Initialize() {
-	proc.merges = map[plumbing.Hash]bool{}
+	proc.merges = map[plumbing.Hash]struct{}{}
 }
 
 // ShouldConsumeCommit returns true on regular commits. It also returns true upon
@@ -29,8 +30,8 @@ func (proc *OneShotMergeProcessor) ShouldConsumeCommit(deps map[string]interface
 	if commit.NumParents() <= 1 {
 		return true
 	}
-	if !proc.merges[commit.Hash] {
-		proc.merges[commit.Hash] = true
+	if _, ok := proc.merges[commit.Hash]; !ok {
+		proc.merges[commit.Hash] = struct{}{}
 		return true
 	}
 	return false
@@ -41,7 +42,7 @@ type NoopMerger struct {
 }
 
 // Merge does nothing.
-func (merger *NoopMerger) Merge(branches []PipelineItem) {
+func (*NoopMerger) Merge([]PipelineItem) {
 	// no-op
 }
 
@@ -89,7 +90,7 @@ const (
 
 // planPrintFunc is used to print the execution plan in prepareRunPlan().
 var planPrintFunc = func(args ...interface{}) {
-	fmt.Fprintln(os.Stderr)
+	//	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, args...)
 }
 
@@ -159,8 +160,7 @@ func getMasterBranch(branches map[int][]PipelineItem) []PipelineItem {
 }
 
 // prepareRunPlan schedules the actions for Pipeline.Run().
-func prepareRunPlan(commits []*object.Commit, hibernationDistance int,
-	printResult bool) []runAction {
+func prepareRunPlan(commits []*object.Commit, hibernationDistance int) []runAction {
 	hashes, dag := buildDag(commits)
 	leaveRootComponent(hashes, dag)
 	mergedDag, mergedSeq := mergeDag(hashes, dag)
@@ -180,11 +180,6 @@ func prepareRunPlan(commits []*object.Commit, hibernationDistance int,
 	if hibernationDistance > 0 {
 		plan = insertHibernateBoot(plan, hibernationDistance)
 	}
-	if printResult {
-		for _, p := range plan {
-			printAction(p)
-		}
-	}
 	return plan
 }
 
@@ -197,7 +192,7 @@ func printAction(p runAction) {
 	case runActionFork:
 		planPrintFunc("F", p.Items)
 	case runActionMerge:
-		planPrintFunc("M", p.Items)
+		planPrintFunc("M", p.Items, p.Commit.Hash.String())
 	case runActionEmerge:
 		planPrintFunc("E", p.Items)
 	case runActionDelete:
@@ -348,7 +343,7 @@ func bindOrderNodes(mergedDag map[plumbing.Hash][]*object.Commit) orderer {
 		}
 		if reverse != direction {
 			// one day this must appear in the standard library...
-			for i, j := 0, len(order)-1; i < len(order)/2; i, j = i+1, j-1 {
+			for i, j := 0, len(order)-1; i < j; i, j = i+1, j-1 {
 				order[i], order[j] = order[j], order[i]
 			}
 		}
@@ -566,15 +561,8 @@ func generatePlan(
 			})
 			counter++
 		}
-		var branch int
-		{
-			var exists bool
-			branch, exists = branches[commit.Hash]
-			if !exists {
-				branch = -1
-			}
-		}
-		branchExists := func() bool { return branch >= rootBranchIndex }
+
+		branchExists := func(branch int) bool { return branch >= rootBranchIndex }
 		appendCommit := func(c *object.Commit, branch int) {
 			if branch == 0 {
 				log.Panicf("setting a zero branch for %s", c.Hash.String())
@@ -585,60 +573,70 @@ func generatePlan(
 				Items:  []int{branch},
 			})
 		}
-		appendMergeIfNeeded := func() bool {
-			if len(parents[commit.Hash]) < 2 {
-				return false
+		buildMergeList := func(branch int) (int, []int) {
+			commitParents := parents[commit.Hash]
+			if len(commitParents) < 2 {
+				return branch, nil
 			}
 			// merge after the merge commit (the first in the sequence)
-			var items []int
-			minBranch := 1 << 31
-			for parent := range parents[commit.Hash] {
-				parentBranch := -1
-				if parents, exists := branchers[commit.Hash]; exists {
-					if inheritedBranch, exists := parents[parent]; exists {
-						parentBranch = inheritedBranch
-					}
-				}
-				if parentBranch == -1 {
-					parentBranch = branches[parent]
-					if parentBranch < rootBranchIndex {
-						log.Panicf("parent %s > %s does not have a branch assigned",
+			items := make([]int, 0, len(commitParents))
+			minBranch := math.MaxInt
+			minBranchIndex := 0
+
+			for parent := range commitParents {
+				parentBranch := branchers[commit.Hash][parent]
+				if !branchExists(parentBranch) {
+					if parentBranch = branches[parent]; !branchExists(parentBranch) {
+						log.Panicf("parent %s => %s does not have a branch assigned",
 							parent.String(), commit.Hash.String())
 					}
 				}
-				if len(dag[parent]) == 1 && minBranch > parentBranch {
+
+				if minBranch > parentBranch && len(dag[parent]) == 1 {
 					minBranch = parentBranch
+					minBranchIndex = len(items)
 				}
+
 				items = append(items, parentBranch)
-				if parentBranch != branch {
-					appendCommit(commit, parentBranch)
-				}
 			}
 			// there should be no duplicates in items
-			if minBranch < 1<<31 {
+			if minBranch < math.MaxInt {
 				branch = minBranch
-				branches[commit.Hash] = minBranch
-			} else if !branchExists() {
-				log.Panicf("failed to assign the branch to merge %s", commit.Hash.String())
+				if minBranchIndex != 0 {
+					items[minBranchIndex], items[0] = items[0], items[minBranchIndex]
+				}
 			}
-			plan = append(plan, runAction{
-				Action: runActionMerge,
-				Commit: nil,
-				Items:  items,
-			})
-			return true
+			return branch, items
 		}
+
+		branch := -1
+		if branch2, ok := branches[commit.Hash]; ok {
+			branch = branch2
+		}
+
 		var head plumbing.Hash
 		if subseq, exists := mergedSeq[commit.Hash]; exists {
 			for subseqIndex, offspring := range subseq {
-				if branchExists() {
-					appendCommit(offspring, branch)
-				}
 				if subseqIndex == 0 {
-					if !appendMergeIfNeeded() && !branchExists() {
+					minBranch, items := buildMergeList(branch)
+					if minBranch != branch {
+						branches[commit.Hash] = minBranch
+						branch = minBranch
+					} else if !branchExists(branch) {
 						log.Panicf("head of the sequence does not have an assigned branch: %s",
 							commit.Hash.String())
 					}
+
+					appendCommit(offspring, minBranch)
+					if len(items) > 0 {
+						plan = append(plan, runAction{
+							Action: runActionMerge,
+							Commit: commit,
+							Items:  items,
+						})
+					}
+				} else if branchExists(branch) {
+					appendCommit(offspring, branch)
 				}
 			}
 			head = subseq[len(subseq)-1].Hash
@@ -656,12 +654,12 @@ func generatePlan(
 				if _, exists := branches[child.Hash]; !exists {
 					branches[child.Hash] = counter
 				}
-				parents := branchers[child.Hash]
-				if parents == nil {
-					parents = map[plumbing.Hash]int{}
-					branchers[child.Hash] = parents
+				childParents := branchers[child.Hash]
+				if childParents == nil {
+					childParents = map[plumbing.Hash]int{}
+					branchers[child.Hash] = childParents
 				}
-				parents[head] = counter
+				childParents[head] = counter
 				children = append(children, counter)
 				counter++
 			}

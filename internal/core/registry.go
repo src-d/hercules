@@ -74,7 +74,7 @@ func (registry *PipelineItemRegistry) GetPlumbingItems() []PipelineItem {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	items := []PipelineItem{}
+	items := make([]PipelineItem, 0, len(keys))
 	for _, key := range keys {
 		iface := reflect.New(registry.registered[key].Elem()).Interface()
 		if _, ok := iface.(LeafPipelineItem); !ok {
@@ -205,12 +205,28 @@ func (registry *PipelineItemRegistry) AddFlags(flagSet *pflag.FlagSet) (
 	map[string]interface{}, map[string]*bool) {
 	flags := map[string]interface{}{}
 	deployed := map[string]*bool{}
+	reusableOptions := map[string]ConfigurationOption{}
 	for name, it := range registry.registered {
 		formatHelp := func(desc string) string {
 			return fmt.Sprintf("%s [%s]", desc, name)
 		}
 		itemIface := reflect.New(it.Elem()).Interface()
 		for _, opt := range itemIface.(PipelineItem).ListConfigurationOptions() {
+			if opt.Shared {
+				optCopy := opt
+				if reused, ok := reusableOptions[opt.Flag]; !ok {
+					optCopy.Description = name
+					reusableOptions[opt.Flag] = optCopy
+				} else {
+					optCopy.Description = reused.Description
+					if reflect.DeepEqual(reused, optCopy) {
+						continue
+					}
+					s := fmt.Sprintf("Param conflict of the option %s from: %s, %s", opt.Flag, reused.Description, name)
+					fmt.Println(s)
+					panic(s)
+				}
+			}
 			var iface interface{}
 			getPtr := func() unsafe.Pointer {
 				return unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + unsafe.Sizeof(&iface))

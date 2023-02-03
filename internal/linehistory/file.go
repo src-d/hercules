@@ -1,4 +1,4 @@
-package burndown
+package linehistory
 
 import (
 	"fmt"
@@ -10,7 +10,9 @@ import (
 )
 
 // Updater is the function which is called back on File.Update().
-type Updater = func(currentTime, previousTime, delta int)
+type Updater = func(f *File, currentTime, previousTime, delta int)
+
+type FileId int32
 
 // File encapsulates a balanced binary tree to store line intervals and
 // a cumulative mapping of values to the corresponding length counters. Users
@@ -26,6 +28,7 @@ type Updater = func(currentTime, previousTime, delta int)
 type File struct {
 	tree     *rbtree.RBTree
 	updaters []Updater
+	Id       FileId
 }
 
 // TreeEnd denotes the value of the last leaf in the tree.
@@ -50,7 +53,7 @@ func (file *File) updateTime(currentTime, previousTime, delta int) {
 		return
 	}
 	for _, update := range file.updaters {
-		update(currentTime, previousTime, delta)
+		update(file, currentTime, previousTime, delta)
 	}
 }
 
@@ -62,14 +65,16 @@ func (file *File) updateTime(currentTime, previousTime, delta int) {
 // last node);
 //
 // updaters are the attached interval length mappings.
-func NewFile(time int, length int, allocator *rbtree.Allocator, updaters ...Updater) *File {
-	file := &File{tree: rbtree.NewRBTree(allocator), updaters: updaters}
-	file.updateTime(time, time, length)
+func NewFile(id FileId, time int, length int, allocator *rbtree.Allocator, updaters ...Updater) *File {
+	file := &File{tree: rbtree.NewRBTree(allocator), updaters: updaters, Id: id}
 	if time < 0 || time > math.MaxUint32 {
 		log.Panicf("time is out of allowed range: %d", time)
 	}
 	if length > math.MaxUint32 {
 		log.Panicf("length is out of allowed range: %d", length)
+	}
+	if length >= 0 {
+		file.updateTime(time, time, length)
 	}
 	if length > 0 {
 		file.tree.Insert(rbtree.Item{Key: 0, Value: uint32(time)})
@@ -108,17 +113,27 @@ func NewFileFromTree(keys []int, vals []int, allocator *rbtree.Allocator, update
 // CloneShallow copies the file. It performs a shallow copy of the tree: the allocator
 // must be Clone()-d beforehand.
 func (file *File) CloneShallow(allocator *rbtree.Allocator) *File {
-	return &File{tree: file.tree.CloneShallow(allocator), updaters: file.updaters}
+	return &File{tree: file.tree.CloneShallow(allocator), updaters: file.updaters, Id: file.Id}
+}
+
+func (file *File) CloneShallowWithUpdaters(allocator *rbtree.Allocator, updaters ...Updater) *File {
+	return &File{tree: file.tree.CloneShallow(allocator), updaters: updaters, Id: file.Id}
 }
 
 // CloneDeep copies the file. It performs a deep copy of the tree.
 func (file *File) CloneDeep(allocator *rbtree.Allocator) *File {
-	return &File{tree: file.tree.CloneDeep(allocator), updaters: file.updaters}
+	return &File{tree: file.tree.CloneDeep(allocator), updaters: file.updaters, Id: file.Id}
+}
+
+func (file *File) CloneDeepWithUpdaters(allocator *rbtree.Allocator, updaters ...Updater) *File {
+	return &File{tree: file.tree.CloneDeep(allocator), updaters: updaters, Id: file.Id}
 }
 
 // Delete deallocates the file.
 func (file *File) Delete() {
-	file.tree.Erase()
+	if file != nil {
+		file.tree.Erase()
+	}
 }
 
 // Len returns the File's size - that is, the maximum key in the tree of line
@@ -306,13 +321,21 @@ func (file *File) Merge(day int, others ...*File) {
 			}
 		}
 	}
-	for i, l := range myself {
-		if l&TreeMergeMark == TreeMergeMark {
-			// original merge conflict resolution
+	for i, n := 0, 0; i >= 0; i++ {
+		switch {
+		case i == len(myself):
+			i = -2
+		case myself[i]&TreeMergeMark == TreeMergeMark:
 			myself[i] = day
-			file.updateTime(day, day, 1)
+			n++
+			continue
+		}
+		if n > 0 {
+			file.updateTime(day, day, n)
+			n = 0
 		}
 	}
+
 	// now we need to reconstruct the tree from the discrete values
 	file.tree.Erase()
 	tree := rbtree.NewRBTree(file.tree.Allocator())

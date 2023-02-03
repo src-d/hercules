@@ -89,6 +89,10 @@ func ({{.varname}} *{{.name}}) Configure(facts map[string]interface{}) error {
   return nil
 }
 
+func ({{.varname}} *{{.name}}) ConfigureUpstream(facts map[string]interface{}) error {
+  return nil
+}
+
 // Initialize resets the internal temporary data structures and prepares the object for Consume().
 func ({{.varname}} *{{.name}}) Initialize(repository *git.Repository) error {
   {{.varname}}.l = hercules.NewLogger()

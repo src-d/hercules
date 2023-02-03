@@ -73,6 +73,8 @@ type ConfigurationOption struct {
 	Type ConfigurationOptionType
 	// Default is the initial value of the configuration option.
 	Default interface{}
+	// Shared allows to share same option by multiple items. All cases must have same type, name and default.
+	Shared bool
 }
 
 // FormatDefault converts the default value of ConfigurationOption to string.
@@ -98,9 +100,10 @@ type PipelineItem interface {
 	Requires() []string
 	// ListConfigurationOptions returns the list of available options which can be consumed by Configure().
 	ListConfigurationOptions() []ConfigurationOption
-	// Configure performs the initial setup of the object by applying parameters from facts.
-	// It allows to create PipelineItems in a universal way.
+	// Configure performs the initial setup of the object by applying parameters from facts in downstream directio.
 	Configure(facts map[string]interface{}) error
+	// ConfigureUpstream performs the initial setup of the object by applying parameters from facts in upstream direction.
+	ConfigureUpstream(facts map[string]interface{}) error
 	// Initialize prepares and resets the item. Consume() requires Initialize()
 	// to be called at least once beforehand.
 	Initialize(*git.Repository) error
@@ -158,7 +161,7 @@ type LeafPipelineItem interface {
 type ResultMergeablePipelineItem interface {
 	LeafPipelineItem
 	// Deserialize loads the result from Protocol Buffers blob.
-	Deserialize(pbmessage []byte) (interface{}, error)
+	Deserialize(message []byte) (interface{}, error)
 	// MergeResults joins two results together. Common-s are specified as the global state.
 	MergeResults(r1, r2 interface{}, c1, c2 *CommonAnalysisResult) interface{}
 }
@@ -665,7 +668,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) error {
 // Initialize prepares the pipeline for the execution (Run()). This function
 // resolves the execution DAG, Configure()-s and Initialize()-s the items in it in the
 // topological dependency order. `facts` are passed inside Configure(). They are mutable.
-func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
+func (pipeline *Pipeline) Initialize(aFacts map[string]interface{}) error {
 	cleanReturn := false
 	defer func() {
 		if !cleanReturn {
@@ -675,8 +678,9 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 			}
 		}
 	}()
-	if facts == nil {
-		facts = map[string]interface{}{}
+	facts := make(map[string]interface{}, len(aFacts))
+	for k, v := range aFacts {
+		facts[k] = v
 	}
 
 	// set logger from facts, otherwise set the pipeline's logger as the logger
@@ -720,12 +724,19 @@ func (pipeline *Pipeline) Initialize(facts map[string]interface{}) error {
 		}
 	}
 	for _, item := range pipeline.items {
-		err := item.Configure(facts)
-		if err != nil {
+		if err := item.Configure(facts); err != nil {
 			cleanReturn = true
 			return errors.Wrapf(err, "%s failed to configure", item.Name())
 		}
 	}
+	for i := len(pipeline.items) - 1; i >= 0; i-- {
+		item := pipeline.items[i]
+		if err := item.ConfigureUpstream(facts); err != nil {
+			cleanReturn = true
+			return errors.Wrapf(err, "%s failed to configure upstream", item.Name())
+		}
+	}
+
 	for _, item := range pipeline.items {
 		err := item.Initialize(pipeline.repository)
 		if err != nil {
@@ -762,7 +773,13 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	if onProgress == nil {
 		onProgress = func(int, int, string) {}
 	}
-	plan := prepareRunPlan(commits, pipeline.HibernationDistance, pipeline.DumpPlan)
+	plan := prepareRunPlan(commits, pipeline.HibernationDistance)
+	if pipeline.DumpPlan {
+		for _, p := range plan {
+			printAction(p)
+		}
+	}
+
 	progressSteps := len(plan) + 2
 	branches := map[int][]PipelineItem{}
 	// we will need rootClone if there is more than one root branch
@@ -774,35 +791,19 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	runTimePerItem := map[string]float64{}
 
 	isMerge := func(index int, commit plumbing.Hash) bool {
-		match := false
-		// look for the same hash backward
-		for i := index - 1; i > 0; i-- {
-			switch plan[i].Action {
-			case runActionHibernate, runActionBoot:
-				continue
-			case runActionCommit:
-				match = plan[i].Commit.Hash == commit
-				fallthrough
-			default:
-				i = 0
-			}
-		}
-		if match {
-			return true
-		}
 		// look for the same hash forward
 		for i := index + 1; i < len(plan); i++ {
 			switch plan[i].Action {
 			case runActionHibernate, runActionBoot:
 				continue
-			case runActionCommit:
-				match = plan[i].Commit.Hash == commit
-				fallthrough
-			default:
-				i = len(plan)
+			case runActionMerge:
+				if plan[i].Commit.Hash == commit {
+					return true
+				}
 			}
+			break
 		}
-		return match
+		return false
 	}
 
 	commitIndex := 0
