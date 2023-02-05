@@ -24,7 +24,7 @@ import (
 )
 
 func LineHistoryAnalyser() *linehistory.LineHistoryAnalyser {
-	lh := linehistory.NewLineHistoryAnalyser()
+	lh := &linehistory.LineHistoryAnalyser{}
 	_ = lh.Initialize(test.Repository)
 	return lh
 }
@@ -672,7 +672,7 @@ func TestBurndownSerialize(t *testing.T) {
 }
 
 func TestBurndownSerializeAuthorMissing(t *testing.T) {
-	out, _ := prepareBDForSerialization(t, 0, identity.AuthorMissing)
+	out, _ := prepareBDForSerialization(t, 0, core.AuthorMissing)
 	bd := &BurndownAnalysis{}
 
 	buffer := &bytes.Buffer{}
@@ -1049,7 +1049,7 @@ func TestBurndownEmptyFileHistory(t *testing.T) {
 		Sampling:      30,
 		Granularity:   30,
 		globalHistory: sparseHistory{0: sparseHistoryEntry{deltas: map[int]int64{0: 10}}},
-		fileHistories: map[linehistory.FileId]sparseHistory{1: {}},
+		fileHistories: map[core.FileId]sparseHistory{1: {}},
 	}
 	res := bd.Finalize().(BurndownResult)
 	assert.Len(t, res.GlobalHistory, 1)

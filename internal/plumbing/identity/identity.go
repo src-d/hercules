@@ -29,12 +29,6 @@ type Detector struct {
 }
 
 const (
-	// AuthorMissing is the internal author index which denotes any unmatched identities
-	// (Detector.Consume()). It may *not* be (1 << 18) - 1, see BurndownAnalysis.packPersonWithDay().
-	AuthorMissing = (1 << 18) - 2
-	// AuthorMissingName is the string name which corresponds to AuthorMissing.
-	AuthorMissingName = "<unmatched>"
-
 	// FactIdentityDetectorPeopleDict is the name of the fact which is inserted in
 	// Detector.Configure(). It corresponds to Detector.PeopleDict - the mapping
 	// from the signatures to the author indices.
@@ -58,6 +52,45 @@ const (
 	// DependencyAuthor is the name of the dependency provided by Detector.
 	DependencyAuthor = "author"
 )
+
+var _ core.IdentityResolver = Resolver{}
+
+type Resolver struct {
+	identities *Detector // TODO should be an interface
+}
+
+func (v Resolver) Count() int {
+	if v.identities == nil {
+		return 0
+	}
+	return len(v.identities.PeopleDict)
+}
+
+func (v Resolver) FriendlyNameOf(id core.AuthorId) string {
+	if id == core.AuthorMissing || id < 0 || v.identities == nil || int(id) >= len(v.identities.ReversedPeopleDict) {
+		return core.AuthorMissingName
+	}
+	return v.identities.ReversedPeopleDict[id]
+}
+
+func (v Resolver) FindIdOf(name string) core.AuthorId {
+	if v.identities != nil {
+		if id, ok := v.identities.PeopleDict[name]; ok {
+			return core.AuthorId(id)
+		}
+	}
+	return core.AuthorId(-1)
+}
+
+func (v Resolver) ForEachIdentity(callback func(core.AuthorId, string)) bool {
+	if v.identities == nil {
+		return false
+	}
+	for id, name := range v.identities.ReversedPeopleDict {
+		callback(core.AuthorId(id), name)
+	}
+	return true
+}
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
 func (detector *Detector) Name() string {
@@ -112,6 +145,7 @@ func (detector *Detector) Configure(facts map[string]interface{}) error {
 	if val, exists := facts[ConfigIdentityDetectorExactSignatures].(bool); exists {
 		detector.ExactSignatures = val
 	}
+
 	if detector.PeopleDict == nil || detector.ReversedPeopleDict == nil {
 		peopleDictPath, _ := facts[ConfigIdentityDetectorPeopleDictPath].(string)
 		if peopleDictPath != "" {
@@ -119,19 +153,19 @@ func (detector *Detector) Configure(facts map[string]interface{}) error {
 			if err != nil {
 				return errors.Errorf("failed to load %s: %v", peopleDictPath, err)
 			}
-			facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict) - 1
 		} else {
 			if _, exists := facts[core.ConfigPipelineCommits]; !exists {
 				panic("IdentityDetector needs a list of commits to initialize.")
 			}
 			detector.GeneratePeopleDict(facts[core.ConfigPipelineCommits].([]*object.Commit))
-			facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict)
 		}
-	} else {
-		facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict)
 	}
 	facts[FactIdentityDetectorPeopleDict] = detector.PeopleDict
 	facts[FactIdentityDetectorReversedPeopleDict] = detector.ReversedPeopleDict
+	facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict)
+
+	var resolver core.IdentityResolver = Resolver{detector}
+	facts[core.FactIdentityResolver] = resolver
 	return nil
 }
 
@@ -165,7 +199,7 @@ func (detector *Detector) Consume(deps map[string]interface{}) (map[string]inter
 		authorID, exists = detector.PeopleDict[strings.ToLower(signature.String())]
 	}
 	if !exists {
-		authorID = AuthorMissing
+		authorID = core.AuthorMissing
 	}
 	return map[string]interface{}{DependencyAuthor: authorID}, nil
 }
@@ -203,7 +237,6 @@ func (detector *Detector) LoadPeopleDict(path string) error {
 			dict[strings.ToLower(id)] = canonIndex
 		}
 	}
-	reverseDict = append(reverseDict, AuthorMissingName)
 	detector.PeopleDict = dict
 	detector.ReversedPeopleDict = reverseDict
 	return nil

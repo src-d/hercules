@@ -149,7 +149,7 @@ func (couples *CouplesAnalysis) Consume(deps map[string]interface{}) (map[string
 	firstMerge := couples.ShouldConsumeCommit(deps)
 	couples.lastCommit = deps[core.DependencyCommit].(*object.Commit)
 	author := deps[identity.DependencyAuthor].(int)
-	if author == identity.AuthorMissing {
+	if author == core.AuthorMissing {
 		author = couples.PeopleNumber
 	}
 	if firstMerge {

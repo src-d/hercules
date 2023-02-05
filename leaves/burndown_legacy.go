@@ -277,7 +277,7 @@ func (analyser *LegacyBurndownAnalysis) Initialize(repository *git.Repository) e
 	analyser.fileAllocator = rbtree.NewAllocator()
 	analyser.fileAllocator.HibernationThreshold = analyser.HibernationThreshold
 	analyser.mergedFiles = map[string]bool{}
-	analyser.mergedAuthor = identity.AuthorMissing
+	analyser.mergedAuthor = core.AuthorMissing
 	analyser.renames = map[string]string{}
 	analyser.deletions = map[string]bool{}
 	analyser.matrix = make([]map[int]int64, analyser.PeopleNumber)
@@ -450,7 +450,7 @@ func (analyser *LegacyBurndownAnalysis) Finalize() interface{} {
 		fileHistories[key], _ = analyser.groupSparseHistory(history, lastTick)
 		file := analyser.files[key]
 		previousLine := 0
-		previousAuthor := identity.AuthorMissing
+		previousAuthor := core.AuthorMissing
 		ownership := map[int]int{}
 		fileOwnership[key] = ownership
 		file.ForEach(func(line, value int) {
@@ -460,7 +460,7 @@ func (analyser *LegacyBurndownAnalysis) Finalize() interface{} {
 			}
 			previousLine = line
 			previousAuthor, _ = analyser.unpackPersonWithTick(int(value))
-			if previousAuthor == identity.AuthorMissing {
+			if previousAuthor == core.AuthorMissing {
 				previousAuthor = -1
 			}
 		})
@@ -484,7 +484,7 @@ func (analyser *LegacyBurndownAnalysis) Finalize() interface{} {
 			mrow := make([]int64, analyser.PeopleNumber+2)
 			peopleMatrix[i] = mrow
 			for key, val := range row {
-				if key == identity.AuthorMissing {
+				if key == core.AuthorMissing {
 					key = -1
 				} else if key == authorSelf {
 					key = -2
@@ -1088,7 +1088,7 @@ func (analyser *LegacyBurndownAnalysis) packPersonWithTick(person int, tick int)
 
 	result |= person << linehistory.TreeMaxBinPower
 
-	if (person >= analyser.PeopleNumber) && (person != identity.AuthorMissing) {
+	if (person >= analyser.PeopleNumber) && (person != core.AuthorMissing) {
 		log.Fatalf("person >= analyser.PeopleNumber %d %d\n%s", person, analyser.PeopleNumber, string(debug.Stack()))
 		panic("person >= analyser.PeopleNumber")
 	}
@@ -1097,14 +1097,14 @@ func (analyser *LegacyBurndownAnalysis) packPersonWithTick(person int, tick int)
 	// One tick less because burndown.TreeMergeMark = ((1 << 14) - 1) is a special tick.
 	// Three devs less because:
 	// - math.MaxUint32 is the special rbtree value with tick == TreeMergeMark (-1)
-	// - identity.AuthorMissing (-2)
+	// - core.AuthorMissing (-2)
 	// - authorSelf (-3)
 	return result
 }
 
 func (analyser *LegacyBurndownAnalysis) unpackPersonWithTick(value int) (int, int) {
 	if analyser.PeopleNumber == 0 {
-		return identity.AuthorMissing, value
+		return core.AuthorMissing, value
 	}
 	return value >> linehistory.TreeMaxBinPower, value & linehistory.TreeMergeMark
 }
@@ -1113,7 +1113,7 @@ func (analyser *LegacyBurndownAnalysis) onNewTick() {
 	if analyser.tick > analyser.previousTick {
 		analyser.previousTick = analyser.tick
 	}
-	analyser.mergedAuthor = identity.AuthorMissing
+	analyser.mergedAuthor = core.AuthorMissing
 }
 
 func (analyser *LegacyBurndownAnalysis) updateGlobal(_ *linehistory.File, currentTime, previousTime, delta int) {
@@ -1135,7 +1135,7 @@ func (analyser *LegacyBurndownAnalysis) updateFile(
 
 func (analyser *LegacyBurndownAnalysis) updateAuthor(_ *linehistory.File, currentTime, previousTime, delta int) {
 	prevAuthor, prevTick := analyser.unpackPersonWithTick(previousTime)
-	if prevAuthor == identity.AuthorMissing {
+	if prevAuthor == core.AuthorMissing {
 		return
 	}
 	newAuthor, curTick := analyser.unpackPersonWithTick(currentTime)
@@ -1156,7 +1156,7 @@ func (analyser *LegacyBurndownAnalysis) updateChurnMatrix(_ *linehistory.File, c
 	newAuthor, _ := analyser.unpackPersonWithTick(currentTime)
 	prevAuthor, _ := analyser.unpackPersonWithTick(previousTime)
 
-	if prevAuthor == identity.AuthorMissing {
+	if prevAuthor == core.AuthorMissing {
 		return
 	}
 	if delta > 0 {

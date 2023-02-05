@@ -210,7 +210,7 @@ func TestCouplesConsumeFinalizeAuthorMissing(t *testing.T) {
 	deps[identity.DependencyAuthor] = 1
 	deps[plumbing.DependencyTreeChanges] = generateChanges("=README.md", "=analyser.go", "-rbtree2.go")
 	c.Consume(deps)
-	deps[identity.DependencyAuthor] = identity.AuthorMissing
+	deps[identity.DependencyAuthor] = core.AuthorMissing
 	deps[plumbing.DependencyTreeChanges] = generateChanges("=file_test.go")
 	c.Consume(deps)
 	assert.Equal(t, len(c.people[0]), 6)

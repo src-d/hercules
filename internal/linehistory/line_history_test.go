@@ -23,7 +23,7 @@ func AddHash(t *testing.T, cache map[plumbing.Hash]*items.CachedBlob, hash strin
 }
 
 func TestLinesMeta(t *testing.T) {
-	bd := NewLineHistoryAnalyser()
+	bd := &LineHistoryAnalyser{}
 	assert.Equal(t, bd.Name(), "LineHistory")
 	assert.Len(t, bd.Provides(), 1)
 	assert.Equal(t, bd.Provides()[0], DependencyLineHistory)
@@ -53,7 +53,7 @@ func TestLinesMeta(t *testing.T) {
 }
 
 func TestLinesConfigure(t *testing.T) {
-	bd := NewLineHistoryAnalyser()
+	bd := &LineHistoryAnalyser{}
 	facts := map[string]interface{}{}
 	facts[ConfigLinesDebug] = true
 	facts[ConfigLinesHibernationThreshold] = 100
@@ -76,7 +76,7 @@ func TestLinesRegistration(t *testing.T) {
 }
 
 func TestLinesInitialize(t *testing.T) {
-	bd := NewLineHistoryAnalyser()
+	bd := &LineHistoryAnalyser{}
 	bd.HibernationThreshold = 10
 	assert.Nil(t, bd.Initialize(test.Repository))
 	assert.Equal(t, bd.fileAllocator.HibernationThreshold, 10)
@@ -145,11 +145,11 @@ func TestLinesConsume(t *testing.T) {
 		"cce947b98a050c6d356bc6ba95030254914027b1"))
 	deps[core.DependencyIsMerge] = false
 
-	expectedChanges := append([]LineHistoryChange(nil), LineHistoryChange{
+	expectedChanges := append([]core.LineHistoryChange(nil), core.LineHistoryChange{
 		FileId: 1, Delta: 926,
-	}, LineHistoryChange{
+	}, core.LineHistoryChange{
 		FileId: 2, Delta: 207,
-	}, LineHistoryChange{
+	}, core.LineHistoryChange{
 		FileId: 3, Delta: 12,
 	})
 	totalLines := int64(0)
@@ -157,16 +157,16 @@ func TestLinesConsume(t *testing.T) {
 		totalLines += int64(c.Delta)
 	}
 
-	bd := NewLineHistoryAnalyser()
+	bd := &LineHistoryAnalyser{}
 
 	assert.Nil(t, bd.Initialize(test.Repository))
 	result, err = bd.Consume(deps)
 	assert.Nil(t, err)
 
-	assert.Equal(t, TickNumber(0), bd.previousTick)
+	assert.Equal(t, core.TickNumber(0), bd.previousTick)
 
 	assert.Len(t, result, 1)
-	resultChanges := result[DependencyLineHistory].(LineHistoryChanges)
+	resultChanges := result[DependencyLineHistory].(core.LineHistoryChanges)
 	{
 		resolver := resultChanges.Resolver
 		assert.Equal(t, "", resolver.NameOf(0))
@@ -259,10 +259,10 @@ func TestLinesConsume(t *testing.T) {
 	deps[items.DependencyFileDiff] = result[items.DependencyFileDiff]
 	result, err = bd.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, TickNumber(30), bd.previousTick)
+	assert.Equal(t, core.TickNumber(30), bd.previousTick)
 
 	assert.Len(t, result, 1)
-	resultChanges = result[DependencyLineHistory].(LineHistoryChanges)
+	resultChanges = result[DependencyLineHistory].(core.LineHistoryChanges)
 
 	{
 		assert.Len(t, bd.files, 2)
@@ -291,15 +291,15 @@ func TestLinesConsume(t *testing.T) {
 
 		for _, c := range resultChanges.Changes {
 			if c.IsDelete() {
-				assert.Equal(t, AuthorId(identity.AuthorMissing), c.CurrAuthor)
-				assert.Equal(t, AuthorId(identity.AuthorMissing), c.PrevAuthor)
+				assert.Equal(t, core.AuthorId(core.AuthorMissing), c.CurrAuthor)
+				assert.Equal(t, core.AuthorId(core.AuthorMissing), c.PrevAuthor)
 				deleted[c.FileId] += 1
 			} else {
-				assert.NotEqual(t, AuthorId(identity.AuthorMissing), c.CurrAuthor)
-				assert.NotEqual(t, AuthorId(identity.AuthorMissing), c.PrevAuthor)
+				assert.NotEqual(t, core.AuthorId(core.AuthorMissing), c.CurrAuthor)
+				assert.NotEqual(t, core.AuthorId(core.AuthorMissing), c.PrevAuthor)
 				lines[c.FileId] += c.Delta
 			}
-			assert.Equal(t, TickNumber(30), c.CurrTick)
+			assert.Equal(t, core.TickNumber(30), c.CurrTick)
 		}
 
 		assert.Equal(t, 543, bd.files["burndown.go"].Len())
@@ -314,7 +314,7 @@ func TestLinesConsume(t *testing.T) {
 }
 
 func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) *LineHistoryAnalyser {
-	bd := NewLineHistoryAnalyser()
+	bd := &LineHistoryAnalyser{}
 	assert.Nil(t, bd.Initialize(test.Repository))
 	deps := map[string]interface{}{}
 	// stage 1

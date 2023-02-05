@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"os"
 	"runtime/debug"
 	"sync/atomic"
@@ -21,10 +20,6 @@ import (
 	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
-
-func NewLineHistoryAnalyser() *LineHistoryAnalyser {
-	return &LineHistoryAnalyser{}
-}
 
 // LineHistoryAnalyser allows to gather per-line history and statistics for a Git repository.
 // It is a PipelineItem.
@@ -66,12 +61,12 @@ type LineHistoryAnalyser struct {
 	hibernatedFileName string
 
 	// tick is the most recent tick index processed.
-	tick TickNumber
+	tick core.TickNumber
 	// previousTick is the tick from the previous sample period -
 	// different from TicksSinceStart.previousTick.
-	previousTick TickNumber
+	previousTick core.TickNumber
 
-	changes []LineHistoryChange
+	changes []core.LineHistoryChange
 
 	l core.Logger
 }
@@ -84,19 +79,7 @@ func (p *counterHolder) next() FileId {
 	return FileId(atomic.AddInt32(&p.atomicCounter, 1))
 }
 
-type TickNumber int32
-type AuthorId int32
-
-type LineHistoryChange struct {
-	FileId
-	CurrTick, PrevTick     TickNumber
-	CurrAuthor, PrevAuthor AuthorId
-	Delta                  int
-}
-
-func (v LineHistoryChange) IsDelete() bool {
-	return v.CurrAuthor == identity.AuthorMissing && v.Delta == math.MinInt
-}
+var _ core.FileIdResolver = FileIdResolver{}
 
 type FileIdResolver struct {
 	analyser *LineHistoryAnalyser
@@ -145,7 +128,7 @@ func (v FileIdResolver) ForEachFile(callback func(id FileId, name string)) bool 
 	return true
 }
 
-func (v FileIdResolver) ScanFile(id FileId, callback func(line int, tick TickNumber, author AuthorId)) bool {
+func (v FileIdResolver) ScanFile(id FileId, callback func(line int, tick core.TickNumber, author core.AuthorId)) bool {
 	if v.analyser == nil {
 		return false
 	}
@@ -159,11 +142,6 @@ func (v FileIdResolver) ScanFile(id FileId, callback func(line int, tick TickNum
 		callback(line, tick, author)
 	})
 	return true
-}
-
-type LineHistoryChanges struct {
-	Changes  []LineHistoryChange
-	Resolver FileIdResolver
 }
 
 const (
@@ -245,6 +223,9 @@ func (analyser *LineHistoryAnalyser) Configure(facts map[string]interface{}) err
 		analyser.Debug = val
 	}
 
+	var resolver core.FileIdResolver = FileIdResolver{analyser}
+	facts[core.FactLineHistoryResolver] = resolver
+
 	return nil
 }
 
@@ -274,15 +255,15 @@ func (analyser *LineHistoryAnalyser) Consume(deps map[string]interface{}) (map[s
 		panic("LineHistoryAnalyser.Consume() was called on a hibernated instance")
 	}
 
-	author := AuthorId(deps[identity.DependencyAuthor].(int))
-	analyser.tick = TickNumber(deps[items.DependencyTick].(int))
+	author := core.AuthorId(deps[identity.DependencyAuthor].(int))
+	analyser.tick = core.TickNumber(deps[items.DependencyTick].(int))
 	analyser.onNewTick()
 
 	cache := deps[items.DependencyBlobCache].(map[plumbing.Hash]*items.CachedBlob)
 	treeDiffs := deps[items.DependencyTreeChanges].(object.Changes)
 	fileDiffs := deps[items.DependencyFileDiff].(map[string]items.FileDiffData)
 
-	analyser.changes = make([]LineHistoryChange, 0, len(treeDiffs)*4)
+	analyser.changes = make([]core.LineHistoryChange, 0, len(treeDiffs)*4)
 	for _, change := range treeDiffs {
 		action, _ := change.Action()
 		var err error
@@ -299,7 +280,7 @@ func (analyser *LineHistoryAnalyser) Consume(deps map[string]interface{}) (map[s
 		}
 	}
 
-	result := map[string]interface{}{DependencyLineHistory: LineHistoryChanges{
+	result := map[string]interface{}{DependencyLineHistory: core.LineHistoryChanges{
 		Changes:  analyser.changes,
 		Resolver: FileIdResolver{analyser},
 	}}
@@ -369,7 +350,7 @@ func (analyser *LineHistoryAnalyser) Fork(n int) []core.PipelineItem {
 			clone.files[key] = file.CloneShallowWithUpdaters(clone.fileAllocator, clone.updateChangeList)
 			clone.fileNames[file.Id] = key
 		}
-		clone.changes = append(make([]LineHistoryChange, 0, cap(analyser.changes)), analyser.changes...)
+		clone.changes = append(make([]core.LineHistoryChange, 0, cap(analyser.changes)), analyser.changes...)
 
 		result[i] = &clone
 	}
@@ -458,9 +439,9 @@ func (analyser *LineHistoryAnalyser) Boot() error {
 // Strictly speaking, int can be 64-bit and then the author index occupies 32+18 bits.
 // This hack is needed to simplify the values storage inside File-s. We can compare
 // different values together and they are compared as ticks for the same author.
-func packPersonWithTick(author AuthorId, tick TickNumber) int {
+func packPersonWithTick(author core.AuthorId, tick core.TickNumber) int {
 
-	if author > identity.AuthorMissing {
+	if author > core.AuthorMissing {
 		log.Fatalf("person > AuthorMissing %d \n%s", author, string(debug.Stack()))
 	}
 	if tick > TreeMergeMark {
@@ -474,13 +455,13 @@ func packPersonWithTick(author AuthorId, tick TickNumber) int {
 	// One tick less because TreeMergeMark = ((1 << 14) - 1) is a special tick.
 	// Three devs less because:
 	// - math.MaxUint32 is the special rbtree value with tick == TreeMergeMark (-1)
-	// - identity.AuthorMissing (-2)
+	// - core.AuthorMissing (-2)
 	// - authorSelf (-3)
 	return result
 }
 
-func unpackPersonWithTick(value int) (author AuthorId, tick TickNumber) {
-	return AuthorId(value >> TreeMaxBinPower), TickNumber(value & TreeMergeMark)
+func unpackPersonWithTick(value int) (author core.AuthorId, tick core.TickNumber) {
+	return core.AuthorId(value >> TreeMaxBinPower), core.TickNumber(value & TreeMergeMark)
 }
 
 func (analyser *LineHistoryAnalyser) onNewTick() {
@@ -496,7 +477,7 @@ func (analyser *LineHistoryAnalyser) updateChangeList(f *File, currentTime, prev
 		analyser.l.Errorf("insertion must have the same author (%d, %d)", prevAuthor, newAuthor)
 		return
 	}
-	analyser.changes = append(analyser.changes, LineHistoryChange{
+	analyser.changes = append(analyser.changes, core.LineHistoryChange{
 		FileId:     f.Id,
 		CurrTick:   curTick,
 		CurrAuthor: newAuthor,
@@ -507,7 +488,7 @@ func (analyser *LineHistoryAnalyser) updateChangeList(f *File, currentTime, prev
 }
 
 func (analyser *LineHistoryAnalyser) newFile(
-	_ plumbing.Hash, name string, author AuthorId, tick TickNumber, size int) (*File, error) {
+	_ plumbing.Hash, name string, author core.AuthorId, tick core.TickNumber, size int) (*File, error) {
 
 	analyser.forgetFileName(name)
 
@@ -529,7 +510,7 @@ func (analyser *LineHistoryAnalyser) forgetFileName(name string) *File {
 }
 
 func (analyser *LineHistoryAnalyser) handleInsertion(
-	change *object.Change, author AuthorId, cache map[plumbing.Hash]*items.CachedBlob) error {
+	change *object.Change, author core.AuthorId, cache map[plumbing.Hash]*items.CachedBlob) error {
 	blob := cache[change.To.TreeEntry.Hash]
 
 	name := change.To.Name
@@ -551,7 +532,7 @@ func (analyser *LineHistoryAnalyser) handleInsertion(
 }
 
 func (analyser *LineHistoryAnalyser) handleDeletion(
-	change *object.Change, author AuthorId, cache map[plumbing.Hash]*items.CachedBlob) error {
+	change *object.Change, author core.AuthorId, cache map[plumbing.Hash]*items.CachedBlob) error {
 
 	var name string
 	if change.To.TreeEntry.Hash != plumbing.ZeroHash {
@@ -575,20 +556,13 @@ func (analyser *LineHistoryAnalyser) handleDeletion(
 	file.Update(packPersonWithTick(author, analyser.tick), 0, 0, lines)
 	file.Delete()
 
-	analyser.changes = append(analyser.changes, LineHistoryChange{
-		FileId:     file.Id,
-		CurrTick:   analyser.tick,
-		CurrAuthor: identity.AuthorMissing,
-		PrevTick:   analyser.tick,
-		PrevAuthor: identity.AuthorMissing,
-		Delta:      math.MinInt,
-	})
+	analyser.changes = append(analyser.changes, core.NewLineHistoryDeletion(file.Id, analyser.tick))
 	analyser.forgetFileName(name)
 	return nil
 }
 
 func (analyser *LineHistoryAnalyser) handleModification(
-	change *object.Change, author AuthorId, cache map[plumbing.Hash]*items.CachedBlob,
+	change *object.Change, author core.AuthorId, cache map[plumbing.Hash]*items.CachedBlob,
 	diffs map[string]items.FileDiffData) error {
 
 	file, exists := analyser.files[change.From.Name]
@@ -727,5 +701,5 @@ func (analyser *LineHistoryAnalyser) handleRename(from, to string) error {
 }
 
 func init() {
-	core.Registry.Register(NewLineHistoryAnalyser())
+	core.Registry.Register(&LineHistoryAnalyser{})
 }

@@ -84,7 +84,7 @@ Vadim|vadim@sourced.tech`)
 	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.Len(t, id.PeopleDict, 4)
-	assert.Len(t, id.ReversedPeopleDict, 3)
+	assert.Len(t, id.ReversedPeopleDict, 2)
 	assert.Equal(t, id.ReversedPeopleDict[0], "Egor")
 	assert.Equal(t, facts[FactIdentityDetectorPeopleCount], 2)
 	delete(facts, FactIdentityDetectorPeopleDict)
@@ -95,7 +95,7 @@ Vadim|vadim@sourced.tech`)
 	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.Len(t, id.PeopleDict, 4)
-	assert.Len(t, id.ReversedPeopleDict, 3)
+	assert.Len(t, id.ReversedPeopleDict, 2)
 	assert.Equal(t, id.ReversedPeopleDict[0], "Egor")
 	assert.Equal(t, facts[FactIdentityDetectorPeopleCount], 2)
 	delete(facts, FactIdentityDetectorPeopleDict)
@@ -148,7 +148,7 @@ func TestIdentityDetectorConsume(t *testing.T) {
 	deps[core.DependencyCommit] = commit
 	res, err = fixtureIdentityDetector().Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res[DependencyAuthor].(int), AuthorMissing)
+	assert.Equal(t, res[DependencyAuthor].(int), core.AuthorMissing)
 }
 
 func TestIdentityDetectorConsumeExact(t *testing.T) {
@@ -170,7 +170,7 @@ func TestIdentityDetectorConsumeExact(t *testing.T) {
 	deps[core.DependencyCommit] = commit
 	res, err = id.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, res[DependencyAuthor].(int), AuthorMissing)
+	assert.Equal(t, res[DependencyAuthor].(int), core.AuthorMissing)
 }
 
 func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
@@ -189,12 +189,11 @@ func TestIdentityDetectorLoadPeopleDict(t *testing.T) {
 	assert.Contains(t, id.PeopleDict, "first@example.com")
 	assert.Contains(t, id.PeopleDict, "second@example.com")
 
-	assert.Equal(t, len(id.ReversedPeopleDict), 5)
+	assert.Equal(t, len(id.ReversedPeopleDict), 4)
 	assert.Equal(t, id.ReversedPeopleDict[0], "Linus Torvalds")
 	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim Markovtsev")
 	assert.Equal(t, id.ReversedPeopleDict[2], "Máximo Cuadros")
 	assert.Equal(t, id.ReversedPeopleDict[3], "Duplicate")
-	assert.Equal(t, id.ReversedPeopleDict[4], AuthorMissingName)
 
 	assert.Equal(t, id.PeopleDict["duplicate"], id.PeopleDict["first@example.com"])
 	assert.Equal(t, id.PeopleDict["duplicate"], id.PeopleDict["second@example.com"])
@@ -261,7 +260,7 @@ func TestIdentityDetectorGeneratePeopleDict(t *testing.T) {
 	assert.Equal(t, id.ReversedPeopleDict[0], "vadim markovtsev|gmarkhor@gmail.com|vadim@athenian.co|vadim@sourced.tech")
 	assert.Equal(t, id.ReversedPeopleDict[1], "alexander bezzubov|bzz@apache.org")
 	assert.Equal(t, id.ReversedPeopleDict[2], "máximo cuadros|mcuadros@gmail.com")
-	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorMissingName)
+	assert.NotEqual(t, id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], core.AuthorMissingName)
 }
 
 func TestIdentityDetectorGeneratePeopleDictExact(t *testing.T) {
@@ -282,7 +281,7 @@ func TestIdentityDetectorGeneratePeopleDictExact(t *testing.T) {
 	ass.True(len(id.ReversedPeopleDict) >= 24)
 	ass.Contains(id.PeopleDict, "vadim markovtsev <vadim@sourced.tech>")
 	ass.Contains(id.PeopleDict, "vadim markovtsev <vadim@athenian.co>")
-	ass.NotEqual(id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], AuthorMissingName)
+	ass.NotEqual(id.ReversedPeopleDict[len(id.ReversedPeopleDict)-1], core.AuthorMissingName)
 }
 
 func TestIdentityDetectorLoadPeopleDictInvalidPath(t *testing.T) {

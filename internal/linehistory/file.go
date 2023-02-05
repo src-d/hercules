@@ -2,6 +2,7 @@ package linehistory
 
 import (
 	"fmt"
+	"github.com/cyraxred/hercules/internal/core"
 	"log"
 	"math"
 
@@ -12,7 +13,7 @@ import (
 // Updater is the function which is called back on File.Update().
 type Updater = func(f *File, currentTime, previousTime, delta int)
 
-type FileId int32
+type FileId = core.FileId
 
 // File encapsulates a balanced binary tree to store line intervals and
 // a cumulative mapping of values to the corresponding length counters. Users

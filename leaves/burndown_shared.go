@@ -3,7 +3,6 @@ package leaves
 import (
 	"github.com/cyraxred/hercules/internal/burndown"
 	"github.com/cyraxred/hercules/internal/core"
-	"github.com/cyraxred/hercules/internal/plumbing/identity"
 	"io"
 	"sort"
 	"time"
@@ -23,7 +22,7 @@ const (
 	DefaultBurndownGranularity = 30
 	// authorSelf is the internal author index which is used in BurndownAnalysis.Finalize() to
 	// format the author overwrites matrix.
-	authorSelf = identity.AuthorMissing - 1
+	authorSelf = core.AuthorMissing + 1
 )
 
 var BurndownSharedOptions = [...]core.ConfigurationOption{{

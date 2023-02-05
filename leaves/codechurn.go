@@ -44,31 +44,31 @@ type CodeChurnAnalysis struct {
 	codeChurns  []personChurnStats
 	churnDeltas map[churnDeltaKey]churnDelta
 
-	fileResolver linehistory.FileIdResolver
+	fileResolver core.FileIdResolver
 
 	l core.Logger
 }
 
 type churnDeletedFileEntry struct {
-	fileId    linehistory.FileId
+	fileId    core.FileId
 	deletedAt int
 	entry     churnFileEntry
 }
 
 type personChurnStats struct {
-	files map[linehistory.FileId]churnFileEntry
+	files map[core.FileId]churnFileEntry
 }
 
-func (p *personChurnStats) getFileEntry(id linehistory.FileId) (entry churnFileEntry) {
+func (p *personChurnStats) getFileEntry(id core.FileId) (entry churnFileEntry) {
 	if p.files != nil {
 		entry = p.files[id]
 		if entry.deleteHistory != nil {
 			return
 		}
 	} else {
-		p.files = map[linehistory.FileId]churnFileEntry{}
+		p.files = map[core.FileId]churnFileEntry{}
 	}
-	entry.deleteHistory = map[linehistory.AuthorId]sparseHistory{}
+	entry.deleteHistory = map[core.AuthorId]sparseHistory{}
 	return
 }
 
@@ -184,18 +184,18 @@ func (analyser *CodeChurnAnalysis) Fork(n int) []core.PipelineItem {
 // in Provides(). If there was an error, nil is returned.
 func (analyser *CodeChurnAnalysis) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 
-	changes := deps[linehistory.DependencyLineHistory].(linehistory.LineHistoryChanges)
+	changes := deps[linehistory.DependencyLineHistory].(core.LineHistoryChanges)
 	analyser.fileResolver = changes.Resolver
 
 	for _, change := range changes.Changes {
 		if change.IsDelete() {
 			continue
 		}
-		if int(change.PrevAuthor) >= analyser.PeopleNumber && change.PrevAuthor != identity.AuthorMissing {
-			change.PrevAuthor = identity.AuthorMissing
+		if int(change.PrevAuthor) >= analyser.PeopleNumber && change.PrevAuthor != core.AuthorMissing {
+			change.PrevAuthor = core.AuthorMissing
 		}
-		if int(change.CurrAuthor) >= analyser.PeopleNumber && change.CurrAuthor != identity.AuthorMissing {
-			change.CurrAuthor = identity.AuthorMissing
+		if int(change.CurrAuthor) >= analyser.PeopleNumber && change.CurrAuthor != core.AuthorMissing {
+			change.CurrAuthor = core.AuthorMissing
 		}
 
 		analyser.updateAuthor(change)
@@ -205,12 +205,12 @@ func (analyser *CodeChurnAnalysis) Consume(deps map[string]interface{}) (map[str
 }
 
 type churnDeltaKey struct {
-	linehistory.AuthorId
-	linehistory.FileId
+	core.AuthorId
+	core.FileId
 }
 
 type churnDelta struct {
-	lastTouch linehistory.TickNumber
+	lastTouch core.TickNumber
 	churnLines
 }
 
@@ -227,7 +227,7 @@ type churnFileEntry struct {
 	memorability  float32
 	awareness     float32
 
-	deleteHistory map[linehistory.AuthorId]sparseHistory
+	deleteHistory map[core.AuthorId]sparseHistory
 }
 
 func (analyser *CodeChurnAnalysis) updateAwareness(change LineHistoryChange, fileEntry *churnFileEntry) {
@@ -268,7 +268,7 @@ func (analyser *CodeChurnAnalysis) updateAwareness(change LineHistoryChange, fil
 }
 
 func (analyser *CodeChurnAnalysis) updateAuthor(change LineHistoryChange) {
-	if change.PrevAuthor == identity.AuthorMissing || change.Delta == 0 {
+	if change.PrevAuthor == core.AuthorMissing || change.Delta == 0 {
 		return
 	}
 
@@ -343,7 +343,7 @@ func (analyser *CodeChurnAnalysis) memoryLoss(x float64) float64 {
 }
 
 func (analyser *CodeChurnAnalysis) calculateAwareness(entry churnFileEntry, change LineHistoryChange,
-	lastTouch linehistory.TickNumber, delta churnLines) (awareness, memorability float64) {
+	lastTouch core.TickNumber, delta churnLines) (awareness, memorability float64) {
 
 	const awarenessLowCut = 0.5
 	const memorabilityMin = 0.5

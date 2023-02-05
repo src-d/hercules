@@ -221,7 +221,7 @@ func (devs *DevsAnalysis) Deserialize(pbmessage []byte) (interface{}, error) {
 		ticks[int(tick)] = rdd
 		for dev, stats := range dd.Devs {
 			if dev == -1 {
-				dev = identity.AuthorMissing
+				dev = core.AuthorMissing
 			}
 			languages := map[string]items.LineStats{}
 			rdd[int(dev)] = &DevTick{
@@ -282,7 +282,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 		}
 		for dev, stats := range dd {
 			newdev := dev
-			if newdev != identity.AuthorMissing {
+			if newdev != core.AuthorMissing {
 				newdev = mergedIndex[cr1.reversedPeopleDict[dev]].Final
 			}
 			newstats, exists := newdd[newdev]
@@ -313,7 +313,7 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 		}
 		for dev, stats := range dd {
 			newdev := dev
-			if newdev != identity.AuthorMissing {
+			if newdev != core.AuthorMissing {
 				newdev = mergedIndex[cr2.reversedPeopleDict[dev]].Final
 			}
 			newstats, exists := newdd[newdev]
@@ -363,7 +363,7 @@ func (devs *DevsAnalysis) serializeText(result *DevsResult, writer io.Writer) {
 		sort.Ints(devseq)
 		for _, dev := range devseq {
 			stats := rtick[dev]
-			if dev == identity.AuthorMissing {
+			if dev == core.AuthorMissing {
 				dev = -1
 			}
 			var langs []string
@@ -397,7 +397,7 @@ func (devs *DevsAnalysis) serializeBinary(result *DevsResult, writer io.Writer) 
 		message.Ticks[int32(tick)] = dd
 		dd.Devs = map[int32]*pb.DevTick{}
 		for dev, stats := range devs {
-			if dev == identity.AuthorMissing {
+			if dev == core.AuthorMissing {
 				dev = -1
 			}
 			languages := map[string]*pb.LineStats{}

@@ -496,11 +496,11 @@ func TestLegacyBurndownConsumeMergeAuthorMissing(t *testing.T) {
 	deps[items.DependencyFileDiff] = filediff[items.DependencyFileDiff]
 	deps[core.DependencyCommit], _ = test.Repository.CommitObject(plumbing.NewHash(
 		"7ef5c47aa79a1b229e3227d9ffe2401dbcbeb22f"))
-	deps[identity.DependencyAuthor] = identity.AuthorMissing
+	deps[identity.DependencyAuthor] = core.AuthorMissing
 	deps[core.DependencyIsMerge] = true
 	_, err = bd.Consume(deps)
 	assert.Nil(t, err)
-	assert.Equal(t, identity.AuthorMissing, bd.mergedAuthor)
+	assert.Equal(t, core.AuthorMissing, bd.mergedAuthor)
 }
 
 func bakeBurndownForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
@@ -736,7 +736,7 @@ func TestLegacyBurndownSerialize(t *testing.T) {
 }
 
 func TestLegacyBurndownSerializeAuthorMissing(t *testing.T) {
-	out, _ := bakeBurndownForSerialization(t, 0, identity.AuthorMissing)
+	out, _ := bakeBurndownForSerialization(t, 0, core.AuthorMissing)
 	bd := &LegacyBurndownAnalysis{}
 
 	buffer := &bytes.Buffer{}
