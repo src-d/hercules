@@ -54,51 +54,41 @@ func TestIdentityDetectorConfigure(t *testing.T) {
 	facts := map[string]interface{}{}
 	m1 := map[string]int{"one": 0}
 	m2 := []string{"one"}
-	facts[FactIdentityDetectorPeopleDict] = m1
 	facts[FactIdentityDetectorReversedPeopleDict] = m2
 	assert.Nil(t, id.Configure(facts))
-	assert.Equal(t, m1, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, m2, facts[FactIdentityDetectorReversedPeopleDict])
-	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
-	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
-	id = fixtureIdentityDetector()
+	assert.Equal(t, m1, id.PeopleDict)
+	assert.Equal(t, m2, id.ReversedPeopleDict)
+
 	tmpf, err := ioutil.TempFile("", "hercules-test-")
 	assert.Nil(t, err)
 	defer os.Remove(tmpf.Name())
-	_, err = tmpf.WriteString(`Egor|egor@sourced.tech
-Vadim|vadim@sourced.tech`)
+	_, err = tmpf.WriteString("Egor|egor@sourced.tech\nVadim|vadim@sourced.tech")
 	assert.Nil(t, err)
 	assert.Nil(t, tmpf.Close())
-	delete(facts, FactIdentityDetectorPeopleDict)
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
 	facts[ConfigIdentityDetectorPeopleDictPath] = tmpf.Name()
 	assert.Nil(t, id.Configure(facts))
-	assert.Len(t, id.PeopleDict, 2)
-	assert.Len(t, id.ReversedPeopleDict, 1)
-	assert.Equal(t, id.ReversedPeopleDict[0], "Vadim")
-	delete(facts, FactIdentityDetectorPeopleDict)
+	assert.Len(t, id.PeopleDict, 4)
+	assert.Len(t, id.ReversedPeopleDict, 2)
+	assert.Equal(t, id.ReversedPeopleDict[1], "Vadim")
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
+
 	id = fixtureIdentityDetector()
 	id.PeopleDict = nil
 	assert.Nil(t, id.Configure(facts))
-	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.Len(t, id.PeopleDict, 4)
 	assert.Len(t, id.ReversedPeopleDict, 2)
 	assert.Equal(t, id.ReversedPeopleDict[0], "Egor")
-	assert.Equal(t, facts[FactIdentityDetectorPeopleCount], 2)
-	delete(facts, FactIdentityDetectorPeopleDict)
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
 	id = fixtureIdentityDetector()
 	id.ReversedPeopleDict = nil
 	assert.Nil(t, id.Configure(facts))
-	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.Len(t, id.PeopleDict, 4)
 	assert.Len(t, id.ReversedPeopleDict, 2)
 	assert.Equal(t, id.ReversedPeopleDict[0], "Egor")
-	assert.Equal(t, facts[FactIdentityDetectorPeopleCount], 2)
-	delete(facts, FactIdentityDetectorPeopleDict)
 	delete(facts, FactIdentityDetectorReversedPeopleDict)
 	delete(facts, ConfigIdentityDetectorPeopleDictPath)
 	commits := make([]*object.Commit, 0)
@@ -115,7 +105,6 @@ Vadim|vadim@sourced.tech`)
 	id.PeopleDict = nil
 	id.ReversedPeopleDict = nil
 	assert.Nil(t, id.Configure(facts))
-	assert.Equal(t, id.PeopleDict, facts[FactIdentityDetectorPeopleDict])
 	assert.Equal(t, id.ReversedPeopleDict, facts[FactIdentityDetectorReversedPeopleDict])
 	assert.True(t, len(id.PeopleDict) >= 3)
 	assert.True(t, len(id.ReversedPeopleDict) >= 4)

@@ -102,9 +102,9 @@ func (couples *CouplesAnalysis) Configure(facts map[string]interface{}) error {
 	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
 		couples.l = l
 	}
-	if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
-		couples.PeopleNumber = val
-		couples.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
+	if val, exists := facts[identity.FactIdentityDetectorReversedPeopleDict].([]string); exists {
+		couples.PeopleNumber = len(val)
+		couples.reversedPeopleDict = val
 	}
 	return nil
 }

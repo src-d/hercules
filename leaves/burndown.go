@@ -35,9 +35,6 @@ type BurndownAnalysis struct {
 	// It does not change the project level burndown results.
 	TrackFiles bool
 
-	// PeopleNumber is the number of developers for which to collect the burndown stats. 0 disables it.
-	PeopleNumber int
-
 	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 	// globalHistory is the daily deltas of daily line counts.
@@ -60,9 +57,8 @@ type BurndownAnalysis struct {
 
 	// TickSize indicates the size of each time granule: day, hour, week, etc.
 	tickSize time.Duration
-	// references IdentityDetector.ReversedPeopleDict
-	reversedPeopleDict []string
 
+	peopleResolver  core.IdentityResolver
 	primaryResolver core.FileIdResolver
 	fileResolver    core.FileIdResolver
 
@@ -113,16 +109,13 @@ func (analyser *BurndownAnalysis) Configure(facts map[string]interface{}) error 
 	if val, exists := facts[ConfigBurndownTrackFiles].(bool); exists {
 		analyser.TrackFiles = val
 	}
-	if people, exists := facts[ConfigBurndownTrackPeople].(bool); people {
-		if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
-			if val < 0 {
-				return fmt.Errorf("PeopleNumber is negative: %d", val)
-			}
-			analyser.PeopleNumber = val
-			analyser.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
+
+	if people, ok := facts[ConfigBurndownTrackPeople].(bool); people {
+		if val, ok := facts[core.FactIdentityResolver].(core.IdentityResolver); ok {
+			analyser.peopleResolver = val
 		}
-	} else if exists {
-		analyser.PeopleNumber = 0
+	} else if ok {
+		analyser.peopleResolver = nil
 	}
 
 	if resolver, exists := facts[core.FactLineHistoryResolver].(core.FileIdResolver); exists {
@@ -170,11 +163,13 @@ func (analyser *BurndownAnalysis) Initialize(repository *git.Repository) error {
 	analyser.repository = repository
 	analyser.globalHistory = sparseHistory{}
 	analyser.fileHistories = map[core.FileId]sparseHistory{}
-	if analyser.PeopleNumber < 0 {
-		return fmt.Errorf("PeopleNumber is negative: %d", analyser.PeopleNumber)
+
+	if analyser.peopleResolver == nil {
+		analyser.peopleResolver = core.NewIdentityResolver(nil, nil)
 	}
-	analyser.peopleHistories = make([]sparseHistory, analyser.PeopleNumber)
-	analyser.matrix = make([]map[core.AuthorId]int64, analyser.PeopleNumber)
+	peopleCount := analyser.peopleResolver.Count()
+	analyser.peopleHistories = make([]sparseHistory, peopleCount)
+	analyser.matrix = make([]map[core.AuthorId]int64, peopleCount)
 
 	return nil
 }
@@ -190,8 +185,6 @@ func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
 	//}
 }
 
-type LineHistoryChange = core.LineHistoryChange
-
 // Consume runs this PipelineItem on the next commits data.
 // `deps` contain all the results from upstream PipelineItem-s as requested by Requires().
 // Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
@@ -204,6 +197,7 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 		analyser.primaryResolver = changes.Resolver
 	}
 	analyser.fileResolver = changes.Resolver
+	peopleCount := analyser.peopleResolver.Count()
 
 	for _, change := range changes.Changes {
 		if change.IsDelete() {
@@ -212,10 +206,11 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 			}
 			continue
 		}
-		if int(change.PrevAuthor) >= analyser.PeopleNumber && change.PrevAuthor != core.AuthorMissing {
+
+		if int(change.PrevAuthor) >= peopleCount && change.PrevAuthor != core.AuthorMissing {
 			change.PrevAuthor = core.AuthorMissing
 		}
-		if int(change.CurrAuthor) >= analyser.PeopleNumber && change.CurrAuthor != core.AuthorMissing {
+		if int(change.CurrAuthor) >= peopleCount && change.CurrAuthor != core.AuthorMissing {
 			change.CurrAuthor = core.AuthorMissing
 		}
 		analyser.updateGlobal(change)
@@ -232,12 +227,12 @@ func (analyser *BurndownAnalysis) Consume(deps map[string]interface{}) (map[stri
 	return nil, nil
 }
 
-func (analyser *BurndownAnalysis) updateGlobal(change LineHistoryChange) {
+func (analyser *BurndownAnalysis) updateGlobal(change core.LineHistoryChange) {
 	analyser.globalHistory.updateDelta(int(change.PrevTick), int(change.CurrTick), change.Delta)
 }
 
 // updateFile is bound to the specific `history` in the closure.
-func (analyser *BurndownAnalysis) updateFile(change LineHistoryChange) {
+func (analyser *BurndownAnalysis) updateFile(change core.LineHistoryChange) {
 
 	history := analyser.fileHistories[change.FileId]
 	if history == nil {
@@ -249,11 +244,11 @@ func (analyser *BurndownAnalysis) updateFile(change LineHistoryChange) {
 	history.updateDelta(int(change.PrevTick), int(change.CurrTick), change.Delta)
 }
 
-func (analyser *BurndownAnalysis) updateFileDelete(change LineHistoryChange) {
+func (analyser *BurndownAnalysis) updateFileDelete(change core.LineHistoryChange) {
 	delete(analyser.fileHistories, change.FileId)
 }
 
-func (analyser *BurndownAnalysis) updateAuthor(change LineHistoryChange) {
+func (analyser *BurndownAnalysis) updateAuthor(change core.LineHistoryChange) {
 	if change.PrevAuthor == core.AuthorMissing {
 		return
 	}
@@ -267,7 +262,7 @@ func (analyser *BurndownAnalysis) updateAuthor(change LineHistoryChange) {
 	history.updateDelta(int(change.PrevTick), int(change.CurrTick), change.Delta)
 }
 
-func (analyser *BurndownAnalysis) updateChurnMatrix(change LineHistoryChange) {
+func (analyser *BurndownAnalysis) updateChurnMatrix(change core.LineHistoryChange) {
 	if change.PrevAuthor == core.AuthorMissing {
 		return
 	}
@@ -299,9 +294,10 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		}
 	}
 
-	peopleHistories := make([]burndown.DenseHistory, analyser.PeopleNumber)
+	peopleNumber := analyser.peopleResolver.Count()
+	peopleHistories := make([]burndown.DenseHistory, peopleNumber)
 
-	if analyser.PeopleNumber > 0 {
+	if peopleNumber > 0 {
 		analyser.collectFileOwnership(fileOwnership)
 
 		for i, history := range analyser.peopleHistories {
@@ -319,9 +315,9 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 
 	var peopleMatrix burndown.DenseHistory
 	if len(analyser.matrix) > 0 {
-		peopleMatrix = make(burndown.DenseHistory, analyser.PeopleNumber)
+		peopleMatrix = make(burndown.DenseHistory, peopleNumber)
 		for i, row := range analyser.matrix {
-			pRow := make([]int64, analyser.PeopleNumber+2)
+			pRow := make([]int64, peopleNumber+2)
 			peopleMatrix[i] = pRow
 			for key, val := range row {
 				if key == core.AuthorMissing {
@@ -341,7 +337,7 @@ func (analyser *BurndownAnalysis) Finalize() interface{} {
 		PeopleHistories:    peopleHistories,
 		PeopleMatrix:       peopleMatrix,
 		tickSize:           analyser.tickSize,
-		reversedPeopleDict: analyser.reversedPeopleDict,
+		reversedPeopleDict: analyser.peopleResolver.CopyFriendlyNames(),
 		sampling:           analyser.Sampling,
 		granularity:        analyser.Granularity,
 	}
@@ -360,7 +356,7 @@ func (analyser *BurndownAnalysis) collectFileOwnership(fileOwnership map[string]
 					ownership[previousAuthor] += length
 				}
 				previousLine = line
-				if author == core.AuthorMissing || int(author) >= analyser.PeopleNumber {
+				if author >= core.AuthorMissing {
 					previousAuthor = -1
 				} else {
 					previousAuthor = int(author)

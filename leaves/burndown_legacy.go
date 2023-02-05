@@ -206,12 +206,9 @@ func (analyser *LegacyBurndownAnalysis) Configure(facts map[string]interface{}) 
 		analyser.TrackFiles = val
 	}
 	if people, exists := facts[ConfigBurndownTrackPeople].(bool); people {
-		if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
-			if val < 0 {
-				return fmt.Errorf("PeopleNumber is negative: %d", val)
-			}
-			analyser.PeopleNumber = val
-			analyser.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
+		if val, exists := facts[identity.FactIdentityDetectorReversedPeopleDict].([]string); exists {
+			analyser.reversedPeopleDict = val
+			analyser.PeopleNumber = len(val)
 		}
 	} else if exists {
 		analyser.PeopleNumber = 0

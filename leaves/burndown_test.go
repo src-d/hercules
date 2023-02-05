@@ -73,26 +73,28 @@ func TestBurndownConfigure(t *testing.T) {
 	facts[ConfigBurndownTrackFiles] = true
 	facts[ConfigBurndownTrackPeople] = true
 	facts[items.FactTickSize] = 24 * time.Hour
-	facts[identity.FactIdentityDetectorPeopleCount] = 5
-	facts[identity.FactIdentityDetectorReversedPeopleDict] = bd.Requires()
+
+	people := []string{"P1", "P2", "P3", "P4", "P5"}
+
+	facts[core.FactIdentityResolver] = core.NewIdentityResolver(people, nil)
 	assert.Nil(t, bd.Configure(facts))
 	assert.Equal(t, bd.Granularity, 100)
 	assert.Equal(t, bd.Sampling, 200)
 	assert.Equal(t, bd.TrackFiles, true)
-	assert.Equal(t, bd.PeopleNumber, 5)
 	assert.Equal(t, bd.tickSize, 24*time.Hour)
-	assert.Equal(t, bd.reversedPeopleDict, bd.Requires())
+	assert.Equal(t, bd.peopleResolver.Count(), len(people))
+
 	facts[ConfigBurndownTrackPeople] = false
-	facts[identity.FactIdentityDetectorPeopleCount] = 50
 	assert.Nil(t, bd.Configure(facts))
-	assert.Equal(t, bd.PeopleNumber, 0)
+	assert.Nil(t, bd.peopleResolver)
+
 	facts = map[string]interface{}{}
+	bd.peopleResolver = core.NewIdentityResolver(people, nil)
 	assert.Nil(t, bd.Configure(facts))
 	assert.Equal(t, bd.Granularity, 100)
 	assert.Equal(t, bd.Sampling, 200)
 	assert.Equal(t, bd.TrackFiles, true)
-	assert.Equal(t, bd.PeopleNumber, 0)
-	assert.Equal(t, bd.reversedPeopleDict, bd.Requires())
+	assert.NotNil(t, bd.peopleResolver)
 }
 
 func TestBurndownRegistration(t *testing.T) {
@@ -111,9 +113,10 @@ func TestBurndownRegistration(t *testing.T) {
 }
 
 func TestBurndownInitialize(t *testing.T) {
-	bd := BurndownAnalysis{}
-	bd.Sampling = -10
-	bd.Granularity = DefaultBurndownGranularity
+	bd := BurndownAnalysis{
+		Sampling:    -10,
+		Granularity: DefaultBurndownGranularity,
+	}
 	assert.Nil(t, bd.Initialize(test.Repository))
 	assert.Equal(t, bd.Sampling, DefaultBurndownGranularity)
 	assert.Equal(t, bd.Granularity, DefaultBurndownGranularity)
@@ -201,10 +204,10 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 	}
 
 	bd := BurndownAnalysis{
-		Granularity:  30,
-		Sampling:     30,
-		PeopleNumber: 2,
-		TrackFiles:   true,
+		Granularity:    30,
+		Sampling:       30,
+		TrackFiles:     true,
+		peopleResolver: core.NewIdentityResolver([]string{"P1", "P2"}, nil),
 	}
 
 	totalLines := int64(0)
@@ -414,11 +417,11 @@ func TestBurndownConsumeFinalize(t *testing.T) {
 func prepareBDForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
 	BurndownResult, *BurndownAnalysis) {
 	bd := BurndownAnalysis{
-		Granularity:  30,
-		Sampling:     30,
-		PeopleNumber: 2,
-		TrackFiles:   true,
-		tickSize:     24 * time.Hour,
+		Granularity:    30,
+		Sampling:       30,
+		TrackFiles:     true,
+		peopleResolver: core.NewIdentityResolver([]string{"P1", "P2"}, nil),
+		tickSize:       24 * time.Hour,
 	}
 	assert.Nil(t, bd.Initialize(test.Repository))
 	deps := map[string]interface{}{}
@@ -573,7 +576,7 @@ func prepareBDForSerialization(t *testing.T, firstAuthor, secondAuthor int) (
 	}
 
 	{
-		bd.reversedPeopleDict = append([]string{}, "one@srcd", "two@srcd")
+		bd.peopleResolver = core.NewIdentityResolver([]string{"one@srcd", "two@srcd"}, nil)
 		_, err := bd.Consume(deps)
 		assert.Nil(t, err)
 	}
@@ -1046,10 +1049,11 @@ func TestBurndownDeserialize(t *testing.T) {
 
 func TestBurndownEmptyFileHistory(t *testing.T) {
 	bd := &BurndownAnalysis{
-		Sampling:      30,
-		Granularity:   30,
-		globalHistory: sparseHistory{0: sparseHistoryEntry{deltas: map[int]int64{0: 10}}},
-		fileHistories: map[core.FileId]sparseHistory{1: {}},
+		Sampling:       30,
+		Granularity:    30,
+		globalHistory:  sparseHistory{0: sparseHistoryEntry{deltas: map[int]int64{0: 10}}},
+		fileHistories:  map[core.FileId]sparseHistory{1: {}},
+		peopleResolver: core.NewIdentityResolver(nil, nil),
 	}
 	res := bd.Finalize().(BurndownResult)
 	assert.Len(t, res.GlobalHistory, 1)
@@ -1057,22 +1061,6 @@ func TestBurndownEmptyFileHistory(t *testing.T) {
 	assert.NotNil(t, res.FileHistories)
 	assert.Len(t, res.PeopleHistories, 0)
 	assert.NotNil(t, res.PeopleHistories)
-}
-
-func TestBurndownNegativePeople(t *testing.T) {
-	bd := &BurndownAnalysis{
-		Sampling:     30,
-		Granularity:  30,
-		PeopleNumber: -1,
-	}
-	err := bd.Initialize(test.Repository)
-	assert.Equal(t, err.Error(), "PeopleNumber is negative: -1")
-	facts := map[string]interface{}{
-		ConfigBurndownTrackPeople:                true,
-		identity.FactIdentityDetectorPeopleCount: -1,
-	}
-	err = bd.Configure(facts)
-	assert.Equal(t, err.Error(), "PeopleNumber is negative: -1")
 }
 
 func TestBurndownMergePeopleHistories(t *testing.T) {

@@ -66,7 +66,6 @@ func TestLegacyBurndownConfigure(t *testing.T) {
 	facts[ConfigLegacyBurndownHibernationToDisk] = true
 	facts[ConfigLegacyBurndownHibernationDirectory] = "xxx"
 	facts[items.FactTickSize] = 24 * time.Hour
-	facts[identity.FactIdentityDetectorPeopleCount] = 5
 	facts[identity.FactIdentityDetectorReversedPeopleDict] = bd.Requires()
 	assert.Nil(t, bd.Configure(facts))
 	assert.Equal(t, bd.Granularity, 100)
@@ -80,7 +79,6 @@ func TestLegacyBurndownConfigure(t *testing.T) {
 	assert.Equal(t, bd.tickSize, 24*time.Hour)
 	assert.Equal(t, bd.reversedPeopleDict, bd.Requires())
 	facts[ConfigBurndownTrackPeople] = false
-	facts[identity.FactIdentityDetectorPeopleCount] = 50
 	assert.Nil(t, bd.Configure(facts))
 	assert.Equal(t, bd.PeopleNumber, 0)
 	facts = map[string]interface{}{}
@@ -1391,12 +1389,6 @@ func TestLegacyBurndownNegativePeople(t *testing.T) {
 		PeopleNumber: -1,
 	}
 	err := bd.Initialize(test.Repository)
-	assert.Equal(t, err.Error(), "PeopleNumber is negative: -1")
-	facts := map[string]interface{}{
-		ConfigBurndownTrackPeople:                true,
-		identity.FactIdentityDetectorPeopleCount: -1,
-	}
-	err = bd.Configure(facts)
 	assert.Equal(t, err.Error(), "PeopleNumber is negative: -1")
 }
 

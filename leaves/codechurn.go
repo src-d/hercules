@@ -29,22 +29,18 @@ type CodeChurnAnalysis struct {
 	// It does not change the project level burndown results.
 	TrackFiles bool
 
-	// PeopleNumber is the number of developers for which to collect the burndown stats. 0 disables it.
-	PeopleNumber int
-
 	// Repository points to the analysed Git repository struct from go-git.
 	repository *git.Repository
 
 	// TickSize indicates the size of each time granule: day, hour, week, etc.
 	tickSize time.Duration
-	// references IdentityDetector.ReversedPeopleDict
-	reversedPeopleDict []string
 
 	// code churns indexed by people
 	codeChurns  []personChurnStats
 	churnDeltas map[churnDeltaKey]churnDelta
 
-	fileResolver core.FileIdResolver
+	peopleResolver core.IdentityResolver
+	fileResolver   core.FileIdResolver
 
 	l core.Logger
 }
@@ -116,12 +112,8 @@ func (analyser *CodeChurnAnalysis) Configure(facts map[string]interface{}) error
 	if val, exists := facts[ConfigBurndownTrackFiles].(bool); exists {
 		analyser.TrackFiles = val
 	}
-	if val, exists := facts[identity.FactIdentityDetectorPeopleCount].(int); exists {
-		if val < 0 {
-			return fmt.Errorf("PeopleNumber is negative: %d", val)
-		}
-		analyser.PeopleNumber = val
-		analyser.reversedPeopleDict = facts[identity.FactIdentityDetectorReversedPeopleDict].([]string)
+	if val, ok := facts[core.FactIdentityResolver].(core.IdentityResolver); ok {
+		analyser.peopleResolver = val
 	}
 
 	return nil
@@ -164,10 +156,12 @@ func (analyser *CodeChurnAnalysis) Initialize(repository *git.Repository) error 
 	}
 	analyser.repository = repository
 
-	if analyser.PeopleNumber < 0 {
-		return fmt.Errorf("PeopleNumber is negative: %d", analyser.PeopleNumber)
+	if analyser.peopleResolver == nil {
+		analyser.peopleResolver = core.NewIdentityResolver(nil, nil)
 	}
-	analyser.codeChurns = make([]personChurnStats, analyser.PeopleNumber)
+	peopleCount := analyser.peopleResolver.Count()
+
+	analyser.codeChurns = make([]personChurnStats, peopleCount)
 	analyser.churnDeltas = map[churnDeltaKey]churnDelta{}
 
 	return nil
@@ -186,15 +180,16 @@ func (analyser *CodeChurnAnalysis) Consume(deps map[string]interface{}) (map[str
 
 	changes := deps[linehistory.DependencyLineHistory].(core.LineHistoryChanges)
 	analyser.fileResolver = changes.Resolver
+	peopleCount := analyser.peopleResolver.Count()
 
 	for _, change := range changes.Changes {
 		if change.IsDelete() {
 			continue
 		}
-		if int(change.PrevAuthor) >= analyser.PeopleNumber && change.PrevAuthor != core.AuthorMissing {
+		if int(change.PrevAuthor) >= peopleCount && change.PrevAuthor != core.AuthorMissing {
 			change.PrevAuthor = core.AuthorMissing
 		}
-		if int(change.CurrAuthor) >= analyser.PeopleNumber && change.CurrAuthor != core.AuthorMissing {
+		if int(change.CurrAuthor) >= peopleCount && change.CurrAuthor != core.AuthorMissing {
 			change.CurrAuthor = core.AuthorMissing
 		}
 
@@ -230,7 +225,7 @@ type churnFileEntry struct {
 	deleteHistory map[core.AuthorId]sparseHistory
 }
 
-func (analyser *CodeChurnAnalysis) updateAwareness(change LineHistoryChange, fileEntry *churnFileEntry) {
+func (analyser *CodeChurnAnalysis) updateAwareness(change core.LineHistoryChange, fileEntry *churnFileEntry) {
 	lineDelta := int32(change.Delta)
 
 	deltaKey := churnDeltaKey{change.PrevAuthor, change.FileId}
@@ -267,7 +262,7 @@ func (analyser *CodeChurnAnalysis) updateAwareness(change LineHistoryChange, fil
 	analyser.churnDeltas[deltaKey] = delta
 }
 
-func (analyser *CodeChurnAnalysis) updateAuthor(change LineHistoryChange) {
+func (analyser *CodeChurnAnalysis) updateAuthor(change core.LineHistoryChange) {
 	if change.PrevAuthor == core.AuthorMissing || change.Delta == 0 {
 		return
 	}
@@ -308,10 +303,7 @@ func (analyser *CodeChurnAnalysis) Finalize() interface{} {
 			//deletedByOthers += entry.deletedByOthers
 		}
 
-		name := ""
-		if pId >= 0 {
-			name = analyser.reversedPeopleDict[pId]
-		}
+		name := analyser.peopleResolver.FriendlyNameOf(core.AuthorId(pId))
 		fmt.Printf("%s (%d):\t\t%d\t%d\t%d = %d\n", name, pId, inserted, deletedBySelf, deletedByOthers,
 			inserted+deletedBySelf+deletedByOthers)
 	}
@@ -342,7 +334,7 @@ func (analyser *CodeChurnAnalysis) memoryLoss(x float64) float64 {
 	return 1.0 / (1.0 + math.Exp(x-halfLossPeriod))
 }
 
-func (analyser *CodeChurnAnalysis) calculateAwareness(entry churnFileEntry, change LineHistoryChange,
+func (analyser *CodeChurnAnalysis) calculateAwareness(entry churnFileEntry, change core.LineHistoryChange,
 	lastTouch core.TickNumber, delta churnLines) (awareness, memorability float64) {
 
 	const awarenessLowCut = 0.5

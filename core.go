@@ -140,14 +140,6 @@ const (
 	DependencyUasts = uast.DependencyUasts
 	// FactCommitsByTick contains the mapping between tick indices and the corresponding commits.
 	FactCommitsByTick = plumbing.FactCommitsByTick
-	// FactIdentityDetectorPeopleCount is the name of the fact which is inserted in
-	// identity.Detector.Configure(). It is equal to the overall number of unique authors
-	// (the length of ReversedPeopleDict).
-	FactIdentityDetectorPeopleCount = identity.FactIdentityDetectorPeopleCount
-	// FactIdentityDetectorPeopleDict is the name of the fact which is inserted in
-	// identity.Detector.Configure(). It corresponds to identity.Detector.PeopleDict - the mapping
-	// from the signatures to the author indices.
-	FactIdentityDetectorPeopleDict = identity.FactIdentityDetectorPeopleDict
 	// FactIdentityDetectorReversedPeopleDict is the name of the fact which is inserted in
 	// identity.Detector.Configure(). It corresponds to identity.Detector.ReversedPeopleDict -
 	// the mapping from the author indices to the main signature.

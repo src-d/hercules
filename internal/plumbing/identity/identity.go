@@ -29,10 +29,6 @@ type Detector struct {
 }
 
 const (
-	// FactIdentityDetectorPeopleDict is the name of the fact which is inserted in
-	// Detector.Configure(). It corresponds to Detector.PeopleDict - the mapping
-	// from the signatures to the author indices.
-	FactIdentityDetectorPeopleDict = "IdentityDetector.PeopleDict"
 	// FactIdentityDetectorReversedPeopleDict is the name of the fact which is inserted in
 	// Detector.Configure(). It corresponds to Detector.ReversedPeopleDict -
 	// the mapping from the author indices to the main signature.
@@ -44,10 +40,6 @@ const (
 	// (Detector.Configure()) which changes the matching algorithm to exact signature (name + email)
 	// correspondence.
 	ConfigIdentityDetectorExactSignatures = "IdentityDetector.ExactSignatures"
-	// FactIdentityDetectorPeopleCount is the name of the fact which is inserted in
-	// Detector.Configure(). It is equal to the overall number of unique authors
-	// (the length of ReversedPeopleDict).
-	FactIdentityDetectorPeopleCount = "IdentityDetector.PeopleCount"
 
 	// DependencyAuthor is the name of the dependency provided by Detector.
 	DependencyAuthor = "author"
@@ -63,7 +55,7 @@ func (v Resolver) Count() int {
 	if v.identities == nil {
 		return 0
 	}
-	return len(v.identities.PeopleDict)
+	return len(v.identities.ReversedPeopleDict)
 }
 
 func (v Resolver) FriendlyNameOf(id core.AuthorId) string {
@@ -90,6 +82,10 @@ func (v Resolver) ForEachIdentity(callback func(core.AuthorId, string)) bool {
 		callback(core.AuthorId(id), name)
 	}
 	return true
+}
+
+func (v Resolver) CopyFriendlyNames() []string {
+	return append([]string(nil), v.identities.ReversedPeopleDict...)
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
@@ -136,33 +132,37 @@ func (detector *Detector) Configure(facts map[string]interface{}) error {
 	} else {
 		detector.l = core.NewLogger()
 	}
-	if val, exists := facts[FactIdentityDetectorPeopleDict].(map[string]int); exists {
-		detector.PeopleDict = val
-	}
+
+	detector.PeopleDict = nil
 	if val, exists := facts[FactIdentityDetectorReversedPeopleDict].([]string); exists {
 		detector.ReversedPeopleDict = val
 	}
+
 	if val, exists := facts[ConfigIdentityDetectorExactSignatures].(bool); exists {
 		detector.ExactSignatures = val
 	}
 
-	if detector.PeopleDict == nil || detector.ReversedPeopleDict == nil {
-		peopleDictPath, _ := facts[ConfigIdentityDetectorPeopleDictPath].(string)
-		if peopleDictPath != "" {
-			err := detector.LoadPeopleDict(peopleDictPath)
-			if err != nil {
-				return errors.Errorf("failed to load %s: %v", peopleDictPath, err)
-			}
-		} else {
-			if _, exists := facts[core.ConfigPipelineCommits]; !exists {
-				panic("IdentityDetector needs a list of commits to initialize.")
-			}
-			detector.GeneratePeopleDict(facts[core.ConfigPipelineCommits].([]*object.Commit))
+	if peopleDictPath, ok := facts[ConfigIdentityDetectorPeopleDictPath].(string); ok && peopleDictPath != "" {
+		err := detector.LoadPeopleDict(peopleDictPath)
+		if err != nil {
+			return errors.Errorf("failed to load %s: %v", peopleDictPath, err)
 		}
 	}
-	facts[FactIdentityDetectorPeopleDict] = detector.PeopleDict
+
+	if detector.ReversedPeopleDict == nil {
+		if _, exists := facts[core.ConfigPipelineCommits]; !exists {
+			panic("IdentityDetector needs a list of commits to initialize.")
+		}
+		detector.GeneratePeopleDict(facts[core.ConfigPipelineCommits].([]*object.Commit))
+	}
 	facts[FactIdentityDetectorReversedPeopleDict] = detector.ReversedPeopleDict
-	facts[FactIdentityDetectorPeopleCount] = len(detector.ReversedPeopleDict)
+
+	if detector.PeopleDict == nil {
+		detector.PeopleDict = make(map[string]int, len(detector.ReversedPeopleDict))
+		for k, v := range detector.ReversedPeopleDict {
+			detector.PeopleDict[v] = k
+		}
+	}
 
 	var resolver core.IdentityResolver = Resolver{detector}
 	facts[core.FactIdentityResolver] = resolver
