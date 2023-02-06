@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/cyraxred/hercules/internal/core"
-	uast_items "github.com/cyraxred/hercules/internal/plumbing/uast"
+	"github.com/cyraxred/hercules/internal/plumbing/uast"
 	"github.com/cyraxred/hercules/internal/test"
 	"github.com/cyraxred/hercules/leaves"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ import (
 
 func TestPipelineSerialize(t *testing.T) {
 	pipeline := core.NewPipeline(test.Repository)
-	pipeline.SetFeature(uast_items.FeatureUast)
+	pipeline.SetFeature(uast.FeatureUast)
 	pipeline.DeployItem(&leaves.LegacyBurndownAnalysis{})
 	facts := map[string]interface{}{}
 	facts[core.ConfigPipelineDryRun] = true
@@ -26,36 +26,38 @@ func TestPipelineSerialize(t *testing.T) {
 	pipeline.Initialize(facts)
 	bdot, _ := ioutil.ReadFile(dotpath)
 	dot := string(bdot)
+	println()
+	println(dot)
+	println()
 	assert.Equal(t, `digraph Hercules {
-  "6 BlobCache" -> "7 [blob_cache]"
-  "9 FileDiff" -> "11 [file_diff]"
-  "15 FileDiffRefiner" -> "16 LegacyBurndown"
-  "0 IdentityDetector" -> "3 [author]"
-  "8 RenameAnalysis" -> "9 FileDiff"
-  "8 RenameAnalysis" -> "16 LegacyBurndown"
-  "8 RenameAnalysis" -> "10 UAST"
-  "8 RenameAnalysis" -> "13 UASTChanges"
-  "1 TicksSinceStart" -> "4 [tick]"
-  "2 TreeDiff" -> "5 [changes]"
-  "10 UAST" -> "12 [uasts]"
-  "13 UASTChanges" -> "14 [changed_uasts]"
-  "3 [author]" -> "16 LegacyBurndown"
-  "7 [blob_cache]" -> "9 FileDiff"
-  "7 [blob_cache]" -> "16 LegacyBurndown"
-  "7 [blob_cache]" -> "8 RenameAnalysis"
-  "7 [blob_cache]" -> "10 UAST"
-  "14 [changed_uasts]" -> "15 FileDiffRefiner"
-  "5 [changes]" -> "6 BlobCache"
-  "5 [changes]" -> "8 RenameAnalysis"
-  "11 [file_diff]" -> "15 FileDiffRefiner"
-  "4 [tick]" -> "16 LegacyBurndown"
-  "12 [uasts]" -> "13 UASTChanges"
+  "5 BlobCache_1" -> "6 [blob_cache]"
+  "9 FileDiff_1" -> "14 FileDiffRefiner_1"
+  "14 FileDiffRefiner_1" -> "15 [file_diff]"
+  "0 PeopleDetector_1" -> "3 [author]"
+  "7 RenameAnalysis_1" -> "8 [changes]"
+  "1 TicksSinceStart_1" -> "4 [tick]"
+  "2 TreeDiff_1" -> "5 BlobCache_1"
+  "2 TreeDiff_1" -> "7 RenameAnalysis_1"
+  "10 UAST_1" -> "11 [uasts]"
+  "12 UASTChanges_1" -> "13 [changed_uasts]"
+  "3 [author]" -> "16 LegacyBurndown_1"
+  "6 [blob_cache]" -> "9 FileDiff_1"
+  "6 [blob_cache]" -> "16 LegacyBurndown_1"
+  "6 [blob_cache]" -> "7 RenameAnalysis_1"
+  "6 [blob_cache]" -> "10 UAST_1"
+  "13 [changed_uasts]" -> "14 FileDiffRefiner_1"
+  "8 [changes]" -> "9 FileDiff_1"
+  "8 [changes]" -> "16 LegacyBurndown_1"
+  "8 [changes]" -> "10 UAST_1"
+  "8 [changes]" -> "12 UASTChanges_1"
+  "15 [file_diff]" -> "16 LegacyBurndown_1"
+  "4 [tick]" -> "16 LegacyBurndown_1"
+  "11 [uasts]" -> "12 UASTChanges_1"
 }`, dot)
 }
 
 func TestPipelineSerializeNoUast(t *testing.T) {
 	pipeline := core.NewPipeline(test.Repository)
-	// pipeline.SetFeature(FeatureUast)
 	pipeline.DeployItem(&leaves.LegacyBurndownAnalysis{})
 	facts := map[string]interface{}{}
 	facts[core.ConfigPipelineDryRun] = true
@@ -66,22 +68,25 @@ func TestPipelineSerializeNoUast(t *testing.T) {
 	pipeline.Initialize(facts)
 	bdot, _ := ioutil.ReadFile(dotpath)
 	dot := string(bdot)
+	println()
+	println(dot)
+	println()
 	assert.Equal(t, `digraph Hercules {
-  "6 BlobCache" -> "7 [blob_cache]"
-  "9 FileDiff" -> "10 [file_diff]"
-  "0 IdentityDetector" -> "3 [author]"
-  "8 RenameAnalysis" -> "9 FileDiff"
-  "8 RenameAnalysis" -> "11 LegacyBurndown"
-  "1 TicksSinceStart" -> "4 [tick]"
-  "2 TreeDiff" -> "5 [changes]"
-  "3 [author]" -> "11 LegacyBurndown"
-  "7 [blob_cache]" -> "9 FileDiff"
-  "7 [blob_cache]" -> "11 LegacyBurndown"
-  "7 [blob_cache]" -> "8 RenameAnalysis"
-  "5 [changes]" -> "6 BlobCache"
-  "5 [changes]" -> "8 RenameAnalysis"
-  "10 [file_diff]" -> "11 LegacyBurndown"
-  "4 [tick]" -> "11 LegacyBurndown"
+  "5 BlobCache_1" -> "6 [blob_cache]"
+  "9 FileDiff_1" -> "10 [file_diff]"
+  "0 PeopleDetector_1" -> "3 [author]"
+  "7 RenameAnalysis_1" -> "8 [changes]"
+  "1 TicksSinceStart_1" -> "4 [tick]"
+  "2 TreeDiff_1" -> "5 BlobCache_1"
+  "2 TreeDiff_1" -> "7 RenameAnalysis_1"
+  "3 [author]" -> "11 LegacyBurndown_1"
+  "6 [blob_cache]" -> "9 FileDiff_1"
+  "6 [blob_cache]" -> "11 LegacyBurndown_1"
+  "6 [blob_cache]" -> "7 RenameAnalysis_1"
+  "8 [changes]" -> "9 FileDiff_1"
+  "8 [changes]" -> "11 LegacyBurndown_1"
+  "10 [file_diff]" -> "11 LegacyBurndown_1"
+  "4 [tick]" -> "11 LegacyBurndown_1"
 }`, dot)
 }
 

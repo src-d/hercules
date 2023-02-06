@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/cyraxred/hercules/internal/core"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"plugin"
 	"regexp"
 	"runtime/pprof"
+	"sort"
 	"strings"
 	"text/template"
 	"unicode"
@@ -77,14 +79,14 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 			_, err = os.Stat(cachePath)
 			if !os.IsNotExist(err) {
 				log.Printf("warning: deleted %s\n", cachePath)
-				os.RemoveAll(cachePath)
+				_ = os.RemoveAll(cachePath)
 			}
 		} else {
 			backend = memory.NewStorage()
 		}
 		cloneOptions := &git.CloneOptions{URL: uri}
 		if !disableStatus {
-			fmt.Fprint(os.Stderr, "connecting...\r")
+			_, _ = fmt.Fprint(os.Stderr, "connecting...\r")
 			cloneOptions.Progress = oneLineWriter{Writer: os.Stderr}
 		}
 
@@ -98,7 +100,7 @@ func loadRepository(uri string, cachePath string, disableStatus bool, sshIdentit
 
 		repository, err = git.Clone(backend, nil, cloneOptions)
 		if !disableStatus {
-			fmt.Fprint(os.Stderr, "\033[2K\r")
+			_, _ = fmt.Fprint(os.Stderr, "\033[2K\r")
 		}
 	} else if stat, err2 := os.Stat(uri); err2 == nil && !stat.IsDir() {
 		localFs := osfs.New(filepath.Dir(uri))
@@ -154,7 +156,7 @@ func loadPlugins() {
 		panic(err)
 	}
 	pflag.Var(&pluginFlags, pluginFlagName, pluginDesc)
-	fs.Parse(os.Args[1:])
+	_ = fs.Parse(os.Args[1:])
 	for path := range pluginFlags {
 		_, err := plugin.Open(path)
 		if err != nil {
@@ -226,7 +228,7 @@ targets can be added using the --plugin system.`,
 				if bar == nil {
 					bar = progress.New(length)
 					bar.Callback = func(msg string) {
-						os.Stderr.WriteString("\033[2K\r" + msg)
+						_, _ = os.Stderr.WriteString("\033[2K\r" + msg)
 					}
 					bar.NotPrint = true
 					bar.ShowPercent = false
@@ -235,7 +237,7 @@ targets can be added using the --plugin system.`,
 				}
 				if action == hercules.MessageFinalize {
 					bar.Finish()
-					fmt.Fprint(os.Stderr, "\033[2K\rfinalizing...")
+					_, _ = fmt.Fprint(os.Stderr, "\033[2K\rfinalizing...")
 				} else {
 					bar.Set(commit).Postfix(" [" + action + "] ")
 				}
@@ -246,7 +248,7 @@ targets can be added using the --plugin system.`,
 		var err error
 		if commitsFile == "" {
 			if !head {
-				fmt.Fprint(os.Stderr, "git log...\r")
+				_, _ = fmt.Fprint(os.Stderr, "git log...\r")
 				commits, err = pipeline.Commits(firstParent)
 			} else {
 				commits, err = pipeline.HeadCommit()
@@ -260,15 +262,52 @@ targets can be added using the --plugin system.`,
 		cmdlineFacts[hercules.ConfigPipelineCommits] = commits
 		dryRun, _ := cmdlineFacts[hercules.ConfigPipelineDryRun].(bool)
 		var deployed []hercules.LeafPipelineItem
-		for name, valPtr := range cmdlineDeployed {
-			if *valPtr {
-				item := pipeline.DeployItem(hercules.Registry.Summon(name)[0])
-				if !dryRun {
-					deployed = append(deployed, item.(hercules.LeafPipelineItem))
+
+		var priorityFn = func(items []core.PipelineItem) core.PipelineItem {
+			if len(items) == 0 {
+				return nil
+			}
+			if len(items) > 1 {
+				sortItemsByFlagWeights(items, flags)
+			}
+			return items[0]
+		}
+
+		{
+			deployList := make([][]string, 0, len(cmdlineDeployed))
+			for name, valPtr := range cmdlineDeployed {
+				if *valPtr {
+					deployList = append(deployList, []string{name})
+				}
+			}
+
+			flags.Visit(func(flag *pflag.Flag) {
+				if names := activationByFlags[flag.Name]; len(names) > 0 {
+					deployList = append(deployList, names)
+				}
+			})
+
+			for _, names := range deployList {
+				switch summons := hercules.Registry.Summon(names...); {
+				case len(summons) == 0:
+					log.Fatalf("missing item(s): %v", names)
+				case len(summons) > 1:
+					if len(names) == 2 {
+						log.Printf("ambigous item: %v", names)
+					}
+					summons[0] = priorityFn(summons)
+					summons = summons[:1]
+					fallthrough
+				default:
+					item := pipeline.DeployItemOnce(summons[0])
+					if !dryRun && item == summons[0] {
+						deployed = append(deployed, item.(hercules.LeafPipelineItem))
+					}
 				}
 			}
 		}
-		err = pipeline.Initialize(cmdlineFacts)
+
+		err = pipeline.InitializeExt(cmdlineFacts, priorityFn)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -277,10 +316,10 @@ targets can be added using the --plugin system.`,
 			log.Fatalf("failed to run the pipeline: %v", err)
 		}
 		if !disableStatus {
-			fmt.Fprint(os.Stderr, "\033[2K\r")
+			_, _ = fmt.Fprint(os.Stderr, "\033[2K\r")
 			// if not a terminal, the user will not see the output, so show the status
 			if !terminal.IsTerminal(int(os.Stdout.Fd())) {
-				fmt.Fprint(os.Stderr, "writing...\r")
+				_, _ = fmt.Fprint(os.Stderr, "writing...\r")
 			}
 		}
 		if !protobuf {
@@ -289,6 +328,51 @@ targets can be added using the --plugin system.`,
 			protobufResults(uri, deployed, results)
 		}
 	},
+}
+
+type flagSorter struct {
+	items   []core.PipelineItem
+	flagSet *pflag.FlagSet
+	cache   []int
+}
+
+func (v flagSorter) Len() int {
+	return len(v.items)
+}
+
+func (v flagSorter) Less(i, j int) bool {
+	if v.cache == nil {
+		v.cache = make([]int, len(v.items))
+	}
+	return v.itemWeight(i) > v.itemWeight(j)
+}
+
+func (v flagSorter) Swap(i, j int) {
+	v.cache[i], v.cache[j] = v.cache[j], v.cache[i]
+	v.items[i], v.items[j] = v.items[j], v.items[i]
+}
+
+func (v flagSorter) itemWeight(i int) int {
+	if w := v.cache[i]; w != 0 {
+		return w
+	}
+	w := weightFlagsOf(v.items[i], v.flagSet)
+	v.cache[i] = w + 1
+	return w
+}
+
+func sortItemsByFlagWeights(items []core.PipelineItem, flagSet *pflag.FlagSet) {
+	sort.Stable(flagSorter{items: items, flagSet: flagSet})
+}
+
+func weightFlagsOf(item core.PipelineItem, flagSet *pflag.FlagSet) int {
+	w := -len(item.Provides()) * 100 // excessive provides are not needed
+	for _, opt := range item.ListConfigurationOptions() {
+		if flagSet.Changed(opt.Flag) {
+			w++
+		}
+	}
+	return w
 }
 
 func printResults(
@@ -343,7 +427,7 @@ func protobufResults(
 	if err != nil {
 		panic(err)
 	}
-	os.Stdout.Write(serialized)
+	_, _ = os.Stdout.Write(serialized)
 }
 
 // trimRightSpace removes the trailing whitespace characters.
@@ -480,6 +564,7 @@ var versionCmd = &cobra.Command{
 
 var cmdlineFacts map[string]interface{}
 var cmdlineDeployed map[string]*bool
+var activationByFlags map[string][]string
 
 func init() {
 	loadPlugins()
@@ -506,7 +591,7 @@ func init() {
 		panic(err)
 	}
 	hercules.PathifyFlagValue(rootFlags.Lookup("ssh-identity"))
-	cmdlineFacts, cmdlineDeployed = hercules.Registry.AddFlags(rootFlags)
+	cmdlineFacts, cmdlineDeployed, activationByFlags = hercules.Registry.AddFlags(rootFlags)
 	rootCmd.SetUsageFunc(formatUsage)
 	rootCmd.AddCommand(versionCmd)
 	versionCmd.SetUsageFunc(versionCmd.UsageFunc())
@@ -514,7 +599,7 @@ func init() {
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

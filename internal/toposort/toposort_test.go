@@ -2,6 +2,7 @@ package toposort
 
 import (
 	"github.com/stretchr/testify/assert"
+	"sort"
 	"testing"
 )
 
@@ -85,37 +86,6 @@ func TestToposortCycle(t *testing.T) {
 	}
 }
 
-func TestToposortCopy(t *testing.T) {
-	graph := NewGraph()
-	graph.AddNodes("1", "2", "3")
-
-	graph.AddEdge("1", "2")
-	graph.AddEdge("2", "3")
-	graph.AddEdge("3", "1")
-
-	gc := graph.Copy()
-	assert.Equal(t, graph.inputs, gc.inputs)
-	assert.Equal(t, graph.outputs, gc.outputs)
-	delete(graph.outputs, "1")
-	assert.NotEqual(t, graph.outputs, gc.outputs)
-}
-
-func TestToposortReindexNode(t *testing.T) {
-	graph := NewGraph()
-	graph.AddNodes("1", "2", "3")
-
-	graph.AddEdge("1", "2")
-	graph.AddEdge("2", "3")
-	graph.AddEdge("3", "1")
-	graph.AddEdge("1", "3")
-	graph.RemoveEdge("1", "2")
-	assert.Len(t, graph.outputs["1"], 1)
-	assert.Equal(t, graph.outputs["1"]["3"], 2)
-	assert.Equal(t, graph.inputs["2"], 0)
-	graph.ReindexNode("1")
-	assert.Equal(t, graph.outputs["1"]["3"], 1)
-}
-
 func TestToposortBreadthSort(t *testing.T) {
 	graph := NewGraph()
 	graph.AddNodes("0", "1", "2", "3", "4")
@@ -127,13 +97,14 @@ func TestToposortBreadthSort(t *testing.T) {
 	graph.AddEdge("3", "4")
 	graph.AddEdge("4", "1")
 	order := graph.BreadthSort()
-	var expected [5]string
-	if order[2] == "2" {
-		expected = [...]string{"0", "1", "2", "3", "4"}
-	} else {
-		expected = [...]string{"0", "1", "3", "2", "4"}
+	expected := map[string]NodePosition{
+		"0": {0, 0},
+		"1": {1, 1},
+		"2": {2, 2},
+		"3": {3, 3},
+		"4": {4, 4},
 	}
-	assert.Equal(t, expected[:], order)
+	assert.Equal(t, expected, order)
 }
 
 func TestToposortFindCycle(t *testing.T) {
@@ -190,9 +161,13 @@ func TestToposortFindChildren(t *testing.T) {
 	graph.AddEdge("5", "1")
 
 	children := graph.FindChildren("1")
+	sort.Strings(children)
+
 	expected := [...]string{"2"}
 	assert.Equal(t, expected[:], children)
 	children = graph.FindChildren("2")
+	sort.Strings(children)
+
 	assert.Len(t, children, 2)
 	checks := [2]bool{}
 	for _, p := range children {

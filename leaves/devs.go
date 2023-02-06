@@ -3,6 +3,7 @@ package leaves
 import (
 	"errors"
 	"fmt"
+	"github.com/cyraxred/hercules/internal/join"
 	"io"
 	"sort"
 	"strings"
@@ -268,8 +269,8 @@ func (devs *DevsAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.CommonAn
 	offset2 := int(t02.Sub(t0) / cr2.tickSize)
 
 	merged := DevsResult{tickSize: cr1.tickSize}
-	var mergedIndex map[string]identity.MergedIndex
-	mergedIndex, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
+	var mergedIndex map[string]join.JoinedIndex
+	mergedIndex, merged.reversedPeopleDict = join.PeopleIdentities(
 		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
 	newticks := map[int]map[int]*DevTick{}
 	merged.Ticks = newticks

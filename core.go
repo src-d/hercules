@@ -123,7 +123,7 @@ const (
 	// which always exists. It indicates whether the analyzed commit is a merge commit.
 	// Checking the number of parents is not correct - we remove the back edges during the DAG simplification.
 	DependencyIsMerge = core.DependencyIsMerge
-	// DependencyAuthor is the name of the dependency provided by identity.Detector.
+	// DependencyAuthor is the name of the dependency provided by identity.PeopleDetector.
 	DependencyAuthor = identity.DependencyAuthor
 	// DependencyBlobCache identifies the dependency provided by BlobCache.
 	DependencyBlobCache = plumbing.DependencyBlobCache
@@ -141,7 +141,7 @@ const (
 	// FactCommitsByTick contains the mapping between tick indices and the corresponding commits.
 	FactCommitsByTick = plumbing.FactCommitsByTick
 	// FactIdentityDetectorReversedPeopleDict is the name of the fact which is inserted in
-	// identity.Detector.Configure(). It corresponds to identity.Detector.ReversedPeopleDict -
+	// identity.PeopleDetector.Configure(). It corresponds to identity.PeopleDetector.ReversedPeopleDict -
 	// the mapping from the author indices to the main signature.
 	FactIdentityDetectorReversedPeopleDict = identity.FactIdentityDetectorReversedPeopleDict
 )

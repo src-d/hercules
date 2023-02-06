@@ -382,25 +382,39 @@ func (pipeline *Pipeline) SetFeaturesFromFlags(registry ...*PipelineItemRegistry
 // DeployItem inserts a PipelineItem into the pipeline. It also recursively creates all of it's
 // dependencies (PipelineItem.Requires()). Returns the same item as specified in the arguments.
 func (pipeline *Pipeline) DeployItem(item PipelineItem) PipelineItem {
+	return pipeline.deployItem(item, false)
+}
+
+func (pipeline *Pipeline) DeployItemOnce(item PipelineItem) PipelineItem {
+	return pipeline.deployItem(item, true)
+}
+
+func (pipeline *Pipeline) deployItem(item PipelineItem, once bool) PipelineItem {
+	var queue []PipelineItem
+	queue = append(queue, item)
+	added := map[string]PipelineItem{}
+	for _, existingItem := range pipeline.items {
+		added[existingItem.Name()] = existingItem
+	}
+	if prevItem, present := added[item.Name()]; once && present {
+		return prevItem
+	}
+	added[item.Name()] = item
+
 	fpi, ok := item.(FeaturedPipelineItem)
 	if ok {
 		for _, f := range fpi.Features() {
 			pipeline.SetFeature(f)
 		}
 	}
-	var queue []PipelineItem
-	queue = append(queue, item)
-	added := map[string]PipelineItem{}
-	for _, item := range pipeline.items {
-		added[item.Name()] = item
-	}
-	added[item.Name()] = item
+
 	pipeline.AddItem(item)
 	for len(queue) > 0 {
 		head := queue[0]
 		queue = queue[1:]
 		for _, dep := range head.Requires() {
-			for _, sibling := range Registry.Summon(dep) {
+			summons := Registry.Summon(dep)
+			for _, sibling := range summons {
 				if _, exists := added[sibling.Name()]; !exists {
 					disabled := false
 					// If this item supports features, check them against the activated in pipeline.features
@@ -536,121 +550,172 @@ func (items sortablePipelineItems) Swap(i, j int) {
 	items[i], items[j] = items[j], items[i]
 }
 
-func (pipeline *Pipeline) resolve(dumpPath string) error {
-	graph := toposort.NewGraph()
+func (pipeline *Pipeline) resolve(dumpPath string, priorityFn DependencyPriorityFunc) error {
 	sort.Sort(sortablePipelineItems(pipeline.items))
-	name2item := map[string]PipelineItem{}
-	ambiguousMap := map[string][]string{}
-	nameUsages := map[string]int{}
-	for _, item := range pipeline.items {
-		nameUsages[item.Name()]++
-	}
-	counters := map[string]int{}
-	for _, item := range pipeline.items {
-		name := item.Name()
-		if nameUsages[name] > 1 {
-			index := counters[item.Name()] + 1
-			counters[item.Name()] = index
-			name = fmt.Sprintf("%s_%d", item.Name(), index)
+
+	name2item := make(map[string]PipelineItem, len(pipeline.items))
+	name2data := make(map[string]struct{})
+
+	graph := toposort.NewGraphWithInsertionOrder()
+
+	{
+		itemUsages := make(map[string]int, len(pipeline.items))
+		for _, item := range pipeline.items {
+			name := item.Name()
+			index := itemUsages[name] + 1
+			itemUsages[name] = index
+			name = fmt.Sprintf("%s_%d", name, index)
+			name2item[name] = item
+
+			graph.AddNode(name)
+			for _, key := range item.Requires() {
+				key = "[" + key + "]"
+				name2data[key] = struct{}{}
+				graph.AddNode(key)
+				graph.AddEdge(key, name)
+			}
+
+			for _, key := range item.Provides() {
+				key = "[" + key + "]"
+				name2data[key] = struct{}{}
+				graph.AddNode(key)
+				graph.AddEdge(name, key)
+			}
 		}
-		graph.AddNode(name)
-		name2item[name] = item
-		for _, key := range item.Provides() {
-			key = "[" + key + "]"
-			graph.AddNode(key)
-			if graph.AddEdge(name, key) > 1 {
-				if ambiguousMap[key] != nil {
-					fmt.Fprintln(os.Stderr, "Pipeline:")
-					for _, item2 := range pipeline.items {
-						if item2 == item {
-							fmt.Fprint(os.Stderr, "> ")
-						}
-						fmt.Fprint(os.Stderr, item2.Name(), " [")
-						for i, key2 := range item2.Provides() {
-							fmt.Fprint(os.Stderr, key2)
-							if i < len(item.Provides())-1 {
-								fmt.Fprint(os.Stderr, ", ")
-							}
-						}
-						fmt.Fprintln(os.Stderr, "]")
+	}
+
+	ambiguousInputs := map[string]struct{}{}
+
+	for name := range name2data {
+		nParents, _ := graph.InputCount(name)
+		if nParents == 0 {
+			children := graph.FindChildren(name)
+			sort.Strings(children)
+			pipeline.l.Criticalf("Unsatisfied dependency: %s -> %s", name, children)
+			return errors.New("unsatisfied dependency")
+		}
+		if nParents > 1 {
+			ambiguousInputs[name] = struct{}{}
+		}
+	}
+
+	// break cycles - unwinds sequential processing of same facts
+	if len(ambiguousInputs) > 0 {
+		var ambiguousDataKeys []string
+		for key := range ambiguousInputs {
+			ambiguousDataKeys = append(ambiguousDataKeys, key)
+		}
+		graph.Sort(ambiguousDataKeys)
+		bfsIndex := graph.BreadthSort() // TODO improve sorting to consider node ordering
+
+		for _, key := range ambiguousDataKeys {
+			ambInputs := graph.FindParents(key)
+			toposort.SortByNodeIndex(ambInputs, bfsIndex)
+
+			excludes := map[string]struct{}{}
+
+			{
+				last := len(ambInputs)
+				lastLevel := 0
+				for i := last - 1; i >= -1; i-- {
+					level := -1
+					if i >= 0 {
+						level = bfsIndex[ambInputs[i]].Level
 					}
-					pipeline.l.Critical("Failed to resolve pipeline dependencies: ambiguous graph.")
-					return errors.New("ambiguous graph")
-				}
-				ambiguousMap[key] = graph.FindParents(key)
-			}
-		}
-	}
-	counters = map[string]int{}
-	for _, item := range pipeline.items {
-		name := item.Name()
-		if nameUsages[name] > 1 {
-			index := counters[item.Name()] + 1
-			counters[item.Name()] = index
-			name = fmt.Sprintf("%s_%d", item.Name(), index)
-		}
-		for _, key := range item.Requires() {
-			key = "[" + key + "]"
-			if graph.AddEdge(key, name) == 0 {
-				pipeline.l.Criticalf("Unsatisfied dependency: %s -> %s", key, item.Name())
-				return errors.New("unsatisfied dependency")
-			}
-		}
-	}
-	// Try to break the cycles in some known scenarios.
-	if len(ambiguousMap) > 0 {
-		var ambiguous []string
-		for key := range ambiguousMap {
-			ambiguous = append(ambiguous, key)
-		}
-		sort.Strings(ambiguous)
-		bfsorder := graph.BreadthSort()
-		bfsindex := map[string]int{}
-		for i, s := range bfsorder {
-			bfsindex[s] = i
-		}
-		for len(ambiguous) > 0 {
-			key := ambiguous[0]
-			ambiguous = ambiguous[1:]
-			pair := ambiguousMap[key]
-			inheritor := pair[1]
-			if bfsindex[pair[1]] < bfsindex[pair[0]] {
-				inheritor = pair[0]
-			}
-			removed := graph.RemoveEdge(key, inheritor)
-			cycle := map[string]bool{}
-			for _, node := range graph.FindCycle(key) {
-				cycle[node] = true
-			}
-			if len(cycle) == 0 {
-				cycle[inheritor] = true
-			}
-			if removed {
-				graph.AddEdge(key, inheritor)
-			}
-			graph.RemoveEdge(inheritor, key)
-			graph.ReindexNode(inheritor)
-			// for all nodes key links to except those in cycle, put the link from inheritor
-			for _, node := range graph.FindChildren(key) {
-				if _, exists := cycle[node]; !exists {
-					graph.AddEdge(inheritor, node)
-					graph.RemoveEdge(key, node)
+					if level != lastLevel {
+						if s := ambInputs[i+1 : last]; len(s) > 1 {
+							graph.Sort(s) // because BreadthSort doesn't do it properly
+							pipeline.resolveAlternatives(graph, s, name2item, priorityFn, excludes)
+						}
+						lastLevel = level
+						last = i + 1
+					}
 				}
 			}
-			graph.ReindexNode(key)
+
+			if len(excludes) > 0 {
+				j := 0
+				for i := 0; i < len(ambInputs); i++ {
+					ambInput := ambInputs[i]
+					if _, ok := excludes[ambInput]; ok {
+						// resolveAlternatives will only exclude equivalent nodes, so there will be no change to DAG
+						graph.RemoveNode(ambInput)
+						continue
+					}
+					if i != j {
+						ambInputs[j] = ambInputs[i]
+					}
+					j++
+				}
+				ambInputs = ambInputs[:j]
+			}
+
+			if len(ambInputs) < 2 {
+				continue
+			}
+
+			for _, ambInput := range ambInputs {
+				graph.RemoveEdge(ambInput, key)
+			}
+
+			replacingParents := map[string]string{}
+			nextCycleNode := key
+			for i := len(ambInputs) - 1; i >= 0; i-- {
+				ambInput := ambInputs[i]
+				graph.AddEdge(ambInput, key)
+				cycle := graph.FindCycle(ambInput)
+
+				nextNode := ambInput
+				if len(cycle) == 0 {
+					if i != 0 {
+						continue
+					}
+					nextNode = key
+				} else if len(cycle) == 1 || cycle[1] != key {
+					panic("unexpected")
+				} else {
+					if len(cycle) > 2 {
+						nextNode = cycle[2]
+					}
+					graph.RemoveEdge(key, nextNode)
+				}
+
+				if nextCycleNode != key {
+					graph.RemoveEdge(ambInput, key)
+					graph.AddEdge(ambInput, nextCycleNode)
+					replacingParents[nextCycleNode] = ambInput
+				}
+
+				nextCycleNode = nextNode
+			}
+
+			children := graph.FindChildren(key)
+
+			for _, child := range children {
+				cycle := graph.FindCycle(child)
+				if len(cycle) == 0 {
+					continue
+				} else if len(cycle) < 3 || cycle[len(cycle)-1] != key {
+					panic("unexpected")
+				}
+				loopingParent := cycle[len(cycle)-2]
+				replacingParent := replacingParents[loopingParent]
+				if replacingParent == "" {
+					panic("unexpected")
+				}
+				graph.RemoveEdge(key, child)
+				graph.AddEdge(replacingParent, child)
+			}
 		}
 	}
-	var graphCopy *toposort.Graph
-	if dumpPath != "" {
-		graphCopy = graph.Copy()
-	}
-	strplan, ok := graph.Toposort()
+	pipelinePlan, ok := graph.Toposort()
 	if !ok {
+		_, _ = fmt.Fprint(os.Stderr, graph.DebugDump())
 		pipeline.l.Critical("Failed to resolve pipeline dependencies: unable to topologically sort the items.")
 		return errors.New("topological sort failure")
 	}
-	pipeline.items = make([]PipelineItem, 0, len(pipeline.items))
-	for _, key := range strplan {
+	pipeline.items = pipeline.items[:0]
+	for _, key := range pipelinePlan {
 		if item, ok := name2item[key]; ok {
 			pipeline.items = append(pipeline.items, item)
 		}
@@ -658,7 +723,7 @@ func (pipeline *Pipeline) resolve(dumpPath string) error {
 	if dumpPath != "" {
 		// If there is a floating difference, uncomment this:
 		// fmt.Fprint(os.Stderr, graphCopy.DebugDump())
-		ioutil.WriteFile(dumpPath, []byte(graphCopy.Serialize(strplan)), 0666)
+		_ = ioutil.WriteFile(dumpPath, []byte(graph.Serialize(pipelinePlan)), 0666)
 		absPath, _ := filepath.Abs(dumpPath)
 		pipeline.l.Infof("Wrote the DAG to %s\n", absPath)
 	}
@@ -669,6 +734,15 @@ func (pipeline *Pipeline) resolve(dumpPath string) error {
 // resolves the execution DAG, Configure()-s and Initialize()-s the items in it in the
 // topological dependency order. `facts` are passed inside Configure(). They are mutable.
 func (pipeline *Pipeline) Initialize(aFacts map[string]interface{}) error {
+	return pipeline.InitializeExt(aFacts, func(items []PipelineItem) PipelineItem {
+		return items[0]
+	})
+}
+
+type DependencyPriorityFunc = func(items []PipelineItem) PipelineItem
+
+func (pipeline *Pipeline) InitializeExt(aFacts map[string]interface{},
+	priorityFn DependencyPriorityFunc) error {
 	cleanReturn := false
 	defer func() {
 		if !cleanReturn {
@@ -709,7 +783,7 @@ func (pipeline *Pipeline) Initialize(aFacts map[string]interface{}) error {
 		pipeline.HibernationDistance = val
 	}
 	dumpPath, _ := facts[ConfigPipelineDAGPath].(string)
-	err := pipeline.resolve(dumpPath)
+	err := pipeline.resolve(dumpPath, priorityFn)
 	if err != nil {
 		return err
 	}
@@ -926,6 +1000,54 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	return result, nil
 }
 
+func (pipeline *Pipeline) resolveAlternatives(graph *toposort.Graph, nodes []string, itemMap map[string]PipelineItem,
+	priorityFn DependencyPriorityFunc, excludes map[string]struct{}) {
+	dataKeys := make(map[string][]string, len(nodes))
+	for _, node := range nodes {
+		childList := strings.Builder{}
+		for _, child := range graph.FindChildren(node) {
+			if graph.HasChildren(child) {
+				if childList.Len() != 0 {
+					childList.WriteString(",")
+				}
+				childList.WriteString(child)
+			}
+		}
+
+		item := itemMap[node]
+		key := strings.Join(item.Requires(), ",") + " => " + childList.String()
+		dataKeys[key] = append(dataKeys[key], node)
+	}
+
+	items := make([]PipelineItem, 0, len(nodes))
+	for _, altNodes := range dataKeys {
+		if len(altNodes) < 2 {
+			continue
+		}
+		items = items[:0]
+		for _, node := range altNodes {
+			items = append(items, itemMap[node])
+		}
+		pItem := priorityFn(items)
+		pNode := ""
+		if pItem != nil {
+			for _, node := range altNodes {
+				if pItem == itemMap[node] {
+					if pNode != "" {
+						panic("unexpected")
+					}
+					pNode = node
+				} else {
+					excludes[node] = struct{}{}
+				}
+			}
+		}
+		if pNode == "" {
+			panic("unexpected")
+		}
+	}
+}
+
 // LoadCommitsFromFile reads the file by the specified FS path and generates the sequence of commits
 // by interpreting each line as a Git commit hash.
 func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Commit, error) {
@@ -936,7 +1058,7 @@ func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Com
 		if err != nil {
 			return nil, err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	} else {
 		file = os.Stdin
 	}
@@ -944,9 +1066,6 @@ func LoadCommitsFromFile(path string, repository *git.Repository) ([]*object.Com
 	var commits []*object.Commit
 	for scanner.Scan() {
 		hash := plumbing.NewHash(scanner.Text())
-		if len(hash) != 20 {
-			return nil, errors.New("invalid commit hash " + scanner.Text())
-		}
 		commit, err := repository.CommitObject(hash)
 		if err != nil {
 			return nil, err

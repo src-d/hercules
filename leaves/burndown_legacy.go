@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cyraxred/hercules/internal/burndown"
+	"github.com/cyraxred/hercules/internal/join"
 	"github.com/cyraxred/hercules/internal/linehistory"
 	"io"
 	"io/ioutil"
@@ -591,8 +592,8 @@ func (analyser *LegacyBurndownAnalysis) MergeResults(
 	} else {
 		merged.granularity = bar2.granularity
 	}
-	var people map[string]identity.MergedIndex
-	people, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
+	var people map[string]join.JoinedIndex
+	people, merged.reversedPeopleDict = join.PeopleIdentities(
 		bar1.reversedPeopleDict, bar2.reversedPeopleDict)
 	var wg sync.WaitGroup
 	var sem = make(chan int, 5) // with large files not limiting number of GoRoutines eats 200G of RAM on large merges

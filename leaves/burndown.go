@@ -2,6 +2,7 @@ package leaves
 
 import (
 	"fmt"
+	"github.com/cyraxred/hercules/internal/join"
 	"github.com/cyraxred/hercules/internal/linehistory"
 	"io"
 	"sort"
@@ -178,7 +179,7 @@ func (analyser *BurndownAnalysis) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(analyser, n)
 }
 
-func (analyser *BurndownAnalysis) Merge(branches []core.PipelineItem) {
+func (analyser *BurndownAnalysis) Merge([]core.PipelineItem) {
 	//for _, branch := range branches {
 	//	clone := branch.(*BurndownAnalysis)
 	//	for id, fileHistory := range clone.fileHistories
@@ -455,8 +456,8 @@ func (analyser *BurndownAnalysis) MergeResults(
 	} else {
 		merged.granularity = bar2.granularity
 	}
-	var people map[string]identity.MergedIndex
-	people, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
+	var people map[string]join.JoinedIndex
+	people, merged.reversedPeopleDict = join.PeopleIdentities(
 		bar1.reversedPeopleDict, bar2.reversedPeopleDict)
 	var wg sync.WaitGroup
 	var sem = make(chan int, 5) // with large files not limiting number of GoRoutines eats 200G of RAM on large merges
@@ -693,5 +694,5 @@ func (analyser *BurndownAnalysis) groupSparseHistory(
 }
 
 func init() {
-	core.Registry.Register(&BurndownAnalysis{})
+	core.Registry.RegisterPreferred(&BurndownAnalysis{}, true)
 }

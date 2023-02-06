@@ -12,10 +12,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Detector determines the author of a commit. Same person can commit under different
+// PeopleDetector determines the author of a commit. Same person can commit under different
 // signatures, and we apply some heuristics to merge those together.
 // It is a PipelineItem.
-type Detector struct {
+type PeopleDetector struct {
 	core.NoopMerger
 	// PeopleDict maps email || name  -> developer id
 	PeopleDict map[string]int
@@ -30,42 +30,39 @@ type Detector struct {
 
 const (
 	// FactIdentityDetectorReversedPeopleDict is the name of the fact which is inserted in
-	// Detector.Configure(). It corresponds to Detector.ReversedPeopleDict -
+	// PeopleDetector.Configure(). It corresponds to PeopleDetector.ReversedPeopleDict -
 	// the mapping from the author indices to the main signature.
 	FactIdentityDetectorReversedPeopleDict = "IdentityDetector.ReversedPeopleDict"
 	// ConfigIdentityDetectorPeopleDictPath is the name of the configuration option
-	// (Detector.Configure()) which allows to set the external PeopleDict mapping from a file.
-	ConfigIdentityDetectorPeopleDictPath = "IdentityDetector.PeopleDictPath"
+	// (PeopleDetector.Configure()) which allows to set the external PeopleDict mapping from a file.
+	ConfigIdentityDetectorPeopleDictPath = "PeopleDetector.PeopleDictPath"
 	// ConfigIdentityDetectorExactSignatures is the name of the configuration option
-	// (Detector.Configure()) which changes the matching algorithm to exact signature (name + email)
+	// (PeopleDetector.Configure()) which changes the matching algorithm to exact signature (name + email)
 	// correspondence.
-	ConfigIdentityDetectorExactSignatures = "IdentityDetector.ExactSignatures"
-
-	// DependencyAuthor is the name of the dependency provided by Detector.
-	DependencyAuthor = "author"
+	ConfigIdentityDetectorExactSignatures = "PeopleDetector.ExactSignatures"
 )
 
-var _ core.IdentityResolver = Resolver{}
+var _ core.IdentityResolver = peopleResolver{}
 
-type Resolver struct {
-	identities *Detector // TODO should be an interface
+type peopleResolver struct {
+	identities *PeopleDetector
 }
 
-func (v Resolver) Count() int {
+func (v peopleResolver) Count() int {
 	if v.identities == nil {
 		return 0
 	}
 	return len(v.identities.ReversedPeopleDict)
 }
 
-func (v Resolver) FriendlyNameOf(id core.AuthorId) string {
+func (v peopleResolver) FriendlyNameOf(id core.AuthorId) string {
 	if id == core.AuthorMissing || id < 0 || v.identities == nil || int(id) >= len(v.identities.ReversedPeopleDict) {
 		return core.AuthorMissingName
 	}
 	return v.identities.ReversedPeopleDict[id]
 }
 
-func (v Resolver) FindIdOf(name string) core.AuthorId {
+func (v peopleResolver) FindIdOf(name string) core.AuthorId {
 	if v.identities != nil {
 		if id, ok := v.identities.PeopleDict[name]; ok {
 			return core.AuthorId(id)
@@ -74,7 +71,7 @@ func (v Resolver) FindIdOf(name string) core.AuthorId {
 	return core.AuthorId(-1)
 }
 
-func (v Resolver) ForEachIdentity(callback func(core.AuthorId, string)) bool {
+func (v peopleResolver) ForEachIdentity(callback func(core.AuthorId, string)) bool {
 	if v.identities == nil {
 		return false
 	}
@@ -84,31 +81,31 @@ func (v Resolver) ForEachIdentity(callback func(core.AuthorId, string)) bool {
 	return true
 }
 
-func (v Resolver) CopyFriendlyNames() []string {
+func (v peopleResolver) CopyFriendlyNames() []string {
 	return append([]string(nil), v.identities.ReversedPeopleDict...)
 }
 
 // Name of this PipelineItem. Uniquely identifies the type, used for mapping keys, etc.
-func (detector *Detector) Name() string {
-	return "IdentityDetector"
+func (detector *PeopleDetector) Name() string {
+	return "PeopleDetector"
 }
 
 // Provides returns the list of names of entities which are produced by this PipelineItem.
 // Each produced entity will be inserted into `deps` of dependent Consume()-s according
 // to this list. Also used by core.Registry to build the global map of providers.
-func (detector *Detector) Provides() []string {
+func (detector *PeopleDetector) Provides() []string {
 	return []string{DependencyAuthor}
 }
 
 // Requires returns the list of names of entities which are needed by this PipelineItem.
 // Each requested entity will be inserted into `deps` of Consume(). In turn, those
 // entities are Provides() upstream.
-func (detector *Detector) Requires() []string {
+func (detector *PeopleDetector) Requires() []string {
 	return []string{}
 }
 
 // ListConfigurationOptions returns the list of changeable public properties of this PipelineItem.
-func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption {
+func (detector *PeopleDetector) ListConfigurationOptions() []core.ConfigurationOption {
 	options := [...]core.ConfigurationOption{{
 		Name:        ConfigIdentityDetectorPeopleDictPath,
 		Description: "Path to the file with developer -> name|email associations.",
@@ -126,7 +123,7 @@ func (detector *Detector) ListConfigurationOptions() []core.ConfigurationOption 
 }
 
 // Configure sets the properties previously published by ListConfigurationOptions().
-func (detector *Detector) Configure(facts map[string]interface{}) error {
+func (detector *PeopleDetector) Configure(facts map[string]interface{}) error {
 	if l, exists := facts[core.ConfigLogger].(core.Logger); exists {
 		detector.l = l
 	} else {
@@ -151,7 +148,7 @@ func (detector *Detector) Configure(facts map[string]interface{}) error {
 
 	if detector.ReversedPeopleDict == nil {
 		if _, exists := facts[core.ConfigPipelineCommits]; !exists {
-			panic("IdentityDetector needs a list of commits to initialize.")
+			panic("PeopleDetector needs a list of commits to initialize.")
 		}
 		detector.GeneratePeopleDict(facts[core.ConfigPipelineCommits].([]*object.Commit))
 	}
@@ -164,18 +161,18 @@ func (detector *Detector) Configure(facts map[string]interface{}) error {
 		}
 	}
 
-	var resolver core.IdentityResolver = Resolver{detector}
+	var resolver core.IdentityResolver = peopleResolver{detector}
 	facts[core.FactIdentityResolver] = resolver
 	return nil
 }
 
-func (*Detector) ConfigureUpstream(facts map[string]interface{}) error {
+func (*PeopleDetector) ConfigureUpstream(facts map[string]interface{}) error {
 	return nil
 }
 
 // Initialize resets the temporary caches and prepares this PipelineItem for a series of Consume()
 // calls. The repository which is going to be analysed is supplied as an argument.
-func (detector *Detector) Initialize(repository *git.Repository) error {
+func (detector *PeopleDetector) Initialize(repository *git.Repository) error {
 	detector.l = core.NewLogger()
 	return nil
 }
@@ -185,7 +182,7 @@ func (detector *Detector) Initialize(repository *git.Repository) error {
 // Additionally, DependencyCommit is always present there and represents the analysed *object.Commit.
 // This function returns the mapping with analysis results. The keys must be the same as
 // in Provides(). If there was an error, nil is returned.
-func (detector *Detector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
+func (detector *PeopleDetector) Consume(deps map[string]interface{}) (map[string]interface{}, error) {
 	commit := deps[core.DependencyCommit].(*object.Commit)
 	var authorID int
 	var exists bool
@@ -205,14 +202,14 @@ func (detector *Detector) Consume(deps map[string]interface{}) (map[string]inter
 }
 
 // Fork clones this PipelineItem.
-func (detector *Detector) Fork(n int) []core.PipelineItem {
+func (detector *PeopleDetector) Fork(n int) []core.PipelineItem {
 	return core.ForkSamePipelineItem(detector, n)
 }
 
 // LoadPeopleDict loads author signatures from a text file.
 // The format is one signature per line, and the signature consists of several
 // keys separated by "|". The first key is the main one and used to reference all the rest.
-func (detector *Detector) LoadPeopleDict(path string) error {
+func (detector *PeopleDetector) LoadPeopleDict(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -243,7 +240,7 @@ func (detector *Detector) LoadPeopleDict(path string) error {
 }
 
 // GeneratePeopleDict loads author signatures from the specified list of Git commits.
-func (detector *Detector) GeneratePeopleDict(commits []*object.Commit) {
+func (detector *PeopleDetector) GeneratePeopleDict(commits []*object.Commit) {
 	dict := map[string]int{}
 	emails := map[int][]string{}
 	names := map[int][]string{}
@@ -353,192 +350,6 @@ func (detector *Detector) GeneratePeopleDict(commits []*object.Commit) {
 	detector.ReversedPeopleDict = reverseDict
 }
 
-// MergedIndex is the result of merging `rd1[First]` and `rd2[Second]`: the index in the final reversed
-// dictionary. -1 for `First` or `Second` means that the corresponding string does not exist
-// in respectively `rd1` and `rd2`.
-// See also:
-// * MergeReversedDictsLiteral()
-// * MergeReversedDictsIdentities()
-type MergedIndex struct {
-	Final  int
-	First  int
-	Second int
-}
-
-// MergeReversedDictsLiteral joins two string lists together, excluding duplicates, in-order.
-// The string comparisons are the usual ones.
-// The returned mapping's keys are the unique strings in `rd1 ∪ rd2`, and the values are:
-// 1. Index after merging.
-// 2. Corresponding index in the first array - `rd1`. -1 means that it does not exist.
-// 3. Corresponding index in the second array - `rd2`. -1 means that it does not exist.
-func MergeReversedDictsLiteral(rd1, rd2 []string) (map[string]MergedIndex, []string) {
-
-	people := map[string]MergedIndex{}
-	for i, pid := range rd1 {
-		people[pid] = MergedIndex{len(people), i, -1}
-	}
-	for i, pid := range rd2 {
-		if ptrs, exists := people[pid]; !exists {
-			people[pid] = MergedIndex{len(people), -1, i}
-		} else {
-			people[pid] = MergedIndex{ptrs.Final, ptrs.First, i}
-		}
-	}
-	mrd := make([]string, len(people))
-	for name, ptrs := range people {
-		mrd[ptrs.Final] = name
-	}
-	return people, mrd
-}
-
-type identityPair struct {
-	Index1 int
-	Index2 int
-}
-
-// MergeReversedDictsIdentities joins two identity lists together, excluding duplicates.
-// The strings are split by "|" and we find the connected components..
-// The returned mapping's keys are the unique strings in `rd1 ∪ rd2`, and the values are:
-// 1. Index after merging.
-// 2. Corresponding index in the first array - `rd1`. -1 means that it does not exist.
-// 3. Corresponding index in the second array - `rd2`. -1 means that it does not exist.
-func MergeReversedDictsIdentities(rd1, rd2 []string) (map[string]MergedIndex, []string) {
-
-	vocabulary := map[string]identityPair{}
-	vertices1 := make([][]string, len(rd1))
-	for i, s := range rd1 {
-		parts := strings.Split(s, "|")
-		vertices1[i] = parts
-		for _, p := range parts {
-			vocabulary[p] = identityPair{i, -1}
-		}
-	}
-	vertices2 := make([][]string, len(rd2))
-	for i, s := range rd2 {
-		parts := strings.Split(s, "|")
-		vertices2[i] = parts
-		for _, p := range parts {
-			if ip, exists := vocabulary[p]; !exists {
-				vocabulary[p] = identityPair{-1, i}
-			} else {
-				ip.Index2 = i
-				vocabulary[p] = ip
-			}
-		}
-	}
-
-	// find the connected components by walking the graph
-	var walks []map[string]bool
-	visited := map[string]bool{}
-
-	walkFromVertex := func(root []string) {
-		walk := map[string]bool{}
-		pending := map[string]bool{}
-		for _, p := range root {
-			pending[p] = true
-		}
-		for len(pending) > 0 {
-			var element string
-			for e := range pending {
-				element = e
-				delete(pending, e)
-				break
-			}
-			if !walk[element] {
-				walk[element] = true
-				ip := vocabulary[element]
-				if ip.Index1 >= 0 {
-					for _, p := range vertices1[ip.Index1] {
-						if !walk[p] {
-							pending[p] = true
-						}
-					}
-				}
-				if ip.Index2 >= 0 {
-					for _, p := range vertices2[ip.Index2] {
-						if !walk[p] {
-							pending[p] = true
-						}
-					}
-				}
-			}
-		}
-		for e := range walk {
-			visited[e] = true
-		}
-		walks = append(walks, walk)
-	}
-
-	for i1 := range rd1 {
-		var skip bool
-		for _, p := range vertices1[i1] {
-			if visited[p] {
-				skip = true
-				break
-			}
-		}
-		if skip {
-			continue
-		}
-		walkFromVertex(vertices1[i1])
-	}
-	for i2 := range rd2 {
-		var skip bool
-		for _, p := range vertices2[i2] {
-			if visited[p] {
-				skip = true
-				break
-			}
-		}
-		if skip {
-			continue
-		}
-		walkFromVertex(vertices2[i2])
-	}
-
-	mergedStrings := make([]string, 0, len(walks))
-	mergedIndex := map[string]MergedIndex{}
-	// convert each walk from strings to indexes
-	for walkIndex, walk := range walks {
-		ids := make([]string, 0, len(walk))
-		for key := range walk {
-			ids = append(ids, key)
-		}
-		// place emails after names
-		sort.Slice(ids, func(i, j int) bool {
-			iid := ids[i]
-			jid := ids[j]
-			iHasAt := strings.ContainsRune(iid, '@')
-			jHasAt := strings.ContainsRune(jid, '@')
-			if iHasAt == jHasAt {
-				return iid < jid
-			}
-			return jHasAt
-		})
-		mergedStrings = append(mergedStrings, strings.Join(ids, "|"))
-		for _, key := range ids {
-			ipair := vocabulary[key]
-			if ipair.Index1 >= 0 {
-				s1 := rd1[ipair.Index1]
-				if mi, exists := mergedIndex[s1]; !exists {
-					mergedIndex[s1] = MergedIndex{walkIndex, ipair.Index1, -1}
-				} else {
-					mergedIndex[s1] = MergedIndex{walkIndex, ipair.Index1, mi.Second}
-				}
-			}
-			if ipair.Index2 >= 0 {
-				s2 := rd2[ipair.Index2]
-				if mi, exists := mergedIndex[s2]; !exists {
-					mergedIndex[s2] = MergedIndex{walkIndex, -1, ipair.Index2}
-				} else {
-					mergedIndex[s2] = MergedIndex{walkIndex, mi.First, ipair.Index2}
-				}
-			}
-		}
-	}
-	return mergedIndex, mergedStrings
-}
-
 func init() {
-	core.Registry.Register(&Detector{})
+	core.Registry.RegisterPreferred(&PeopleDetector{}, true)
 }

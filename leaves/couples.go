@@ -2,6 +2,7 @@ package leaves
 
 import (
 	"fmt"
+	"github.com/cyraxred/hercules/internal/join"
 	"io"
 	"sort"
 
@@ -335,10 +336,10 @@ func (couples *CouplesAnalysis) MergeResults(r1, r2 interface{}, c1, c2 *core.Co
 	cr1 := r1.(CouplesResult)
 	cr2 := r2.(CouplesResult)
 	merged := CouplesResult{}
-	var people, files map[string]identity.MergedIndex
-	people, merged.reversedPeopleDict = identity.MergeReversedDictsIdentities(
+	var people, files map[string]join.JoinedIndex
+	people, merged.reversedPeopleDict = join.PeopleIdentities(
 		cr1.reversedPeopleDict, cr2.reversedPeopleDict)
-	files, merged.Files = identity.MergeReversedDictsLiteral(cr1.Files, cr2.Files)
+	files, merged.Files = join.LiteralIdentities(cr1.Files, cr2.Files)
 	merged.FilesLines = make([]int, len(merged.Files))
 	for i, name := range merged.Files {
 		idxs := files[name]
