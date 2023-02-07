@@ -24,7 +24,6 @@ const (
 type IdentityResolver interface {
 	Count() int
 	FriendlyNameOf(id AuthorId) string
-	FindIdOf(name string) AuthorId
 	ForEachIdentity(callback func(AuthorId, string)) bool
 	CopyFriendlyNames() []string
 }

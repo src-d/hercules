@@ -115,7 +115,6 @@ func TestPeopleDetectorRegistration(t *testing.T) {
 	assert.Len(t, summoned, 1)
 	assert.Equal(t, summoned[0].Name(), "PeopleDetector")
 	summoned = core.Registry.Summon((&PeopleDetector{}).Provides()[0])
-	assert.Len(t, summoned, 1)
 	assert.Equal(t, summoned[0].Name(), "PeopleDetector")
 }
 

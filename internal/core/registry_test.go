@@ -223,7 +223,8 @@ func TestRegistryAddFlags(t *testing.T) {
 		Args:  cobra.MaximumNArgs(0),
 		Run:   func(cmd *cobra.Command, args []string) {},
 	}
-	facts, deployed := reg.AddFlags(testCmd.Flags())
+	facts, deployed, activations := reg.AddFlags(testCmd.Flags())
+	assert.Equal(t, map[string][]string{"test-option": {"Test"}}, activations)
 	assert.Len(t, facts, 7)
 	assert.IsType(t, 0, facts[(&testPipelineItem{}).ListConfigurationOptions()[0].Name])
 	assert.IsType(t, true, facts[(&dummyPipelineItem{}).ListConfigurationOptions()[0].Name])

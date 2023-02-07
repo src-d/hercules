@@ -282,14 +282,19 @@ type Pipeline struct {
 	// execution sequence.
 	items []PipelineItem
 
-	// The collection of parameters to create items.
-	facts map[string]interface{}
-
 	// Feature flags which enable the corresponding items.
 	features map[string]bool
 
+	preparedRun *preparedRun
+
 	// The logger for printing output.
 	l Logger
+}
+
+type preparedRun struct {
+	plan           []runAction
+	commitCount    int
+	mergeHashCount int
 }
 
 const (
@@ -326,6 +331,10 @@ const (
 	DependencyIsMerge = "is_merge"
 	// MessageFinalize is the status text reported before calling LeafPipelineItem.Finalize()-s.
 	MessageFinalize = "finalize"
+
+	DependencyNextMerge = "next_merge"
+	FactMergeHashCount  = "merge_count"
+	FeatureMergeTracks  = "merge_tracks"
 )
 
 // NewPipeline initializes a new instance of Pipeline struct.
@@ -333,20 +342,9 @@ func NewPipeline(repository *git.Repository) *Pipeline {
 	return &Pipeline{
 		repository: repository,
 		items:      []PipelineItem{},
-		facts:      map[string]interface{}{},
 		features:   map[string]bool{},
 		l:          NewLogger(),
 	}
-}
-
-// GetFact returns the value of the fact with the specified name.
-func (pipeline *Pipeline) GetFact(name string) interface{} {
-	return pipeline.facts[name]
-}
-
-// SetFact sets the value of the fact with the specified name.
-func (pipeline *Pipeline) SetFact(name string, value interface{}) {
-	pipeline.facts[name] = value
 }
 
 // GetFeature returns the state of the feature with the specified name (enabled/disabled) and
@@ -736,13 +734,13 @@ func (pipeline *Pipeline) resolve(dumpPath string, priorityFn DependencyPriority
 func (pipeline *Pipeline) Initialize(aFacts map[string]interface{}) error {
 	return pipeline.InitializeExt(aFacts, func(items []PipelineItem) PipelineItem {
 		return items[0]
-	})
+	}, false)
 }
 
 type DependencyPriorityFunc = func(items []PipelineItem) PipelineItem
 
 func (pipeline *Pipeline) InitializeExt(aFacts map[string]interface{},
-	priorityFn DependencyPriorityFunc) error {
+	priorityFn DependencyPriorityFunc, preparePlan bool) error {
 	cleanReturn := false
 	defer func() {
 		if !cleanReturn {
@@ -797,17 +795,33 @@ func (pipeline *Pipeline) InitializeExt(aFacts map[string]interface{},
 			return nil
 		}
 	}
+
+	for _, item := range pipeline.items {
+		if err := item.ConfigureUpstream(facts); err != nil {
+			cleanReturn = true
+			return errors.Wrapf(err, "%s failed to pre-configure", item.Name())
+		}
+	}
+
+	mergeTracks, _ := pipeline.GetFeature(FeatureMergeTracks)
+
+	if preparePlan {
+		if commits, ok := facts[ConfigPipelineCommits].([]*object.Commit); ok {
+			var prepared preparedRun
+			prepared.commitCount = len(commits)
+			prepared.plan, prepared.mergeHashCount = prepareRunPlan(commits, pipeline.HibernationDistance, mergeTracks)
+			facts[FactMergeHashCount] = prepared.mergeHashCount
+		} else {
+			return fmt.Errorf("commits are not available")
+		}
+	} else if mergeTracks {
+		return fmt.Errorf("merge tracks mode is not allowed")
+	}
+
 	for _, item := range pipeline.items {
 		if err := item.Configure(facts); err != nil {
 			cleanReturn = true
 			return errors.Wrapf(err, "%s failed to configure", item.Name())
-		}
-	}
-	for i := len(pipeline.items) - 1; i >= 0; i-- {
-		item := pipeline.items[i]
-		if err := item.ConfigureUpstream(facts); err != nil {
-			cleanReturn = true
-			return errors.Wrapf(err, "%s failed to configure upstream", item.Name())
 		}
 	}
 
@@ -833,6 +847,20 @@ func (pipeline *Pipeline) InitializeExt(aFacts map[string]interface{},
 // Returns the mapping from each LeafPipelineItem to the corresponding analysis result.
 // There is always a "nil" record with CommonAnalysisResult.
 func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]interface{}, error) {
+	plan, _ := prepareRunPlan(commits, pipeline.HibernationDistance, false)
+	return pipeline.runPlan(plan, len(commits), -1)
+}
+
+func (pipeline *Pipeline) RunPreparedPlan() (map[LeafPipelineItem]interface{}, error) {
+	prepared := pipeline.preparedRun
+	pipeline.preparedRun = nil
+	if prepared == nil {
+		return nil, fmt.Errorf("run plan was not prepared")
+	}
+	return pipeline.runPlan(prepared.plan, prepared.commitCount, prepared.mergeHashCount)
+}
+
+func (pipeline *Pipeline) runPlan(plan []runAction, commitCount int, mergeHashCount int) (map[LeafPipelineItem]interface{}, error) {
 	startRunTime := time.Now()
 	cleanReturn := false
 	defer func() {
@@ -847,7 +875,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	if onProgress == nil {
 		onProgress = func(int, int, string) {}
 	}
-	plan := prepareRunPlan(commits, pipeline.HibernationDistance)
+
 	if pipeline.DumpPlan {
 		for _, p := range plan {
 			printAction(p)
@@ -856,6 +884,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 
 	progressSteps := len(plan) + 2
 	branches := map[int][]PipelineItem{}
+
 	// we will need rootClone if there is more than one root branch
 	var rootClone []PipelineItem
 	if !pipeline.DryRun {
@@ -900,6 +929,11 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 				DependencyIndex:   commitIndex,
 				DependencyIsMerge: isMerge(index, step.Commit.Hash),
 			}
+
+			if mergeHashCount >= 0 {
+				state[DependencyNextMerge] = step.NextMerge
+			}
+
 			for _, item := range branches[firstItem] {
 				startTime := time.Now()
 				update, err := item.Consume(state)
@@ -992,7 +1026,7 @@ func (pipeline *Pipeline) Run(commits []*object.Commit) (map[LeafPipelineItem]in
 	result[nil] = &CommonAnalysisResult{
 		BeginTime:      plan[0].Commit.Committer.When.Unix(),
 		EndTime:        newestTime,
-		CommitsNumber:  len(commits),
+		CommitsNumber:  commitCount,
 		RunTime:        time.Since(startRunTime),
 		RunTimePerItem: runTimePerItem,
 	}

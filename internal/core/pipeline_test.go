@@ -248,12 +248,6 @@ func (item *dependingTestPipelineItem) Serialize(result interface{}, binary bool
 	return nil
 }
 
-func TestPipelineFacts(t *testing.T) {
-	pipeline := NewPipeline(test.Repository)
-	pipeline.SetFact("fact", "value")
-	assert.Equal(t, pipeline.GetFact("fact"), "value")
-}
-
 func TestPipelineFeatures(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
 	pipeline.SetFeature("feat")
@@ -276,8 +270,6 @@ func TestPipelineFeatures(t *testing.T) {
 
 func TestPipelineErrors(t *testing.T) {
 	pipeline := NewPipeline(test.Repository)
-	pipeline.SetFact("fact", "value")
-	assert.Equal(t, pipeline.GetFact("fact"), "value")
 	item := &testPipelineItem{}
 	pipeline.AddItem(item)
 	item.ConfigureRaises = true
@@ -683,7 +675,7 @@ func TestPrepareRunPlanTiny(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := prepareRunPlan([]*object.Commit{rootCommit}, 0)
+	plan, _ := prepareRunPlan([]*object.Commit{rootCommit}, 0, false)
 	assert.Len(t, plan, 2)
 	assert.Equal(t, runActionEmerge, plan[0].Action)
 	assert.Equal(t, rootBranchIndex, plan[0].Items[0])
@@ -710,7 +702,7 @@ func TestPrepareRunPlanSmall(t *testing.T) {
 		}
 		return nil
 	})
-	plan := prepareRunPlan(commits, 0)
+	plan, _ := prepareRunPlan(commits, 0, false)
 	/*for _, p := range plan {
 		if p.Commit != nil {
 			fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
@@ -838,7 +830,7 @@ func TestPrepareRunPlanBig(t *testing.T) {
 				}
 				return nil
 			})
-			plan := prepareRunPlan(commits, 0)
+			plan, _ := prepareRunPlan(commits, 0, false)
 			/*for _, p := range plan {
 				if p.Commit != nil {
 					fmt.Println(p.Action, p.Commit.Hash.String(), p.Items)
